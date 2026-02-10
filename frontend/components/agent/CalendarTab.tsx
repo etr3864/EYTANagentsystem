@@ -90,6 +90,16 @@ function ReminderRuleEditor({
   onDelete: () => void;
   agentId: number;
 }) {
+  // Local state for text fields to avoid API calls on every keystroke
+  const [localTemplate, setLocalTemplate] = useState(rule.template || '');
+  const [localAiPrompt, setLocalAiPrompt] = useState(rule.ai_prompt || '');
+  
+  // Sync local state when rule changes from parent
+  useEffect(() => {
+    setLocalTemplate(rule.template || '');
+    setLocalAiPrompt(rule.ai_prompt || '');
+  }, [rule.template, rule.ai_prompt]);
+  
   const [showTest, setShowTest] = useState(false);
   const [testPhone, setTestPhone] = useState('');
   const [sending, setSending] = useState(false);
@@ -174,8 +184,9 @@ function ReminderRuleEditor({
           <div>
             <Textarea
               label="תבנית הודעה"
-              value={rule.template || ''}
-              onChange={(e) => onChange({ ...rule, template: e.target.value })}
+              value={localTemplate}
+              onChange={(e) => setLocalTemplate(e.target.value)}
+              onBlur={() => onChange({ ...rule, template: localTemplate })}
               rows={3}
               placeholder="שלום {customer_name}, תזכורת לפגישה..."
               className="text-sm"
@@ -189,8 +200,9 @@ function ReminderRuleEditor({
           <div>
             <Textarea
               label="הנחיות ל-AI"
-              value={rule.ai_prompt || ''}
-              onChange={(e) => onChange({ ...rule, ai_prompt: e.target.value })}
+              value={localAiPrompt}
+              onChange={(e) => setLocalAiPrompt(e.target.value)}
+              onBlur={() => onChange({ ...rule, ai_prompt: localAiPrompt })}
               rows={2}
               placeholder="כתוב תזכורת חמה וידידותית..."
               className="text-sm"
