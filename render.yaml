@@ -14,11 +14,9 @@ services:
     region: frankfurt  # קרוב לישראל
     healthCheckPath: /health
     envVars:
-      # Database - מתחבר ל-Render PostgreSQL
+      # Database - להזין ידנית (Internal URL מה-PostgreSQL שיצרת)
       - key: DATABASE_URL
-        fromDatabase:
-          name: whatsapp-db
-          property: connectionString
+        sync: false
       
       # Redis - להזין ידנית (Internal URL מה-Redis שיצרת)
       - key: REDIS_URL
@@ -73,18 +71,12 @@ services:
         value: production
 
 # ===================
-# Databases
+# Notes
 # ===================
-databases:
-  - name: whatsapp-db
-    plan: starter  # PostgreSQL with pgvector
-    region: frankfurt
-    postgresMajorVersion: "16"
-    ipAllowList: []  # Allow all IPs (for development)
-
-# ===================
-# Redis
-# ===================
-  # Note: Redis נוצר כ-service נפרד ב-Render
-  # יש ליצור אותו ידנית ב-Dashboard:
-  # Dashboard → New → Redis → Starter ($10/month)
+# PostgreSQL: יש ליצור ידנית ב-Dashboard:
+#   New → PostgreSQL → בחר plan → Frankfurt
+#   העתק את Internal Database URL ל-DATABASE_URL
+#
+# Redis: יש ליצור ידנית ב-Dashboard:
+#   New → Key Value → Starter → Frankfurt
+#   העתק את Internal URL ל-REDIS_URL
