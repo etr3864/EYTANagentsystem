@@ -25,10 +25,21 @@ const MODEL_GROUPS: ModelGroup[] = [
     ]
   },
   {
+    provider: 'OpenAI',
+    icon: '🤖',
+    models: [
+      { value: 'gpt-5.2-chat-latest', label: 'GPT-5.2', description: 'הכי חזק, הבנה עמוקה' },
+      { value: 'gpt-4o-chat', label: 'GPT-4o', description: 'יציב ואיכותי' },
+      { value: 'gpt-4.1-chat', label: 'GPT-4.1', description: 'חסכוני, volume גבוה' },
+    ]
+  },
+  {
     provider: 'Google',
     icon: '✨',
     models: [
       { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', description: 'מהיר מאוד, זול' },
+      { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', description: 'מאוזן, context ארוך' },
+      { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', description: 'חכם, 2M context' },
     ]
   }
 ];

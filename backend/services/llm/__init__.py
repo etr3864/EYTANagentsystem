@@ -1,6 +1,6 @@
 """LLM Provider factory.
 
-Provides unified access to different LLM providers (Anthropic, Google).
+Provides unified access to different LLM providers (Anthropic, Google, OpenAI).
 """
 from backend.core.config import settings
 from backend.core.logger import log
@@ -10,19 +10,35 @@ from backend.core.logger import log
 _providers: dict = {}
 
 
+def _is_openai_model(model: str) -> bool:
+    """Check if model is an OpenAI model."""
+    return model.startswith(("gpt-", "o1-", "o3-"))
+
+
 def get_provider(model: str):
     """Get the appropriate provider for the model.
     
     Args:
-        model: Model name (e.g., 'gemini-2.0-flash', 'claude-sonnet-4-...')
+        model: Model name (e.g., 'gpt-5.2-chat-latest', 'gemini-2.0-flash', 'claude-...')
     
     Returns:
-        Provider instance (AnthropicProvider or GeminiProvider)
+        Provider instance (AnthropicProvider, GeminiProvider, or OpenAIProvider)
     
     Raises:
-        ValueError: If Gemini is requested but not configured
+        ValueError: If provider is requested but not configured
     """
-    if model.startswith("gemini"):
+    if _is_openai_model(model):
+        if not settings.openai_api_key:
+            raise ValueError("OPENAI_API_KEY not configured. Cannot use OpenAI models.")
+        
+        if "openai" not in _providers:
+            from .openai_provider import OpenAIProvider
+            _providers["openai"] = OpenAIProvider(settings.openai_api_key)
+            log("LLM_INIT", provider="openai")
+        
+        return _providers["openai"]
+    
+    elif model.startswith("gemini"):
         if not settings.google_api_key:
             raise ValueError("GOOGLE_API_KEY not configured. Cannot use Gemini models.")
         
