@@ -1,0 +1,93 @@
+# Render Blueprint - WhatsApp AI Agents
+# https://render.com/docs/blueprint-spec
+
+services:
+  # ===================
+  # Backend API (FastAPI)
+  # ===================
+  - type: web
+    name: whatsapp-backend
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: standard  # $25/month - מספיק ל-200+ agents
+    region: frankfurt  # קרוב לישראל
+    healthCheckPath: /health
+    envVars:
+      # Database - מתחבר ל-Render PostgreSQL
+      - key: DATABASE_URL
+        fromDatabase:
+          name: whatsapp-db
+          property: connectionString
+      
+      # Redis - מתחבר ל-Render Redis
+      - key: REDIS_URL
+        fromService:
+          name: whatsapp-redis
+          type: redis
+          property: connectionString
+      
+      # API Keys - להזין ב-Dashboard
+      - key: ANTHROPIC_API_KEY
+        sync: false  # יוזן ידנית
+      - key: OPENAI_API_KEY
+        sync: false
+      
+      # Google OAuth (Calendar)
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_CREDENTIALS_JSON
+        sync: false
+      - key: OAUTH_REDIRECT_BASE
+        sync: false  # יהיה https://whatsapp-backend.onrender.com
+      
+      # Cloudflare R2 Storage
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        value: whatsapp-media
+      - key: R2_PUBLIC_URL
+        sync: false
+      
+      # CORS - Frontend URL
+      - key: CORS_ORIGINS
+        value: https://whatsapp-frontend.onrender.com,http://localhost:3000
+
+  # ===================
+  # Frontend (Next.js)
+  # ===================
+  - type: web
+    name: whatsapp-frontend
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    plan: starter  # $7/month
+    region: frankfurt
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://whatsapp-backend.onrender.com
+      - key: NODE_ENV
+        value: production
+
+# ===================
+# Databases
+# ===================
+databases:
+  - name: whatsapp-db
+    plan: standard  # $20/month - PostgreSQL with pgvector
+    region: frankfurt
+    postgresMajorVersion: "16"
+    # pgvector נתמך אוטומטית ב-Render PostgreSQL
+
+# ===================
+# Redis
+# ===================
+  # Note: Redis נוצר כ-service נפרד ב-Render
+  # יש ליצור אותו ידנית ב-Dashboard:
+  # Dashboard → New → Redis → Starter ($10/month)
