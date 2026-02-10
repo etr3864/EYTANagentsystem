@@ -11,6 +11,7 @@ interface KnowledgeTabProps {
   onDeleteDocument: (id: number) => Promise<void>;
   onUploadTable: (file: File, name: string, onProgress: (p: number) => void) => Promise<void>;
   onDeleteTable: (id: number) => Promise<void>;
+  canUpload?: boolean;
 }
 
 type Section = 'documents' | 'tables';
@@ -18,7 +19,8 @@ type Section = 'documents' | 'tables';
 export function KnowledgeTab({
   documents, tables,
   onUploadDocument, onDeleteDocument,
-  onUploadTable, onDeleteTable
+  onUploadTable, onDeleteTable,
+  canUpload = true
 }: KnowledgeTabProps) {
   const [section, setSection] = useState<Section>('documents');
   const [uploading, setUploading] = useState(false);
@@ -165,31 +167,35 @@ export function KnowledgeTab({
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-medium text-white">מסמכים</h3>
-              <div>
-                <input
-                  ref={docInputRef}
-                  type="file"
-                  accept=".pdf,.docx,.doc"
-                  onChange={handleDocumentUpload}
-                  disabled={uploading}
-                  className="hidden"
-                />
-                <Button 
-                  variant="primary" 
-                  size="sm" 
-                  onClick={() => docInputRef.current?.click()}
-                  disabled={uploading}
-                >
-                  + העלה מסמך
-                </Button>
-              </div>
+              {canUpload && (
+                <div>
+                  <input
+                    ref={docInputRef}
+                    type="file"
+                    accept=".pdf,.docx,.doc"
+                    onChange={handleDocumentUpload}
+                    disabled={uploading}
+                    className="hidden"
+                  />
+                  <Button 
+                    variant="primary" 
+                    size="sm" 
+                    onClick={() => docInputRef.current?.click()}
+                    disabled={uploading}
+                  >
+                    + העלה מסמך
+                  </Button>
+                </div>
+              )}
             </div>
 
-            <div className="text-xs text-slate-400 bg-slate-800/30 rounded-lg p-3">
-              📎 פורמטים נתמכים: PDF, DOCX
-              <br />
-              המסמכים יחולקו לחלקים ויאונדקסו לחיפוש סמנטי
-            </div>
+            {canUpload && (
+              <div className="text-xs text-slate-400 bg-slate-800/30 rounded-lg p-3">
+                📎 פורמטים נתמכים: PDF, DOCX
+                <br />
+                המסמכים יחולקו לחלקים ויאונדקסו לחיפוש סמנטי
+              </div>
+            )}
 
             {documents.length === 0 ? (
               <div className="text-center py-8 text-slate-400">
@@ -227,38 +233,42 @@ export function KnowledgeTab({
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-medium text-white">טבלאות נתונים</h3>
-              <div className="flex gap-2 items-center">
-                <input
-                  type="text"
-                  value={tableName}
-                  onChange={(e) => setTableName(e.target.value)}
-                  placeholder="שם הטבלה"
-                  className="px-3 py-1.5 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 text-sm w-32"
-                />
-                <input
-                  ref={tableInputRef}
-                  type="file"
-                  accept=".csv"
-                  onChange={handleTableUpload}
-                  disabled={uploading}
-                  className="hidden"
-                />
-                <Button 
-                  variant="primary" 
-                  size="sm" 
-                  onClick={() => tableInputRef.current?.click()}
-                  disabled={uploading}
-                >
-                  + העלה CSV
-                </Button>
-              </div>
+              {canUpload && (
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="text"
+                    value={tableName}
+                    onChange={(e) => setTableName(e.target.value)}
+                    placeholder="שם הטבלה"
+                    className="px-3 py-1.5 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 text-sm w-32"
+                  />
+                  <input
+                    ref={tableInputRef}
+                    type="file"
+                    accept=".csv"
+                    onChange={handleTableUpload}
+                    disabled={uploading}
+                    className="hidden"
+                  />
+                  <Button 
+                    variant="primary" 
+                    size="sm" 
+                    onClick={() => tableInputRef.current?.click()}
+                    disabled={uploading}
+                  >
+                    + העלה CSV
+                  </Button>
+                </div>
+              )}
             </div>
 
-            <div className="text-xs text-slate-400 bg-slate-800/30 rounded-lg p-3">
-              📊 העלה קבצי CSV עם מוצרים, שירותים או נתונים אחרים
-              <br />
-              הסוכן יוכל לחפש ולבצע שאילתות על הנתונים
-            </div>
+            {canUpload && (
+              <div className="text-xs text-slate-400 bg-slate-800/30 rounded-lg p-3">
+                📊 העלה קבצי CSV עם מוצרים, שירותים או נתונים אחרים
+                <br />
+                הסוכן יוכל לחפש ולבצע שאילתות על הנתונים
+              </div>
+            )}
 
             {tables.length === 0 ? (
               <div className="text-center py-8 text-slate-400">

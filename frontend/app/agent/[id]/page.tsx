@@ -1,11 +1,14 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 import { Button, Card } from '@/components/ui';
 import { PromptTab, SettingsTab, ConversationsTab, KnowledgeTab, CalendarTab, SummaryTab, MediaTab } from '@/components/agent';
+import { AuthGuard } from '@/components/auth/AuthGuard';
+import { useAuth } from '@/contexts/AuthContext';
+import { isSuperAdmin, isAdmin, isEmployee } from '@/lib/auth';
 import { 
   getAgent, updateAgent, getConversations, getMessages, deleteConversation, 
   sendMessage, pauseConversation, resumeConversation,
@@ -18,23 +21,44 @@ import type { Agent, AgentBatchingConfig, Conversation, Message, Document, DataT
 
 type Tab = 'prompt' | 'conversations' | 'knowledge' | 'media' | 'calendar' | 'summaries' | 'settings';
 
-const tabs: { id: Tab; label: string; icon: string }[] = [
-  { id: 'prompt', label: 'System Prompt', icon: '🎯' },
-  { id: 'conversations', label: 'שיחות', icon: '💬' },
-  { id: 'knowledge', label: 'מאגר מידע', icon: '📚' },
-  { id: 'media', label: 'מדיה', icon: '📸' },
-  { id: 'calendar', label: 'יומן', icon: '📅' },
-  { id: 'summaries', label: 'סיכומים', icon: '📝' },
-  { id: 'settings', label: 'הגדרות', icon: '⚙️' },
+interface TabConfig {
+  id: Tab;
+  label: string;
+  icon: string;
+  roles: ('super_admin' | 'admin' | 'employee')[];
+}
+
+const allTabs: TabConfig[] = [
+  { id: 'prompt', label: 'System Prompt', icon: '🎯', roles: ['super_admin'] },
+  { id: 'conversations', label: 'שיחות', icon: '💬', roles: ['super_admin', 'admin', 'employee'] },
+  { id: 'knowledge', label: 'מאגר מידע', icon: '📚', roles: ['super_admin', 'admin'] },
+  { id: 'media', label: 'מדיה', icon: '📸', roles: ['super_admin', 'admin'] },
+  { id: 'calendar', label: 'יומן', icon: '📅', roles: ['super_admin'] },
+  { id: 'summaries', label: 'סיכומים', icon: '📝', roles: ['super_admin'] },
+  { id: 'settings', label: 'הגדרות', icon: '⚙️', roles: ['super_admin'] },
 ];
 
-export default function AgentPage() {
+function AgentPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { user } = useAuth();
   const [agent, setAgent] = useState<Agent | null>(null);
-  const [tab, setTab] = useState<Tab>('prompt');
   const [loading, setLoading] = useState(true);
+  
+  // Filter tabs based on user role
+  const visibleTabs = useMemo(() => {
+    if (!user) return [];
+    return allTabs.filter(t => t.roles.includes(user.role));
+  }, [user]);
+  
+  // Default tab based on role
+  const defaultTab = useMemo(() => {
+    if (isSuperAdmin(user)) return 'prompt';
+    return 'conversations';
+  }, [user]);
+  
+  const [tab, setTab] = useState<Tab>(defaultTab);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -75,8 +99,11 @@ export default function AgentPage() {
     
     // Check for tab parameter from OAuth redirect
     const urlTab = searchParams.get('tab') as Tab | null;
-    if (urlTab && tabs.some(t => t.id === urlTab)) {
+    if (urlTab && visibleTabs.some(t => t.id === urlTab)) {
       setTab(urlTab);
+    } else if (visibleTabs.length > 0 && !visibleTabs.some(t => t.id === tab)) {
+      // If current tab is not visible, switch to first visible tab
+      setTab(visibleTabs[0].id);
     }
     
     // If URL has conv parameter, load conversations to find it
@@ -84,7 +111,7 @@ export default function AgentPage() {
     if (urlPhone) {
       loadConversations();
     }
-  }, [agentId]);
+  }, [agentId, visibleTabs]);
 
   // Poll messages every 3 seconds when a conversation is selected
   useEffect(() => {
@@ -448,7 +475,7 @@ export default function AgentPage() {
       <div className="border-b border-slate-800">
         <div className="max-w-5xl mx-auto px-6">
           <nav className="flex gap-1">
-            {tabs.map(t => (
+            {visibleTabs.map(t => (
               <button
                 key={t.id}
                 onClick={() => handleTabChange(t.id)}
@@ -501,6 +528,7 @@ export default function AgentPage() {
               onDeleteDocument={handleDeleteDocument}
               onUploadTable={handleUploadTable}
               onDeleteTable={handleDeleteTable}
+              canUpload={isSuperAdmin(user)}
             />
           )}
 
@@ -514,6 +542,9 @@ export default function AgentPage() {
               onConfigChange={setMediaConfig}
               onSaveConfig={handleSaveMediaConfig}
               saving={saving}
+              canUpload={isSuperAdmin(user)}
+              canEdit={isSuperAdmin(user) || isAdmin(user)}
+              canShowConfig={isSuperAdmin(user)}
             />
           )}
 
@@ -565,5 +596,13 @@ function ArrowRightIcon() {
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
     </svg>
+  );
+}
+
+export default function AgentPageWrapper() {
+  return (
+    <AuthGuard>
+      <AgentPage />
+    </AuthGuard>
   );
 }

@@ -21,14 +21,13 @@ def init_extensions():
     with engine.connect() as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         
-        # Create UserRole enum if not exists (values match UserRole.value)
+        # Create UserRole enum if not exists - check first to avoid race condition
         conn.execute(text("""
-            DO $$ BEGIN
-                CREATE TYPE userrole AS ENUM ('super_admin', 'admin', 'employee');
-            EXCEPTION
-                WHEN duplicate_object THEN 
-                    -- Type exists, might need to add values or handle mismatch
-                    null;
+            DO $$ 
+            BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'userrole') THEN
+                    CREATE TYPE userrole AS ENUM ('super_admin', 'admin', 'employee');
+                END IF;
             END $$;
         """))
         

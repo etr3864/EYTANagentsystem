@@ -22,6 +22,9 @@ interface MediaTabProps {
   onConfigChange: (config: MediaConfig) => void;
   onSaveConfig: () => Promise<void>;
   saving: boolean;
+  canUpload?: boolean;
+  canEdit?: boolean;
+  canShowConfig?: boolean;
 }
 
 interface MediaUploadInput {
@@ -51,7 +54,10 @@ const DEFAULT_CONFIG: MediaConfig = {
 export function MediaTab({
   media, mediaConfig,
   onUpload, onUpdate, onDelete,
-  onConfigChange, onSaveConfig, saving
+  onConfigChange, onSaveConfig, saving,
+  canUpload = true,
+  canEdit = true,
+  canShowConfig = true
 }: MediaTabProps) {
   const [section, setSection] = useState<Section>('images');
   const [uploading, setUploading] = useState(false);
@@ -312,20 +318,24 @@ export function MediaTab({
               >
                 🔗
               </a>
-              <button
-                onClick={() => startEdit(item)}
-                className="text-slate-500 hover:text-blue-400 transition-colors p-1"
-                title="ערוך"
-              >
-                ✏️
-              </button>
-              <button
-                onClick={() => handleDelete(item.id, item.name)}
-                className="text-slate-500 hover:text-red-400 transition-colors p-1"
-                title="מחק"
-              >
-                🗑️
-              </button>
+              {canEdit && (
+                <button
+                  onClick={() => startEdit(item)}
+                  className="text-slate-500 hover:text-blue-400 transition-colors p-1"
+                  title="ערוך"
+                >
+                  ✏️
+                </button>
+              )}
+              {canEdit && (
+                <button
+                  onClick={() => handleDelete(item.id, item.name)}
+                  className="text-slate-500 hover:text-red-400 transition-colors p-1"
+                  title="מחק"
+                >
+                  🗑️
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -338,10 +348,10 @@ export function MediaTab({
       {/* Section Tabs */}
       <div className="flex gap-2">
         {[
-          { id: 'images' as Section, label: '🖼️ תמונות', count: images.length },
-          { id: 'videos' as Section, label: '🎬 סרטונים', count: videos.length },
-          { id: 'settings' as Section, label: '⚙️ הגדרות', count: null },
-        ].map(tab => (
+          { id: 'images' as Section, label: '🖼️ תמונות', count: images.length, show: true },
+          { id: 'videos' as Section, label: '🎬 סרטונים', count: videos.length, show: true },
+          { id: 'settings' as Section, label: '⚙️ הגדרות', count: null, show: canShowConfig },
+        ].filter(tab => tab.show).map(tab => (
           <button
             key={tab.id}
             onClick={() => setSection(tab.id)}
@@ -407,32 +417,36 @@ export function MediaTab({
           <div className="space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <h3 className="font-medium text-white">תמונות</h3>
-              <div className="flex gap-2 items-center">
-                <input
-                  ref={imageInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png"
-                  multiple
-                  onChange={(e) => handleFileSelect(e, 'image')}
-                  disabled={uploading}
-                  className="hidden"
-                />
-                <Button 
-                  variant="primary" 
-                  size="sm" 
-                  onClick={() => imageInputRef.current?.click()}
-                  disabled={uploading}
-                >
-                  + העלה תמונות
-                </Button>
-              </div>
+              {canUpload && (
+                <div className="flex gap-2 items-center">
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png"
+                    multiple
+                    onChange={(e) => handleFileSelect(e, 'image')}
+                    disabled={uploading}
+                    className="hidden"
+                  />
+                  <Button 
+                    variant="primary" 
+                    size="sm" 
+                    onClick={() => imageInputRef.current?.click()}
+                    disabled={uploading}
+                  >
+                    + העלה תמונות
+                  </Button>
+                </div>
+              )}
             </div>
 
-            <div className="text-xs text-slate-400 bg-slate-800/30 rounded-lg p-3">
-              🖼️ פורמטים: JPG, PNG (דחיסה אוטומטית אם מעל 1MB)
-              <br />
-              🤖 שם, תיאור וכיתוב נוצרים אוטומטית בעזרת AI. לחץ על ✏️ לעריכה
-            </div>
+            {canUpload && (
+              <div className="text-xs text-slate-400 bg-slate-800/30 rounded-lg p-3">
+                🖼️ פורמטים: JPG, PNG (דחיסה אוטומטית אם מעל 1MB)
+                <br />
+                🤖 שם, תיאור וכיתוב נוצרים אוטומטית בעזרת AI. לחץ על ✏️ לעריכה
+              </div>
+            )}
 
             {images.length === 0 ? (
               <div className="text-center py-8 text-slate-400">
@@ -452,32 +466,36 @@ export function MediaTab({
           <div className="space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <h3 className="font-medium text-white">סרטונים</h3>
-              <div className="flex gap-2 items-center">
-                <input
-                  ref={videoInputRef}
-                  type="file"
-                  accept="video/mp4"
-                  multiple
-                  onChange={(e) => handleFileSelect(e, 'video')}
-                  disabled={uploading}
-                  className="hidden"
-                />
-                <Button 
-                  variant="primary" 
-                  size="sm" 
-                  onClick={() => videoInputRef.current?.click()}
-                  disabled={uploading}
-                >
-                  + העלה סרטונים
-                </Button>
-              </div>
+              {canUpload && (
+                <div className="flex gap-2 items-center">
+                  <input
+                    ref={videoInputRef}
+                    type="file"
+                    accept="video/mp4"
+                    multiple
+                    onChange={(e) => handleFileSelect(e, 'video')}
+                    disabled={uploading}
+                    className="hidden"
+                  />
+                  <Button 
+                    variant="primary" 
+                    size="sm" 
+                    onClick={() => videoInputRef.current?.click()}
+                    disabled={uploading}
+                  >
+                    + העלה סרטונים
+                  </Button>
+                </div>
+              )}
             </div>
 
-            <div className="text-xs text-slate-400 bg-slate-800/30 rounded-lg p-3">
-              🎬 פורמט: MP4 (עד 16MB לסרטון)
-              <br />
-              ניתן לבחור מספר סרטונים בבת אחת. לחץ על ✏️ להוספת תיאור לחיפוש סמנטי
-            </div>
+            {canUpload && (
+              <div className="text-xs text-slate-400 bg-slate-800/30 rounded-lg p-3">
+                🎬 פורמט: MP4 (עד 16MB לסרטון)
+                <br />
+                ניתן לבחור מספר סרטונים בבת אחת. לחץ על ✏️ להוספת תיאור לחיפוש סמנטי
+              </div>
+            )}
 
             {videos.length === 0 ? (
               <div className="text-center py-8 text-slate-400">

@@ -204,23 +204,25 @@ function HomePage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    {/* Toggle Switch */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleToggleActive(agent.id, agent.is_active);
-                      }}
-                      className={`
-                        relative w-12 h-6 rounded-full transition-colors duration-200
-                        ${agent.is_active ? 'bg-emerald-500' : 'bg-slate-600'}
-                      `}
-                      title={agent.is_active ? 'לחץ להשבתה' : 'לחץ להפעלה'}
-                    >
-                      <span className={`
-                        absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200
-                        ${agent.is_active ? 'right-1' : 'left-1'}
-                      `} />
-                    </button>
+                    {/* Toggle Switch - Super Admin only */}
+                    {isSuperAdmin(user) && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleActive(agent.id, agent.is_active);
+                        }}
+                        className={`
+                          relative w-12 h-6 rounded-full transition-colors duration-200
+                          ${agent.is_active ? 'bg-emerald-500' : 'bg-slate-600'}
+                        `}
+                        title={agent.is_active ? 'לחץ להשבתה' : 'לחץ להפעלה'}
+                      >
+                        <span className={`
+                          absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200
+                          ${agent.is_active ? 'right-1' : 'left-1'}
+                        `} />
+                      </button>
+                    )}
 
                     <Link href={`/agent/${agent.id}`}>
                       <Button variant="primary" size="sm">
