@@ -28,10 +28,9 @@ def get_by_agent(db: Session, agent_id: int) -> list[Conversation]:
 
 
 def delete(db: Session, conversation_id: int) -> bool:
+    """Delete conversation and its messages."""
     from backend.models.message import Message
-    from sqlalchemy import text
     
-    db.execute(text("DELETE FROM usage_logs WHERE conversation_id = :cid"), {"cid": conversation_id})
     db.query(Message).filter(Message.conversation_id == conversation_id).delete()
     conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
     if conv:

@@ -94,15 +94,15 @@ class GeminiProvider:
             if isinstance(content, str):
                 gemini_contents.append(types.Content(
                     role=role,
-                    parts=[types.Part.from_text(content)]
+                    parts=[types.Part(text=content)]
                 ))
             elif isinstance(content, list):
                 parts = []
                 for block in content:
                     if isinstance(block, str):
-                        parts.append(types.Part.from_text(block))
+                        parts.append(types.Part(text=block))
                     elif isinstance(block, dict) and block.get("type") == "text":
-                        parts.append(types.Part.from_text(block["text"]))
+                        parts.append(types.Part(text=block["text"]))
                     # Skip images - they stay with Claude
                 if parts:
                     gemini_contents.append(types.Content(role=role, parts=parts))
@@ -111,15 +111,15 @@ class GeminiProvider:
         if isinstance(user_content, str):
             gemini_contents.append(types.Content(
                 role="user",
-                parts=[types.Part.from_text(user_content)]
+                parts=[types.Part(text=user_content)]
             ))
         elif isinstance(user_content, list):
             parts = []
             for block in user_content:
                 if isinstance(block, str):
-                    parts.append(types.Part.from_text(block))
+                    parts.append(types.Part(text=block))
                 elif isinstance(block, dict) and block.get("type") == "text":
-                    parts.append(types.Part.from_text(block["text"]))
+                    parts.append(types.Part(text=block["text"]))
             if parts:
                 gemini_contents.append(types.Content(role="user", parts=parts))
         
@@ -186,9 +186,11 @@ class GeminiProvider:
                 else:
                     result = str(result_data["result"]) if not isinstance(result_data["result"], str) else result_data["result"]
                 
-                response_parts.append(types.Part.from_function_response(
-                    name=call["name"],
-                    response={"result": result}
+                response_parts.append(types.Part(
+                    function_response=types.FunctionResponse(
+                        name=call["name"],
+                        response={"result": result}
+                    )
                 ))
             
             gemini_contents.append(types.Content(role="user", parts=response_parts))
