@@ -90,9 +90,14 @@ class AdminListResponse(BaseModel):
     total: int
 
 
+class EmployeeWithParentResponse(UserResponse):
+    """Employee with parent admin info."""
+    parent_name: Optional[str] = None
+
+
 class EmployeeListResponse(BaseModel):
     """List of employees."""
-    employees: list[UserResponse]
+    employees: list[EmployeeWithParentResponse]
     total: int
 
 

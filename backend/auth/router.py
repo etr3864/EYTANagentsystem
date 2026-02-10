@@ -28,6 +28,7 @@ from .schemas import (
     UserWithAgentsResponse,
     AdminListResponse,
     EmployeeListResponse,
+    EmployeeWithParentResponse,
     MessageResponse,
 )
 
@@ -333,26 +334,35 @@ def list_employees(
 ):
     """List employees (admin sees their own, super admin sees all)."""
     if current_user.role == UserRole.SUPER_ADMIN:
-        # Super admin can specify admin_id as query param (not implemented yet)
+        # Super admin sees all employees with parent name
         employees = db.query(AuthUser).filter(
             AuthUser.role == UserRole.EMPLOYEE
         ).all()
+        
+        employee_responses = []
+        for e in employees:
+            resp = EmployeeWithParentResponse.model_validate(e)
+            # Add parent name
+            if e.parent:
+                resp.parent_name = e.parent.name
+            employee_responses.append(resp)
     else:
         employees = service.list_employees(db, current_user.id)
+        employee_responses = [EmployeeWithParentResponse.model_validate(e) for e in employees]
     
     return EmployeeListResponse(
-        employees=[UserResponse.model_validate(e) for e in employees],
-        total=len(employees)
+        employees=employee_responses,
+        total=len(employee_responses)
     )
 
 
 @router.post("/employees", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def create_employee(
     request: CreateEmployeeRequest,
-    current_user: AuthUser = Depends(require_role(UserRole.ADMIN)),
+    current_user: AuthUser = Depends(require_role(UserRole.SUPER_ADMIN, UserRole.ADMIN)),
     db: Session = Depends(get_db)
 ):
-    """Create a new employee under the current admin."""
+    """Create a new employee under the current admin/super admin."""
     if service.email_exists(db, request.email):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

@@ -408,6 +408,7 @@ export interface AuthUserResponse {
   is_active: boolean;
   created_at: string;
   parent_id?: number;
+  parent_name?: string;  // For employees - shows their admin's name
 }
 
 export interface AuthUserWithAgents extends AuthUserResponse {

@@ -251,6 +251,11 @@ function UsersPage() {
                         <div className="flex items-center gap-2">
                           <span className={`status-dot ${empItem.is_active ? 'active' : 'inactive'}`} />
                           <span className="text-lg font-semibold text-white">{empItem.name}</span>
+                          {isSuperAdmin(user) && empItem.parent_name && (
+                            <span className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-300">
+                              עובד של {empItem.parent_name}
+                            </span>
+                          )}
                         </div>
                         <div className="text-sm text-slate-400">{empItem.email}</div>
                       </div>
