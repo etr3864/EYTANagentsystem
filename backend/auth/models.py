@@ -4,7 +4,8 @@ Auth models - system users (not WhatsApp contacts).
 import enum
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
-from sqlalchemy import String, Boolean, DateTime, Enum, ForeignKey, Index
+from sqlalchemy import String, Boolean, DateTime, ForeignKey, Index
+from sqlalchemy.dialects.postgresql import ENUM as PgEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.core.database import Base
 
@@ -30,7 +31,10 @@ class AuthUser(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     name: Mapped[str] = mapped_column(String(100))
-    role: Mapped[UserRole] = mapped_column(Enum(UserRole), default=UserRole.EMPLOYEE)
+    role: Mapped[UserRole] = mapped_column(
+        PgEnum(UserRole, name='userrole', create_type=False),
+        default=UserRole.EMPLOYEE
+    )
     
     # Employee -> Admin relationship (null for super_admin and admin)
     parent_id: Mapped[Optional[int]] = mapped_column(

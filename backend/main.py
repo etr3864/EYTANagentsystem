@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
-from backend.core.database import engine, Base, init_extensions, SessionLocal
+from backend.core.database import engine, Base, init_extensions, run_migrations, SessionLocal
 from backend.core.logger import log, log_error
 from backend.api.routers import agents_router, users_router, conversations_router, database_router, webhook_router, knowledge_router, webhook_wasender_router, calendar_router, summaries_router, media_router
 from backend.auth import auth_router
@@ -17,6 +17,7 @@ from backend.services import scheduler
 async def lifespan(app: FastAPI):
     init_extensions()
     Base.metadata.create_all(bind=engine)
+    run_migrations()
     
     # Start the reminder scheduler as a background task
     scheduler_task = asyncio.create_task(scheduler.start_scheduler())

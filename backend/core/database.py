@@ -17,9 +17,41 @@ class Base(DeclarativeBase):
 
 
 def init_extensions():
-    """Initialize required PostgreSQL extensions."""
+    """Initialize required PostgreSQL extensions and types."""
     with engine.connect() as conn:
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        
+        # Create UserRole enum if not exists (values match UserRole.value)
+        conn.execute(text("""
+            DO $$ BEGIN
+                CREATE TYPE userrole AS ENUM ('super_admin', 'admin', 'employee');
+            EXCEPTION
+                WHEN duplicate_object THEN 
+                    -- Type exists, might need to add values or handle mismatch
+                    null;
+            END $$;
+        """))
+        
+        conn.commit()
+
+
+def run_migrations():
+    """Run any pending schema migrations."""
+    with engine.connect() as conn:
+        # Add owner_id to agents if not exists
+        conn.execute(text("""
+            DO $$ BEGIN
+                ALTER TABLE agents ADD COLUMN owner_id INTEGER REFERENCES auth_users(id) ON DELETE RESTRICT;
+            EXCEPTION
+                WHEN duplicate_column THEN null;
+            END $$;
+        """))
+        
+        # Create index if not exists
+        conn.execute(text("""
+            CREATE INDEX IF NOT EXISTS ix_agents_owner_id ON agents(owner_id);
+        """))
+        
         conn.commit()
 
 
