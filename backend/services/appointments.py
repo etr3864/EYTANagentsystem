@@ -115,15 +115,17 @@ def _is_slot_available(
     tz: ZoneInfo
 ) -> bool:
     """Check if a slot conflicts with any busy time (including buffer)."""
+    from backend.core.timezone import UTC
+    
     for busy_start, busy_end in busy_times:
         # Add buffer around busy times
         busy_start_buffered = busy_start - timedelta(minutes=buffer)
         busy_end_buffered = busy_end + timedelta(minutes=buffer)
         
-        # Ensure timezone awareness
+        # Ensure timezone awareness - DB stores UTC as naive datetime
         if busy_start.tzinfo is None:
-            busy_start_buffered = busy_start_buffered.replace(tzinfo=tz)
-            busy_end_buffered = busy_end_buffered.replace(tzinfo=tz)
+            busy_start_buffered = busy_start_buffered.replace(tzinfo=UTC)
+            busy_end_buffered = busy_end_buffered.replace(tzinfo=UTC)
         
         # Check overlap
         if not (slot_end <= busy_start_buffered or slot_start >= busy_end_buffered):
@@ -423,8 +425,9 @@ async def send_webhook(agent: Agent, appointment: Appointment, event: str, db: S
         "event": event,
         "appointment": {
             "id": appointment.id,
-            "start_time": appointment.start_time.isoformat(),
-            "end_time": appointment.end_time.isoformat(),
+            # DB stores UTC - add Z suffix for clarity
+            "start_time": f"{appointment.start_time.isoformat()}Z",
+            "end_time": f"{appointment.end_time.isoformat()}Z",
             "duration_minutes": appointment.duration_minutes,
             "title": appointment.title,
             "description": appointment.description,

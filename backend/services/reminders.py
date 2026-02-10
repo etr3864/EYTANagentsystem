@@ -13,7 +13,7 @@ from backend.models.user import User
 from backend.services import providers, conversations, messages
 from backend.core.logger import log, log_error
 from backend.core.enums import ReminderStatus, ReminderContentType
-from backend.core.timezone import get_tz, to_utc, from_utc, now_local
+from backend.core.timezone import get_tz, to_utc, from_utc, now_local, now_utc, UTC
 
 
 # Configuration
@@ -58,14 +58,17 @@ def create_reminders_for_appointment(
     
     for idx, rule in enumerate(config["rules"]):
         minutes_before = rule.get("minutes_before", 60)
-        scheduled_for = appointment.start_time - timedelta(minutes=minutes_before)
         
-        # Ensure timezone awareness
-        if scheduled_for.tzinfo is None:
-            scheduled_for = scheduled_for.replace(tzinfo=tz)
+        # DB stores times in UTC as naive datetime - make it UTC-aware
+        start_time = appointment.start_time
+        if start_time.tzinfo is None:
+            start_time = start_time.replace(tzinfo=UTC)
+        
+        # Calculate reminder time (in UTC)
+        scheduled_for = start_time - timedelta(minutes=minutes_before)
         
         # Skip if reminder time has already passed
-        if scheduled_for <= now:
+        if scheduled_for <= now_utc():
             continue
         
         reminder = ScheduledReminder(

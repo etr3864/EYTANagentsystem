@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from backend.models.agent import Agent
 from backend.services import users, documents, tables, appointments, agent_media
 from backend.core.logger import log, log_tool, log_error
+from backend.core.timezone import from_utc
 
 
 # ============ Tool Handlers ============
@@ -159,18 +160,21 @@ async def _handle_book_appointment(
         return f"שגיאה: {str(e)[:50]}"
 
 
-def _handle_get_my_appointments(db: Session, agent_id: int, user_id: int) -> str:
+def _handle_get_my_appointments(db: Session, agent_id: int, user_id: int, timezone: str = "Asia/Jerusalem") -> str:
     """Get user's upcoming appointments."""
     user_apts = appointments.get_user_appointments(db, agent_id, user_id)
     
     if not user_apts:
         return "אין פגישות קרובות"
     
-    apt_texts = [
-        f"• {apt.title} - {apt.start_time.strftime('%d/%m/%Y')} "
-        f"בשעה {apt.start_time.strftime('%H:%M')} (מזהה: {apt.id})"
-        for apt in user_apts
-    ]
+    apt_texts = []
+    for apt in user_apts:
+        # DB stores UTC - convert to local timezone for display
+        local_time = from_utc(apt.start_time, timezone)
+        apt_texts.append(
+            f"• {apt.title} - {local_time.strftime('%d/%m/%Y')} "
+            f"בשעה {local_time.strftime('%H:%M')} (מזהה: {apt.id})"
+        )
     return "הפגישות שלך:\n" + "\n".join(apt_texts)
 
 
@@ -326,7 +330,7 @@ async def handle_tool_calls(
             result = await _handle_book_appointment(db, agent, user_id, data, config, tz)
         
         elif name == "get_my_appointments":
-            result = _handle_get_my_appointments(db, agent_id, user_id)
+            result = _handle_get_my_appointments(db, agent_id, user_id, config.get("timezone", "Asia/Jerusalem"))
         
         elif name == "cancel_appointment":
             result = await _handle_cancel_appointment(db, agent, user_id, data)

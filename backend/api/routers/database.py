@@ -104,8 +104,9 @@ def list_appointments(db: Session = Depends(get_db)):
             "user_phone": user.phone if user else None,
             "title": apt.title,
             "description": apt.description,
-            "start_time": apt.start_time.isoformat() if apt.start_time else None,
-            "end_time": apt.end_time.isoformat() if apt.end_time else None,
+            # DB stores UTC - add Z suffix so browser converts to local time
+            "start_time": f"{apt.start_time.isoformat()}Z" if apt.start_time else None,
+            "end_time": f"{apt.end_time.isoformat()}Z" if apt.end_time else None,
             "status": apt.status,
             "google_event_id": apt.google_event_id,
         })
