@@ -1,6 +1,10 @@
 import type { Agent, AgentCreate, AgentUpdate, User, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DataTable, Provider, WaSenderConfig, DbMedia, AgentMedia, MediaConfig } from './types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// Production URL or environment variable or localhost for development
+const API_URL = process.env.NEXT_PUBLIC_API_URL 
+  || (typeof window !== 'undefined' && window.location.hostname.includes('onrender.com') 
+      ? 'https://whatsapp-backend-6wwn.onrender.com' 
+      : 'http://localhost:8000');
 
 // ============ Agents ============
 export async function getAgents(): Promise<Agent[]> {
