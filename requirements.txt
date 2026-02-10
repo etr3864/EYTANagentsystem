@@ -21,3 +21,6 @@ python-multipart>=0.0.9
 boto3>=1.35.0
 # Redis for scaling
 redis>=5.0.0
+# Authentication
+PyJWT>=2.8.0
+bcrypt>=4.1.0

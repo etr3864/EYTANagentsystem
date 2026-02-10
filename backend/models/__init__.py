@@ -8,3 +8,6 @@ from backend.models.processed_message import ProcessedMessage
 from backend.models.scheduled_reminder import ScheduledReminder
 from backend.models.conversation_summary import ConversationSummary
 from backend.models.agent_media import AgentMedia
+
+# Auth models (imported last to avoid circular imports)
+from backend.auth.models import AuthUser, UserRole

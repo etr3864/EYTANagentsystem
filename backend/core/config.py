@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     
     # Redis
     redis_url: str = "redis://localhost:6379/0"
+    
+    # JWT Authentication
+    jwt_secret: str = ""  # Must be set in production!
+    jwt_algorithm: str = "HS256"
+    jwt_access_expire_minutes: int = 60
+    jwt_refresh_expire_days: int = 7
 
     model_config = {"env_file": ".env", "extra": "ignore"}
     

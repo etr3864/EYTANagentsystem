@@ -1,9 +1,12 @@
 from datetime import datetime
-from typing import Optional
-from sqlalchemy import String, Text, Boolean, DateTime, JSON
+from typing import Optional, TYPE_CHECKING
+from sqlalchemy import String, Text, Boolean, DateTime, JSON, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.orm.attributes import flag_modified
 from backend.core.database import Base
+
+if TYPE_CHECKING:
+    from backend.auth.models import AuthUser
 
 
 # Default batching config
@@ -20,6 +23,18 @@ class Agent(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
     phone_number_id: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    
+    # Owner (admin) - NULL means unassigned (only super admin can access)
+    owner_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("auth_users.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True
+    )
+    owner: Mapped[Optional["AuthUser"]] = relationship(
+        "AuthUser",
+        back_populates="agents",
+        foreign_keys=[owner_id]
+    )
     access_token: Mapped[str] = mapped_column(Text)
     verify_token: Mapped[str] = mapped_column(String(100))
     system_prompt: Mapped[str] = mapped_column(Text)

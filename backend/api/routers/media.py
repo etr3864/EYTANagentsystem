@@ -6,8 +6,17 @@ from typing import Optional
 
 from backend.core.database import get_db
 from backend.services import agent_media
+from backend.auth.models import AuthUser, UserRole
+from backend.auth.dependencies import get_current_user, require_role
+from backend.auth import service as auth_service
 
 router = APIRouter(prefix="/agents/{agent_id}/media", tags=["media"])
+
+
+def require_agent_access(agent_id: int, user: AuthUser, db: Session):
+    """Check agent access or raise 403."""
+    if not auth_service.can_access_agent(db, user, agent_id):
+        raise HTTPException(status_code=403, detail="Access denied to this agent")
 
 
 class MediaUpdate(BaseModel):
@@ -74,6 +83,7 @@ def _media_to_dict(m) -> dict:
 def list_media(
     agent_id: int,
     media_type: Optional[str] = None,
+    current_user: AuthUser = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """List all media for an agent.
@@ -81,6 +91,7 @@ def list_media(
     Query params:
         media_type: Filter by 'image' or 'video'
     """
+    require_agent_access(agent_id, current_user, db)
     if media_type and media_type not in ("image", "video"):
         raise HTTPException(400, "media_type must be 'image' or 'video'")
     
@@ -98,9 +109,10 @@ async def upload_media(
     default_caption: Optional[str] = Form(None),
     original_size: Optional[int] = Form(None),
     auto_analyze: bool = Form(True),
+    current_user: AuthUser = Depends(require_role(UserRole.SUPER_ADMIN)),
     db: Session = Depends(get_db)
 ):
-    """Upload a media file.
+    """Upload a media file. Super Admin only.
     
     Form fields:
         file: The media file (image/video)
@@ -174,8 +186,14 @@ async def upload_media(
 
 
 @router.get("/{media_id}")
-def get_media(agent_id: int, media_id: int, db: Session = Depends(get_db)):
+def get_media(
+    agent_id: int, 
+    media_id: int, 
+    current_user: AuthUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Get single media item."""
+    require_agent_access(agent_id, current_user, db)
     media = agent_media.get_by_id(db, media_id)
     if not media or media.agent_id != agent_id:
         raise HTTPException(404, "Media not found")
@@ -187,9 +205,11 @@ def update_media(
     agent_id: int,
     media_id: int,
     data: MediaUpdate,
+    current_user: AuthUser = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Update media metadata."""
+    """Update media metadata. Admin can update for their agents."""
+    require_agent_access(agent_id, current_user, db)
     media = agent_media.get_by_id(db, media_id)
     if not media or media.agent_id != agent_id:
         raise HTTPException(404, "Media not found")
@@ -206,8 +226,14 @@ def update_media(
 
 
 @router.delete("/{media_id}")
-def delete_media(agent_id: int, media_id: int, db: Session = Depends(get_db)):
-    """Delete media (from R2 and database)."""
+def delete_media(
+    agent_id: int, 
+    media_id: int, 
+    current_user: AuthUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete media (from R2 and database). Admin can delete for their agents."""
+    require_agent_access(agent_id, current_user, db)
     media = agent_media.get_by_id(db, media_id)
     if not media or media.agent_id != agent_id:
         raise HTTPException(404, "Media not found")
@@ -217,7 +243,13 @@ def delete_media(agent_id: int, media_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/search")
-def search_media(agent_id: int, data: SearchQuery, db: Session = Depends(get_db)):
+def search_media(
+    agent_id: int, 
+    data: SearchQuery, 
+    current_user: AuthUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     """Semantic search for media items."""
+    require_agent_access(agent_id, current_user, db)
     results = agent_media.search(db, agent_id, data.query, data.limit)
     return [_media_to_dict(m) for m in results]

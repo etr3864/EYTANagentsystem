@@ -5,6 +5,9 @@ from backend.core.database import get_db
 from backend.services import agents
 from backend.api.schemas import AgentCreate, AgentUpdate
 from backend.models.agent import Agent, DEFAULT_BATCHING_CONFIG
+from backend.auth.models import AuthUser, UserRole
+from backend.auth.dependencies import get_current_user, require_role, AgentAccessChecker
+from backend.auth import service as auth_service
 
 router = APIRouter(tags=["agents"])
 
@@ -32,12 +35,22 @@ def agent_to_response(a) -> dict:
 
 
 @router.get("")
-def list_agents(db: Session = Depends(get_db)):
-    return [agent_to_response(a) for a in agents.get_all(db)]
+def list_agents(
+    current_user: AuthUser = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """List agents accessible to current user."""
+    accessible_agents = auth_service.get_accessible_agents(db, current_user)
+    return [agent_to_response(a) for a in accessible_agents]
 
 
 @router.get("/{agent_id}")
-def get_agent(agent_id: int, db: Session = Depends(get_db)):
+def get_agent(
+    agent_id: int, 
+    current_user: AuthUser = Depends(AgentAccessChecker()),
+    db: Session = Depends(get_db)
+):
+    """Get a specific agent (must have access)."""
     agent = agents.get_by_id(db, agent_id)
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
@@ -45,7 +58,12 @@ def get_agent(agent_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("")
-def create_agent(data: AgentCreate, db: Session = Depends(get_db)):
+def create_agent(
+    data: AgentCreate, 
+    current_user: AuthUser = Depends(require_role(UserRole.SUPER_ADMIN)),
+    db: Session = Depends(get_db)
+):
+    """Create a new agent (Super Admin only)."""
     agent = agents.create(
         db=db,
         name=data.name,
@@ -62,7 +80,13 @@ def create_agent(data: AgentCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{agent_id}")
-def update_agent(agent_id: int, data: AgentUpdate, db: Session = Depends(get_db)):
+def update_agent(
+    agent_id: int, 
+    data: AgentUpdate, 
+    current_user: AuthUser = Depends(require_role(UserRole.SUPER_ADMIN)),
+    db: Session = Depends(get_db)
+):
+    """Update an agent (Super Admin only)."""
     update_data = {}
     
     for field in ['name', 'phone_number_id', 'access_token', 'verify_token', 'system_prompt', 'appointment_prompt', 'model', 'is_active', 'provider', 'provider_config', 'media_config']:
@@ -80,14 +104,24 @@ def update_agent(agent_id: int, data: AgentUpdate, db: Session = Depends(get_db)
 
 
 @router.delete("/{agent_id}")
-def delete_agent(agent_id: int, db: Session = Depends(get_db)):
+def delete_agent(
+    agent_id: int, 
+    current_user: AuthUser = Depends(require_role(UserRole.SUPER_ADMIN)),
+    db: Session = Depends(get_db)
+):
+    """Delete an agent (Super Admin only)."""
     if not agents.delete(db, agent_id):
         raise HTTPException(status_code=404, detail="Agent not found")
     return {"status": "deleted"}
 
 
 @router.get("/{agent_id}/conversations")
-def list_agent_conversations(agent_id: int, db: Session = Depends(get_db)):
+def list_agent_conversations(
+    agent_id: int, 
+    current_user: AuthUser = Depends(AgentAccessChecker()),
+    db: Session = Depends(get_db)
+):
+    """List conversations for an agent (must have access)."""
     from backend.services import conversations
     from backend.models.user import User
     
