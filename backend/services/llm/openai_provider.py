@@ -105,7 +105,7 @@ class OpenAIProvider:
             model=model,
             messages=messages,
             tools=self._tools,
-            max_tokens=1024
+            max_completion_tokens=1024
         )
         
         # Track usage
@@ -171,7 +171,7 @@ class OpenAIProvider:
                 model=model,
                 messages=messages,
                 tools=self._tools,
-                max_tokens=1024
+                max_completion_tokens=1024
             )
             
             # Update usage
