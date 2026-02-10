@@ -4,10 +4,10 @@ from backend.core.config import settings
 
 engine = create_engine(
     settings.database_url,
-    pool_size=50,           # Increased for high agent count
-    max_overflow=100,       # Allows burst to 150 total connections
+    pool_size=20,           # Base pool (Render Standard allows 97 total)
+    max_overflow=30,        # Allows burst to 50 total connections
     pool_pre_ping=True,     # Check connection health before use
-    pool_recycle=1800,      # Recycle connections after 30 min
+    pool_recycle=300,       # Recycle connections every 5 min (cloud DB best practice)
 )
 SessionLocal = sessionmaker(bind=engine)
 
