@@ -77,11 +77,10 @@ services:
 # ===================
 databases:
   - name: whatsapp-db
-    plan: basic  # PostgreSQL with pgvector
+    plan: starter  # PostgreSQL with pgvector
     region: frankfurt
     postgresMajorVersion: "16"
     ipAllowList: []  # Allow all IPs (for development)
-    # pgvector נתמך אוטומטית ב-Render PostgreSQL
 
 # ===================
 # Redis
