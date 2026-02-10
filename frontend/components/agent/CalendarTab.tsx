@@ -179,6 +179,7 @@ function ReminderRuleEditor({
               rows={3}
               placeholder="שלום {customer_name}, תזכורת לפגישה..."
               className="text-sm"
+              dir="rtl"
             />
             <p className="text-xs text-slate-500 mt-1">
               משתנים זמינים: {'{customer_name}'}, {'{title}'}, {'{date}'}, {'{time}'}, {'{day}'}, {'{duration}'}, {'{agent_name}'}
@@ -193,9 +194,10 @@ function ReminderRuleEditor({
               rows={2}
               placeholder="כתוב תזכורת חמה וידידותית..."
               className="text-sm"
+              dir="rtl"
             />
             <p className="text-xs text-slate-500 mt-1">
-              ה-AI יקבל את פרטי הפגישה וינסח תזכורת לפי ההנחיות
+              ה-AI יקבל את פרטי הפגישה, אישיות הסוכן והשיחה האחרונה - וינסח תזכורת מותאמת
             </p>
           </div>
         )}

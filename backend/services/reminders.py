@@ -143,24 +143,63 @@ def _build_from_template(template: str, variables: dict) -> str:
         return template
 
 
-async def _build_from_ai(ai_prompt: str, variables: dict, fallback_template: str) -> str:
-    """Build content using AI generation with fallback."""
+async def _build_from_ai(
+    ai_prompt: str, 
+    variables: dict, 
+    fallback_template: str,
+    agent_personality: str = "",
+    conversation_history: str = ""
+) -> str:
+    """Build content using AI generation with fallback.
+    
+    Args:
+        ai_prompt: Custom instructions from user
+        variables: Template variables (customer_name, date, etc.)
+        fallback_template: Template to use if AI fails
+        agent_personality: First part of agent's system prompt (optional)
+        conversation_history: Recent messages with customer (optional)
+    """
     if not ai_prompt:
         return _build_from_template(fallback_template, variables)
     
-    context = f"""צור הודעת תזכורת לפגישה עבור הלקוח.
-
-פרטי הפגישה:
-- כותרת: {variables['title']}
-- תאריך: {variables['date']} (יום {variables['day']})
-- שעה: {variables['time']}
-- משך: {variables['duration']} דקות
-- שם הלקוח: {variables['customer_name']}
-- שם העסק: {variables['agent_name']}
-
-הנחיות: {ai_prompt}
-
-כתוב הודעה קצרה וידידותית. אל תוסיף כותרת או סיומת - רק את ההודעה עצמה."""
+    # Build context with all available info
+    context_parts = [
+        "צור הודעת תזכורת לפגישה עבור הלקוח.",
+        "",
+        "פרטי הפגישה:",
+        f"- כותרת: {variables['title']}",
+        f"- תאריך: {variables['date']} (יום {variables['day']})",
+        f"- שעה: {variables['time']}",
+        f"- משך: {variables['duration']} דקות",
+        f"- שם הלקוח: {variables['customer_name']}",
+        f"- שם העסק: {variables['agent_name']}",
+    ]
+    
+    # Add agent personality if available
+    if agent_personality:
+        context_parts.extend([
+            "",
+            "אישיות הסוכן/העסק:",
+            agent_personality,
+        ])
+    
+    # Add conversation history if available
+    if conversation_history:
+        context_parts.extend([
+            "",
+            "הודעות אחרונות מהשיחה עם הלקוח:",
+            conversation_history,
+        ])
+    
+    context_parts.extend([
+        "",
+        f"הנחיות: {ai_prompt}",
+        "",
+        "כתוב הודעה קצרה וידידותית בהתאם לאישיות הסוכן ולהיסטוריית השיחה.",
+        "אל תוסיף כותרת או סיומת - רק את ההודעה עצמה.",
+    ])
+    
+    context = "\n".join(context_parts)
     
     try:
         from backend.services.ai import generate_simple_response
@@ -170,18 +209,74 @@ async def _build_from_ai(ai_prompt: str, variables: dict, fallback_template: str
         return _build_from_template(fallback_template, variables)
 
 
+def _get_conversation_context(db: Session, agent_id: int, user_id: int, limit: int = 10) -> str:
+    """Get recent conversation history with the customer."""
+    conv = conversations.get_by_agent_and_user(db, agent_id, user_id)
+    if not conv:
+        return ""
+    
+    recent = messages.get_by_conversation(db, conv.id, limit=limit)
+    if not recent:
+        return ""
+    
+    # Format messages (oldest first for context)
+    lines = []
+    for msg in reversed(recent):
+        role = "לקוח" if msg.role == "user" else "סוכן"
+        # Truncate long messages
+        content = msg.content[:150] + "..." if len(msg.content) > 150 else msg.content
+        lines.append(f"{role}: {content}")
+    
+    return "\n".join(lines)
+
+
+def _get_agent_personality(agent: Agent, max_chars: int = 500) -> str:
+    """Extract agent personality from system prompt."""
+    if not agent.system_prompt:
+        return ""
+    
+    # Take first part of system prompt (the personality/character)
+    prompt = agent.system_prompt.strip()
+    if len(prompt) <= max_chars:
+        return prompt
+    
+    # Try to cut at sentence boundary
+    cut = prompt[:max_chars]
+    last_period = cut.rfind(".")
+    if last_period > max_chars // 2:
+        return cut[:last_period + 1]
+    
+    return cut + "..."
+
+
 async def build_reminder_content(
+    db: Session,
     reminder: ScheduledReminder,
     appointment: Appointment,
     agent: Agent,
     user: User
 ) -> str:
-    """Build the reminder message content."""
+    """Build the reminder message content.
+    
+    For AI-generated content, includes:
+    - Agent personality (from system prompt)
+    - Recent conversation history (last 10 messages)
+    """
     variables = _build_template_variables(appointment, agent, user)
     template = reminder.template or DEFAULT_TEMPLATE
     
     if reminder.content_type == ReminderContentType.AI:
-        return await _build_from_ai(reminder.ai_prompt, variables, template)
+        # Get additional context for better AI generation
+        agent_personality = _get_agent_personality(agent)
+        conversation_history = _get_conversation_context(db, agent.id, user.id)
+        
+        return await _build_from_ai(
+            reminder.ai_prompt, 
+            variables, 
+            template,
+            agent_personality,
+            conversation_history
+        )
     
     return _build_from_template(template, variables)
 
@@ -241,7 +336,7 @@ async def send_reminder(db: Session, reminder: ScheduledReminder) -> bool:
         return False
     
     # Build content
-    content = await build_reminder_content(reminder, appointment, agent, user)
+    content = await build_reminder_content(db, reminder, appointment, agent, user)
     
     # Send to customer via WhatsApp
     success, err = await _send_to_customer(agent, user, content, db)

@@ -224,7 +224,7 @@ async def send_test_reminder(
     from datetime import datetime, timedelta
     from zoneinfo import ZoneInfo
     from backend.services import providers
-    from backend.services.reminders import get_reminder_config, _build_from_template, _build_from_ai, DEFAULT_TEMPLATE
+    from backend.services.reminders import get_reminder_config, _build_from_template, _build_from_ai, _get_agent_personality, DEFAULT_TEMPLATE
     
     agent = agents.get_by_id(db, agent_id)
     if not agent:
@@ -268,7 +268,8 @@ async def send_test_reminder(
     
     if content_type == "ai":
         ai_prompt = rule.get("ai_prompt", "")
-        content = await _build_from_ai(ai_prompt, variables, template)
+        agent_personality = _get_agent_personality(agent)
+        content = await _build_from_ai(ai_prompt, variables, template, agent_personality, "")
     else:
         content = _build_from_template(template, variables)
     
