@@ -75,7 +75,11 @@ export default function LoginPage() {
       <div className="max-w-md w-full">
         {/* Logo/Title */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">WhatsApp Agents</h1>
+          <img 
+            src="https://res.cloudinary.com/daowx6msw/image/upload/v1763910407/white_logoggfdsdfgdfsgds_bdqrww.png" 
+            alt="WhatsApp Agents"
+            className="h-16 mx-auto mb-4"
+          />
           <p className="text-gray-400">התחברות למערכת</p>
         </div>
 
