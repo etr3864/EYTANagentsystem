@@ -20,12 +20,9 @@ services:
           name: whatsapp-db
           property: connectionString
       
-      # Redis - מתחבר ל-Render Redis
+      # Redis - להזין ידנית (Internal URL מה-Redis שיצרת)
       - key: REDIS_URL
-        fromService:
-          name: whatsapp-redis
-          type: redis
-          property: connectionString
+        sync: false
       
       # API Keys - להזין ב-Dashboard
       - key: ANTHROPIC_API_KEY
@@ -80,9 +77,10 @@ services:
 # ===================
 databases:
   - name: whatsapp-db
-    plan: standard  # $20/month - PostgreSQL with pgvector
+    plan: basic  # PostgreSQL with pgvector
     region: frankfurt
     postgresMajorVersion: "16"
+    ipAllowList: []  # Allow all IPs (for development)
     # pgvector נתמך אוטומטית ב-Render PostgreSQL
 
 # ===================
