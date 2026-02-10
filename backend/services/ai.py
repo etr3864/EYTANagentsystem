@@ -1,17 +1,20 @@
-"""AI service - Claude API integration."""
-import anthropic
+"""AI service - Multi-provider LLM integration.
+
+Supports:
+- Anthropic Claude (default, includes image understanding)
+- Google Gemini (text only, no image input)
+"""
 from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
-from backend.core.config import settings
 from backend.core.logger import log_error
-from backend.core.ai_config import USER_TOOLS, SYSTEM_SUFFIX
+from backend.core.ai_config import SYSTEM_SUFFIX
+from backend.services.llm import get_provider
+from backend.services.llm.types import LLMResponse
 
 if TYPE_CHECKING:
     from backend.services.message_buffer import PendingMessage
-
-_client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
 
 # Max media items to inject directly into prompt (above this, use search_media tool)
 MAX_MEDIA_IN_PROMPT = 15
@@ -116,35 +119,13 @@ def build_system_prompt(
 
 
 async def describe_image(image_base64: str, media_type: str = "image/jpeg") -> str:
-    """Get short Hebrew description of image for DB storage."""
+    """Get short Hebrew description of image for DB storage.
+    
+    Always uses Claude (Anthropic) for image understanding.
+    """
     try:
-        response = await _client.messages.create(
-            model="claude-3-5-haiku-20241022",  # Fast and cheap for descriptions
-            max_tokens=150,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": media_type,
-                            "data": image_base64
-                        }
-                    },
-                    {
-                        "type": "text",
-                        "text": "תאר את התמונה הזו בקצרה במשפט אחד בעברית."
-                    }
-                ]
-            }]
-        )
-        
-        for block in response.content:
-            if block.type == "text":
-                return block.text.strip()
-        
-        return "תמונה"
+        provider = get_provider("claude")  # Force Claude for images
+        return await provider.describe_image(image_base64, media_type)
     except Exception as e:
         log_error("image_describe", str(e)[:50])
         return "תמונה"
@@ -153,70 +134,23 @@ async def describe_image(image_base64: str, media_type: str = "image/jpeg") -> s
 async def analyze_media_image(image_base64: str, media_type: str = "image/jpeg") -> dict:
     """Analyze image and generate name, description, and caption for media library.
     
+    Always uses Claude (Anthropic) for image understanding.
+    
     Returns dict with:
         - name: Short name (2-4 words) for the image
         - description: Detailed description for semantic search
         - caption: Short natural caption for WhatsApp
     """
-    prompt = """אתה מנתח תמונות עבור ספריית מדיה של עסק.
-נתח את התמונה וצור:
-
-1. **name** - שם קצר וממוקד (2-4 מילים בעברית)
-   דוגמאות: "לוגו החברה", "תמונת מוצר אדום", "צוות העובדים"
-
-2. **description** - תיאור מפורט לחיפוש (30-60 מילים בעברית)
-   כלול: מה בתמונה, צבעים, אובייקטים, טקסט שמופיע, סגנון, מיקום
-   התיאור ישמש סוכן AI למצוא את התמונה הנכונה לשלוח ללקוח
-
-3. **caption** - כיתוב קצר וטבעי לשליחה בWhatsApp (עד 15 מילים)
-   משהו שסוכן ישלח עם התמונה, למשל: "הנה הלוגו שלנו!" או "צפה במוצר החדש"
-
-החזר תשובה בפורמט JSON בלבד:
-{"name": "...", "description": "...", "caption": "..."}"""
-
     try:
-        response = await _client.messages.create(
-            model="claude-3-5-haiku-20241022",
-            max_tokens=500,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": media_type,
-                            "data": image_base64
-                        }
-                    },
-                    {
-                        "type": "text",
-                        "text": prompt
-                    }
-                ]
-            }]
-        )
-        
-        for block in response.content:
-            if block.type == "text":
-                import json
-                text = block.text.strip()
-                # Handle potential markdown code blocks
-                if text.startswith("```"):
-                    text = text.split("```")[1]
-                    if text.startswith("json"):
-                        text = text[4:]
-                    text = text.strip()
-                return json.loads(text)
-        
-        return {"name": "תמונה", "description": "", "caption": ""}
+        provider = get_provider("claude")  # Force Claude for images
+        return await provider.analyze_media_image(image_base64, media_type)
     except Exception as e:
         log_error("image_analyze", str(e)[:50])
         return {"name": "תמונה", "description": "", "caption": ""}
 
 
 def build_user_content(pending_messages: list["PendingMessage"]) -> list[dict]:
-    """Build Claude API content blocks from pending messages."""
+    """Build content blocks from pending messages (Anthropic format)."""
     content_blocks = []
     
     for msg in pending_messages:
@@ -243,6 +177,13 @@ def build_user_content(pending_messages: list["PendingMessage"]) -> list[dict]:
     return content_blocks
 
 
+def _contains_images(pending_messages: list["PendingMessage"] | None) -> bool:
+    """Check if pending messages contain images."""
+    if not pending_messages:
+        return False
+    return any(msg.msg_type == "image" and msg.image_base64 for msg in pending_messages)
+
+
 async def get_response(
     model: str, 
     system_prompt: str, 
@@ -259,22 +200,25 @@ async def get_response(
 ) -> tuple[str, list[dict], dict, list[dict]]:
     """Get AI response with tool support.
     
+    Automatically selects the appropriate provider based on model name.
+    Forces Claude for image inputs (Gemini image support not implemented).
+    
     Returns:
         tuple: (response_text, tool_calls, usage_data, media_actions)
         - media_actions: List of dicts with action='send_media' for media to send
     """
-    import asyncio
+    # Force Claude if input contains images
+    actual_model = model
+    if _contains_images(pending_messages) and model.startswith("gemini"):
+        actual_model = "claude-sonnet-4-20250514"  # Fallback to Claude for images
     
-    clean_history = [{"role": m["role"], "content": m["content"]} for m in history]
-    
+    # Build user content
     if pending_messages:
         user_content = build_user_content(pending_messages)
     else:
         user_content = user_message
     
-    messages = clean_history + [{"role": "user", "content": user_content}]
-    
-    # Add appointment context if calendar is configured
+    # Build full system prompt with calendar context
     full_prompt = system_prompt
     if calendar_config and calendar_config.get("google_tokens"):
         working_hours = calendar_config.get("working_hours", {})
@@ -307,124 +251,33 @@ async def get_response(
         full_prompt += f"\n\n---\nפגישות קיימות של המשתמש:\n" + "\n".join(apt_texts)
         full_prompt += "\nאם המשתמש רוצה לשנות או לבטל פגישה קיימת, השתמש בכלי reschedule_appointment או cancel_appointment עם המזהה המתאים."
     
+    # Build system blocks (Anthropic format, converted by Gemini provider if needed)
     system_blocks = build_system_prompt(full_prompt, user_info or {}, knowledge_context, media_context)
     
-    response = await _client.messages.create(
-        model=model,
-        max_tokens=1024,
-        system=system_blocks,
-        messages=messages,
-        tools=USER_TOOLS,
-        extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
+    # Get the appropriate provider
+    provider = get_provider(actual_model)
+    
+    # Get response from provider
+    response: LLMResponse = await provider.get_response(
+        model=actual_model,
+        system_blocks=system_blocks,
+        history=history,
+        user_content=user_content,
+        tool_handler=tool_handler
     )
     
-    cache_read = getattr(response.usage, 'cache_read_input_tokens', 0)
-    cache_create = getattr(response.usage, 'cache_creation_input_tokens', 0)
-    
-    usage_data = {
-        "input_tokens": response.usage.input_tokens,
-        "output_tokens": response.usage.output_tokens,
-        "cache_read_tokens": cache_read,
-        "cache_creation_tokens": cache_create
-    }
-    
-    tool_calls = []
-    text_response = ""
-    
-    for block in response.content:
-        if block.type == "text":
-            text_response = block.text
-        elif block.type == "tool_use":
-            tool_calls.append({"id": block.id, "name": block.name, "input": block.input})
-    
-    media_actions = []
-    
-    # Loop to handle multiple tool calls until AI returns text
-    max_tool_rounds = 5  # Safety limit
-    current_response = response
-    
-    while current_response.stop_reason == "tool_use" and tool_handler and max_tool_rounds > 0:
-        max_tool_rounds -= 1
-        
-        # Extract tool calls from current response
-        current_tool_calls = []
-        for block in current_response.content:
-            if block.type == "tool_use":
-                current_tool_calls.append({"id": block.id, "name": block.name, "input": block.input})
-        
-        if not current_tool_calls:
-            break
-        
-        messages.append({"role": "assistant", "content": current_response.content})
-        
-        # Execute tools - support both sync and async handlers
-        if asyncio.iscoroutinefunction(tool_handler):
-            tool_results_data = await tool_handler(current_tool_calls)
-        else:
-            tool_results_data = tool_handler(current_tool_calls)
-        
-        tool_results = []
-        for call in current_tool_calls:
-            result_data = next((r for r in tool_results_data if r["name"] == call["name"]), None)
-            if not result_data:
-                result = "לא נמצא"
-            elif isinstance(result_data.get("result"), dict) and result_data["result"].get("action") == "send_media":
-                # Collect media action for later sending
-                media_actions.append(result_data["result"])
-                result = f"מדיה '{result_data['result'].get('name', '')}' תישלח ללקוח."
-            else:
-                result = result_data["result"]
-            
-            tool_results.append({
-                "type": "tool_result",
-                "tool_use_id": call["id"],
-                "content": result
-            })
-        
-        messages.append({"role": "user", "content": tool_results})
-        
-        # Get next response
-        current_response = await _client.messages.create(
-            model=model,
-            max_tokens=1024,
-            system=system_blocks,
-            messages=messages,
-            tools=USER_TOOLS,
-            extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
-        )
-        
-        usage_data["input_tokens"] += current_response.usage.input_tokens
-        usage_data["output_tokens"] += current_response.usage.output_tokens
-        usage_data["cache_read_tokens"] += getattr(current_response.usage, 'cache_read_input_tokens', 0)
-        usage_data["cache_creation_tokens"] += getattr(current_response.usage, 'cache_creation_input_tokens', 0)
-    
-    # Extract final text response
-    for block in current_response.content:
-        if block.type == "text":
-            text_response = block.text
-            break
-    
-    return text_response, tool_calls, usage_data, media_actions
+    return response.text, response.tool_calls, response.usage, response.media_actions
 
 
 async def generate_simple_response(prompt: str) -> str:
     """Generate a simple text response without conversation history.
     
     Async function for simple AI generation tasks like reminders.
-    Uses a smaller, faster model for efficiency.
+    Always uses Claude for consistency.
     """
     try:
-        response = await _client.messages.create(
-            model="claude-3-5-haiku-20241022",  # Fast and cheap
-            max_tokens=300,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        
-        for block in response.content:
-            if block.type == "text":
-                return block.text.strip()
-        
-        return ""
+        provider = get_provider("claude")
+        return await provider.generate_simple_response(prompt)
     except Exception as e:
         log_error("ai_simple", str(e)[:50])
         raise

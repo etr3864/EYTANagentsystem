@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql://postgres:postgres@localhost:5432/whatsapp_agents"
     anthropic_api_key: str
     openai_api_key: Optional[str] = None
+    google_api_key: Optional[str] = None  # Gemini API
     google_credentials_json: Optional[str] = None
     
     # Google Calendar OAuth

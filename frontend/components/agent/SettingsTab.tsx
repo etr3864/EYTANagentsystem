@@ -1,15 +1,10 @@
 'use client';
 
 import { Button, Card, CardHeader } from '@/components/ui';
-import { Input, Select, NumberInput } from '@/components/ui/Input';
+import { Input, NumberInput } from '@/components/ui/Input';
+import { ModelSelect } from '@/components/ui/ModelSelect';
 import { ProviderSelector } from '@/components/agent/ProviderSelector';
 import type { AgentBatchingConfig, Provider, WaSenderConfig } from '@/lib/types';
-
-const MODEL_OPTIONS = [
-  { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4' },
-  { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku (מהיר וזול)' },
-  { value: 'claude-opus-4-20250514', label: 'Claude Opus 4 (חזק ויקר)' },
-];
 
 interface SettingsTabProps {
   agentId: number;
@@ -51,11 +46,10 @@ export function SettingsTab({
               value={name} 
               onChange={e => onNameChange(e.target.value)} 
             />
-            <Select 
+            <ModelSelect 
               label="מודל AI" 
               value={model} 
               onChange={e => onModelChange(e.target.value)} 
-              options={MODEL_OPTIONS} 
             />
           </div>
         </div>

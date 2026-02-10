@@ -5,15 +5,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createAgent } from '@/lib/api';
 import { Button, Card, CardHeader } from '@/components/ui';
-import { Input, Textarea, Select, NumberInput } from '@/components/ui/Input';
+import { Input, Textarea, NumberInput } from '@/components/ui/Input';
+import { ModelSelect } from '@/components/ui/ModelSelect';
 import { ProviderSelector } from '@/components/agent/ProviderSelector';
 import type { AgentBatchingConfig, Provider, WaSenderConfig } from '@/lib/types';
-
-const MODEL_OPTIONS = [
-  { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4 (מומלץ)' },
-  { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku (מהיר וזול)' },
-  { value: 'claude-opus-4-20250514', label: 'Claude Opus 4 (חזק ויקר)' },
-];
 
 export default function NewAgentPage() {
   const router = useRouter();
@@ -124,11 +119,10 @@ export default function NewAgentPage() {
                   onChange={e => setName(e.target.value)}
                   placeholder="לדוגמה: נועה - נציגת מכירות"
                 />
-                <Select
+                <ModelSelect
                   label="מודל AI"
                   value={model}
                   onChange={e => setModel(e.target.value)}
-                  options={MODEL_OPTIONS}
                 />
               </div>
             </div>
