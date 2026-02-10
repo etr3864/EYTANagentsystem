@@ -139,10 +139,10 @@ class GeminiProvider:
             config=config
         )
         
-        # Track token usage
+        # Track token usage (handle None values)
         usage_data = {
-            "input_tokens": getattr(response.usage_metadata, 'prompt_token_count', 0) if response.usage_metadata else 0,
-            "output_tokens": getattr(response.usage_metadata, 'candidates_token_count', 0) if response.usage_metadata else 0,
+            "input_tokens": (getattr(response.usage_metadata, 'prompt_token_count', 0) or 0) if response.usage_metadata else 0,
+            "output_tokens": (getattr(response.usage_metadata, 'candidates_token_count', 0) or 0) if response.usage_metadata else 0,
             "cache_read_tokens": 0,
             "cache_creation_tokens": 0
         }
@@ -203,10 +203,10 @@ class GeminiProvider:
                 config=config
             )
             
-            # Update usage
+            # Update usage (handle None values)
             if response.usage_metadata:
-                usage_data["input_tokens"] += getattr(response.usage_metadata, 'prompt_token_count', 0)
-                usage_data["output_tokens"] += getattr(response.usage_metadata, 'candidates_token_count', 0)
+                usage_data["input_tokens"] += getattr(response.usage_metadata, 'prompt_token_count', 0) or 0
+                usage_data["output_tokens"] += getattr(response.usage_metadata, 'candidates_token_count', 0) or 0
             
             # Parse new response
             tool_calls = []
