@@ -157,62 +157,58 @@ function UsersPage() {
                   {activeTab === 'admins' ? 'הוסף לקוח' : 'הוסף עובד'}
                 </Button>
               </Card>
-            ) : (
-              (activeTab === 'admins' ? admins : employees).map((userItem) => (
-                <Card key={userItem.id} hover padding="none">
+            ) : activeTab === 'admins' ? (
+              admins.map((adminItem) => (
+                <Card key={adminItem.id} hover padding="none">
                   <div className="p-5 flex justify-between items-center">
                     <div className="flex items-center gap-4">
                       <div className={`
                         w-12 h-12 rounded-xl flex items-center justify-center text-xl
-                        ${userItem.is_active ? 'bg-blue-500/10 text-blue-400' : 'bg-slate-700/50 text-slate-400'}
+                        ${adminItem.is_active ? 'bg-blue-500/10 text-blue-400' : 'bg-slate-700/50 text-slate-400'}
                       `}>
                         <UserIcon />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className={`status-dot ${userItem.is_active ? 'active' : 'inactive'}`} />
-                          <span className="text-lg font-semibold text-white">{userItem.name}</span>
+                          <span className={`status-dot ${adminItem.is_active ? 'active' : 'inactive'}`} />
+                          <span className="text-lg font-semibold text-white">{adminItem.name}</span>
                         </div>
-                        <div className="text-sm text-slate-400">{userItem.email}</div>
-                        {activeTab === 'admins' && 'agent_ids' in userItem && (
-                          <div className="text-xs text-slate-500 mt-1">
-                            {userItem.agent_ids.length} סוכנים משויכים
-                          </div>
-                        )}
+                        <div className="text-sm text-slate-400">{adminItem.email}</div>
+                        <div className="text-xs text-slate-500 mt-1">
+                          {adminItem.agent_ids.length} סוכנים משויכים
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
                       {/* Toggle Active */}
                       <button
-                        onClick={() => handleToggleActive(userItem)}
+                        onClick={() => handleToggleActive(adminItem)}
                         className={`
                           relative w-12 h-6 rounded-full transition-colors duration-200
-                          ${userItem.is_active ? 'bg-emerald-500' : 'bg-slate-600'}
+                          ${adminItem.is_active ? 'bg-emerald-500' : 'bg-slate-600'}
                         `}
-                        title={userItem.is_active ? 'לחץ להשבתה' : 'לחץ להפעלה'}
+                        title={adminItem.is_active ? 'לחץ להשבתה' : 'לחץ להפעלה'}
                       >
                         <span className={`
                           absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200
-                          ${userItem.is_active ? 'right-1' : 'left-1'}
+                          ${adminItem.is_active ? 'right-1' : 'left-1'}
                         `} />
                       </button>
 
-                      {/* Agent Assignment - only for admins */}
-                      {activeTab === 'admins' && 'agent_ids' in userItem && (
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => setShowAgentModal(userItem)}
-                        >
-                          סוכנים
-                        </Button>
-                      )}
+                      {/* Agent Assignment */}
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setShowAgentModal(adminItem)}
+                      >
+                        סוכנים
+                      </Button>
 
                       {/* Reset Password */}
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setShowPasswordModal(userItem)}
+                        onClick={() => setShowPasswordModal(adminItem)}
                         title="איפוס סיסמה"
                       >
                         <KeyIcon />
@@ -222,7 +218,7 @@ function UsersPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setEditingUser(userItem)}
+                        onClick={() => setEditingUser(adminItem)}
                       >
                         <EditIcon />
                       </Button>
@@ -231,7 +227,74 @@ function UsersPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleDelete(userItem.id)}
+                        onClick={() => handleDelete(adminItem.id)}
+                        className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                      >
+                        <TrashIcon />
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))
+            ) : (
+              employees.map((empItem) => (
+                <Card key={empItem.id} hover padding="none">
+                  <div className="p-5 flex justify-between items-center">
+                    <div className="flex items-center gap-4">
+                      <div className={`
+                        w-12 h-12 rounded-xl flex items-center justify-center text-xl
+                        ${empItem.is_active ? 'bg-blue-500/10 text-blue-400' : 'bg-slate-700/50 text-slate-400'}
+                      `}>
+                        <UserIcon />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className={`status-dot ${empItem.is_active ? 'active' : 'inactive'}`} />
+                          <span className="text-lg font-semibold text-white">{empItem.name}</span>
+                        </div>
+                        <div className="text-sm text-slate-400">{empItem.email}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      {/* Toggle Active */}
+                      <button
+                        onClick={() => handleToggleActive(empItem)}
+                        className={`
+                          relative w-12 h-6 rounded-full transition-colors duration-200
+                          ${empItem.is_active ? 'bg-emerald-500' : 'bg-slate-600'}
+                        `}
+                        title={empItem.is_active ? 'לחץ להשבתה' : 'לחץ להפעלה'}
+                      >
+                        <span className={`
+                          absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200
+                          ${empItem.is_active ? 'right-1' : 'left-1'}
+                        `} />
+                      </button>
+
+                      {/* Reset Password */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowPasswordModal(empItem)}
+                        title="איפוס סיסמה"
+                      >
+                        <KeyIcon />
+                      </Button>
+
+                      {/* Edit */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditingUser(empItem)}
+                      >
+                        <EditIcon />
+                      </Button>
+
+                      {/* Delete */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(empItem.id)}
                         className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
                       >
                         <TrashIcon />
