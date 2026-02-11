@@ -7,6 +7,7 @@ import { Button, Card } from '@/components/ui';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useAuth } from '@/contexts/AuthContext';
 import { isSuperAdmin } from '@/lib/auth';
+import { LegalFooter } from '@/components/ui/LegalModals';
 
 function HomePage() {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -250,6 +251,11 @@ function HomePage() {
           </div>
         )}
       </main>
+
+      {/* Footer */}
+      <footer className="py-6 border-t border-slate-800 mt-8">
+        <LegalFooter />
+      </footer>
     </div>
   );
 }
