@@ -185,8 +185,13 @@ async def process_batched_messages(
             cache_create=usage_data["cache_creation_tokens"]
         )
         
-        # Send media if AI requested
+        # Send media if AI requested (deduplicate by media_id)
+        seen_media_ids = set()
         for media_action in media_actions:
+            media_id = media_action.get("media_id")
+            if media_id in seen_media_ids:
+                continue
+            seen_media_ids.add(media_id)
             log("MEDIA", msg=f"processing action", name=media_action.get("name", "?"))
             if send_media:
                 media_ok = await send_media(
