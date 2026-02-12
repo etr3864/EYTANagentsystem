@@ -119,8 +119,8 @@ class AnthropicProvider:
                 tool_results_data = tool_handler(current_tool_calls)
             
             tool_results = []
-            for call in current_tool_calls:
-                result_data = next((r for r in tool_results_data if r["name"] == call["name"]), None)
+            for i, call in enumerate(current_tool_calls):
+                result_data = tool_results_data[i] if i < len(tool_results_data) else None
                 if not result_data:
                     result = "לא נמצא"
                 elif isinstance(result_data.get("result"), dict) and result_data["result"].get("action") == "send_media":

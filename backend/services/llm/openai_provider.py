@@ -150,8 +150,8 @@ class OpenAIProvider:
                 results = tool_handler(tool_calls)
             
             # Add tool results
-            for tc in tool_calls:
-                result_data = next((r for r in results if r["name"] == tc["name"]), None)
+            for i, tc in enumerate(tool_calls):
+                result_data = results[i] if i < len(results) else None
                 if not result_data:
                     result = "לא נמצא"
                 elif isinstance(result_data.get("result"), dict) and result_data["result"].get("action") == "send_media":
