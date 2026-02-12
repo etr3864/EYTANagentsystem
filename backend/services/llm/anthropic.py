@@ -253,6 +253,49 @@ class AnthropicProvider:
         except Exception:
             return {"name": "תמונה", "description": "", "caption": ""}
     
+    async def analyze_document(self, text_content: str) -> dict:
+        """Analyze document text and generate name, description, caption."""
+        prompt = f"""אתה מנתח מסמכים עבור ספריית קבצים של עסק.
+נתח את תוכן המסמך וצור:
+
+1. **name** - שם קצר וממוקד (2-4 מילים בעברית)
+   דוגמאות: "מחירון 2026", "הסכם שירות", "קטלוג מוצרים"
+
+2. **description** - תיאור מפורט לחיפוש (30-60 מילים בעברית)
+   כלול: סוג המסמך, תוכן עיקרי, למי מיועד, נושאים מרכזיים
+   התיאור ישמש סוכן AI למצוא את הקובץ הנכון לשלוח ללקוח
+
+3. **caption** - כיתוב קצר וטבעי לשליחה בWhatsApp (עד 15 מילים)
+   משהו שסוכן ישלח עם הקובץ, למשל: "הנה המחירון המעודכן" או "מצורף ההסכם לעיון"
+
+החזר תשובה בפורמט JSON בלבד:
+{{"name": "...", "description": "...", "caption": "..."}}
+
+תוכן המסמך:
+{text_content}"""
+
+        try:
+            response = await self._client.messages.create(
+                model="claude-3-5-haiku-20241022",
+                max_tokens=500,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            
+            for block in response.content:
+                if block.type == "text":
+                    import json
+                    text = block.text.strip()
+                    if text.startswith("```"):
+                        text = text.split("```")[1]
+                        if text.startswith("json"):
+                            text = text[4:]
+                        text = text.strip()
+                    return json.loads(text)
+            
+            return {"name": "קובץ", "description": "", "caption": ""}
+        except Exception:
+            return {"name": "קובץ", "description": "", "caption": ""}
+    
     async def generate_simple_response(self, prompt: str) -> str:
         """Generate a simple text response (for reminders etc.)."""
         response = await self._client.messages.create(

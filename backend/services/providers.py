@@ -38,7 +38,8 @@ async def send_media(
     to: str,
     media_url: str,
     media_type: str,
-    caption: str | None = None
+    caption: str | None = None,
+    filename: str | None = None
 ) -> bool:
     """Send media via the appropriate provider based on agent configuration.
     
@@ -46,8 +47,9 @@ async def send_media(
         agent: Agent model with provider configuration
         to: Recipient phone number
         media_url: Public URL of media file
-        media_type: 'image' or 'video'
+        media_type: 'image', 'video', or 'document'
         caption: Optional caption text
+        filename: For documents - display filename for recipient
         
     Returns:
         True if media was sent successfully
@@ -60,9 +62,22 @@ async def send_media(
         if not api_key:
             return False
         
+        if media_type == "document":
+            return await wasender.send_document(
+                api_key, session, to, media_url, filename or "file", caption
+            )
         return await wasender.send_media(api_key, session, to, media_url, media_type, caption)
     
     # Default: Meta WhatsApp Business API
+    if media_type == "document":
+        return await whatsapp.send_document(
+            agent.phone_number_id,
+            agent.access_token,
+            to,
+            media_url,
+            filename or "file",
+            caption
+        )
     return await whatsapp.send_media(
         agent.phone_number_id,
         agent.access_token,

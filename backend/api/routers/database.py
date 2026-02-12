@@ -232,7 +232,7 @@ def list_media(db: Session = Depends(get_db)):
     
     for m in media_items:
         agent = db.query(Agent).filter(Agent.id == m.agent_id).first()
-        result.append({
+        item = {
             "id": m.id,
             "agent_id": m.agent_id,
             "agent_name": agent.name if agent else None,
@@ -245,7 +245,10 @@ def list_media(db: Session = Depends(get_db)):
             "mime_type": m.mime_type,
             "is_active": m.is_active,
             "created_at": f"{m.created_at.isoformat()}Z" if m.created_at else None,
-        })
+        }
+        if m.media_type == "document":
+            item["filename"] = m.filename
+        result.append(item)
     
     return result
 

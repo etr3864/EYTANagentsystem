@@ -110,19 +110,7 @@ async def send_media(
     caption: str | None = None,
     max_retries: int = 3
 ) -> bool:
-    """Send image or video via WA Sender API.
-    
-    Uses /send-message endpoint with imageUrl or videoUrl parameter.
-    
-    Args:
-        api_key: WA Sender API key
-        session: WA Sender session ID
-        to: Recipient phone number
-        media_url: Public URL of the media file
-        media_type: 'image' or 'video'
-        caption: Optional caption text
-        max_retries: Retry count for rate limits
-    """
+    """Send image or video via WA Sender API."""
     url = f"{_BASE_URL}/send-message"
     
     payload = {
@@ -130,7 +118,6 @@ async def send_media(
         "to": format_jid(to),
     }
     
-    # WA Sender uses imageUrl/videoUrl instead of generic media field
     if media_type == "image":
         payload["imageUrl"] = media_url
     elif media_type == "video":
@@ -142,6 +129,42 @@ async def send_media(
     if caption:
         payload["text"] = caption
     
+    return await _send_with_retry(url, api_key, payload, max_retries)
+
+
+async def send_document(
+    api_key: str,
+    session: str,
+    to: str,
+    document_url: str,
+    filename: str,
+    caption: str | None = None,
+    max_retries: int = 3
+) -> bool:
+    """Send document via WA Sender API."""
+    url = f"{_BASE_URL}/send-message"
+    
+    payload = {
+        "session": session,
+        "to": format_jid(to),
+        "documentUrl": document_url,
+        "fileName": filename
+    }
+    
+    if caption:
+        payload["text"] = caption
+    
+    return await _send_with_retry(url, api_key, payload, max_retries, timeout=90)
+
+
+async def _send_with_retry(
+    url: str,
+    api_key: str,
+    payload: dict,
+    max_retries: int,
+    timeout: int = 60
+) -> bool:
+    """Send request with retry on rate limit."""
     for attempt in range(max_retries):
         try:
             async with httpx.AsyncClient() as client:
@@ -152,7 +175,7 @@ async def send_media(
                         "Content-Type": "application/json"
                     },
                     json=payload,
-                    timeout=60,  # Longer timeout for media
+                    timeout=timeout,
                 )
             
             if response.status_code == 429:
@@ -160,23 +183,22 @@ async def send_media(
                 if attempt < max_retries - 1:
                     await asyncio.sleep(wait_time)
                     continue
-                log_error("wasender", "send_media rate_limited (max retries)")
+                log_error("wasender", "rate_limited (max retries)")
                 return False
             
             if response.status_code != 200:
                 try:
                     error_body = response.json()
-                    log_error("wasender", f"send_media status={response.status_code} body={str(error_body)[:100]}")
+                    log_error("wasender", f"status={response.status_code} body={str(error_body)[:100]}")
                 except Exception:
-                    log_error("wasender", f"send_media status={response.status_code}")
+                    log_error("wasender", f"status={response.status_code}")
                 return False
             
             data = response.json()
-            # WA Sender returns success or data with message info
             return data.get("success", True) if isinstance(data, dict) else True
             
         except Exception as e:
-            log_error("wasender", f"send_media: {str(e)[:60]}")
+            log_error("wasender", f"send: {str(e)[:60]}")
             return False
     
     return False

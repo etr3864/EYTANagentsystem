@@ -104,7 +104,9 @@ async def handle_wasender_message(agent_id: int, msg_data: dict):
         async def send_fn(to: str, text: str) -> bool:
             return await wasender.send_message(provider_api_key, provider_session, to, text)
         
-        async def send_media_fn(to: str, url: str, media_type: str, caption: str | None) -> bool:
+        async def send_media_fn(to: str, url: str, media_type: str, caption: str | None, filename: str | None = None) -> bool:
+            if media_type == "document":
+                return await wasender.send_document(provider_api_key, provider_session, to, url, filename or "file", caption)
             return await wasender.send_media(provider_api_key, provider_session, to, url, media_type, caption)
         
         if debounce == 0:

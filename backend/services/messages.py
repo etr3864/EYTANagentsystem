@@ -49,3 +49,19 @@ def get_history(db: Session, conversation_id: int) -> list[dict]:
         } 
         for m in msgs
     ]
+
+
+def get_by_conversation(db: Session, conversation_id: int, limit: int = 50) -> list[Message]:
+    """Get recent messages for a conversation (newest first).
+    
+    Args:
+        db: Database session
+        conversation_id: Conversation ID
+        limit: Max messages to return
+    
+    Returns:
+        List of Message objects, newest first
+    """
+    return db.query(Message).filter(
+        Message.conversation_id == conversation_id
+    ).order_by(Message.created_at.desc()).limit(limit).all()

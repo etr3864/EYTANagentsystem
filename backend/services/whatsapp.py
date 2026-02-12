@@ -102,3 +102,61 @@ async def send_media(
     except Exception as e:
         log_error("whatsapp", f"send_media: {str(e)[:80]}")
         return False
+
+
+async def send_document(
+    phone_number_id: str,
+    access_token: str,
+    to: str,
+    document_url: str,
+    filename: str,
+    caption: str | None = None
+) -> bool:
+    """Send document via Meta WhatsApp API.
+    
+    Args:
+        phone_number_id: WhatsApp phone number ID
+        access_token: Meta API access token
+        to: Recipient phone number
+        document_url: Public URL of the document
+        filename: Display filename for recipient (e.g., "report.pdf")
+        caption: Optional caption text
+    """
+    url = f"{_API_URL}/{phone_number_id}/messages"
+    
+    document_object = {
+        "link": document_url,
+        "filename": filename
+    }
+    if caption:
+        document_object["caption"] = caption
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                url,
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "messaging_product": "whatsapp",
+                    "to": to,
+                    "type": "document",
+                    "document": document_object
+                },
+                timeout=90,
+            )
+        
+        if response.status_code != 200:
+            try:
+                error_body = response.json()
+                log_error("whatsapp", f"send_document status={response.status_code} error={str(error_body)[:150]}")
+            except Exception:
+                log_error("whatsapp", f"send_document status={response.status_code}")
+            return False
+        
+        return True
+    except Exception as e:
+        log_error("whatsapp", f"send_document: {str(e)[:80]}")
+        return False

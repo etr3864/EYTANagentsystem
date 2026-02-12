@@ -452,10 +452,15 @@ const mediaColumns = [
     <span className="text-blue-400">{m.agent_name || `#${m.agent_id}`}</span>
   )},
   { key: 'type', header: 'סוג', render: (m: DbMedia) => {
-    const isImage = m.media_type === 'image';
+    const styles = {
+      image: { bg: 'bg-cyan-500/10 text-cyan-400', label: '🖼️ תמונה' },
+      video: { bg: 'bg-purple-500/10 text-purple-400', label: '🎬 וידאו' },
+      document: { bg: 'bg-amber-500/10 text-amber-400', label: '📄 קובץ' }
+    };
+    const style = styles[m.media_type] || styles.document;
     return (
-      <span className={`text-xs px-2 py-1 rounded ${isImage ? 'bg-cyan-500/10 text-cyan-400' : 'bg-purple-500/10 text-purple-400'}`}>
-        {isImage ? '🖼️ תמונה' : '🎬 וידאו'}
+      <span className={`text-xs px-2 py-1 rounded ${style.bg}`}>
+        {style.label}
       </span>
     );
   }},
@@ -489,17 +494,14 @@ const mediaColumns = [
       {m.is_active ? 'פעיל' : 'מושבת'}
     </span>
   )},
-  { key: 'preview', header: 'תצוגה', render: (m: DbMedia) => (
-    m.media_type === 'image' ? (
+  { key: 'preview', header: 'תצוגה', render: (m: DbMedia) => {
+    const labels = { image: 'צפה', video: 'נגן', document: 'הורד' };
+    return (
       <a href={m.file_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 text-xs hover:underline">
-        צפה
+        {labels[m.media_type] || 'פתח'}
       </a>
-    ) : (
-      <a href={m.file_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 text-xs hover:underline">
-        נגן
-      </a>
-    )
-  )},
+    );
+  }},
   { key: 'created', header: 'נוצר', render: (m: DbMedia) => (
     <span className="text-slate-500 text-xs">
       {m.created_at ? new Date(m.created_at).toLocaleDateString('he-IL') : '—'}

@@ -24,6 +24,7 @@ class MediaUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     default_caption: Optional[str] = None
+    filename: Optional[str] = None
     is_active: Optional[bool] = None
     
     @field_validator("name")
@@ -46,6 +47,13 @@ class MediaUpdate(BaseModel):
         if v is not None and len(v) > 1024:
             raise ValueError("Caption too long (max 1024 chars)")
         return v
+    
+    @field_validator("filename")
+    @classmethod
+    def validate_filename(cls, v):
+        if v is not None and len(v) > 255:
+            raise ValueError("Filename too long (max 255 chars)")
+        return v
 
 
 class SearchQuery(BaseModel):
@@ -63,7 +71,7 @@ class SearchQuery(BaseModel):
 
 def _media_to_dict(m) -> dict:
     """Convert AgentMedia to response dict."""
-    return {
+    result = {
         "id": m.id,
         "agent_id": m.agent_id,
         "media_type": m.media_type,
@@ -77,6 +85,12 @@ def _media_to_dict(m) -> dict:
         "is_active": m.is_active,
         "created_at": m.created_at.isoformat() if m.created_at else None
     }
+    if m.media_type == "document":
+        result["filename"] = m.filename
+    return result
+
+
+VALID_MEDIA_TYPES = {"image", "video", "document"}
 
 
 @router.get("")
@@ -89,11 +103,11 @@ def list_media(
     """List all media for an agent.
     
     Query params:
-        media_type: Filter by 'image' or 'video'
+        media_type: Filter by 'image', 'video', or 'document'
     """
     require_agent_access(agent_id, current_user, db)
-    if media_type and media_type not in ("image", "video"):
-        raise HTTPException(400, "media_type must be 'image' or 'video'")
+    if media_type and media_type not in VALID_MEDIA_TYPES:
+        raise HTTPException(400, "media_type must be 'image', 'video', or 'document'")
     
     items = agent_media.get_by_agent(db, agent_id, media_type)
     return [_media_to_dict(m) for m in items]
@@ -107,6 +121,7 @@ async def upload_media(
     media_type: str = Form(...),
     description: Optional[str] = Form(None),
     default_caption: Optional[str] = Form(None),
+    display_filename: Optional[str] = Form(None),
     original_size: Optional[int] = Form(None),
     auto_analyze: bool = Form(True),
     current_user: AuthUser = Depends(require_role(UserRole.SUPER_ADMIN)),
@@ -115,16 +130,17 @@ async def upload_media(
     """Upload a media file. Super Admin only.
     
     Form fields:
-        file: The media file (image/video)
+        file: The media file (image/video/document)
         name: Display name (optional for images - will be auto-generated)
-        media_type: 'image' or 'video' (required)
+        media_type: 'image', 'video', or 'document' (required)
         description: Optional description for search (auto-generated for images)
         default_caption: Default caption when sending (auto-generated for images)
+        display_filename: For documents - filename shown to recipient in WhatsApp
         original_size: Original file size before compression (optional)
         auto_analyze: Whether to auto-analyze images (default True)
     """
-    if media_type not in ("image", "video"):
-        raise HTTPException(400, "media_type must be 'image' or 'video'")
+    if media_type not in VALID_MEDIA_TYPES:
+        raise HTTPException(400, "media_type must be 'image', 'video', or 'document'")
     
     content = await file.read()
     content_type = file.content_type or "application/octet-stream"
@@ -132,19 +148,18 @@ async def upload_media(
     final_name = name.strip() if name else None
     final_description = description
     final_caption = default_caption
+    final_display_filename = display_filename
     
-    # Auto-analyze images if enabled and no metadata provided
+    # Auto-analyze images
     if media_type == "image" and auto_analyze:
         from backend.services import ai
         import base64
         
-        # Convert to base64 for AI analysis
         image_base64 = base64.b64encode(content).decode("utf-8")
         mime = content_type if content_type in ("image/jpeg", "image/png") else "image/jpeg"
         
         analysis = await ai.analyze_media_image(image_base64, mime)
         
-        # Use AI results as defaults (user-provided values take precedence)
         if not final_name:
             final_name = analysis.get("name", "תמונה")
         if not final_description:
@@ -152,14 +167,32 @@ async def upload_media(
         if not final_caption:
             final_caption = analysis.get("caption")
     
-    # Fallback for videos or if no name
+    # Auto-analyze documents
+    if media_type == "document" and auto_analyze:
+        from backend.services import ai, document_extraction
+        
+        extracted_text = document_extraction.extract_text(content, content_type)
+        if extracted_text:
+            analysis = await ai.analyze_document(extracted_text)
+            
+            if not final_name:
+                final_name = analysis.get("name", "קובץ")
+            if not final_description:
+                final_description = analysis.get("description")
+            if not final_caption:
+                final_caption = analysis.get("caption")
+    
+    # For documents, use original filename as display_filename if not provided
+    if media_type == "document" and not final_display_filename:
+        final_display_filename = file.filename
+    
+    # Fallback for videos/documents or if no name
     if not final_name:
-        # Use filename without extension
         filename = file.filename or "file"
         final_name = filename.rsplit(".", 1)[0] if "." in filename else filename
     
     if len(final_name) < 2:
-        final_name = "מדיה"
+        final_name = "מדיה" if media_type != "document" else "קובץ"
     
     from io import BytesIO
     file_data = BytesIO(content)
@@ -169,14 +202,15 @@ async def upload_media(
             db=db,
             agent_id=agent_id,
             file_data=file_data,
-            filename=file.filename or "file",
+            upload_filename=file.filename or "file",
             content_type=content_type,
             file_size=len(content),
             original_size=original_size,
             media_type=media_type,
             name=final_name,
             description=final_description,
-            default_caption=final_caption
+            default_caption=final_caption,
+            display_filename=final_display_filename
         )
         return _media_to_dict(media)
     except ValueError as e:
@@ -220,6 +254,7 @@ def update_media(
         name=data.name,
         description=data.description,
         default_caption=data.default_caption,
+        filename=data.filename,
         is_active=data.is_active
     )
     return _media_to_dict(updated)

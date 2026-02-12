@@ -13,8 +13,8 @@ from backend.models.user import User
 from backend.models.processed_message import ProcessedMessage
 
 
-# Type for media send callback: (phone, media_url, media_type, caption) -> bool
-MediaSendCallback = Callable[[str, str, str, str | None], Awaitable[bool]]
+# Type for media send callback: (phone, media_url, media_type, caption, filename) -> bool
+MediaSendCallback = Callable[[str, str, str, str | None, str | None], Awaitable[bool]]
 
 
 # TTL for deduplication records
@@ -185,24 +185,30 @@ async def process_batched_messages(
             cache_create=usage_data["cache_creation_tokens"]
         )
         
-        # Send media if AI requested (deduplicate by media_id)
+        # Limit and send media if AI requested
+        media_config = agent.media_config or {}
+        max_media = media_config.get("max_per_message", 10)
+        
         seen_media_ids = set()
+        sent_count = 0
         for media_action in media_actions:
+            if sent_count >= max_media:
+                break
+            
             media_id = media_action.get("media_id")
             if media_id in seen_media_ids:
                 continue
             seen_media_ids.add(media_id)
-            log("MEDIA", msg=f"processing action", name=media_action.get("name", "?"))
+            
             if send_media:
                 media_ok = await send_media(
                     user_phone,
                     media_action["file_url"],
                     media_action["media_type"],
-                    media_action.get("caption")
+                    media_action.get("caption"),
+                    media_action.get("filename")
                 )
-                log("MEDIA", msg=f"send result: {media_ok}")
                 if media_ok:
-                    # Save media message in DB
                     messages.add(
                         db, conv.id, "assistant",
                         f"[{media_action['media_type']}]: {media_action['name']}",
@@ -210,10 +216,9 @@ async def process_batched_messages(
                         media_id=media_action["media_id"],
                         media_url=media_action["file_url"]
                     )
+                    sent_count += 1
                 else:
                     log_error(provider, f"media send failed: {media_action['name']}")
-            else:
-                log_error(provider, "send_media callback not provided")
         
         # Only save and send if there's actual text
         if response_text and response_text.strip():

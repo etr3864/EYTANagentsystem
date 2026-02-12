@@ -222,11 +222,42 @@ async def _handle_reschedule_appointment(
 
 # ============ Media Handlers ============
 
-def _handle_send_media(db: Session, agent_id: int, conversation_id: int, data: dict) -> dict:
-    """Handle send_media tool - returns media info for actual sending.
+def _is_media_already_sent(db: Session, conversation_id: int, media_id: int) -> bool:
+    """Check if media was already sent in this conversation."""
+    from backend.models.message import Message
+    return db.query(Message).filter(
+        Message.conversation_id == conversation_id,
+        Message.media_id == media_id
+    ).first() is not None
+
+
+def _build_media_result(media, custom_caption: str | None) -> dict:
+    """Build media result dict for sending."""
+    caption = custom_caption if custom_caption else media.default_caption
     
-    Returns dict with media details that chat.py will use to send via WhatsApp.
-    """
+    result = {
+        "action": "send_media",
+        "media_id": media.id,
+        "media_type": media.media_type,
+        "file_url": media.file_url,
+        "caption": caption,
+        "name": media.name
+    }
+    
+    if media.media_type == "document" and media.filename:
+        result["filename"] = media.filename
+    
+    return result
+
+
+def _handle_send_media(
+    db: Session,
+    agent_id: int,
+    conversation_id: int,
+    data: dict,
+    media_config: dict | None
+) -> dict:
+    """Handle send_media tool - returns media info for actual sending."""
     media_id = data.get("media_id")
     custom_caption = data.get("caption")
     
@@ -244,18 +275,19 @@ def _handle_send_media(db: Session, agent_id: int, conversation_id: int, data: d
     if not media.is_active:
         return {"error": "מדיה לא פעילה"}
     
-    caption = custom_caption if custom_caption else media.default_caption
+    # Check for duplicates if configured
+    allow_duplicate = True
+    if media_config:
+        allow_duplicate = media_config.get("allow_duplicate_in_conversation", True)
+    
+    if not allow_duplicate and conversation_id:
+        if _is_media_already_sent(db, conversation_id, media_id):
+            return {
+                "error": "מדיה זו כבר נשלחה בשיחה. חפש מדיה אחרת רלוונטית עם search_media, או המשך בשיחה ללא שליחת מדיה."
+            }
     
     log_tool("send_media", media_id)
-    
-    return {
-        "action": "send_media",
-        "media_id": media.id,
-        "media_type": media.media_type,
-        "file_url": media.file_url,
-        "caption": caption,
-        "name": media.name
-    }
+    return _build_media_result(media, custom_caption)
 
 
 def _handle_search_media(db: Session, agent_id: int, data: dict) -> str:
@@ -340,7 +372,7 @@ async def handle_tool_calls(
         
         # Media tools
         elif name == "send_media":
-            result = _handle_send_media(db, agent_id, conversation_id, data)
+            result = _handle_send_media(db, agent_id, conversation_id, data, agent.media_config)
         
         elif name == "search_media":
             result = _handle_search_media(db, agent_id, data)

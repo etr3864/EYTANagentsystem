@@ -211,7 +211,7 @@ export interface DataTable {
 }
 
 // ============ Agent Media ============
-export type MediaType = 'image' | 'video';
+export type MediaType = 'image' | 'video' | 'document';
 
 export interface AgentMedia {
   id: number;
@@ -220,6 +220,7 @@ export interface AgentMedia {
   name: string;
   description: string | null;
   default_caption: string | null;
+  filename: string | null;
   file_url: string;
   file_key: string;
   file_size: number;
@@ -236,6 +237,7 @@ export interface DbMedia {
   media_type: MediaType;
   name: string;
   description: string | null;
+  filename: string | null;
   file_url: string;
   file_size: number;
   original_size: number | null;

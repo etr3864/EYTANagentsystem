@@ -1,34 +1,42 @@
 """Agent media service - CRUD, embeddings, semantic search.
 
-Manages images/videos that agents can send during conversations.
+Manages images/videos/documents that agents can send during conversations.
 """
 import logging
-from io import BytesIO
 from typing import BinaryIO
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from backend.models.agent_media import AgentMedia, ALLOWED_IMAGE_TYPES, ALLOWED_VIDEO_TYPES, MAX_IMAGE_SIZE, MAX_VIDEO_SIZE
+from backend.models.agent_media import (
+    AgentMedia,
+    ALLOWED_IMAGE_TYPES, ALLOWED_VIDEO_TYPES, ALLOWED_DOCUMENT_TYPES,
+    MAX_IMAGE_SIZE, MAX_VIDEO_SIZE, MAX_DOCUMENT_SIZE
+)
 from backend.services import embeddings, storage
 
 logger = logging.getLogger(__name__)
 
 
 def _validate_file(content_type: str, file_size: int, media_type: str) -> None:
-    """Validate file type and size."""
-    if media_type == "image":
-        if content_type not in ALLOWED_IMAGE_TYPES:
-            raise ValueError(f"Invalid image type: {content_type}. Allowed: {ALLOWED_IMAGE_TYPES}")
-        if file_size > MAX_IMAGE_SIZE:
-            raise ValueError(f"Image too large: {file_size} bytes. Max: {MAX_IMAGE_SIZE}")
-    elif media_type == "video":
-        if content_type not in ALLOWED_VIDEO_TYPES:
-            raise ValueError(f"Invalid video type: {content_type}. Allowed: {ALLOWED_VIDEO_TYPES}")
-        if file_size > MAX_VIDEO_SIZE:
-            raise ValueError(f"Video too large: {file_size} bytes. Max: {MAX_VIDEO_SIZE}")
-    else:
+    """Validate file type and size based on media type."""
+    validators = {
+        "image": (ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE),
+        "video": (ALLOWED_VIDEO_TYPES, MAX_VIDEO_SIZE),
+        "document": (ALLOWED_DOCUMENT_TYPES, MAX_DOCUMENT_SIZE),
+    }
+    
+    if media_type not in validators:
         raise ValueError(f"Invalid media type: {media_type}")
+    
+    allowed_types, max_size = validators[media_type]
+    
+    if content_type not in allowed_types:
+        raise ValueError(f"Invalid {media_type} type: {content_type}")
+    
+    if file_size > max_size:
+        max_mb = max_size // (1024 * 1024)
+        raise ValueError(f"{media_type.title()} too large. Max: {max_mb}MB")
 
 
 def _generate_embedding(name: str, description: str | None) -> list[float] | None:
@@ -47,14 +55,15 @@ def upload(
     db: Session,
     agent_id: int,
     file_data: BinaryIO,
-    filename: str,
+    upload_filename: str,
     content_type: str,
     file_size: int,
     original_size: int | None,
     media_type: str,
     name: str,
     description: str | None = None,
-    default_caption: str | None = None
+    default_caption: str | None = None,
+    display_filename: str | None = None
 ) -> AgentMedia:
     """Upload media file and create DB record.
     
@@ -62,25 +71,24 @@ def upload(
         db: Database session
         agent_id: Agent ID
         file_data: File content (already compressed if needed)
-        filename: Original filename
+        upload_filename: Original uploaded filename (used for R2 key)
         content_type: MIME type
         file_size: Size after compression
         original_size: Size before compression (None if not compressed)
-        media_type: 'image' or 'video'
-        name: Display name
+        media_type: 'image', 'video', or 'document'
+        name: Display name for UI/AI
         description: Optional description for semantic search
         default_caption: Default caption when sending
+        display_filename: For documents - filename shown to recipient in WhatsApp
     
     Returns:
         Created AgentMedia record
     """
     _validate_file(content_type, file_size, media_type)
     
-    # Upload to R2
-    file_key = storage.generate_file_key(agent_id, media_type, filename)
+    file_key = storage.generate_file_key(agent_id, media_type, upload_filename)
     file_url = storage.upload_file(file_data, file_key, content_type, file_size)
     
-    # Generate embedding for semantic search
     embedding = _generate_embedding(name, description)
     
     media = AgentMedia(
@@ -89,6 +97,7 @@ def upload(
         name=name,
         description=description,
         default_caption=default_caption,
+        filename=display_filename if media_type == "document" else None,
         file_url=file_url,
         file_key=file_key,
         file_size=file_size,
@@ -136,6 +145,7 @@ def update(
     name: str | None = None,
     description: str | None = None,
     default_caption: str | None = None,
+    filename: str | None = None,
     is_active: bool | None = None
 ) -> AgentMedia | None:
     """Update media metadata."""
@@ -156,10 +166,12 @@ def update(
     if default_caption is not None:
         media.default_caption = default_caption
     
+    if filename is not None and media.media_type == "document":
+        media.filename = filename
+    
     if is_active is not None:
         media.is_active = is_active
     
-    # Regenerate embedding if name/description changed
     if update_embedding:
         media.embedding = _generate_embedding(media.name, media.description)
     
@@ -211,16 +223,20 @@ def get_media_for_prompt(db: Session, agent_id: int) -> list[dict]:
     """
     media_items = get_by_agent(db, agent_id, active_only=True)
     
-    return [
-        {
+    result = []
+    for m in media_items:
+        item = {
             "id": m.id,
             "type": m.media_type,
             "name": m.name,
             "description": m.description or "",
             "caption": m.default_caption or ""
         }
-        for m in media_items
-    ]
+        if m.media_type == "document" and m.filename:
+            item["filename"] = m.filename
+        result.append(item)
+    
+    return result
 
 
 def count_by_agent(db: Session, agent_id: int) -> int:

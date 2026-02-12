@@ -76,7 +76,9 @@ async def handle_incoming_message(
         async def send_fn(to: str, text: str) -> bool:
             return await whatsapp.send_message(phone_number_id_for_send, access_token, to, text)
         
-        async def send_media_fn(to: str, url: str, media_type: str, caption: str | None) -> bool:
+        async def send_media_fn(to: str, url: str, media_type: str, caption: str | None, filename: str | None = None) -> bool:
+            if media_type == "document":
+                return await whatsapp.send_document(phone_number_id_for_send, access_token, to, url, filename or "file", caption)
             return await whatsapp.send_media(phone_number_id_for_send, access_token, to, url, media_type, caption)
         
         if debounce == 0:

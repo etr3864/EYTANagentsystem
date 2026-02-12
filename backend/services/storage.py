@@ -42,33 +42,34 @@ def _get_client():
     return _s3_client
 
 
+VALID_EXTENSIONS = {
+    "jpg", "jpeg", "png", "mp4",
+    "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt"
+}
+
+
 def generate_file_key(agent_id: int, media_type: str, original_filename: str) -> str:
     """Generate unique file path in R2.
     
     Format: agents/{agent_id}/{media_type}s/{uuid}_{sanitized_filename}
     Example: agents/5/images/a1b2c3d4_product.jpg
+             agents/5/documents/b2c3d4e5_report.pdf
     """
-    # Sanitize filename - keep only ASCII alphanumeric chars
-    # This ensures URL compatibility with all providers (Meta, etc.)
     safe_name = "".join(c for c in original_filename if c.isascii() and (c.isalnum() or c in "._-"))
     if not safe_name or safe_name.startswith("."):
         safe_name = "file"
     
-    # Ensure we have extension
-    if "." not in safe_name:
-        # Try to get extension from original
-        if "." in original_filename:
-            ext = original_filename.rsplit(".", 1)[-1].lower()
-            if ext in ("jpg", "jpeg", "png", "mp4"):
-                safe_name = f"{safe_name}.{ext}"
+    if "." not in safe_name and "." in original_filename:
+        ext = original_filename.rsplit(".", 1)[-1].lower()
+        if ext in VALID_EXTENSIONS:
+            safe_name = f"{safe_name}.{ext}"
     
-    # Limit filename length
     if len(safe_name) > 50:
         ext = safe_name.rsplit(".", 1)[-1] if "." in safe_name else ""
         safe_name = safe_name[:45] + ("." + ext if ext else "")
     
     unique_id = uuid4().hex[:8]
-    folder = f"{media_type}s"  # 'image' -> 'images', 'video' -> 'videos'
+    folder = f"{media_type}s"
     
     return f"agents/{agent_id}/{folder}/{unique_id}_{safe_name}"
 

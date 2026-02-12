@@ -37,25 +37,27 @@ def build_media_context(db: Session, agent_id: int, media_config: dict | None) -
     if media_count == 0:
         return ""
     
-    # Custom instructions from agent config
     custom_instructions = media_config.get("instructions", "")
     
     if media_count <= MAX_MEDIA_IN_PROMPT:
-        # List all media in prompt
         media_items = agent_media.get_media_for_prompt(db, agent_id)
         
         media_lines = []
+        type_labels = {"image": "תמונה", "video": "וידאו", "document": "קובץ"}
         for m in media_items:
+            type_label = type_labels.get(m['type'], m['type'])
             desc = f" - {m['description']}" if m['description'] else ""
-            caption_hint = f" (כיתוב: {m['caption'][:30]}...)" if m['caption'] and len(m['caption']) > 30 else (f" (כיתוב: {m['caption']})" if m['caption'] else "")
-            media_lines.append(f"• ID:{m['id']} [{m['type']}] {m['name']}{desc}{caption_hint}")
+            caption_hint = ""
+            if m['caption']:
+                caption_hint = f" (כיתוב: {m['caption'][:30]}...)" if len(m['caption']) > 30 else f" (כיתוב: {m['caption']})"
+            filename_hint = f" [קובץ: {m['filename']}]" if m.get('filename') else ""
+            media_lines.append(f"• ID:{m['id']} [{type_label}] {m['name']}{filename_hint}{desc}{caption_hint}")
         
-        context = f"מדיה זמינה לשליחה ({media_count} פריטים):\n" + "\n".join(media_lines)
-        context += "\n\nלשליחת מדיה השתמש בכלי send_media עם ה-ID המתאים."
+        context = f"מדיה וקבצים זמינים לשליחה ({media_count} פריטים):\n" + "\n".join(media_lines)
+        context += "\n\nלשליחה השתמש בכלי send_media עם ה-ID המתאים."
     else:
-        # Too many items - use search
-        context = f"יש מאגר מדיה עם {media_count} תמונות/וידאו."
-        context += "\nלמציאת מדיה רלוונטית השתמש בכלי search_media עם תיאור מה שאתה מחפש."
+        context = f"יש מאגר מדיה וקבצים עם {media_count} פריטים."
+        context += "\nלמציאת מדיה/קבצים רלוונטיים השתמש בכלי search_media עם תיאור מה שאתה מחפש."
         context += "\nלאחר מכן השתמש ב-send_media עם ה-ID שנמצא."
     
     if custom_instructions:
@@ -142,11 +144,33 @@ async def analyze_media_image(image_base64: str, media_type: str = "image/jpeg")
         - caption: Short natural caption for WhatsApp
     """
     try:
-        provider = get_provider("claude")  # Force Claude for images
+        provider = get_provider("claude")
         return await provider.analyze_media_image(image_base64, media_type)
     except Exception as e:
         log_error("image_analyze", str(e)[:50])
         return {"name": "תמונה", "description": "", "caption": ""}
+
+
+async def analyze_document(text_content: str) -> dict:
+    """Analyze document text and generate name, description, and caption.
+    
+    Args:
+        text_content: Extracted text from the document
+        
+    Returns dict with:
+        - name: Short name for the document
+        - description: Detailed description for semantic search
+        - caption: Short caption for WhatsApp
+    """
+    if not text_content or len(text_content.strip()) < 10:
+        return {"name": "קובץ", "description": "", "caption": ""}
+    
+    try:
+        provider = get_provider("claude")
+        return await provider.analyze_document(text_content)
+    except Exception as e:
+        log_error("document_analyze", str(e)[:50])
+        return {"name": "קובץ", "description": "", "caption": ""}
 
 
 def build_user_content(pending_messages: list["PendingMessage"]) -> list[dict]:
