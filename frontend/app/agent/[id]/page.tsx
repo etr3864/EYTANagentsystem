@@ -104,24 +104,25 @@ function AgentPage() {
 
   const agentId = Number(params.id);
 
+  // Load agent data on mount or when agentId changes
   useEffect(() => {
     loadAgent();
     
-    // Check for tab parameter from OAuth redirect
-    const urlTab = searchParams.get('tab') as Tab | null;
-    if (urlTab && visibleTabs.some(t => t.id === urlTab)) {
-      setTab(urlTab);
-    } else if (visibleTabs.length > 0 && !visibleTabs.some(t => t.id === tab)) {
-      // If current tab is not visible, switch to first visible tab
-      setTab(visibleTabs[0].id);
-    }
-    
-    // If URL has conv parameter, load conversations to find it
     const urlPhone = searchParams.get('conv');
     if (urlPhone) {
       loadConversations();
     }
-  }, [agentId, visibleTabs]);
+  }, [agentId]);
+
+  // Handle tab from URL or fallback when visible tabs change
+  useEffect(() => {
+    const urlTab = searchParams.get('tab') as Tab | null;
+    if (urlTab && visibleTabs.some(t => t.id === urlTab)) {
+      setTab(urlTab);
+    } else if (visibleTabs.length > 0 && !visibleTabs.some(t => t.id === tab)) {
+      setTab(visibleTabs[0].id);
+    }
+  }, [visibleTabs]);
 
   // Poll messages every 3 seconds when a conversation is selected
   useEffect(() => {
