@@ -70,17 +70,19 @@ function AgentPage() {
   const [provider, setProvider] = useState<Provider>('meta');
   const [providerConfig, setProviderConfig] = useState<WaSenderConfig | Record<string, never>>({});
   
-  // Filter tabs based on user role + provider (must be after provider state)
+  // Filter tabs based on user role + saved agent data (not form state, to avoid re-renders)
   const visibleTabs = useMemo(() => {
     if (!user) return [];
     return allTabs.filter(t => {
       if (!t.roles.includes(user.role)) return false;
       if (t.id === 'templates') {
-        return provider === 'meta' && !!(providerConfig as Record<string, string>)?.waba_id;
+        const savedProvider = agent?.provider || 'meta';
+        const savedWabaId = (agent?.provider_config as Record<string, string>)?.waba_id;
+        return savedProvider === 'meta' && !!savedWabaId;
       }
       return true;
     });
-  }, [user, provider, providerConfig]);
+  }, [user, agent]);
   const [batchingConfig, setBatchingConfig] = useState<AgentBatchingConfig>({ 
     debounce_seconds: 3, 
     max_batch_messages: 10, 
@@ -246,6 +248,9 @@ function AgentPage() {
         provider_config: providerConfig,
         batching_config: batchingConfig
       });
+      // Refresh agent so visibleTabs recalculates (e.g. templates tab after WABA ID saved)
+      const fresh = await getAgent(agentId);
+      setAgent(fresh);
       setFeedback({ type: 'success', text: 'נשמר בהצלחה!' });
       setTimeout(() => setFeedback(null), 3000);
     } catch {
