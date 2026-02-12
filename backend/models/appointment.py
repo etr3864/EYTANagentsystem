@@ -10,7 +10,7 @@ class Appointment(Base):
     __tablename__ = "appointments"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    agent_id: Mapped[int] = mapped_column(ForeignKey("agents.id"))
+    agent_id: Mapped[int] = mapped_column(ForeignKey("agents.id", ondelete="CASCADE"))
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     
     # Google Calendar sync

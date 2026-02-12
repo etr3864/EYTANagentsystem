@@ -50,6 +50,20 @@ def run_migrations():
         conn.execute(text("""
             CREATE INDEX IF NOT EXISTS ix_agents_owner_id ON agents(owner_id);
         """))
+
+        # Fix FK constraints: add CASCADE on delete for agent references
+        for table, constraint in [
+            ("appointments", "appointments_agent_id_fkey"),
+            ("conversations", "conversations_agent_id_fkey"),
+        ]:
+            conn.execute(text(f"""
+                DO $$ BEGIN
+                    ALTER TABLE {table} DROP CONSTRAINT IF EXISTS {constraint};
+                    ALTER TABLE {table} ADD CONSTRAINT {constraint}
+                        FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE;
+                EXCEPTION WHEN OTHERS THEN NULL;
+                END $$;
+            """))
         
         conn.commit()
 
