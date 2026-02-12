@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-import { Button, Card } from '@/components/ui';
+import { Button, Card, ArrowRightIcon } from '@/components/ui';
 import { PromptTab, SettingsTab, ConversationsTab, KnowledgeTab, CalendarTab, SummaryTab, MediaTab } from '@/components/agent';
 import { TemplatesTab } from '@/components/agent/TemplatesTab';
 import { AuthGuard } from '@/components/auth/AuthGuard';
@@ -606,14 +606,6 @@ function AgentPage() {
         </div>
       </main>
     </div>
-  );
-}
-
-function ArrowRightIcon() {
-  return (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-    </svg>
   );
 }
 

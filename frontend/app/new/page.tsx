@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createAgent } from '@/lib/api';
-import { Button, Card, CardHeader } from '@/components/ui';
+import { Button, Card, CardHeader, ArrowRightIcon } from '@/components/ui';
 import { Input, Textarea, NumberInput } from '@/components/ui/Input';
 import { ModelSelect } from '@/components/ui/ModelSelect';
 import { ProviderSelector } from '@/components/agent/ProviderSelector';
@@ -263,10 +263,3 @@ export default function NewAgentPage() {
   );
 }
 
-function ArrowRightIcon() {
-  return (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-    </svg>
-  );
-}

@@ -3,3 +3,5 @@ export { Input, Textarea, Select, Checkbox, NumberInput, PasswordInput } from '.
 export { Card, CardHeader, CardTitle, CardDescription } from './Card';
 export { ModelSelect } from './ModelSelect';
 export { LegalFooter, LegalModal } from './LegalModals';
+export { Modal } from './Modal';
+export * from './Icons';
