@@ -6,7 +6,7 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from backend.models.agent import Agent
-from backend.services import users, documents, tables, appointments, agent_media
+from backend.services import users, documents, tables, appointments, agent_media, conversations
 from backend.core.logger import log, log_tool, log_error
 from backend.core.timezone import from_utc
 
@@ -220,6 +220,18 @@ async def _handle_reschedule_appointment(
     return "לא הצלחתי לשנות - ייתכן שהזמן תפוס"
 
 
+# ============ Opt-out Handler ============
+
+def _handle_opt_out(db: Session, conversation_id: int) -> str:
+    """Handle opt_out_conversation tool - mark conversation as opted out."""
+    if not conversation_id:
+        return "שגיאה: לא ניתן לבצע opt-out"
+    conv = conversations.set_opted_out(db, conversation_id, True)
+    if not conv:
+        return "שגיאה: שיחה לא נמצאה"
+    return "הלקוח הוסר בהצלחה מרשימת ההודעות היזומות."
+
+
 # ============ Media Handlers ============
 
 def _is_media_already_sent(db: Session, conversation_id: int, media_id: int) -> bool:
@@ -369,6 +381,10 @@ async def handle_tool_calls(
         
         elif name == "reschedule_appointment":
             result = await _handle_reschedule_appointment(db, agent, user_id, data, tz)
+        
+        # Opt-out
+        elif name == "opt_out_conversation":
+            result = _handle_opt_out(db, conversation_id)
         
         # Media tools
         elif name == "send_media":

@@ -263,3 +263,38 @@ def delete_media(media_id: int, db: Session = Depends(get_db)):
     db.delete(m)
     db.commit()
     return {"status": "deleted"}
+
+
+@router.get("/templates")
+def list_templates(db: Session = Depends(get_db)):
+    """List all WhatsApp templates across all agents."""
+    from backend.models.whatsapp_template import WhatsAppTemplate
+    from backend.models.agent import Agent
+
+    templates = db.query(WhatsAppTemplate).order_by(WhatsAppTemplate.created_at.desc()).all()
+    result = []
+    for t in templates:
+        agent = db.query(Agent).filter(Agent.id == t.agent_id).first()
+        result.append({
+            "id": t.id,
+            "agent_id": t.agent_id,
+            "agent_name": agent.name if agent else None,
+            "name": t.name,
+            "language": t.language,
+            "category": t.category,
+            "status": t.status,
+            "created_at": t.created_at.isoformat() if t.created_at else None,
+        })
+    return result
+
+
+@router.delete("/templates/{template_id}")
+def delete_template_db(template_id: int, db: Session = Depends(get_db)):
+    """Delete a template from DB (does NOT delete from Meta)."""
+    from backend.models.whatsapp_template import WhatsAppTemplate
+    t = db.query(WhatsAppTemplate).filter(WhatsAppTemplate.id == template_id).first()
+    if not t:
+        raise HTTPException(status_code=404, detail="Template not found")
+    db.delete(t)
+    db.commit()
+    return {"status": "deleted"}

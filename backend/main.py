@@ -8,7 +8,7 @@ from sqlalchemy import text
 
 from backend.core.database import engine, Base, init_extensions, run_migrations, SessionLocal
 from backend.core.logger import log, log_error
-from backend.api.routers import agents_router, users_router, conversations_router, database_router, webhook_router, knowledge_router, webhook_wasender_router, calendar_router, summaries_router, media_router
+from backend.api.routers import agents_router, users_router, conversations_router, database_router, webhook_router, knowledge_router, webhook_wasender_router, calendar_router, summaries_router, media_router, templates_router
 from backend.auth import auth_router
 from backend.services import scheduler
 
@@ -71,6 +71,7 @@ app.include_router(knowledge_router, prefix="/api")
 app.include_router(calendar_router, prefix="/api")
 app.include_router(summaries_router, prefix="/api")
 app.include_router(media_router, prefix="/api")
+app.include_router(templates_router, prefix="/api")
 
 
 @app.get("/health")

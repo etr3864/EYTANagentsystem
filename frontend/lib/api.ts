@@ -1,4 +1,4 @@
-import type { Agent, AgentCreate, AgentUpdate, User, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DataTable, Provider, WaSenderConfig, DbMedia, AgentMedia, MediaConfig } from './types';
+import type { Agent, AgentCreate, AgentUpdate, User, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DataTable, Provider, WaSenderConfig, DbMedia, AgentMedia, MediaConfig, WhatsAppTemplate, DbTemplate } from './types';
 import { getAccessToken, clearAuth } from './auth';
 
 // Production URL or environment variable or localhost for development
@@ -560,5 +560,63 @@ export async function deleteEmployee(id: number): Promise<void> {
   if (!res.ok) throw new Error('Failed to delete employee');
 }
 
+// ============ DB Templates ============
+
+export async function getDbTemplates(): Promise<DbTemplate[]> {
+  const res = await authFetch(`${API_URL}/api/db/templates`);
+  if (!res.ok) throw new Error('Failed to fetch templates');
+  return res.json();
+}
+
+export async function deleteDbTemplate(id: number): Promise<void> {
+  const res = await authFetch(`${API_URL}/api/db/templates/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete template');
+}
+
+// ============ WhatsApp Templates ============
+
+export async function getTemplates(agentId: number): Promise<WhatsAppTemplate[]> {
+  const res = await authFetch(`${API_URL}/api/agents/${agentId}/templates`);
+  if (!res.ok) throw new Error('Failed to fetch templates');
+  return res.json();
+}
+
+export async function syncTemplates(agentId: number): Promise<{ synced: number }> {
+  const res = await authFetch(`${API_URL}/api/agents/${agentId}/templates/sync`, { method: 'POST' });
+  if (!res.ok) throw new Error('Failed to sync templates');
+  return res.json();
+}
+
+export async function createTemplate(agentId: number, data: { name: string; language: string; category: string; components: Record<string, unknown>[] }): Promise<WhatsAppTemplate> {
+  const res = await authFetch(`${API_URL}/api/agents/${agentId}/templates`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to create template');
+  }
+  return res.json();
+}
+
+export async function updateTemplate(agentId: number, templateId: number, data: { components: Record<string, unknown>[] }): Promise<WhatsAppTemplate> {
+  const res = await authFetch(`${API_URL}/api/agents/${agentId}/templates/${templateId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to update template');
+  }
+  return res.json();
+}
+
+export async function deleteTemplate(agentId: number, templateId: number): Promise<void> {
+  const res = await authFetch(`${API_URL}/api/agents/${agentId}/templates/${templateId}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete template');
+}
+
 // Re-export types
-export type { Agent, AgentCreate, AgentUpdate, AgentBatchingConfig, Provider, WaSenderConfig, User, Gender, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DataTable, DbMedia, AgentMedia, MediaConfig, MediaType } from './types';
+export type { Agent, AgentCreate, AgentUpdate, AgentBatchingConfig, Provider, WaSenderConfig, User, Gender, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DataTable, DbMedia, AgentMedia, MediaConfig, MediaType, WhatsAppTemplate, TemplateCategory, TemplateStatus, DbTemplate } from './types';

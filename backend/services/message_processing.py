@@ -116,6 +116,11 @@ async def process_batched_messages(
 
         conv = conversations.get_or_create(db, agent.id, user.id)
         
+        # Auto opt-in: customer sending a message re-enables proactive messages
+        if conv.opted_out:
+            conv.opted_out = False
+            db.commit()
+        
         if conv.is_paused:
             for msg in pending_msgs:
                 messages.add(db, conv.id, "user", msg.text, message_type=msg.msg_type)

@@ -50,6 +50,16 @@ def set_paused(db: Session, conversation_id: int, paused: bool) -> Conversation 
     return conv
 
 
+def set_opted_out(db: Session, conversation_id: int, opted_out: bool) -> Conversation | None:
+    conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+    if not conv:
+        return None
+    conv.opted_out = opted_out
+    db.commit()
+    db.refresh(conv)
+    return conv
+
+
 def get_by_agent_and_user(db: Session, agent_id: int, user_id: int) -> Conversation | None:
     return db.query(Conversation).filter(
         Conversation.agent_id == agent_id,

@@ -14,11 +14,12 @@ import {
   getDbAppointments, deleteDbAppointment,
   getDbReminders, deleteDbReminder,
   getDbSummaries, deleteDbSummary,
-  getDbMedia, deleteDbMedia
+  getDbMedia, deleteDbMedia,
+  getDbTemplates, deleteDbTemplate
 } from '@/lib/api';
-import type { Agent, User, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, DbMedia } from '@/lib/types';
+import type { Agent, User, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, DbMedia, DbTemplate } from '@/lib/types';
 
-type Tab = 'agents' | 'users' | 'conversations' | 'messages' | 'media' | 'appointments' | 'reminders' | 'summaries' | 'usage';
+type Tab = 'agents' | 'users' | 'conversations' | 'messages' | 'media' | 'templates' | 'appointments' | 'reminders' | 'summaries' | 'usage';
 
 const tabs: { id: Tab; label: string; icon: string }[] = [
   { id: 'agents', label: 'Agents', icon: '🤖' },
@@ -26,6 +27,7 @@ const tabs: { id: Tab; label: string; icon: string }[] = [
   { id: 'conversations', label: 'Conversations', icon: '💬' },
   { id: 'messages', label: 'Messages', icon: '📝' },
   { id: 'media', label: 'Media', icon: '📸' },
+  { id: 'templates', label: 'Templates', icon: '📋' },
   { id: 'appointments', label: 'Appointments', icon: '📅' },
   { id: 'reminders', label: 'Reminders', icon: '⏰' },
   { id: 'summaries', label: 'Summaries', icon: '📋' },
@@ -509,6 +511,53 @@ const mediaColumns = [
   )},
 ];
 
+const templateColumns = [
+  { key: 'id', header: 'ID', render: (t: DbTemplate) => (
+    <span className="font-mono text-slate-400">{t.id}</span>
+  )},
+  { key: 'agent', header: 'סוכן', render: (t: DbTemplate) => (
+    <span className="text-blue-400">{t.agent_name || `#${t.agent_id}`}</span>
+  )},
+  { key: 'name', header: 'שם', render: (t: DbTemplate) => (
+    <code className="text-xs bg-slate-800 px-2 py-1 rounded text-slate-200">{t.name}</code>
+  )},
+  { key: 'category', header: 'קטגוריה', render: (t: DbTemplate) => {
+    const styles: Record<string, string> = {
+      MARKETING: 'bg-pink-500/10 text-pink-400',
+      UTILITY: 'bg-blue-500/10 text-blue-400',
+      AUTHENTICATION: 'bg-emerald-500/10 text-emerald-400',
+    };
+    const labels: Record<string, string> = { MARKETING: '📣 שיווקי', UTILITY: '⚙️ שירותי', AUTHENTICATION: '🔐 אימות' };
+    return (
+      <span className={`text-xs px-2 py-1 rounded ${styles[t.category] || ''}`}>
+        {labels[t.category] || t.category}
+      </span>
+    );
+  }},
+  { key: 'status', header: 'סטטוס', render: (t: DbTemplate) => {
+    const styles: Record<string, string> = {
+      APPROVED: 'bg-emerald-500/10 text-emerald-400',
+      PENDING: 'bg-yellow-500/10 text-yellow-400',
+      REJECTED: 'bg-red-500/10 text-red-400',
+      PAUSED: 'bg-slate-500/10 text-slate-400',
+    };
+    const labels: Record<string, string> = { APPROVED: '✓ מאושר', PENDING: '⏳ ממתין', REJECTED: '✕ נדחה', PAUSED: '⏸ מושהה' };
+    return (
+      <span className={`text-xs px-2 py-1 rounded ${styles[t.status] || ''}`}>
+        {labels[t.status] || t.status}
+      </span>
+    );
+  }},
+  { key: 'language', header: 'שפה', render: (t: DbTemplate) => (
+    <span className="text-slate-400 text-xs">{t.language}</span>
+  )},
+  { key: 'created', header: 'נוצר', render: (t: DbTemplate) => (
+    <span className="text-slate-500 text-xs">
+      {t.created_at ? new Date(t.created_at).toLocaleDateString('he-IL') : '—'}
+    </span>
+  )},
+];
+
 export default function DatabasePage() {
   const [tab, setTab] = useState<Tab>('agents');
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -516,6 +565,7 @@ export default function DatabasePage() {
   const [conversations, setConversations] = useState<DbConversation[]>([]);
   const [messages, setMessages] = useState<DbMessage[]>([]);
   const [media, setMedia] = useState<DbMedia[]>([]);
+  const [dbTemplates, setDbTemplates] = useState<DbTemplate[]>([]);
   const [appointments, setAppointments] = useState<DbAppointment[]>([]);
   const [reminders, setReminders] = useState<DbReminder[]>([]);
   const [summaries, setSummaries] = useState<DbSummary[]>([]);
@@ -536,6 +586,7 @@ export default function DatabasePage() {
       else if (tab === 'conversations') setConversations(await getDbConversations());
       else if (tab === 'messages') setMessages(await getDbMessages());
       else if (tab === 'media') setMedia(await getDbMedia());
+      else if (tab === 'templates') setDbTemplates(await getDbTemplates());
       else if (tab === 'appointments') setAppointments(await getDbAppointments());
       else if (tab === 'reminders') setReminders(await getDbReminders());
       else if (tab === 'summaries') setSummaries(await getDbSummaries());
@@ -565,6 +616,7 @@ export default function DatabasePage() {
         else if (tab === 'conversations') await deleteConversation(id);
         else if (tab === 'messages') await deleteDbMessage(id);
         else if (tab === 'media') await deleteDbMedia(id);
+        else if (tab === 'templates') await deleteDbTemplate(id);
         else if (tab === 'appointments') await deleteDbAppointment(id);
         else if (tab === 'reminders') await deleteDbReminder(id);
         else if (tab === 'summaries') await deleteDbSummary(id);
@@ -581,6 +633,7 @@ export default function DatabasePage() {
     if (tab === 'conversations') return conversations.length;
     if (tab === 'messages') return messages.length;
     if (tab === 'media') return media.length;
+    if (tab === 'templates') return dbTemplates.length;
     if (tab === 'appointments') return appointments.length;
     if (tab === 'reminders') return reminders.length;
     if (tab === 'summaries') return summaries.length;
@@ -692,6 +745,9 @@ export default function DatabasePage() {
             )}
             {tab === 'media' && (
               <DataTable data={media} columns={mediaColumns} selected={selected} onToggleSelect={toggleSelect} />
+            )}
+            {tab === 'templates' && (
+              <DataTable data={dbTemplates} columns={templateColumns} selected={selected} onToggleSelect={toggleSelect} />
             )}
             {tab === 'appointments' && (
               <DataTable data={appointments} columns={appointmentColumns} selected={selected} onToggleSelect={toggleSelect} />

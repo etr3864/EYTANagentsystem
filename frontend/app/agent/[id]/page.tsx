@@ -6,6 +6,7 @@ import Link from 'next/link';
 
 import { Button, Card } from '@/components/ui';
 import { PromptTab, SettingsTab, ConversationsTab, KnowledgeTab, CalendarTab, SummaryTab, MediaTab } from '@/components/agent';
+import { TemplatesTab } from '@/components/agent/TemplatesTab';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useAuth } from '@/contexts/AuthContext';
 import { isSuperAdmin, isAdmin, isEmployee } from '@/lib/auth';
@@ -19,7 +20,7 @@ import {
 } from '@/lib/api';
 import type { Agent, AgentBatchingConfig, Conversation, Message, Document, DataTable, Provider, WaSenderConfig, AgentMedia, MediaConfig } from '@/lib/types';
 
-type Tab = 'prompt' | 'conversations' | 'knowledge' | 'media' | 'calendar' | 'summaries' | 'settings';
+type Tab = 'prompt' | 'conversations' | 'knowledge' | 'media' | 'templates' | 'calendar' | 'summaries' | 'settings';
 
 interface TabConfig {
   id: Tab;
@@ -33,6 +34,7 @@ const allTabs: TabConfig[] = [
   { id: 'conversations', label: 'שיחות', icon: '💬', roles: ['super_admin', 'admin', 'employee'] },
   { id: 'knowledge', label: 'מאגר מידע', icon: '📚', roles: ['super_admin', 'admin'] },
   { id: 'media', label: 'מדיה', icon: '📸', roles: ['super_admin', 'admin'] },
+  { id: 'templates', label: 'Templates', icon: '📋', roles: ['super_admin'] },
   { id: 'calendar', label: 'יומן', icon: '📅', roles: ['super_admin'] },
   { id: 'summaries', label: 'סיכומים', icon: '📝', roles: ['super_admin'] },
   { id: 'settings', label: 'הגדרות', icon: '⚙️', roles: ['super_admin'] },
@@ -45,12 +47,6 @@ function AgentPage() {
   const { user } = useAuth();
   const [agent, setAgent] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
-  
-  // Filter tabs based on user role
-  const visibleTabs = useMemo(() => {
-    if (!user) return [];
-    return allTabs.filter(t => t.roles.includes(user.role));
-  }, [user]);
   
   // Default tab based on role
   const defaultTab = useMemo(() => {
@@ -73,6 +69,18 @@ function AgentPage() {
   const [isActive, setIsActive] = useState(true);
   const [provider, setProvider] = useState<Provider>('meta');
   const [providerConfig, setProviderConfig] = useState<WaSenderConfig | Record<string, never>>({});
+  
+  // Filter tabs based on user role + provider (must be after provider state)
+  const visibleTabs = useMemo(() => {
+    if (!user) return [];
+    return allTabs.filter(t => {
+      if (!t.roles.includes(user.role)) return false;
+      if (t.id === 'templates') {
+        return provider === 'meta' && !!(providerConfig as Record<string, string>)?.waba_id;
+      }
+      return true;
+    });
+  }, [user, provider, providerConfig]);
   const [batchingConfig, setBatchingConfig] = useState<AgentBatchingConfig>({ 
     debounce_seconds: 3, 
     max_batch_messages: 10, 
@@ -546,6 +554,10 @@ function AgentPage() {
               canEdit={isSuperAdmin(user) || isAdmin(user)}
               canShowConfig={isSuperAdmin(user)}
             />
+          )}
+
+          {tab === 'templates' && (
+            <TemplatesTab agentId={agentId} />
           )}
 
           {tab === 'calendar' && (

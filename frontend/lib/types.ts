@@ -252,3 +252,33 @@ export interface MediaConfig {
   allow_duplicate_in_conversation: boolean;
   instructions: string;
 }
+
+// ============ WhatsApp Templates ============
+export type TemplateCategory = 'MARKETING' | 'UTILITY' | 'AUTHENTICATION';
+export type TemplateStatus = 'APPROVED' | 'PENDING' | 'REJECTED' | 'PAUSED';
+
+export interface WhatsAppTemplate {
+  id: number;
+  agent_id: number;
+  meta_template_id: string;
+  name: string;
+  language: string;
+  category: TemplateCategory;
+  status: TemplateStatus;
+  reject_reason: string | null;
+  components: Record<string, unknown>[];
+  header_media_url: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface DbTemplate {
+  id: number;
+  agent_id: number;
+  agent_name: string | null;
+  name: string;
+  language: string;
+  category: TemplateCategory;
+  status: TemplateStatus;
+  created_at: string | null;
+}

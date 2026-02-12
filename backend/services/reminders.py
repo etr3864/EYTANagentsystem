@@ -338,6 +338,12 @@ async def send_reminder(db: Session, reminder: ScheduledReminder) -> bool:
         _mark_failed(reminder, "agent or user not found")
         return False
     
+    # Skip if customer opted out of proactive messages
+    conv = conversations.get_by_agent_and_user(db, agent.id, user.id)
+    if conv and conv.opted_out:
+        reminder.status = ReminderStatus.CANCELLED
+        return False
+    
     # Build content
     content = await build_reminder_content(db, reminder, appointment, agent, user)
     

@@ -100,6 +100,17 @@ export function ProviderSelector({
             placeholder="my-secret-token"
             hint="טוקן אימות ל-Webhook (בחר משהו ייחודי)"
           />
+          
+          <Input
+            label="WABA ID"
+            value={(providerConfig as Record<string, string>)?.waba_id || ''}
+            onChange={e => onProviderConfigChange({
+              ...providerConfig,
+              waba_id: e.target.value,
+            } as any)}
+            placeholder="933897452328631"
+            hint="WhatsApp Business Account ID — נמצא ב-Meta Business Suite → Settings"
+          />
         </div>
       ) : (
         <div className="space-y-4">
