@@ -96,8 +96,8 @@ class Agent(Base):
     # }
     media_config: Mapped[Optional[dict]] = mapped_column(JSON, default=None)
 
-    conversations: Mapped[list["Conversation"]] = relationship(back_populates="agent")
-    appointments: Mapped[list["Appointment"]] = relationship(back_populates="agent")
+    conversations: Mapped[list["Conversation"]] = relationship(back_populates="agent", passive_deletes=True)
+    appointments: Mapped[list["Appointment"]] = relationship(back_populates="agent", passive_deletes=True)
     
     def get_batching_config(self) -> dict:
         """Get batching configuration with defaults."""
