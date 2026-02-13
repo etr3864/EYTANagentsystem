@@ -237,8 +237,7 @@ function AgentPage() {
     setSaving(true);
     setFeedback(null);
     try {
-      // Always save provider_config so WA Sender settings persist when switching to Meta
-      await updateAgent(agentId, {
+      const result = await updateAgent(agentId, {
         name, 
         phone_number_id: phoneNumberId, 
         access_token: accessToken,
@@ -252,10 +251,15 @@ function AgentPage() {
       // Refresh agent so visibleTabs recalculates (e.g. templates tab after WABA ID saved)
       const fresh = await getAgent(agentId);
       setAgent(fresh);
-      setFeedback({ type: 'success', text: 'נשמר בהצלחה!' });
-      setTimeout(() => setFeedback(null), 3000);
-    } catch {
-      setFeedback({ type: 'error', text: 'שגיאה בשמירה' });
+      const info = result.meta_info;
+      const successText = info
+        ? `נשמר! ✓ ${info.verified_name} (${info.display_phone}) | WABA: ${info.waba_name} | איכות: ${info.quality}${info.is_test ? ' [טסט]' : ''}`
+        : 'נשמר בהצלחה!';
+      setFeedback({ type: 'success', text: successText });
+      setTimeout(() => setFeedback(null), 5000);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'שגיאה בשמירה';
+      setFeedback({ type: 'error', text: msg });
     } finally {
       setSaving(false);
     }

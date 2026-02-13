@@ -1,3 +1,12 @@
+// ============ Meta Validation ============
+export interface MetaInfo {
+  verified_name: string;
+  display_phone: string;
+  quality: string;
+  waba_name: string;
+  is_test: boolean;
+}
+
 // ============ Agent Config ============
 export interface AgentBatchingConfig {
   debounce_seconds: number;

@@ -1,4 +1,4 @@
-import type { Agent, AgentCreate, AgentUpdate, User, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DataTable, Provider, WaSenderConfig, DbMedia, AgentMedia, MediaConfig, WhatsAppTemplate, DbTemplate } from './types';
+import type { Agent, AgentCreate, AgentUpdate, User, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DataTable, Provider, WaSenderConfig, DbMedia, AgentMedia, MediaConfig, WhatsAppTemplate, DbTemplate, MetaInfo } from './types';
 import { getAccessToken, clearAuth } from './auth';
 
 // Production URL or environment variable or localhost for development
@@ -46,23 +46,29 @@ export async function getAgent(id: number): Promise<Agent> {
   return res.json();
 }
 
-export async function createAgent(data: AgentCreate): Promise<{ id: number }> {
+export async function createAgent(data: AgentCreate): Promise<{ id: number; meta_info?: MetaInfo }> {
   const res = await authFetch(`${API_URL}/api/agents`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to create agent');
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.detail || 'שגיאה ביצירת הסוכן');
+  }
   return res.json();
 }
 
-export async function updateAgent(id: number, data: AgentUpdate): Promise<{ id: number }> {
+export async function updateAgent(id: number, data: AgentUpdate): Promise<{ id: number; meta_info?: MetaInfo }> {
   const res = await authFetch(`${API_URL}/api/agents/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to update agent');
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.detail || 'שגיאה בעדכון הסוכן');
+  }
   return res.json();
 }
 

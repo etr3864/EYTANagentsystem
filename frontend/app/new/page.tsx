@@ -69,12 +69,13 @@ export default function NewAgentPage() {
         system_prompt: systemPrompt,
         model,
         provider,
-        provider_config: provider === 'wasender' ? providerConfig : {},
+        provider_config: providerConfig,
         batching_config: batchingConfig,
       });
       router.push('/');
-    } catch {
-      setError('שגיאה ביצירת הסוכן');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'שגיאה ביצירת הסוכן';
+      setError(msg);
     } finally {
       setSaving(false);
     }
