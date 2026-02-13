@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import { Card } from '@/components/ui';
+import { uploadTemplateMedia } from '@/lib/api';
 import type { WhatsAppTemplate, TemplateCategory } from '@/lib/types';
 
 interface BuilderProps {
-  onSubmit: (data: { name: string; language: string; category: string; components: Record<string, unknown>[] }) => Promise<void>;
+  agentId: number;
+  onSubmit: (data: { name: string; language: string; category: string; components: Record<string, unknown>[]; header_handle?: string }) => Promise<void>;
   initialData?: WhatsAppTemplate;
   isEdit?: boolean;
 }
@@ -34,11 +36,22 @@ const LANGUAGES = [
 
 const NAME_REGEX = /^[a-z0-9_]*$/;
 
-export function TemplateBuilder({ onSubmit, initialData, isEdit }: BuilderProps) {
+const MEDIA_ACCEPT: Record<string, string> = {
+  IMAGE: 'image/jpeg,image/png',
+  VIDEO: 'video/mp4',
+  DOCUMENT: 'application/pdf',
+};
+
+export function TemplateBuilder({ agentId, onSubmit, initialData, isEdit }: BuilderProps) {
   // Step 1: category selection, Step 2: builder
   const [step, setStep] = useState<1 | 2>(isEdit ? 2 : 1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Media header upload state
+  const [headerHandle, setHeaderHandle] = useState<string | null>(null);
+  const [headerFileName, setHeaderFileName] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   // Form state
   const [category, setCategory] = useState<TemplateCategory>(initialData?.category || 'UTILITY');
@@ -103,6 +116,25 @@ export function TemplateBuilder({ onSubmit, initialData, isEdit }: BuilderProps)
     return components;
   };
 
+  const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    setError(null);
+    try {
+      const handle = await uploadTemplateMedia(agentId, file);
+      setHeaderHandle(handle);
+      setHeaderFileName(file.name);
+    } catch (err: any) {
+      setError(err.message || 'שגיאה בהעלאת קובץ');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const isMediaHeader = ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerType);
+
   const handleSubmit = async () => {
     setError(null);
 
@@ -117,10 +149,18 @@ export function TemplateBuilder({ onSubmit, initialData, isEdit }: BuilderProps)
       setError('חובה למלא דוגמאות לכל המשתנים');
       return;
     }
+    if (isMediaHeader && !headerHandle) {
+      setError('חובה להעלות קובץ לדוגמה עבור header מדיה');
+      return;
+    }
 
     setSubmitting(true);
     try {
-      await onSubmit({ name, language, category, components: buildComponents() });
+      await onSubmit({
+        name, language, category,
+        components: buildComponents(),
+        header_handle: headerHandle || undefined,
+      });
     } catch (e: any) {
       setError(e.message || 'שגיאה ביצירת template');
     } finally {
@@ -243,7 +283,7 @@ export function TemplateBuilder({ onSubmit, initialData, isEdit }: BuilderProps)
                 {(['NONE', 'TEXT', 'IMAGE', 'VIDEO', 'DOCUMENT'] as HeaderType[]).map(ht => (
                   <button
                     key={ht}
-                    onClick={() => setHeaderType(ht)}
+                    onClick={() => { setHeaderType(ht); setHeaderHandle(null); setHeaderFileName(null); }}
                     className={`px-3 py-1.5 rounded text-xs transition-colors ${
                       headerType === ht ? 'bg-blue-500/20 border-blue-500 text-blue-300 border' : 'bg-slate-800 text-slate-400 border border-slate-700'
                     }`}
@@ -261,9 +301,22 @@ export function TemplateBuilder({ onSubmit, initialData, isEdit }: BuilderProps)
                   className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white text-sm"
                 />
               )}
-              {['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerType) && (
-                <div className="text-xs text-slate-400 bg-slate-800/50 border border-slate-700 rounded-lg p-3">
-                  Meta דורש דוגמה למדיה לצורך אישור. ה-sample יתווסף אוטומטית בסנכרון.
+              {isMediaHeader && (
+                <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3 space-y-2">
+                  <p className="text-xs text-slate-400">Meta דורש קובץ לדוגמה לצורך אישור</p>
+                  {headerHandle ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-emerald-400">✓ {headerFileName}</span>
+                      <button onClick={() => { setHeaderHandle(null); setHeaderFileName(null); }} className="text-xs text-slate-500 hover:text-red-400">שנה</button>
+                    </div>
+                  ) : (
+                    <label className={`inline-flex items-center gap-2 px-3 py-1.5 rounded text-xs cursor-pointer transition-colors ${
+                      uploading ? 'bg-slate-700 text-slate-500' : 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30'
+                    }`}>
+                      {uploading ? 'מעלה...' : 'בחר קובץ'}
+                      <input type="file" className="hidden" accept={MEDIA_ACCEPT[headerType] || '*/*'} onChange={handleMediaUpload} disabled={uploading} />
+                    </label>
+                  )}
                 </div>
               )}
             </div>
@@ -418,9 +471,11 @@ export function TemplateBuilder({ onSubmit, initialData, isEdit }: BuilderProps)
               {headerType === 'TEXT' && headerText && (
                 <div className="font-bold text-white text-sm mb-1">{headerText}</div>
               )}
-              {['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerType) && (
+              {isMediaHeader && (
                 <div className="bg-slate-700 rounded-lg h-24 flex items-center justify-center text-slate-500 text-xs mb-2">
-                  {headerType === 'IMAGE' ? '🖼️ תמונה' : headerType === 'VIDEO' ? '🎬 וידאו' : '📄 מסמך'}
+                  {headerFileName
+                    ? `${headerType === 'IMAGE' ? '🖼️' : headerType === 'VIDEO' ? '🎬' : '📄'} ${headerFileName}`
+                    : headerType === 'IMAGE' ? '🖼️ תמונה' : headerType === 'VIDEO' ? '🎬 וידאו' : '📄 מסמך'}
                 </div>
               )}
               <div className="text-sm text-slate-200 whitespace-pre-wrap break-words">

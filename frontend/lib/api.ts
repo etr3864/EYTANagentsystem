@@ -587,7 +587,22 @@ export async function syncTemplates(agentId: number): Promise<{ synced: number }
   return res.json();
 }
 
-export async function createTemplate(agentId: number, data: { name: string; language: string; category: string; components: Record<string, unknown>[] }): Promise<WhatsAppTemplate> {
+export async function uploadTemplateMedia(agentId: number, file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await authFetch(`${API_URL}/api/agents/${agentId}/templates/upload-media`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to upload media');
+  }
+  const data = await res.json();
+  return data.handle;
+}
+
+export async function createTemplate(agentId: number, data: { name: string; language: string; category: string; components: Record<string, unknown>[]; header_handle?: string }): Promise<WhatsAppTemplate> {
   const res = await authFetch(`${API_URL}/api/agents/${agentId}/templates`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -600,7 +615,7 @@ export async function createTemplate(agentId: number, data: { name: string; lang
   return res.json();
 }
 
-export async function updateTemplate(agentId: number, templateId: number, data: { components: Record<string, unknown>[] }): Promise<WhatsAppTemplate> {
+export async function updateTemplate(agentId: number, templateId: number, data: { components: Record<string, unknown>[]; header_handle?: string }): Promise<WhatsAppTemplate> {
   const res = await authFetch(`${API_URL}/api/agents/${agentId}/templates/${templateId}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },

@@ -77,20 +77,20 @@ export function TemplatesTab({ agentId }: TemplatesTabProps) {
     }
   };
 
-  const handleCreate = async (data: { name: string; language: string; category: string; components: Record<string, unknown>[] }) => {
+  const handleCreate = async (data: { name: string; language: string; category: string; components: Record<string, unknown>[]; header_handle?: string }) => {
     const tmpl = await createTemplate(agentId, data);
     setTemplates(prev => [tmpl, ...prev]);
     setView('list');
     showToast('Template נשלח לאישור Meta', 'success');
   };
 
-  const handleUpdate = async (components: Record<string, unknown>[]) => {
+  const handleUpdate = async (data: { components: Record<string, unknown>[]; header_handle?: string }) => {
     if (!editingTemplate) return;
-    const updated = await updateTemplate(agentId, editingTemplate.id, { components });
+    const updated = await updateTemplate(agentId, editingTemplate.id, data);
     setTemplates(prev => prev.map(t => t.id === updated.id ? updated : t));
     setView('list');
     setEditingTemplate(null);
-    showToast('Template עודכן ונשלח לבדיקה מחדש', 'success');
+    showToast('Template עודכן', 'success');
   };
 
   const startEdit = (tmpl: WhatsAppTemplate) => {
@@ -161,7 +161,8 @@ export function TemplatesTab({ agentId }: TemplatesTabProps) {
       {/* Builder View */}
       {(view === 'create' || view === 'edit') && (
         <TemplateBuilder
-          onSubmit={view === 'create' ? handleCreate : (data: { name: string; language: string; category: string; components: Record<string, unknown>[] }) => handleUpdate(data.components)}
+          agentId={agentId}
+          onSubmit={view === 'create' ? handleCreate : (data) => handleUpdate({ components: data.components, header_handle: data.header_handle })}
           initialData={view === 'edit' && editingTemplate ? editingTemplate : undefined}
           isEdit={view === 'edit'}
         />

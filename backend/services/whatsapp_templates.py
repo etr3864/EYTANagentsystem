@@ -14,11 +14,75 @@ def _get_waba_id(agent: Agent) -> str | None:
     return config.get("waba_id")
 
 
+async def _get_app_id(agent: Agent, db: Session) -> str:
+    """Get Meta App ID — cached in provider_config, or fetched via debug_token."""
+    config = agent.provider_config or {}
+    cached = config.get("app_id")
+    if cached:
+        return cached
+
+    url = f"{_API_URL}/debug_token"
+    params = {"input_token": agent.access_token, "access_token": agent.access_token}
+
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.get(url, params=params)
+
+    if resp.status_code != 200:
+        raise ValueError("Failed to resolve App ID from access token")
+
+    app_id = resp.json().get("data", {}).get("app_id")
+    if not app_id:
+        raise ValueError("App ID not found in token data")
+
+    config["app_id"] = app_id
+    agent.provider_config = config
+    db.commit()
+
+    return app_id
+
+
 def _headers(agent: Agent) -> dict:
     return {
         "Authorization": f"Bearer {agent.access_token}",
         "Content-Type": "application/json"
     }
+
+
+async def upload_media_to_meta(db: Session, agent: Agent, file_bytes: bytes,
+                                filename: str, mime_type: str, file_size: int) -> str:
+    """Upload media sample to Meta Resumable Upload API. Returns handle."""
+    app_id = await _get_app_id(agent, db)
+    auth_header = {"Authorization": f"OAuth {agent.access_token}"}
+
+    async with httpx.AsyncClient(timeout=60) as client:
+        # Step 1: Create upload session
+        session_resp = await client.post(
+            f"{_API_URL}/{app_id}/uploads",
+            params={"file_name": filename, "file_length": file_size, "file_type": mime_type},
+            headers=auth_header,
+        )
+        if session_resp.status_code != 200:
+            raise ValueError(f"Upload session failed: {_extract_error(session_resp)}")
+
+        session_id = session_resp.json().get("id")
+        if not session_id:
+            raise ValueError("No upload session ID returned")
+
+        # Step 2: Upload binary
+        upload_resp = await client.post(
+            f"{_API_URL}/{session_id}",
+            headers={**auth_header, "file_offset": "0"},
+            content=file_bytes,
+        )
+        if upload_resp.status_code != 200:
+            raise ValueError(f"File upload failed: {_extract_error(upload_resp)}")
+
+        handle = upload_resp.json().get("h")
+        if not handle:
+            raise ValueError("No file handle returned")
+
+    log("templates", msg=f"uploaded media sample '{filename}' ({mime_type})")
+    return handle
 
 
 # ============ Read ============
@@ -123,6 +187,16 @@ def _upsert_template(db: Session, agent_id: int, meta_data: dict) -> WhatsAppTem
 
 # ============ Create ============
 
+def _inject_header_handle(components: list[dict], header_handle: str | None) -> list[dict]:
+    """If a media header exists and a handle is provided, inject it as example."""
+    if not header_handle:
+        return components
+    for comp in components:
+        if comp.get("type") == "HEADER" and comp.get("format") in ("IMAGE", "VIDEO", "DOCUMENT"):
+            comp["example"] = {"header_handle": [header_handle]}
+    return components
+
+
 async def create_template(
     db: Session,
     agent: Agent,
@@ -130,12 +204,14 @@ async def create_template(
     language: str,
     category: str,
     components: list[dict],
-    header_media_url: str | None = None
+    header_handle: str | None = None
 ) -> WhatsAppTemplate:
     """Create a template in Meta and save to DB."""
     waba_id = _get_waba_id(agent)
     if not waba_id:
         raise ValueError("WABA ID not configured")
+
+    components = _inject_header_handle(components, header_handle)
 
     payload = {
         "name": name,
@@ -165,7 +241,6 @@ async def create_template(
         category=category,
         status=status,
         components=components,
-        header_media_url=header_media_url,
     )
     db.add(tmpl)
     db.commit()
@@ -182,11 +257,13 @@ async def update_template(
     agent: Agent,
     template: WhatsAppTemplate,
     components: list[dict],
-    header_media_url: str | None = None
+    header_handle: str | None = None
 ) -> WhatsAppTemplate:
     """Update an existing template in Meta and DB."""
     if template.status == "PENDING":
         raise ValueError("Cannot edit a template that is pending review")
+
+    components = _inject_header_handle(components, header_handle)
 
     url = f"{_API_URL}/{template.meta_template_id}"
     payload = {"components": components}
@@ -199,15 +276,12 @@ async def update_template(
         raise ValueError(f"Meta API error: {error}")
 
     template.components = components
-    template.status = "PENDING"
-    if header_media_url:
-        template.header_media_url = header_media_url
     template.reject_reason = None
 
     db.commit()
     db.refresh(template)
 
-    log("templates", msg=f"updated '{template.name}' → PENDING")
+    log("templates", msg=f"updated '{template.name}'")
     return template
 
 
