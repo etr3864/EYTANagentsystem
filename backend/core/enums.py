@@ -42,6 +42,7 @@ class ReminderContentType(str, Enum):
     """Reminder content generation type."""
     TEMPLATE = "template"
     AI = "ai"
+    META_TEMPLATE = "meta_template"
 
 
 class SummaryWebhookStatus(str, Enum):

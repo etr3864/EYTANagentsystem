@@ -573,6 +573,7 @@ function AgentPage() {
           {tab === 'calendar' && (
             <CalendarTab
               agentId={agentId}
+              provider={provider}
               appointmentPrompt={appointmentPrompt}
               onAppointmentPromptChange={setAppointmentPrompt}
               onSave={handleSaveCalendar}

@@ -104,6 +104,64 @@ async def send_media(
         return False
 
 
+async def send_template(
+    phone_number_id: str,
+    access_token: str,
+    to: str,
+    template_name: str,
+    language: str,
+    components: list[dict],
+) -> bool:
+    """Send a pre-approved template message via Meta WhatsApp API.
+
+    Args:
+        phone_number_id: WhatsApp phone number ID
+        access_token: Meta API access token
+        to: Recipient phone number (international format, no +)
+        template_name: Approved template name
+        language: Template language code (e.g. "he")
+        components: Template components with parameter values
+    """
+    url = f"{_API_URL}/{phone_number_id}/messages"
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "template",
+        "template": {
+            "name": template_name,
+            "language": {"code": language},
+            "components": components,
+        },
+    }
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                url,
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=30,
+            )
+
+        if response.status_code != 200:
+            try:
+                err = response.json()
+                log_error("whatsapp", f"send_template status={response.status_code} error={str(err)[:150]}")
+            except Exception:
+                log_error("whatsapp", f"send_template status={response.status_code}")
+            return False
+
+        log("whatsapp", msg=f"template sent", template=template_name, to=to[-4:])
+        return True
+    except Exception as e:
+        log_error("whatsapp", f"send_template: {str(e)[:80]}")
+        return False
+
+
 async def send_document(
     phone_number_id: str,
     access_token: str,

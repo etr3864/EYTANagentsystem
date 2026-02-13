@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     google_api_key: Optional[str] = None  # Gemini API
     google_credentials_json: Optional[str] = None
     
+    # Frontend URL (for OAuth redirects back to the UI)
+    frontend_url: str = "http://localhost:3000"
+
     # Google Calendar OAuth
     google_client_id: Optional[str] = None
     google_client_secret: Optional[str] = None

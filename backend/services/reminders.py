@@ -71,14 +71,22 @@ def create_reminders_for_appointment(
         if scheduled_for <= now_utc():
             continue
         
+        content_type = rule.get("content_type", ReminderContentType.TEMPLATE)
+
+        # For meta templates: store template name for tracking
+        if content_type == ReminderContentType.META_TEMPLATE:
+            template_text = rule.get("meta_template_name", "")
+        else:
+            template_text = rule.get("template", DEFAULT_TEMPLATE)
+
         reminder = ScheduledReminder(
             appointment_id=appointment.id,
             agent_id=agent.id,
             user_id=user_id,
             scheduled_for=to_utc(scheduled_for),
             status=ReminderStatus.PENDING,
-            content_type=rule.get("content_type", ReminderContentType.TEMPLATE),
-            template=rule.get("template", DEFAULT_TEMPLATE),
+            content_type=content_type,
+            template=template_text,
             ai_prompt=rule.get("ai_prompt"),
             rule_index=idx,
         )
@@ -290,29 +298,100 @@ async def _send_to_customer(
     agent: Agent,
     user: User,
     content: str,
-    db: Session
+    db: Session,
 ) -> tuple[bool, str | None]:
-    """Send reminder to customer via WhatsApp. Returns (success, error).
-    
-    Note: Only works with WA Sender. Meta WhatsApp requires approved templates
-    for proactive messages, which is not yet implemented.
-    """
+    """Send free-text reminder via WA Sender. Returns (success, error)."""
     if not user.phone:
         return False, "no customer phone"
-    
-    # Meta WhatsApp requires templates for proactive messages - not supported yet
+
     if agent.provider != "wasender":
-        return False, "meta provider requires templates (not implemented)"
-    
+        return False, "meta provider requires template messages"
+
     sent = await providers.send_message(agent, user.phone, content)
     if not sent:
         return False, "whatsapp send failed"
-    
-    # Save to conversation history so agent is aware
+
     conv = conversations.get_or_create(db, agent.id, user.id)
     messages.add(db, conv.id, "assistant", content, message_type="reminder")
     log("calendar", msg=f"reminder sent to {user.phone[:6]}...")
-    
+    return True, None
+
+
+def _get_rule_from_agent(agent: Agent, rule_index: int) -> dict | None:
+    """Look up the reminder rule config by index from agent's calendar_config."""
+    config = get_reminder_config(agent)
+    rules = config.get("rules", [])
+    if 0 <= rule_index < len(rules):
+        return rules[rule_index]
+    return None
+
+
+def _build_template_components(parameter_mapping: list[str], variables: dict) -> list[dict]:
+    """Build Meta API template components from parameter mapping and variables.
+
+    parameter_mapping is an ordered list of variable keys, e.g.:
+    ["customer_name", "title", "date", "time"]
+    """
+    parameters = [
+        {"type": "text", "text": str(variables.get(key, ""))}
+        for key in parameter_mapping
+    ]
+    if not parameters:
+        return []
+    return [{"type": "body", "parameters": parameters}]
+
+
+async def _send_meta_template(
+    agent: Agent,
+    user: User,
+    reminder: "ScheduledReminder",
+    appointment: "Appointment",
+    db: Session,
+) -> tuple[bool, str | None]:
+    """Send reminder as a Meta template message. Returns (success, error)."""
+    if not user.phone:
+        return False, "no customer phone"
+
+    rule = _get_rule_from_agent(agent, reminder.rule_index)
+    if not rule:
+        return False, "reminder rule not found in agent config"
+
+    template_name = rule.get("meta_template_name", "")
+    language = rule.get("meta_template_language", "he")
+    parameter_mapping = rule.get("parameter_mapping", [])
+
+    if not template_name:
+        return False, "no meta template configured for this rule"
+
+    # Verify template is still approved in DB
+    from backend.models.whatsapp_template import WhatsAppTemplate
+    tpl = db.query(WhatsAppTemplate).filter(
+        WhatsAppTemplate.agent_id == agent.id,
+        WhatsAppTemplate.name == template_name,
+        WhatsAppTemplate.language == language,
+    ).first()
+
+    if not tpl:
+        return False, f"template '{template_name}' not found"
+    if tpl.status != "APPROVED":
+        return False, f"template '{template_name}' status is {tpl.status}"
+
+    variables = _build_template_variables(appointment, agent, user)
+    components = _build_template_components(parameter_mapping, variables)
+
+    sent = await providers.send_template(
+        agent, user.phone, template_name, language, components
+    )
+    if not sent:
+        return False, "meta template send failed"
+
+    # Save to conversation history
+    summary = _build_from_template(
+        reminder.template or DEFAULT_TEMPLATE, variables
+    )
+    conv = conversations.get_or_create(db, agent.id, user.id)
+    messages.add(db, conv.id, "assistant", summary, message_type="reminder")
+    log("calendar", msg=f"meta template reminder sent to {user.phone[:6]}...")
     return True, None
 
 
@@ -344,11 +423,12 @@ async def send_reminder(db: Session, reminder: ScheduledReminder) -> bool:
         reminder.status = ReminderStatus.CANCELLED
         return False
     
-    # Build content
-    content = await build_reminder_content(db, reminder, appointment, agent, user)
-    
-    # Send to customer via WhatsApp
-    success, err = await _send_to_customer(agent, user, content, db)
+    # Route by content type
+    if reminder.content_type == ReminderContentType.META_TEMPLATE:
+        success, err = await _send_meta_template(agent, user, reminder, appointment, db)
+    else:
+        content = await build_reminder_content(db, reminder, appointment, agent, user)
+        success, err = await _send_to_customer(agent, user, content, db)
     
     # Update status
     reminder.sent_at = datetime.utcnow()

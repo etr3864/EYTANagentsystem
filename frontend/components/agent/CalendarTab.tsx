@@ -12,9 +12,19 @@ interface WorkingHours {
 
 interface ReminderRule {
   minutes_before: number;
-  content_type: 'template' | 'ai';
+  content_type: 'template' | 'ai' | 'meta_template';
   template?: string;
   ai_prompt?: string;
+  meta_template_name?: string;
+  meta_template_language?: string;
+  parameter_mapping?: string[];
+}
+
+interface ApprovedTemplate {
+  name: string;
+  language: string;
+  category: string;
+  components: Array<{ type: string; text?: string; parameters?: Array<{ type: string }> }>;
 }
 
 interface RemindersConfig {
@@ -39,6 +49,7 @@ interface GoogleCalendar {
 
 interface CalendarTabProps {
   agentId: number;
+  provider: 'meta' | 'wasender';
   appointmentPrompt: string;
   onAppointmentPromptChange: (v: string) => void;
   onSave: () => void;
@@ -77,29 +88,32 @@ const MINUTES_OPTIONS = [
   { value: 2880, label: 'יומיים לפני' },
 ];
 
-function ReminderRuleEditor({ 
-  rule, 
-  index, 
-  onChange, 
-  onDelete,
-  agentId 
-}: { 
-  rule: ReminderRule; 
-  index: number; 
-  onChange: (rule: ReminderRule) => void; 
-  onDelete: () => void;
-  agentId: number;
-}) {
-  // Local state for text fields to avoid API calls on every keystroke
-  const [localTemplate, setLocalTemplate] = useState(rule.template || '');
-  const [localAiPrompt, setLocalAiPrompt] = useState(rule.ai_prompt || '');
-  
-  // Sync local state when rule changes from parent
-  useEffect(() => {
-    setLocalTemplate(rule.template || '');
-    setLocalAiPrompt(rule.ai_prompt || '');
-  }, [rule.template, rule.ai_prompt]);
-  
+// Available variables for parameter mapping
+const PARAM_VARIABLES = [
+  { key: 'customer_name', label: 'שם הלקוח' },
+  { key: 'title', label: 'כותרת הפגישה' },
+  { key: 'date', label: 'תאריך' },
+  { key: 'time', label: 'שעה' },
+  { key: 'day', label: 'יום בשבוע' },
+  { key: 'duration', label: 'משך (דקות)' },
+  { key: 'agent_name', label: 'שם העסק' },
+];
+
+
+function extractBodyParamCount(components: ApprovedTemplate['components']): number {
+  const body = components.find(c => c.type === 'BODY' || c.type === 'body');
+  if (!body?.text) return 0;
+  const matches = body.text.match(/\{\{\d+\}\}/g);
+  return matches ? matches.length : 0;
+}
+
+function extractBodyText(components: ApprovedTemplate['components']): string {
+  const body = components.find(c => c.type === 'BODY' || c.type === 'body');
+  return body?.text || '';
+}
+
+
+function TestButton({ agentId, index }: { agentId: number; index: number }) {
   const [showTest, setShowTest] = useState(false);
   const [testPhone, setTestPhone] = useState('');
   const [sending, setSending] = useState(false);
@@ -107,28 +121,22 @@ function ReminderRuleEditor({
 
   async function handleSendTest() {
     if (!testPhone) return;
-    
     setSending(true);
     setTestResult(null);
-    
     try {
       const res = await fetch(`${API_URL}/api/calendar/${agentId}/test-reminder`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: testPhone.replace(/\D/g, ''), rule_index: index }),
       });
-      
       if (res.ok) {
         setTestResult({ success: true, message: 'נשלח בהצלחה!' });
-        setTimeout(() => {
-          setShowTest(false);
-          setTestResult(null);
-        }, 2000);
+        setTimeout(() => { setShowTest(false); setTestResult(null); }, 2000);
       } else {
         const data = await res.json();
         setTestResult({ success: false, message: data.detail || 'שליחה נכשלה' });
       }
-    } catch (e) {
+    } catch {
       setTestResult({ success: false, message: 'שגיאת רשת' });
     } finally {
       setSending(false);
@@ -136,18 +144,225 @@ function ReminderRuleEditor({
   }
 
   return (
+    <div className="border-t border-slate-700 pt-3">
+      {!showTest ? (
+        <button type="button" onClick={() => setShowTest(true)} className="text-sm text-blue-400 hover:text-blue-300">
+          שלח הודעת טסט
+        </button>
+      ) : (
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={testPhone}
+            onChange={(e) => setTestPhone(e.target.value.replace(/\D/g, ''))}
+            placeholder="972521234567"
+            className="flex-1 px-3 py-1.5 text-sm bg-slate-700 border border-slate-600 rounded text-white placeholder-slate-400"
+            dir="ltr"
+          />
+          <button type="button" onClick={handleSendTest} disabled={sending || !testPhone}
+            className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 text-white rounded">
+            {sending ? '...' : 'שלח'}
+          </button>
+          <button type="button" onClick={() => { setShowTest(false); setTestResult(null); }}
+            className="px-2 py-1.5 text-sm text-slate-400 hover:text-slate-300">ביטול</button>
+        </div>
+      )}
+      {testResult && (
+        <p className={`text-xs mt-1 ${testResult.success ? 'text-green-400' : 'text-red-400'}`}>
+          {testResult.message}
+        </p>
+      )}
+    </div>
+  );
+}
+
+
+function MetaTemplateEditor({
+  rule, index, onChange, approvedTemplates,
+}: {
+  rule: ReminderRule;
+  index: number;
+  onChange: (rule: ReminderRule) => void;
+  approvedTemplates: ApprovedTemplate[];
+}) {
+  const selectedKey = rule.meta_template_name && rule.meta_template_language
+    ? `${rule.meta_template_name}|${rule.meta_template_language}` : '';
+
+  const selectedTpl = approvedTemplates.find(
+    t => t.name === rule.meta_template_name && t.language === rule.meta_template_language
+  );
+  const paramCount = selectedTpl ? extractBodyParamCount(selectedTpl.components) : 0;
+  const bodyText = selectedTpl ? extractBodyText(selectedTpl.components) : '';
+  const mapping = rule.parameter_mapping || [];
+
+  // Check if mapping is stale (wrong length)
+  const mappingMismatch = selectedTpl && mapping.length !== paramCount;
+
+  function handleTemplateSelect(value: string) {
+    if (!value) {
+      onChange({ ...rule, meta_template_name: undefined, meta_template_language: undefined, parameter_mapping: [] });
+      return;
+    }
+    const [name, lang] = value.split('|');
+    const tpl = approvedTemplates.find(t => t.name === name && t.language === lang);
+    const count = tpl ? extractBodyParamCount(tpl.components) : 0;
+    onChange({
+      ...rule,
+      meta_template_name: name,
+      meta_template_language: lang,
+      parameter_mapping: new Array(count).fill('customer_name'),
+    });
+  }
+
+  function handleParamChange(paramIndex: number, variableKey: string) {
+    const newMapping = [...mapping];
+    newMapping[paramIndex] = variableKey;
+    onChange({ ...rule, parameter_mapping: newMapping });
+  }
+
+  if (approvedTemplates.length === 0) {
+    return (
+      <div className="text-sm text-amber-400/80 bg-amber-500/10 border border-amber-500/20 rounded px-3 py-3">
+        אין תבניות WhatsApp מאושרות לסוכן זה. יש ליצור תבנית בטאב &quot;תבניות&quot; ולחכות לאישור Meta.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <Select
+        label="תבנית WhatsApp מאושרת"
+        value={selectedKey}
+        onChange={(e) => handleTemplateSelect(e.target.value)}
+        options={[
+          { value: '', label: 'בחר תבנית...' },
+          ...approvedTemplates.map(t => ({
+            value: `${t.name}|${t.language}`,
+            label: `${t.name} (${t.language})`,
+          })),
+        ]}
+      />
+
+      {selectedTpl && (
+        <>
+          {/* Body preview */}
+          <div className="p-3 bg-slate-900/50 border border-slate-700 rounded text-sm text-slate-300" dir="rtl">
+            {bodyText || '(ללא טקסט body)'}
+          </div>
+
+          {/* Parameter mapping */}
+          {paramCount > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs text-slate-400">מיפוי פרמטרים ({paramCount}):</p>
+              {Array.from({ length: paramCount }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <span className="text-xs text-slate-500 w-12 shrink-0">{`{{${i + 1}}}`}</span>
+                  <select
+                    value={mapping[i] || ''}
+                    onChange={(e) => handleParamChange(i, e.target.value)}
+                    className="flex-1 bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm text-white"
+                  >
+                    {PARAM_VARIABLES.map(v => (
+                      <option key={v.key} value={v.key}>{v.label}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {mappingMismatch && (
+            <p className="text-xs text-red-400">
+              מספר הפרמטרים במיפוי ({mapping.length}) לא תואם לתבנית ({paramCount}). יש לבחור את התבנית מחדש.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+
+function WaSenderContentEditor({
+  rule, index, onChange,
+}: {
+  rule: ReminderRule;
+  index: number;
+  onChange: (rule: ReminderRule) => void;
+}) {
+  const [localTemplate, setLocalTemplate] = useState(rule.template || '');
+  const [localAiPrompt, setLocalAiPrompt] = useState(rule.ai_prompt || '');
+
+  useEffect(() => {
+    setLocalTemplate(rule.template || '');
+    setLocalAiPrompt(rule.ai_prompt || '');
+  }, [rule.template, rule.ai_prompt]);
+
+  return (
+    <>
+      <div className="flex items-center gap-4 mb-2">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="radio" name={`content-type-${index}`}
+            checked={rule.content_type === 'template'}
+            onChange={() => onChange({ ...rule, content_type: 'template' })}
+            className="w-4 h-4 bg-slate-700 border-slate-600" />
+          <span className="text-sm text-slate-300">תבנית קבועה</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input type="radio" name={`content-type-${index}`}
+            checked={rule.content_type === 'ai'}
+            onChange={() => onChange({ ...rule, content_type: 'ai' })}
+            className="w-4 h-4 bg-slate-700 border-slate-600" />
+          <span className="text-sm text-slate-300">ניסוח AI</span>
+        </label>
+      </div>
+
+      {rule.content_type === 'template' ? (
+        <div>
+          <Textarea label="תבנית הודעה" value={localTemplate}
+            onChange={(e) => setLocalTemplate(e.target.value)}
+            onBlur={() => onChange({ ...rule, template: localTemplate })}
+            rows={3} placeholder="שלום {customer_name}, תזכורת לפגישה..." className="text-sm" dir="rtl" />
+          <p className="text-xs text-slate-500 mt-1">
+            משתנים זמינים: {'{customer_name}'}, {'{title}'}, {'{date}'}, {'{time}'}, {'{day}'}, {'{duration}'}, {'{agent_name}'}
+          </p>
+        </div>
+      ) : (
+        <div>
+          <Textarea label="הנחיות ל-AI" value={localAiPrompt}
+            onChange={(e) => setLocalAiPrompt(e.target.value)}
+            onBlur={() => onChange({ ...rule, ai_prompt: localAiPrompt })}
+            rows={2} placeholder="כתוב תזכורת חמה וידידותית..." className="text-sm" dir="rtl" />
+          <p className="text-xs text-slate-500 mt-1">
+            ה-AI יקבל את פרטי הפגישה, אישיות הסוכן והשיחה האחרונה - וינסח תזכורת מותאמת
+          </p>
+        </div>
+      )}
+    </>
+  );
+}
+
+
+function ReminderRuleEditor({ 
+  rule, index, onChange, onDelete, agentId, provider, approvedTemplates,
+}: { 
+  rule: ReminderRule; 
+  index: number; 
+  onChange: (rule: ReminderRule) => void; 
+  onDelete: () => void;
+  agentId: number;
+  provider: 'meta' | 'wasender';
+  approvedTemplates: ApprovedTemplate[];
+}) {
+  const isMeta = provider === 'meta';
+
+  return (
     <div className="p-4 bg-slate-800/50 border border-slate-700 rounded-lg space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-slate-300">תזכורת {index + 1}</span>
-        <button
-          onClick={onDelete}
-          className="text-xs text-red-400 hover:text-red-300"
-        >
-          מחק
-        </button>
+        <button onClick={onDelete} className="text-xs text-red-400 hover:text-red-300">מחק</button>
       </div>
 
-      {/* Timing */}
       <Select
         label="מתי לשלוח"
         value={rule.minutes_before}
@@ -155,115 +370,22 @@ function ReminderRuleEditor({
         options={MINUTES_OPTIONS.map(o => ({ value: o.value.toString(), label: o.label }))}
       />
 
-      {/* Content Type */}
       <div className="border-t border-slate-700 pt-3">
-        <div className="flex items-center gap-4 mb-2">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name={`content-type-${index}`}
-              checked={rule.content_type === 'template'}
-              onChange={() => onChange({ ...rule, content_type: 'template' })}
-              className="w-4 h-4 bg-slate-700 border-slate-600"
-            />
-            <span className="text-sm text-slate-300">תבנית קבועה</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              name={`content-type-${index}`}
-              checked={rule.content_type === 'ai'}
-              onChange={() => onChange({ ...rule, content_type: 'ai' })}
-              className="w-4 h-4 bg-slate-700 border-slate-600"
-            />
-            <span className="text-sm text-slate-300">ניסוח AI</span>
-          </label>
-        </div>
-
-        {rule.content_type === 'template' ? (
-          <div>
-            <Textarea
-              label="תבנית הודעה"
-              value={localTemplate}
-              onChange={(e) => setLocalTemplate(e.target.value)}
-              onBlur={() => onChange({ ...rule, template: localTemplate })}
-              rows={3}
-              placeholder="שלום {customer_name}, תזכורת לפגישה..."
-              className="text-sm"
-              dir="rtl"
-            />
-            <p className="text-xs text-slate-500 mt-1">
-              משתנים זמינים: {'{customer_name}'}, {'{title}'}, {'{date}'}, {'{time}'}, {'{day}'}, {'{duration}'}, {'{agent_name}'}
-            </p>
-          </div>
+        {isMeta ? (
+          <MetaTemplateEditor rule={rule} index={index} onChange={onChange} approvedTemplates={approvedTemplates} />
         ) : (
-          <div>
-            <Textarea
-              label="הנחיות ל-AI"
-              value={localAiPrompt}
-              onChange={(e) => setLocalAiPrompt(e.target.value)}
-              onBlur={() => onChange({ ...rule, ai_prompt: localAiPrompt })}
-              rows={2}
-              placeholder="כתוב תזכורת חמה וידידותית..."
-              className="text-sm"
-              dir="rtl"
-            />
-            <p className="text-xs text-slate-500 mt-1">
-              ה-AI יקבל את פרטי הפגישה, אישיות הסוכן והשיחה האחרונה - וינסח תזכורת מותאמת
-            </p>
-          </div>
+          <WaSenderContentEditor rule={rule} index={index} onChange={onChange} />
         )}
       </div>
 
-      {/* Test Button */}
-      <div className="border-t border-slate-700 pt-3">
-        {!showTest ? (
-          <button
-            type="button"
-            onClick={() => setShowTest(true)}
-            className="text-sm text-blue-400 hover:text-blue-300"
-          >
-            שלח הודעת טסט
-          </button>
-        ) : (
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              value={testPhone}
-              onChange={(e) => setTestPhone(e.target.value.replace(/\D/g, ''))}
-              placeholder="972521234567"
-              className="flex-1 px-3 py-1.5 text-sm bg-slate-700 border border-slate-600 rounded text-white placeholder-slate-400"
-              dir="ltr"
-            />
-            <button
-              type="button"
-              onClick={handleSendTest}
-              disabled={sending || !testPhone}
-              className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 text-white rounded"
-            >
-              {sending ? '...' : 'שלח'}
-            </button>
-            <button
-              type="button"
-              onClick={() => { setShowTest(false); setTestResult(null); }}
-              className="px-2 py-1.5 text-sm text-slate-400 hover:text-slate-300"
-            >
-              ביטול
-            </button>
-          </div>
-        )}
-        {testResult && (
-          <p className={`text-xs mt-1 ${testResult.success ? 'text-green-400' : 'text-red-400'}`}>
-            {testResult.message}
-          </p>
-        )}
-      </div>
+      <TestButton agentId={agentId} index={index} />
     </div>
   );
 }
 
 export function CalendarTab({ 
   agentId, 
+  provider,
   appointmentPrompt, 
   onAppointmentPromptChange,
   onSave, 
@@ -271,12 +393,15 @@ export function CalendarTab({
 }: CalendarTabProps) {
   const [config, setConfig] = useState<CalendarConfig>({});
   const [calendars, setCalendars] = useState<GoogleCalendar[]>([]);
+  const [approvedTemplates, setApprovedTemplates] = useState<ApprovedTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
+  const isMeta = provider === 'meta';
 
   useEffect(() => {
     loadConfig();
-  }, [agentId]);
+    if (isMeta) loadApprovedTemplates();
+  }, [agentId, isMeta]);
 
   async function loadConfig() {
     try {
@@ -306,6 +431,17 @@ export function CalendarTab({
       }
     } catch (e) {
       console.error('Failed to load calendars:', e);
+    }
+  }
+
+  async function loadApprovedTemplates() {
+    try {
+      const res = await fetch(`${API_URL}/api/calendar/${agentId}/approved-templates`);
+      if (res.ok) {
+        setApprovedTemplates(await res.json());
+      }
+    } catch {
+      // Non-critical — templates will show as empty list
     }
   }
 
@@ -512,12 +648,9 @@ export function CalendarTab({
       {isConnected && (
         <Card>
           <CardHeader>תזכורות לפגישות</CardHeader>
-          <p className="text-sm text-slate-400 mb-2">
-            שלח תזכורות אוטומטיות ללקוח ו/או לבעל העסק לפני הפגישה
-          </p>
-          <p className="text-xs text-amber-400/80 bg-amber-500/10 border border-amber-500/20 rounded px-3 py-2 mb-4">
-            שים לב: שליחת תזכורות בWhatsApp פועלת כרגע רק עם WA Sender. 
-            עבור WhatsApp רשמי (Meta) נדרשים Templates מאושרים (בפיתוח).
+          <p className="text-sm text-slate-400 mb-4">
+            שלח תזכורות אוטומטיות ללקוח לפני הפגישה
+            {isMeta && ' (דרך תבניות WhatsApp מאושרות)'}
           </p>
           
           {/* Enable/Disable Toggle */}
@@ -542,20 +675,18 @@ export function CalendarTab({
 
           {config.reminders?.enabled && (
             <div className="space-y-4">
-              {/* Reminder Rules */}
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="text-sm font-medium text-slate-300">חוקי תזכורת</h4>
                   <Button
                     variant="ghost"
                     size="sm"
+                    disabled={isMeta && approvedTemplates.length === 0}
                     onClick={() => {
                       const reminders = config.reminders || { enabled: true, rules: [] };
-                      const newRule: ReminderRule = {
-                        minutes_before: 60,
-                        content_type: 'template',
-                        template: 'שלום {customer_name}, תזכורת לפגישה "{title}" ב-{date} בשעה {time}. נתראה!'
-                      };
+                      const newRule: ReminderRule = isMeta
+                        ? { minutes_before: 60, content_type: 'meta_template' }
+                        : { minutes_before: 60, content_type: 'template', template: 'שלום {customer_name}, תזכורת לפגישה "{title}" ב-{date} בשעה {time}. נתראה!' };
                       saveConfig({ ...config, reminders: { ...reminders, rules: [...reminders.rules, newRule] } });
                     }}
                   >
@@ -563,9 +694,15 @@ export function CalendarTab({
                   </Button>
                 </div>
 
+                {isMeta && approvedTemplates.length === 0 && (
+                  <p className="text-sm text-amber-400/80 bg-amber-500/10 border border-amber-500/20 rounded px-3 py-3 text-center">
+                    אין תבניות WhatsApp מאושרות. יש ליצור תבנית בטאב &quot;תבניות&quot; ולחכות לאישור Meta.
+                  </p>
+                )}
+
                 {(!config.reminders?.rules || config.reminders.rules.length === 0) ? (
                   <p className="text-sm text-slate-500 text-center py-4">
-                    אין חוקי תזכורת. לחץ "הוסף תזכורת" להוספת חוק חדש.
+                    אין חוקי תזכורת. לחץ &quot;הוסף תזכורת&quot; להוספת חוק חדש.
                   </p>
                 ) : (
                   <div className="space-y-4">
@@ -575,6 +712,8 @@ export function CalendarTab({
                         rule={rule}
                         index={idx}
                         agentId={agentId}
+                        provider={provider}
+                        approvedTemplates={approvedTemplates}
                         onChange={(updatedRule) => {
                           const rules = [...(config.reminders?.rules || [])];
                           rules[idx] = updatedRule;

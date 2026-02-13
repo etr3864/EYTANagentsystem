@@ -97,7 +97,7 @@ async def oauth_callback(code: str, state: str, request: Request, db: Session = 
     appointments.update_calendar_config(db, agent, {"google_tokens": tokens})
     
     # Redirect back to the agent page calendar tab
-    frontend_url = "http://localhost:3001"
+    frontend_url = settings.frontend_url
     return HTMLResponse(f"""
     <html>
     <head>
@@ -208,6 +208,34 @@ async def disconnect_calendar(agent_id: int, db: Session = Depends(get_db)):
     return {"status": "disconnected"}
 
 
+@router.get("/{agent_id}/approved-templates")
+def list_approved_templates(agent_id: int, db: Session = Depends(get_db)):
+    """List approved WhatsApp templates available for reminders (Meta only)."""
+    from backend.models.whatsapp_template import WhatsAppTemplate
+
+    agent = agents.get_by_id(db, agent_id)
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    if agent.provider != "meta":
+        return []
+
+    templates = db.query(WhatsAppTemplate).filter(
+        WhatsAppTemplate.agent_id == agent_id,
+        WhatsAppTemplate.status == "APPROVED",
+    ).all()
+
+    return [
+        {
+            "name": t.name,
+            "language": t.language,
+            "category": t.category,
+            "components": t.components,
+        }
+        for t in templates
+    ]
+
+
 class TestReminderRequest(BaseModel):
     """Request to send a test reminder."""
     phone: str
@@ -220,36 +248,33 @@ async def send_test_reminder(
     request: TestReminderRequest,
     db: Session = Depends(get_db)
 ):
-    """Send a test reminder to verify the template works."""
+    """Send a test reminder to verify the rule works."""
     from datetime import datetime, timedelta
     from zoneinfo import ZoneInfo
     from backend.services import providers
-    from backend.services.reminders import get_reminder_config, _build_from_template, _build_from_ai, _get_agent_personality, DEFAULT_TEMPLATE
-    
+    from backend.services.reminders import (
+        get_reminder_config, _build_from_template, _build_from_ai,
+        _get_agent_personality, _build_template_components, DEFAULT_TEMPLATE,
+    )
+
     agent = agents.get_by_id(db, agent_id)
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
-    
-    # Only WA Sender supported for now
-    if agent.provider != "wasender":
-        raise HTTPException(
-            status_code=400, 
-            detail="תזכורות WhatsApp נתמכות כרגע רק עם WA Sender"
-        )
-    
+
     config = get_reminder_config(agent)
     rules = config.get("rules", [])
-    
+
     if request.rule_index >= len(rules):
         raise HTTPException(status_code=400, detail="Rule index out of range")
-    
+
     rule = rules[request.rule_index]
-    
+    content_type = rule.get("content_type", "template")
+
     # Build test variables
     calendar_config = agent.calendar_config or {}
     tz = ZoneInfo(calendar_config.get("timezone", "Asia/Jerusalem"))
     tomorrow = datetime.now(tz) + timedelta(days=1)
-    
+
     variables = {
         "customer_name": "לקוח לדוגמה",
         "customer_phone": request.phone,
@@ -261,24 +286,44 @@ async def send_test_reminder(
         "duration": "30",
         "agent_name": agent.name,
     }
-    
-    # Build content based on rule
+
+    # --- Meta template ---
+    if content_type == "meta_template":
+        if agent.provider != "meta":
+            raise HTTPException(400, detail="Meta templates require Meta provider")
+
+        template_name = rule.get("meta_template_name", "")
+        language = rule.get("meta_template_language", "he")
+        mapping = rule.get("parameter_mapping", [])
+
+        if not template_name:
+            raise HTTPException(400, detail="לא הוגדר template לכלל זה")
+
+        components = _build_template_components(mapping, variables)
+        sent = await providers.send_template(
+            agent, request.phone, template_name, language, components
+        )
+        if not sent:
+            raise HTTPException(500, detail="שליחת Template נכשלה")
+        return {"status": "sent", "type": "meta_template", "template": template_name}
+
+    # --- WA Sender: text template or AI ---
+    if agent.provider != "wasender":
+        raise HTTPException(400, detail="תזכורות טקסט חופשי נתמכות רק עם WA Sender")
+
     template = rule.get("template", DEFAULT_TEMPLATE)
-    content_type = rule.get("content_type", "template")
-    
+
     if content_type == "ai":
         ai_prompt = rule.get("ai_prompt", "")
         agent_personality = _get_agent_personality(agent)
         content = await _build_from_ai(ai_prompt, variables, template, agent_personality, "")
     else:
         content = _build_from_template(template, variables)
-    
-    # Send
+
     sent = await providers.send_message(agent, request.phone, content)
-    
     if not sent:
-        raise HTTPException(status_code=500, detail="שליחה נכשלה")
-    
+        raise HTTPException(500, detail="שליחה נכשלה")
+
     return {"status": "sent", "content": content}
 
 

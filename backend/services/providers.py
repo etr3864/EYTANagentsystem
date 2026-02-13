@@ -1,6 +1,32 @@
 """Provider abstraction layer for sending WhatsApp messages."""
 from backend.models.agent import Agent
 from backend.services import whatsapp, wasender
+from backend.core.logger import log_error
+
+
+async def send_template(
+    agent: Agent,
+    to: str,
+    template_name: str,
+    language: str,
+    components: list[dict],
+) -> bool:
+    """Send a pre-approved template message (Meta only).
+
+    WA Sender does not use templates — callers should use send_message instead.
+    """
+    if agent.provider != "meta":
+        log_error("providers", "send_template called for non-meta provider")
+        return False
+
+    return await whatsapp.send_template(
+        agent.phone_number_id,
+        agent.access_token,
+        to,
+        template_name,
+        language,
+        components,
+    )
 
 
 async def send_message(agent: Agent, to: str, text: str) -> bool:
