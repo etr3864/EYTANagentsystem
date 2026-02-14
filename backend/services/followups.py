@@ -193,22 +193,47 @@ def _schedule_followup(
 
 
 def _clamp_to_active_hours(dt: datetime, active_hours: dict) -> datetime:
-    """Push datetime into allowed window. If outside, move to next day's start."""
+    """Push datetime into allowed active hours window.
+
+    Works in local timezone (Asia/Jerusalem by default).
+    Supports ranges that cross midnight (e.g. 10:00-04:00 = 10am to 4am next day).
+    Input/output are naive UTC datetimes (for DB storage).
+    """
+    from backend.core.timezone import from_utc, to_utc, DEFAULT_TZ
+
     start_str = active_hours.get("start", "09:00")
     end_str = active_hours.get("end", "21:00")
 
     start_h, start_m = map(int, start_str.split(":"))
     end_h, end_m = map(int, end_str.split(":"))
 
-    day_start = dt.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
-    day_end = dt.replace(hour=end_h, minute=end_m, second=0, microsecond=0)
+    # Convert UTC to local for comparison
+    local = from_utc(dt, DEFAULT_TZ)
 
-    if dt < day_start:
-        return day_start
-    if dt > day_end:
-        # Push to next day's start
-        return (dt + timedelta(days=1)).replace(hour=start_h, minute=start_m, second=0, microsecond=0)
-    return dt
+    local_start = local.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
+    local_end = local.replace(hour=end_h, minute=end_m, second=0, microsecond=0)
+
+    crosses_midnight = local_end <= local_start
+
+    if crosses_midnight:
+        # Range like 10:00-04:00 means "10am today → 4am tomorrow"
+        # In-window if: time >= start OR time < end
+        in_window = local >= local_start or local < local_end
+    else:
+        # Normal range like 09:00-21:00
+        in_window = local_start <= local < local_end
+
+    if in_window:
+        return dt
+
+    # Outside window — push to next start
+    if local < local_start:
+        clamped = local_start
+    else:
+        # Past end (or past midnight in cross-midnight case) — next day's start
+        clamped = local_start + timedelta(days=1)
+
+    return to_utc(clamped.replace(tzinfo=None), DEFAULT_TZ)
 
 
 # ──────────────────────────────────────────
