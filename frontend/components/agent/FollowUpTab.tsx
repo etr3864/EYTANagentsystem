@@ -344,10 +344,11 @@ export default function FollowUpTab({ agentId, provider }: FollowUpTabProps) {
         <label className="flex items-center gap-2 cursor-pointer">
           <span className="text-sm text-slate-300">{config.enabled ? 'פעיל' : 'כבוי'}</span>
           <div
+            dir="ltr"
             onClick={() => updateField('enabled', !config.enabled)}
-            className={`w-11 h-6 rounded-full transition-colors cursor-pointer ${config.enabled ? 'bg-blue-500' : 'bg-slate-600'}`}
+            className={`w-11 h-6 rounded-full transition-colors cursor-pointer relative ${config.enabled ? 'bg-blue-500' : 'bg-slate-600'}`}
           >
-            <div className={`w-5 h-5 bg-white rounded-full shadow transform transition-transform mt-0.5 ${config.enabled ? 'translate-x-0.5' : 'translate-x-5'}`} />
+            <div className={`w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-all ${config.enabled ? 'left-[22px]' : 'left-0.5'}`} />
           </div>
         </label>
       </div>

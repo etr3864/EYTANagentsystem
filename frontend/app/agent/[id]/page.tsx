@@ -500,7 +500,7 @@ function AgentPage() {
                 key={t.id}
                 onClick={() => handleTabChange(t.id)}
                 className={`
-                  px-4 py-3 text-sm font-medium
+                  px-3 py-3 text-sm font-medium whitespace-nowrap
                   border-b-2 transition-all duration-200
                   ${tab === t.id 
                     ? 'border-blue-500 text-blue-400' 
@@ -508,7 +508,7 @@ function AgentPage() {
                   }
                 `}
               >
-                <span className="ml-2">{t.icon}</span>
+                <span className="ml-1.5">{t.icon}</span>
                 {t.label}
               </button>
             ))}

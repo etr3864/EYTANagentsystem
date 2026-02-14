@@ -53,7 +53,9 @@ def update_followup_config(
     if not agent:
         raise HTTPException(404, "Agent not found")
 
-    config = agent.followup_config or DEFAULT_CONFIG.copy()
+    # Deep copy to ensure SQLAlchemy detects the JSON change
+    import copy
+    config = copy.deepcopy(agent.followup_config) if agent.followup_config else DEFAULT_CONFIG.copy()
     update_dict = data.model_dump(exclude_none=True)
     config.update(update_dict)
 
