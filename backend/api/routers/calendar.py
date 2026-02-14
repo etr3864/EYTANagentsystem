@@ -17,9 +17,12 @@ router = APIRouter(prefix="/calendar", tags=["calendar"])
 class ReminderRule(BaseModel):
     """Single reminder rule configuration."""
     minutes_before: int  # e.g., 1440 (24h), 60 (1h)
-    content_type: str = "template"  # template, ai
+    content_type: str = "template"  # template, ai, meta_template
     template: Optional[str] = None
     ai_prompt: Optional[str] = None
+    meta_template_name: Optional[str] = None
+    meta_template_language: Optional[str] = None
+    parameter_mapping: Optional[list[str]] = None
 
 
 class RemindersConfig(BaseModel):

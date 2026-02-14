@@ -495,6 +495,43 @@ export async function deleteAdmin(id: number): Promise<void> {
   }
 }
 
+// Super Admin Management
+export async function getSuperAdmins(): Promise<AuthUserResponse[]> {
+  const res = await authFetch(`${API_URL}/api/auth/super-admins`);
+  if (!res.ok) throw new Error('Failed to fetch super admins');
+  return res.json();
+}
+
+export async function createSuperAdmin(data: CreateAdminRequest): Promise<AuthUserResponse> {
+  const res = await authFetch(`${API_URL}/api/auth/super-admins`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: 'Failed to create super admin' }));
+    throw new Error(error.detail || 'Failed to create super admin');
+  }
+  return res.json();
+}
+
+export async function resetSuperAdminPassword(id: number, data: ResetPasswordRequest): Promise<void> {
+  const res = await authFetch(`${API_URL}/api/auth/super-admins/${id}/password`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to reset password');
+}
+
+export async function deleteSuperAdmin(id: number): Promise<void> {
+  const res = await authFetch(`${API_URL}/api/auth/super-admins/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ detail: 'Failed to delete super admin' }));
+    throw new Error(error.detail || 'Failed to delete super admin');
+  }
+}
+
 // Agent Assignment (Super Admin only)
 export async function assignAgentToAdmin(adminId: number, agentId: number): Promise<void> {
   const res = await authFetch(`${API_URL}/api/auth/admins/${adminId}/agents/${agentId}`, {

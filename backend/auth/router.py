@@ -252,6 +252,70 @@ def delete_admin(
 
 
 # ============================================================
+# Super Admin Management (Super Admin only)
+# ============================================================
+
+@router.get("/super-admins", response_model=list[UserResponse])
+def list_super_admins(
+    current_user: AuthUser = Depends(require_role(UserRole.SUPER_ADMIN)),
+    db: Session = Depends(get_db)
+):
+    """List all super admins."""
+    return [UserResponse.model_validate(u) for u in service.list_super_admins(db)]
+
+
+@router.post("/super-admins", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def create_super_admin(
+    request: CreateAdminRequest,
+    current_user: AuthUser = Depends(require_role(UserRole.SUPER_ADMIN)),
+    db: Session = Depends(get_db)
+):
+    """Create a new super admin."""
+    if service.email_exists(db, request.email):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Email already registered")
+
+    user = service.create_super_admin(db, request.email, request.password, request.name)
+    log("SUPER_ADMIN_CREATED", user_id=user.id, by=current_user.id)
+    return UserResponse.model_validate(user)
+
+
+@router.put("/super-admins/{user_id}/password", response_model=MessageResponse)
+def reset_super_admin_password(
+    user_id: int,
+    request: ResetPasswordRequest,
+    current_user: AuthUser = Depends(require_role(UserRole.SUPER_ADMIN)),
+    db: Session = Depends(get_db)
+):
+    """Reset a super admin's password."""
+    user = service.get_by_id(db, user_id)
+    if not user or user.role != UserRole.SUPER_ADMIN:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Super admin not found")
+
+    service.change_password(db, user, request.new_password)
+    log("PASSWORD_RESET", user_id=user.id, by=current_user.id)
+    return MessageResponse(message="Password reset successfully")
+
+
+@router.delete("/super-admins/{user_id}", response_model=MessageResponse)
+def delete_super_admin(
+    user_id: int,
+    current_user: AuthUser = Depends(require_role(UserRole.SUPER_ADMIN)),
+    db: Session = Depends(get_db)
+):
+    """Delete a super admin (cannot delete yourself)."""
+    if user_id == current_user.id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="לא ניתן למחוק את עצמך")
+
+    user = service.get_by_id(db, user_id)
+    if not user or user.role != UserRole.SUPER_ADMIN:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Super admin not found")
+
+    service.delete_user(db, user)
+    log("SUPER_ADMIN_DELETED", user_id=user_id, by=current_user.id)
+    return MessageResponse(message="Super admin deleted successfully")
+
+
+# ============================================================
 # Agent Assignment (Super Admin only)
 # ============================================================
 

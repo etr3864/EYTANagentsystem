@@ -10,6 +10,7 @@ import { isSuperAdmin } from '@/lib/auth';
 import {
   getAdmins, updateAdmin, deleteAdmin,
   getEmployees, updateEmployee, deleteEmployee,
+  getSuperAdmins, createSuperAdmin, resetSuperAdminPassword, deleteSuperAdmin,
   AuthUserResponse, AuthUserWithAgents,
 } from '@/lib/api';
 
@@ -26,8 +27,17 @@ function UsersPage() {
   const [showPasswordModal, setShowPasswordModal] = useState<AuthUserResponse | null>(null);
   const [showAgentModal, setShowAgentModal] = useState<AuthUserWithAgents | null>(null);
 
+  // Super admin management state
+  const [superAdmins, setSuperAdmins] = useState<AuthUserResponse[]>([]);
+  const [showCreateSA, setShowCreateSA] = useState(false);
+  const [resetSAPassword, setResetSAPassword] = useState<AuthUserResponse | null>(null);
+  const [saForm, setSaForm] = useState({ email: '', password: '', name: '' });
+  const [saNewPassword, setSaNewPassword] = useState('');
+  const [saLoading, setSaLoading] = useState(false);
+
   useEffect(() => {
     loadData();
+    if (isSuperAdmin(user)) loadSuperAdmins();
   }, [activeTab]);
 
   async function loadData() {
@@ -44,6 +54,54 @@ function UsersPage() {
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadSuperAdmins() {
+    try {
+      const data = await getSuperAdmins();
+      setSuperAdmins(data);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function handleCreateSA() {
+    if (!saForm.email || !saForm.password || !saForm.name) return;
+    setSaLoading(true);
+    try {
+      const created = await createSuperAdmin(saForm);
+      setSuperAdmins(prev => [created, ...prev]);
+      setShowCreateSA(false);
+      setSaForm({ email: '', password: '', name: '' });
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'שגיאה ביצירת מנהל מערכת');
+    } finally {
+      setSaLoading(false);
+    }
+  }
+
+  async function handleResetSAPassword() {
+    if (!resetSAPassword || !saNewPassword) return;
+    setSaLoading(true);
+    try {
+      await resetSuperAdminPassword(resetSAPassword.id, { new_password: saNewPassword });
+      setResetSAPassword(null);
+      setSaNewPassword('');
+    } catch {
+      alert('שגיאה באיפוס סיסמה');
+    } finally {
+      setSaLoading(false);
+    }
+  }
+
+  async function handleDeleteSA(id: number) {
+    if (!confirm('למחוק מנהל מערכת זה?')) return;
+    try {
+      await deleteSuperAdmin(id);
+      setSuperAdmins(prev => prev.filter(u => u.id !== id));
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'שגיאה במחיקה');
     }
   }
 
@@ -103,6 +161,139 @@ function UsersPage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-6 py-8">
+        {/* Super Admin Management Section */}
+        {isSuperAdmin(user) && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-white">מנהלי מערכת</h2>
+              <Button variant="secondary" size="sm" icon={<PlusIcon />} onClick={() => setShowCreateSA(true)}>
+                מנהל מערכת חדש
+              </Button>
+            </div>
+
+            {superAdmins.length === 0 ? (
+              <Card className="text-center py-6">
+                <p className="text-slate-400 text-sm">אין מנהלי מערכת נוספים</p>
+              </Card>
+            ) : (
+              <div className="grid gap-3">
+                {superAdmins.map((sa) => (
+                  <Card key={sa.id} padding="none">
+                    <div className="p-4 flex justify-between items-center">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
+                          <KeyIcon />
+                        </div>
+                        <div>
+                          <span className="text-white font-medium">{sa.name}</span>
+                          <div className="text-sm text-slate-400">{sa.email}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          icon={<KeyIcon />}
+                          onClick={() => { setResetSAPassword(sa); setSaNewPassword(''); }}
+                        >
+                          איפוס סיסמה
+                        </Button>
+                        {sa.id !== user?.id && (
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            icon={<TrashIcon />}
+                            onClick={() => handleDeleteSA(sa.id)}
+                          >
+                            מחק
+                          </Button>
+                        )}
+                        {sa.id === user?.id && (
+                          <span className="text-xs text-slate-500 px-2">אתה</span>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            {/* Create Super Admin Modal */}
+            {showCreateSA && (
+              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowCreateSA(false)}>
+                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+                  <h3 className="text-lg font-bold text-white mb-4">מנהל מערכת חדש</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm text-slate-400 block mb-1">שם</label>
+                      <input
+                        className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm"
+                        value={saForm.name}
+                        onChange={e => setSaForm(f => ({ ...f, name: e.target.value }))}
+                        placeholder="שם מנהל המערכת"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-slate-400 block mb-1">אימייל</label>
+                      <input
+                        type="email"
+                        className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm"
+                        value={saForm.email}
+                        onChange={e => setSaForm(f => ({ ...f, email: e.target.value }))}
+                        placeholder="email@example.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-slate-400 block mb-1">סיסמה</label>
+                      <input
+                        type="password"
+                        className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm"
+                        value={saForm.password}
+                        onChange={e => setSaForm(f => ({ ...f, password: e.target.value }))}
+                        placeholder="לפחות 8 תווים"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-3 mt-6">
+                    <Button variant="secondary" onClick={() => setShowCreateSA(false)}>ביטול</Button>
+                    <Button variant="success" onClick={handleCreateSA} disabled={saLoading || !saForm.email || !saForm.password || !saForm.name}>
+                      {saLoading ? 'יוצר...' : 'צור מנהל מערכת'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Reset Super Admin Password Modal */}
+            {resetSAPassword && (
+              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setResetSAPassword(null)}>
+                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+                  <h3 className="text-lg font-bold text-white mb-2">איפוס סיסמה</h3>
+                  <p className="text-sm text-slate-400 mb-4">{resetSAPassword.name} ({resetSAPassword.email})</p>
+                  <div>
+                    <label className="text-sm text-slate-400 block mb-1">סיסמה חדשה</label>
+                    <input
+                      type="password"
+                      className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm"
+                      value={saNewPassword}
+                      onChange={e => setSaNewPassword(e.target.value)}
+                      placeholder="לפחות 8 תווים"
+                    />
+                  </div>
+                  <div className="flex justify-end gap-3 mt-6">
+                    <Button variant="secondary" onClick={() => setResetSAPassword(null)}>ביטול</Button>
+                    <Button variant="success" onClick={handleResetSAPassword} disabled={saLoading || saNewPassword.length < 8}>
+                      {saLoading ? 'מאפס...' : 'אפס סיסמה'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <hr className="border-slate-700/50 mt-6" />
+          </div>
+        )}
+
         {/* Tabs - only for super admin */}
         {isSuperAdmin(user) && (
           <div className="flex gap-2 mb-6">
