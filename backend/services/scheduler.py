@@ -102,19 +102,19 @@ async def stop_scheduler():
 
 
 async def _process_cycle():
-    """Single cycle of processing reminders and summaries."""
+    """Single cycle of processing reminders, summaries, and follow-ups."""
     from backend.services.reminders import process_pending_reminders
     from backend.services.summaries import process_pending_summaries, retry_pending_webhooks
+    from backend.services.followups import scan_for_followups, process_pending_followups
     
     db = SessionLocal()
     try:
-        # Process pending reminders
         await process_pending_reminders(db)
-        
-        # Process conversations that need summaries
         await process_pending_summaries(db)
-        
-        # Retry summary webhooks that are due
         await retry_pending_webhooks(db)
+
+        # Follow-ups: scan for new candidates and process due ones
+        scan_for_followups(db)
+        await process_pending_followups(db)
     finally:
         db.close()

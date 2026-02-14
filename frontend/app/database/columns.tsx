@@ -2,7 +2,7 @@
  * Column definitions for the Database admin page.
  * Each export is an array of column configs consumed by DataTable.
  */
-import type { Agent, User, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, DbMedia, DbTemplate } from '@/lib/types';
+import type { Agent, User, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, DbMedia, DbTemplate, DbFollowup } from '@/lib/types';
 
 // ─── Helpers ────────────────────────────────────────────
 function StatusBadge({ active }: { active: boolean }) {
@@ -464,4 +464,46 @@ export const templateColumns = [
     <span className="text-slate-400 text-xs">{t.language}</span>
   )},
   { key: 'created', header: 'נוצר', render: (t: DbTemplate) => <DateCell value={t.created_at || null} /> },
+];
+
+// ─── Follow-ups ──────────────────────────────────────────
+const FOLLOWUP_STATUS: Record<string, { style: string; label: string }> = {
+  pending: { style: 'bg-yellow-500/10 text-yellow-400', label: '⏳ ממתין' },
+  evaluating: { style: 'bg-blue-500/10 text-blue-400', label: '🤔 בהערכה' },
+  sent: { style: 'bg-emerald-500/10 text-emerald-400', label: '✓ נשלח' },
+  skipped: { style: 'bg-slate-500/10 text-slate-400', label: '⏭ דולג' },
+  cancelled: { style: 'bg-red-500/10 text-red-400', label: '✕ בוטל' },
+};
+
+export const followupColumns = [
+  { key: 'id', header: 'ID', render: (f: DbFollowup) => (
+    <span className="font-mono text-slate-400">{f.id}</span>
+  )},
+  { key: 'agent', header: 'סוכן', render: (f: DbFollowup) => (
+    <span className="text-blue-400">{f.agent_name || `#${f.agent_id}`}</span>
+  )},
+  { key: 'user', header: 'לקוח', render: (f: DbFollowup) => (
+    <span className="text-slate-200">{f.user_name || f.user_phone || `#${f.user_id}`}</span>
+  )},
+  { key: 'number', header: '#', render: (f: DbFollowup) => (
+    <span className="text-slate-400 font-mono">{f.followup_number}</span>
+  )},
+  { key: 'status', header: 'סטטוס', render: (f: DbFollowup) => {
+    const s = FOLLOWUP_STATUS[f.status] || { style: '', label: f.status };
+    return <TagCell label={s.label} style={s.style} />;
+  }},
+  { key: 'scheduled', header: 'מתוזמן', render: (f: DbFollowup) => <DateCell value={f.scheduled_for} withTime /> },
+  { key: 'sent_at', header: 'נשלח', render: (f: DbFollowup) => <DateCell value={f.sent_at} withTime /> },
+  { key: 'sent_via', header: 'ערוץ', render: (f: DbFollowup) => (
+    <span className="text-slate-400 text-xs">{f.sent_via || '—'}</span>
+  )},
+  { key: 'content', header: 'תוכן', render: (f: DbFollowup) => (
+    <span className="text-slate-300 text-xs truncate max-w-[200px] block">
+      {f.content || f.template_name || '—'}
+    </span>
+  )},
+  { key: 'reason', header: 'סיבה', render: (f: DbFollowup) => (
+    <span className="text-slate-400 text-xs truncate max-w-[200px] block">{f.ai_reason || '—'}</span>
+  )},
+  { key: 'created', header: 'נוצר', render: (f: DbFollowup) => <DateCell value={f.created_at} /> },
 ];

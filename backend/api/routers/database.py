@@ -265,6 +265,51 @@ def delete_media(media_id: int, db: Session = Depends(get_db)):
     return {"status": "deleted"}
 
 
+@router.get("/followups")
+def list_followups(db: Session = Depends(get_db)):
+    """Get all scheduled follow-ups."""
+    from backend.models.scheduled_followup import ScheduledFollowup
+    from backend.models.agent import Agent
+    from backend.models.user import User
+
+    items = db.query(ScheduledFollowup).order_by(ScheduledFollowup.scheduled_for.desc()).all()
+    result = []
+    for fu in items:
+        agent = db.query(Agent).filter(Agent.id == fu.agent_id).first()
+        user = db.query(User).filter(User.id == fu.user_id).first()
+        result.append({
+            "id": fu.id,
+            "conversation_id": fu.conversation_id,
+            "agent_id": fu.agent_id,
+            "agent_name": agent.name if agent else None,
+            "user_id": fu.user_id,
+            "user_name": user.name if user else None,
+            "user_phone": user.phone if user else None,
+            "followup_number": fu.followup_number,
+            "status": fu.status,
+            "scheduled_for": f"{fu.scheduled_for.isoformat()}Z" if fu.scheduled_for else None,
+            "sent_at": f"{fu.sent_at.isoformat()}Z" if fu.sent_at else None,
+            "content": fu.content[:100] + "..." if fu.content and len(fu.content) > 100 else fu.content,
+            "ai_reason": fu.ai_reason,
+            "sent_via": fu.sent_via,
+            "template_name": fu.template_name,
+            "created_at": f"{fu.created_at.isoformat()}Z" if fu.created_at else None,
+        })
+    return result
+
+
+@router.delete("/followups/{followup_id}")
+def delete_followup(followup_id: int, db: Session = Depends(get_db)):
+    """Delete a scheduled follow-up."""
+    from backend.models.scheduled_followup import ScheduledFollowup
+    fu = db.query(ScheduledFollowup).filter(ScheduledFollowup.id == followup_id).first()
+    if not fu:
+        raise HTTPException(status_code=404, detail="Follow-up not found")
+    db.delete(fu)
+    db.commit()
+    return {"status": "deleted"}
+
+
 @router.get("/templates")
 def list_templates(db: Session = Depends(get_db)):
     """List all WhatsApp templates across all agents."""

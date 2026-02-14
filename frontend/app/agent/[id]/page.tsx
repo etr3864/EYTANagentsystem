@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { Button, Card, ArrowRightIcon } from '@/components/ui';
 import { PromptTab, SettingsTab, ConversationsTab, KnowledgeTab, CalendarTab, SummaryTab, MediaTab } from '@/components/agent';
 import { TemplatesTab } from '@/components/agent/TemplatesTab';
+import FollowUpTab from '@/components/agent/FollowUpTab';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useAuth } from '@/contexts/AuthContext';
 import { isSuperAdmin, isAdmin, isEmployee } from '@/lib/auth';
@@ -20,7 +21,7 @@ import {
 } from '@/lib/api';
 import type { Agent, AgentBatchingConfig, Conversation, Message, Document, DataTable, Provider, WaSenderConfig, AgentMedia, MediaConfig } from '@/lib/types';
 
-type Tab = 'prompt' | 'conversations' | 'knowledge' | 'media' | 'templates' | 'calendar' | 'summaries' | 'settings';
+type Tab = 'prompt' | 'conversations' | 'knowledge' | 'media' | 'templates' | 'calendar' | 'followups' | 'summaries' | 'settings';
 
 interface TabConfig {
   id: Tab;
@@ -36,6 +37,7 @@ const allTabs: TabConfig[] = [
   { id: 'media', label: 'מדיה', icon: '📸', roles: ['super_admin', 'admin'] },
   { id: 'templates', label: 'Templates', icon: '📋', roles: ['super_admin'] },
   { id: 'calendar', label: 'יומן', icon: '📅', roles: ['super_admin'] },
+  { id: 'followups', label: 'Follow-Up', icon: '🔄', roles: ['super_admin'] },
   { id: 'summaries', label: 'סיכומים', icon: '📝', roles: ['super_admin'] },
   { id: 'settings', label: 'הגדרות', icon: '⚙️', roles: ['super_admin'] },
 ];
@@ -579,6 +581,10 @@ function AgentPage() {
               onSave={handleSaveCalendar}
               saving={saving}
             />
+          )}
+
+          {tab === 'followups' && (
+            <FollowUpTab agentId={agentId} provider={provider} />
           )}
 
           {tab === 'summaries' && (

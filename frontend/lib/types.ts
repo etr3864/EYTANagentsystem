@@ -39,6 +39,7 @@ export interface Agent {
   batching_config: AgentBatchingConfig;
   calendar_config: Record<string, unknown> | null;
   media_config: MediaConfig | null;
+  followup_config: FollowupConfig | null;
   created_at: string | null;
 }
 
@@ -260,6 +261,61 @@ export interface MediaConfig {
   max_per_message: number;
   allow_duplicate_in_conversation: boolean;
   instructions: string;
+}
+
+// ============ Follow-ups ============
+export type FollowupStatus = 'pending' | 'evaluating' | 'sent' | 'skipped' | 'cancelled';
+
+export interface FollowupMetaTemplate {
+  name: string;
+  language: string;
+  params: string[];
+}
+
+export interface FollowupActiveHours {
+  start: string;
+  end: string;
+}
+
+export interface FollowupConfig {
+  enabled: boolean;
+  model: string;
+  ai_instructions: string;
+  inactivity_minutes: number;
+  min_messages: number;
+  max_followups: number;
+  cooldown_hours: number;
+  max_per_day: number;
+  intervals_minutes: number[];
+  active_hours: FollowupActiveHours;
+  meta_templates: FollowupMetaTemplate[];
+}
+
+export interface FollowupStats {
+  pending: number;
+  sent: number;
+  skipped: number;
+  cancelled: number;
+  total: number;
+}
+
+export interface DbFollowup {
+  id: number;
+  conversation_id: number;
+  agent_id: number;
+  agent_name: string | null;
+  user_id: number;
+  user_name: string | null;
+  user_phone: string | null;
+  followup_number: number;
+  status: FollowupStatus;
+  scheduled_for: string | null;
+  sent_at: string | null;
+  content: string | null;
+  ai_reason: string | null;
+  sent_via: string | null;
+  template_name: string | null;
+  created_at: string | null;
 }
 
 // ============ WhatsApp Templates ============

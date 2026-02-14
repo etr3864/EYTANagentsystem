@@ -1,4 +1,4 @@
-import type { Agent, AgentCreate, AgentUpdate, User, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DataTable, Provider, WaSenderConfig, DbMedia, AgentMedia, MediaConfig, WhatsAppTemplate, DbTemplate, MetaInfo } from './types';
+import type { Agent, AgentCreate, AgentUpdate, User, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DataTable, Provider, WaSenderConfig, DbMedia, AgentMedia, MediaConfig, WhatsAppTemplate, DbTemplate, MetaInfo, FollowupConfig, FollowupStats, DbFollowup } from './types';
 import { getAccessToken, clearAuth } from './auth';
 
 // Production URL or environment variable or localhost for development
@@ -676,5 +676,40 @@ export async function deleteTemplate(agentId: number, templateId: number): Promi
   if (!res.ok) throw new Error('Failed to delete template');
 }
 
+// ============ Follow-ups ============
+
+export async function getFollowupConfig(agentId: number): Promise<FollowupConfig> {
+  const res = await authFetch(`${API_URL}/api/agents/${agentId}/followup-config`);
+  if (!res.ok) throw new Error('Failed to fetch followup config');
+  return res.json();
+}
+
+export async function updateFollowupConfig(agentId: number, data: Partial<FollowupConfig>): Promise<FollowupConfig> {
+  const res = await authFetch(`${API_URL}/api/agents/${agentId}/followup-config`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update followup config');
+  return res.json();
+}
+
+export async function getFollowupStats(agentId: number): Promise<FollowupStats> {
+  const res = await authFetch(`${API_URL}/api/agents/${agentId}/followup-stats`);
+  if (!res.ok) throw new Error('Failed to fetch followup stats');
+  return res.json();
+}
+
+export async function getDbFollowups(): Promise<DbFollowup[]> {
+  const res = await authFetch(`${API_URL}/api/db/followups`);
+  if (!res.ok) throw new Error('Failed to fetch followups');
+  return res.json();
+}
+
+export async function deleteDbFollowup(id: number): Promise<void> {
+  const res = await authFetch(`${API_URL}/api/db/followups/${id}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error('Failed to delete followup');
+}
+
 // Re-export types
-export type { Agent, AgentCreate, AgentUpdate, AgentBatchingConfig, Provider, WaSenderConfig, User, Gender, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DataTable, DbMedia, AgentMedia, MediaConfig, MediaType, WhatsAppTemplate, TemplateCategory, TemplateStatus, DbTemplate } from './types';
+export type { Agent, AgentCreate, AgentUpdate, AgentBatchingConfig, Provider, WaSenderConfig, User, Gender, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DataTable, DbMedia, AgentMedia, MediaConfig, MediaType, WhatsAppTemplate, TemplateCategory, TemplateStatus, DbTemplate, FollowupConfig, FollowupStats, DbFollowup } from './types';

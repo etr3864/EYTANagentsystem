@@ -31,6 +31,7 @@ def agent_to_response(a) -> dict:
         "batching_config": batching,
         "calendar_config": a.calendar_config,
         "media_config": a.media_config,
+        "followup_config": a.followup_config,
         "created_at": a.created_at.isoformat() if a.created_at else None
     }
 

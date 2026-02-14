@@ -65,6 +65,20 @@ def run_migrations():
                 END $$;
             """))
         
+        # Follow-up system: add fields for follow-up support
+        conn.execute(text("""
+            DO $$ BEGIN
+                ALTER TABLE conversations ADD COLUMN last_customer_message_at TIMESTAMP;
+            EXCEPTION WHEN duplicate_column THEN null;
+            END $$;
+        """))
+        conn.execute(text("""
+            DO $$ BEGIN
+                ALTER TABLE agents ADD COLUMN followup_config JSON;
+            EXCEPTION WHEN duplicate_column THEN null;
+            END $$;
+        """))
+
         conn.commit()
 
 

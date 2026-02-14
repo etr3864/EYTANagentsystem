@@ -119,8 +119,16 @@ async def process_batched_messages(
         # Auto opt-in: customer sending a message re-enables proactive messages
         if conv.opted_out:
             conv.opted_out = False
+
+        # Track last customer message time + cancel pending follow-ups
+        conv.last_customer_message_at = datetime.utcnow()
+        db.commit()
+
+        from backend.services.followups import cancel_pending_followups
+        cancelled = cancel_pending_followups(db, conv.id)
+        if cancelled:
             db.commit()
-        
+
         if conv.is_paused:
             for msg in pending_msgs:
                 messages.add(db, conv.id, "user", msg.text, message_type=msg.msg_type)

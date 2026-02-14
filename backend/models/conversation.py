@@ -13,6 +13,7 @@ class Conversation(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     is_paused: Mapped[bool] = mapped_column(Boolean, default=False)
     opted_out: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_customer_message_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

@@ -87,6 +87,22 @@ class Agent(Base):
     # }
     summary_config: Mapped[Optional[dict]] = mapped_column(JSON, default=None)
     
+    # Follow-up configuration (JSON)
+    # {
+    #   "enabled": false,
+    #   "model": "claude-sonnet-4-5",
+    #   "ai_instructions": "...",
+    #   "inactivity_minutes": 120,
+    #   "min_messages": 4,
+    #   "max_followups": 3,
+    #   "cooldown_hours": 12,
+    #   "max_per_day": 2,
+    #   "intervals_minutes": [120, 1440, 2880],
+    #   "active_hours": {"start": "09:00", "end": "21:00"},
+    #   "meta_templates": [{"name": "...", "language": "he", "params": ["customer_name"]}]
+    # }
+    followup_config: Mapped[Optional[dict]] = mapped_column(JSON, default=None)
+
     # Media configuration (JSON)
     # {
     #   "enabled": false,

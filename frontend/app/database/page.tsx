@@ -15,16 +15,17 @@ import {
   getDbReminders, deleteDbReminder,
   getDbSummaries, deleteDbSummary,
   getDbMedia, deleteDbMedia,
-  getDbTemplates, deleteDbTemplate
+  getDbTemplates, deleteDbTemplate,
+  getDbFollowups, deleteDbFollowup
 } from '@/lib/api';
-import type { Agent, User, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, DbMedia, DbTemplate } from '@/lib/types';
+import type { Agent, User, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, DbMedia, DbTemplate, DbFollowup } from '@/lib/types';
 import {
   agentColumns, userColumns, conversationColumns, messageColumns,
   appointmentColumns, reminderColumns, summaryColumns, usageColumns,
-  mediaColumns, templateColumns
+  mediaColumns, templateColumns, followupColumns
 } from './columns';
 
-type Tab = 'agents' | 'users' | 'conversations' | 'messages' | 'media' | 'templates' | 'appointments' | 'reminders' | 'summaries' | 'usage';
+type Tab = 'agents' | 'users' | 'conversations' | 'messages' | 'media' | 'templates' | 'appointments' | 'reminders' | 'followups' | 'summaries' | 'usage';
 
 const tabs: { id: Tab; label: string; icon: string }[] = [
   { id: 'agents', label: 'Agents', icon: '🤖' },
@@ -35,6 +36,7 @@ const tabs: { id: Tab; label: string; icon: string }[] = [
   { id: 'templates', label: 'Templates', icon: '📋' },
   { id: 'appointments', label: 'Appointments', icon: '📅' },
   { id: 'reminders', label: 'Reminders', icon: '⏰' },
+  { id: 'followups', label: 'Follow-ups', icon: '🔄' },
   { id: 'summaries', label: 'Summaries', icon: '📋' },
   { id: 'usage', label: 'Usage', icon: '📊' },
 ];
@@ -49,6 +51,7 @@ export default function DatabasePage() {
   const [dbTemplates, setDbTemplates] = useState<DbTemplate[]>([]);
   const [appointments, setAppointments] = useState<DbAppointment[]>([]);
   const [reminders, setReminders] = useState<DbReminder[]>([]);
+  const [followups, setFollowups] = useState<DbFollowup[]>([]);
   const [summaries, setSummaries] = useState<DbSummary[]>([]);
   const [usageStats, setUsageStats] = useState<UsageStats[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set());
@@ -70,6 +73,7 @@ export default function DatabasePage() {
       else if (tab === 'templates') setDbTemplates(await getDbTemplates());
       else if (tab === 'appointments') setAppointments(await getDbAppointments());
       else if (tab === 'reminders') setReminders(await getDbReminders());
+      else if (tab === 'followups') setFollowups(await getDbFollowups());
       else if (tab === 'summaries') setSummaries(await getDbSummaries());
       else if (tab === 'usage') setUsageStats(await getUsageStats());
     } catch (e) {
@@ -100,6 +104,7 @@ export default function DatabasePage() {
         else if (tab === 'templates') await deleteDbTemplate(id);
         else if (tab === 'appointments') await deleteDbAppointment(id);
         else if (tab === 'reminders') await deleteDbReminder(id);
+        else if (tab === 'followups') await deleteDbFollowup(id);
         else if (tab === 'summaries') await deleteDbSummary(id);
       }
       loadData();
@@ -117,6 +122,7 @@ export default function DatabasePage() {
     if (tab === 'templates') return dbTemplates.length;
     if (tab === 'appointments') return appointments.length;
     if (tab === 'reminders') return reminders.length;
+    if (tab === 'followups') return followups.length;
     if (tab === 'summaries') return summaries.length;
     if (tab === 'usage') return usageStats.length;
     return 0;
@@ -235,6 +241,9 @@ export default function DatabasePage() {
             )}
             {tab === 'reminders' && (
               <DataTable data={reminders} columns={reminderColumns} selected={selected} onToggleSelect={toggleSelect} />
+            )}
+            {tab === 'followups' && (
+              <DataTable data={followups} columns={followupColumns} selected={selected} onToggleSelect={toggleSelect} />
             )}
             {tab === 'summaries' && (
               <DataTable data={summaries} columns={summaryColumns} selected={selected} onToggleSelect={toggleSelect} />

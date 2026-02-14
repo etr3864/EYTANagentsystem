@@ -45,6 +45,15 @@ class ReminderContentType(str, Enum):
     META_TEMPLATE = "meta_template"
 
 
+class FollowupStatus(str, Enum):
+    """Follow-up status values."""
+    PENDING = "pending"
+    EVALUATING = "evaluating"
+    SENT = "sent"
+    SKIPPED = "skipped"
+    CANCELLED = "cancelled"
+
+
 class SummaryWebhookStatus(str, Enum):
     """Summary webhook delivery status."""
     PENDING = "pending"
