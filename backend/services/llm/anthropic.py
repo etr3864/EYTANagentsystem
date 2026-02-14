@@ -196,7 +196,7 @@ class AnthropicProvider:
         """Get short Hebrew description of image."""
         try:
             response = await self._client.messages.create(
-                model="claude-3-5-haiku-20241022",
+                model="claude-haiku-4-5",
                 max_tokens=150,
                 messages=[{
                     "role": "user",
@@ -245,7 +245,7 @@ class AnthropicProvider:
 
         try:
             response = await self._client.messages.create(
-                model="claude-3-5-haiku-20241022",
+                model="claude-haiku-4-5",
                 max_tokens=500,
                 messages=[{
                     "role": "user",
@@ -304,7 +304,7 @@ class AnthropicProvider:
 
         try:
             response = await self._client.messages.create(
-                model="claude-3-5-haiku-20241022",
+                model="claude-haiku-4-5",
                 max_tokens=500,
                 messages=[{"role": "user", "content": prompt}]
             )
@@ -327,7 +327,7 @@ class AnthropicProvider:
     async def generate_simple_response(self, prompt: str) -> str:
         """Generate a simple text response (for reminders etc.)."""
         response = await self._client.messages.create(
-            model="claude-3-5-haiku-20241022",
+            model="claude-haiku-4-5",
             max_tokens=300,
             messages=[{"role": "user", "content": prompt}]
         )

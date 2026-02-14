@@ -234,7 +234,7 @@ async def get_response(
     # Force Claude if input contains images
     actual_model = model
     if _contains_images(pending_messages) and model.startswith("gemini"):
-        actual_model = "claude-sonnet-4-20250514"  # Fallback to Claude for images
+        actual_model = "claude-sonnet-4-5"  # Fallback to Claude for images
     
     # Build user content
     if pending_messages:

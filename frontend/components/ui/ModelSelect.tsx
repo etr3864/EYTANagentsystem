@@ -19,9 +19,10 @@ const MODEL_GROUPS: ModelGroup[] = [
     provider: 'Anthropic',
     icon: '🧠',
     models: [
-      { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4', description: 'מומלץ - מאוזן' },
-      { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku', description: 'מהיר וזול' },
-      { value: 'claude-opus-4-20250514', label: 'Claude Opus 4', description: 'חזק ויקר' },
+      { value: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5', description: 'מומלץ - מאוזן וחכם' },
+      { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4', description: 'יציב ומוכח' },
+      { value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', description: 'מהיר וחסכוני' },
+      { value: 'claude-opus-4-6', label: 'Claude Opus 4.6', description: 'הכי חזק, יקר' },
     ]
   },
   {
@@ -29,17 +30,19 @@ const MODEL_GROUPS: ModelGroup[] = [
     icon: '🤖',
     models: [
       { value: 'gpt-5.2-chat-latest', label: 'GPT-5.2', description: 'הכי חזק, הבנה עמוקה' },
-      { value: 'gpt-4o-chat', label: 'GPT-4o', description: 'יציב ואיכותי' },
-      { value: 'gpt-4.1-chat', label: 'GPT-4.1', description: 'חסכוני, volume גבוה' },
+      { value: 'gpt-4o', label: 'GPT-4o', description: 'יציב ואיכותי' },
+      { value: 'gpt-4.1', label: 'GPT-4.1', description: 'חסכוני, volume גבוה' },
     ]
   },
   {
     provider: 'Google',
     icon: '✨',
     models: [
+      { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', description: 'מהיר וחסכוני, חשיבה מובנית' },
+      { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', description: 'חכם, reasoning מתקדם' },
       { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', description: 'מהיר מאוד, זול' },
-      { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', description: 'מאוזן, context ארוך' },
-      { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', description: 'חכם, 2M context' },
+      { value: 'gemini-3-flash-preview', label: 'Gemini 3 Flash', description: 'חדש - מאוזן ומהיר (preview)' },
+      { value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro', description: 'חדש - הכי חכם (preview)' },
     ]
   }
 ];

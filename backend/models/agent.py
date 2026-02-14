@@ -38,7 +38,7 @@ class Agent(Base):
     access_token: Mapped[str] = mapped_column(Text)
     verify_token: Mapped[str] = mapped_column(String(100))
     system_prompt: Mapped[str] = mapped_column(Text)
-    model: Mapped[str] = mapped_column(String(50), default="claude-sonnet-4-20250514")
+    model: Mapped[str] = mapped_column(String(50), default="claude-sonnet-4-5")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     
