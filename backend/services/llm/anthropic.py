@@ -5,9 +5,14 @@ from typing import TYPE_CHECKING
 
 from .types import LLMResponse, ToolHandler
 from backend.core.ai_config import USER_TOOLS
+from backend.core.logger import log_error
 
 if TYPE_CHECKING:
     from backend.services.message_buffer import PendingMessage
+
+
+MAX_RETRIES = 3
+RETRY_DELAY = 1.0
 
 
 class AnthropicProvider:
@@ -15,6 +20,29 @@ class AnthropicProvider:
     
     def __init__(self, api_key: str):
         self._client = anthropic.AsyncAnthropic(api_key=api_key)
+    
+    async def _call_with_retry(self, **kwargs):
+        """Execute API call with retry logic and exponential backoff."""
+        last_error = None
+        
+        for attempt in range(MAX_RETRIES):
+            try:
+                return await self._client.messages.create(**kwargs)
+            except Exception as e:
+                last_error = e
+                error_str = str(e).lower()
+                
+                # Don't retry auth errors
+                if "authentication" in error_str or "invalid.*api.key" in error_str:
+                    raise
+                
+                if attempt < MAX_RETRIES - 1:
+                    delay = RETRY_DELAY * (2 ** attempt)
+                    log_error("anthropic_retry", f"Attempt {attempt+1} failed: {str(e)[:50]}")
+                    await asyncio.sleep(delay)
+        
+        log_error("anthropic_failed", f"All {MAX_RETRIES} attempts failed")
+        raise last_error
     
     def build_user_content(self, pending_messages: list["PendingMessage"]) -> list[dict]:
         """Build Claude API content blocks from pending messages."""
@@ -66,7 +94,7 @@ class AnthropicProvider:
         clean_history = [{"role": m["role"], "content": m["content"]} for m in history]
         messages = clean_history + [{"role": "user", "content": user_content}]
         
-        response = await self._client.messages.create(
+        response = await self._call_with_retry(
             model=model,
             max_tokens=1024,
             system=system_blocks,
@@ -137,7 +165,7 @@ class AnthropicProvider:
             
             messages.append({"role": "user", "content": tool_results})
             
-            current_response = await self._client.messages.create(
+            current_response = await self._call_with_retry(
                 model=model,
                 max_tokens=1024,
                 system=system_blocks,
