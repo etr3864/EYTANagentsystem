@@ -84,6 +84,9 @@ export function TemplateBuilder({ agentId, onSubmit, initialData, isEdit }: Buil
   const varMatches = bodyText.match(/\{\{\d+\}\}/g) || [];
   const varCount = new Set(varMatches).size;
 
+  // Keep bodyExamples in sync with actual variable count
+  const trimmedExamples = bodyExamples.slice(0, varCount);
+
   // Build components for API
   const buildComponents = (): Record<string, unknown>[] => {
     const components: Record<string, unknown>[] = [];
@@ -95,8 +98,8 @@ export function TemplateBuilder({ agentId, onSubmit, initialData, isEdit }: Buil
     }
 
     const body: Record<string, unknown> = { type: 'BODY', text: bodyText };
-    if (varCount > 0 && bodyExamples.length > 0) {
-      body.example = { body_text: [bodyExamples] };
+    if (varCount > 0 && trimmedExamples.length > 0) {
+      body.example = { body_text: [trimmedExamples] };
     }
     components.push(body);
 
@@ -145,7 +148,7 @@ export function TemplateBuilder({ agentId, onSubmit, initialData, isEdit }: Buil
     if (!name.trim()) { setError('שם Template חובה'); return; }
     if (!bodyText.trim()) { setError('תוכן ה-Body חובה'); return; }
     if (bodyText.length > 1024) { setError('Body מוגבל ל-1024 תווים'); return; }
-    if (varCount > 0 && bodyExamples.filter(Boolean).length < varCount) {
+    if (varCount > 0 && trimmedExamples.filter(Boolean).length < varCount) {
       setError('חובה למלא דוגמאות לכל המשתנים');
       return;
     }
@@ -354,9 +357,9 @@ export function TemplateBuilder({ agentId, onSubmit, initialData, isEdit }: Buil
                   <div key={i} className="flex items-center gap-2">
                     <span className="text-xs px-2 py-1 bg-blue-500/20 text-blue-300 rounded font-mono">{`{{${i + 1}}}`}</span>
                     <input
-                      value={bodyExamples[i] || ''}
+                      value={trimmedExamples[i] || ''}
                       onChange={e => {
-                        const next = [...bodyExamples];
+                        const next = [...trimmedExamples];
                         next[i] = e.target.value;
                         setBodyExamples(next);
                       }}

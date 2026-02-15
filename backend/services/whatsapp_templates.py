@@ -315,7 +315,12 @@ def _extract_error(response: httpx.Response) -> str:
     try:
         data = response.json()
         err = data.get("error", {})
-        return err.get("message", f"HTTP {response.status_code}")
+        # Meta returns details in error_user_msg / error_user_title
+        user_msg = err.get("error_user_msg") or err.get("error_user_title")
+        message = err.get("message", f"HTTP {response.status_code}")
+        if user_msg:
+            return f"{message} — {user_msg}"
+        return message
     except Exception:
         return f"HTTP {response.status_code}"
 
