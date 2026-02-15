@@ -242,7 +242,7 @@ export function TemplateBuilder({ agentId, onSubmit, initialData, isEdit }: Buil
         )}
 
         {/* Name + Language */}
-        <div className="grid grid-cols-[2fr_1fr] gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-[2fr_1fr] gap-3">
           <div>
             <label className="block text-sm text-slate-400 mb-1">שם Template</label>
             <input

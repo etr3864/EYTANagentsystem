@@ -132,23 +132,23 @@ export default function DatabasePage() {
     <div className="min-h-screen">
       {/* Header */}
       <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="max-w-7xl mx-auto px-3 md:px-6 py-3 md:py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 md:gap-4">
               <Link href="/">
                 <Button variant="ghost" size="sm">
                   <ArrowRightIcon />
-                  חזרה
+                  <span className="hidden sm:inline">חזרה</span>
                 </Button>
               </Link>
               <div className="h-6 w-px bg-slate-700" />
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center text-xl">
+              <div className="flex items-center gap-2 md:gap-3">
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center text-lg md:text-xl shrink-0">
                   🗄️
                 </div>
                 <div>
-                  <h1 className="font-semibold text-white">Database</h1>
-                  <p className="text-xs text-slate-400">ניהול נתונים</p>
+                  <h1 className="font-semibold text-white text-sm md:text-base">Database</h1>
+                  <p className="text-xs text-slate-400 hidden sm:block">ניהול נתונים</p>
                 </div>
               </div>
             </div>
@@ -161,7 +161,7 @@ export default function DatabasePage() {
                 onClick={handleDelete}
               >
                 <TrashIcon />
-                מחק {selected.size} נבחרים
+                <span className="hidden sm:inline">מחק</span> {selected.size}
               </Button>
             )}
           </div>
@@ -170,14 +170,14 @@ export default function DatabasePage() {
 
       {/* Tabs */}
       <div className="border-b border-slate-800">
-        <div className="max-w-7xl mx-auto px-6">
-          <nav className="flex gap-1">
+        <div className="max-w-7xl mx-auto px-3 md:px-6">
+          <nav className="flex gap-1 overflow-x-auto scrollbar-hide">
             {tabs.map(t => (
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
                 className={`
-                  px-3 py-3 text-sm font-medium whitespace-nowrap
+                  px-2 md:px-3 py-3 text-xs md:text-sm font-medium whitespace-nowrap
                   border-b-2 transition-all duration-200
                   ${tab === t.id 
                     ? 'border-blue-500 text-blue-400' 
@@ -185,7 +185,7 @@ export default function DatabasePage() {
                   }
                 `}
               >
-                <span className="ml-1.5">{t.icon}</span>
+                <span className="ml-1 md:ml-1.5">{t.icon}</span>
                 {t.label}
               </button>
             ))}
@@ -194,7 +194,7 @@ export default function DatabasePage() {
       </div>
 
       {/* Content */}
-      <main className="max-w-7xl mx-auto px-6 py-6">
+      <main className="max-w-7xl mx-auto px-3 md:px-6 py-4 md:py-6">
         {/* Stats */}
         <div className="flex items-center justify-between mb-4">
           <div className="text-sm text-slate-400">

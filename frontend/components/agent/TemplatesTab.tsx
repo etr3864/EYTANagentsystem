@@ -172,7 +172,7 @@ export function TemplatesTab({ agentId }: TemplatesTabProps) {
       {view === 'list' && (
         <>
           {/* Stats */}
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
             <StatCard label="סה״כ" value={stats.total} color="slate" />
             <StatCard label="מאושר" value={stats.approved} color="emerald" />
             <StatCard label="ממתין" value={stats.pending} color="yellow" />

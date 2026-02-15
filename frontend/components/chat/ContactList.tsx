@@ -17,7 +17,7 @@ function getGenderIcon(gender: string | null): string {
 
 export function ContactList({ conversations, selectedId, onSelect, onDelete }: ContactListProps) {
   return (
-    <div className="w-80 border-l border-slate-700 flex flex-col bg-slate-800/30">
+    <div className="h-full border-l border-slate-700 flex flex-col bg-slate-800/30">
       {/* Header */}
       <div className="p-4 border-b border-slate-700">
         <div className="text-sm font-medium text-white">שיחות</div>

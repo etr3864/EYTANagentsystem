@@ -385,7 +385,7 @@ export default function FollowUpTab({ agentId, provider }: FollowUpTabProps) {
           </div>
 
           {/* Triggers */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-300">זמן חוסר פעילות (דקות)</label>
               <input
@@ -411,7 +411,7 @@ export default function FollowUpTab({ agentId, provider }: FollowUpTabProps) {
           </div>
 
           {/* Limits */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-slate-300">מקסימום follow-ups</label>
               <input

@@ -441,19 +441,19 @@ function AgentPage() {
     <div className="min-h-screen">
       {/* Header */}
       <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-5xl mx-auto px-6 py-4">
+        <div className="max-w-5xl mx-auto px-3 md:px-6 py-3 md:py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 md:gap-4">
               <Link href="/">
                 <Button variant="ghost" size="sm">
                   <ArrowRightIcon />
-                  חזרה
+                  <span className="hidden sm:inline">חזרה</span>
                 </Button>
               </Link>
               <div className="h-6 w-px bg-slate-700" />
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 md:gap-3">
                 <div className={`
-                  w-10 h-10 rounded-xl flex items-center justify-center text-lg
+                  w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center text-base md:text-lg shrink-0
                   ${agent.is_active 
                     ? 'bg-emerald-500/10 text-emerald-400' 
                     : 'bg-slate-700/50 text-slate-400'
@@ -462,7 +462,7 @@ function AgentPage() {
                   🤖
                 </div>
                 <div>
-                  <h1 className="font-semibold text-white">{agent.name}</h1>
+                  <h1 className="font-semibold text-white text-sm md:text-base">{agent.name}</h1>
                   <div className="flex items-center gap-2 text-xs text-slate-400">
                     <span className={`status-dot ${agent.is_active ? 'active' : 'inactive'}`} />
                     <span>{agent.is_active ? 'פעיל' : 'מושבת'}</span>
@@ -493,14 +493,14 @@ function AgentPage() {
 
       {/* Tabs */}
       <div className="border-b border-slate-800">
-        <div className="max-w-5xl mx-auto px-6">
-          <nav className="flex gap-1">
+        <div className="max-w-5xl mx-auto px-3 md:px-6">
+          <nav className="flex gap-1 overflow-x-auto scrollbar-hide">
             {visibleTabs.map(t => (
               <button
                 key={t.id}
                 onClick={() => handleTabChange(t.id)}
                 className={`
-                  px-3 py-3 text-sm font-medium whitespace-nowrap
+                  px-2.5 md:px-3 py-3 text-xs md:text-sm font-medium whitespace-nowrap
                   border-b-2 transition-all duration-200
                   ${tab === t.id 
                     ? 'border-blue-500 text-blue-400' 
@@ -508,7 +508,7 @@ function AgentPage() {
                   }
                 `}
               >
-                <span className="ml-1.5">{t.icon}</span>
+                <span className="ml-1 md:ml-1.5">{t.icon}</span>
                 {t.label}
               </button>
             ))}
@@ -517,7 +517,7 @@ function AgentPage() {
       </div>
 
       {/* Content */}
-      <main className="max-w-5xl mx-auto px-6 py-6">
+      <main className="max-w-5xl mx-auto px-3 md:px-6 py-4 md:py-6">
         <div className="animate-fade-in">
           {tab === 'prompt' && (
             <PromptTab
@@ -535,6 +535,7 @@ function AgentPage() {
               messages={messages}
               onSelectConversation={loadMessages}
               onDeleteConversation={handleDeleteConv}
+              onDeselectConversation={() => { setSelectedConv(null); setMessages([]); updateUrlWithConversation(null); }}
               onSendMessage={handleSendMessage}
               onTogglePause={handleTogglePause}
             />

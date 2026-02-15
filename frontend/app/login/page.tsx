@@ -79,7 +79,7 @@ export default function LoginPage() {
           <img 
             src="https://res.cloudinary.com/daowx6msw/image/upload/v1763910407/white_logoggfdsdfgdfsgds_bdqrww.png" 
             alt="WhatsApp Agents"
-            className="h-16 mx-auto mb-4"
+            className="h-12 sm:h-16 mx-auto mb-4"
           />
           <p className="text-gray-400">התחברות למערכת</p>
         </div>

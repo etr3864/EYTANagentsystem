@@ -54,23 +54,23 @@ function HomePage() {
     <div className="min-h-screen">
       {/* Header */}
       <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 py-4">
+        <div className="max-w-6xl mx-auto px-3 md:px-6 py-3 md:py-4">
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3">
               <img 
                 src="https://res.cloudinary.com/daowx6msw/image/upload/v1761607495/white_logogg_uf3usn.png" 
                 alt="Logo"
-                className="h-10 w-10 object-contain"
+                className="h-8 w-8 md:h-10 md:w-10 object-contain"
               />
               <img 
                 src="https://res.cloudinary.com/daowx6msw/image/upload/v1763910407/white_logoggfdsdfgdfsgds_bdqrww.png" 
                 alt="WhatsApp Agents"
-                className="h-8 object-contain"
+                className="h-6 md:h-8 object-contain hidden sm:block"
               />
             </div>
-            <div className="flex items-center gap-4">
-              {/* User Info */}
-              <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-2 md:gap-4">
+              {/* User Info - hidden on small mobile */}
+              <div className="hidden sm:flex items-center gap-2 text-sm">
                 <span className="text-slate-400">{user?.name}</span>
                 <span className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-300">
                   {user?.role === 'super_admin' ? 'מנהל ראשי' : 
@@ -78,25 +78,25 @@ function HomePage() {
                 </span>
               </div>
               
-              <div className="flex gap-3">
+              <div className="flex gap-1.5 md:gap-3">
                 {(isSuperAdmin(user) || user?.role === 'admin') && (
                   <Link href="/users">
                     <Button variant="secondary" icon={<UsersIcon />}>
-                      משתמשים
+                      <span className="hidden md:inline">משתמשים</span>
                     </Button>
                   </Link>
                 )}
                 {isSuperAdmin(user) && (
                   <Link href="/database">
                     <Button variant="secondary" icon={<DatabaseIcon />}>
-                      Database
+                      <span className="hidden md:inline">Database</span>
                     </Button>
                   </Link>
                 )}
                 {isSuperAdmin(user) && (
                   <Link href="/new">
                     <Button variant="success" icon={<PlusIcon />}>
-                      סוכן חדש
+                      <span className="hidden md:inline">סוכן חדש</span>
                     </Button>
                   </Link>
                 )}
@@ -114,7 +114,7 @@ function HomePage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-6 py-8">
+      <main className="max-w-6xl mx-auto px-3 md:px-6 py-4 md:py-8">
         {loading ? (
           <div className="grid gap-4">
             {[1, 2, 3].map(i => (
@@ -135,7 +135,7 @@ function HomePage() {
         ) : (
           <div className="space-y-4">
             {/* Stats Bar */}
-            <div className="grid grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-3 gap-2 md:gap-4 mb-6">
               <Card padding="sm" className="text-center">
                 <div className="text-2xl font-bold text-white">{agents.length}</div>
                 <div className="text-xs text-slate-400">סוכנים</div>
@@ -163,10 +163,10 @@ function HomePage() {
                 className="animate-fade-in"
                 style={{ animationDelay: `${index * 50}ms` } as React.CSSProperties}
               >
-                <div className="p-5 flex justify-between items-center">
-                  <div className="flex items-center gap-4">
+                <div className="p-3 md:p-5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                  <div className="flex items-center gap-3 md:gap-4 min-w-0">
                     <div className={`
-                      w-12 h-12 rounded-xl flex items-center justify-center text-xl
+                      w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center text-lg md:text-xl shrink-0
                       ${agent.is_active 
                         ? 'bg-emerald-500/10 text-emerald-400' 
                         : 'bg-slate-700/50 text-slate-400'
@@ -174,10 +174,10 @@ function HomePage() {
                     `}>
                       🤖
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className={`status-dot ${agent.is_active ? 'active' : 'inactive'}`} />
-                        <span className="text-lg font-semibold text-white">{agent.name}</span>
+                        <span className="text-base md:text-lg font-semibold text-white truncate">{agent.name}</span>
                         {/* Provider Badge */}
                         <span className={`
                           text-xs px-2 py-0.5 rounded flex items-center gap-1
@@ -200,14 +200,14 @@ function HomePage() {
                         </span>
                       </div>
                       <div className="flex items-center gap-3 mt-1">
-                        <span className="text-sm text-slate-400">{agent.phone_number_id}</span>
-                        <span className="text-xs text-slate-500 bg-slate-700/50 px-2 py-0.5 rounded">
+                        <span className="text-xs md:text-sm text-slate-400 truncate">{agent.phone_number_id}</span>
+                        <span className="text-xs text-slate-500 bg-slate-700/50 px-2 py-0.5 rounded hidden sm:inline">
                           {agent.model.split('-').slice(0, 2).join(' ')}
                         </span>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 md:gap-3 self-end sm:self-center shrink-0">
                     {/* Toggle Switch - Super Admin only */}
                     {isSuperAdmin(user) && (
                       <button

@@ -140,27 +140,28 @@ function UsersPage() {
     <div className="min-h-screen">
       {/* Header */}
       <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 py-4">
+        <div className="max-w-6xl mx-auto px-3 md:px-6 py-3 md:py-4">
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3">
               <Link href="/" className="text-slate-400 hover:text-white transition">
                 <ArrowRightIcon className="w-5 h-5" />
               </Link>
               <div>
-                <h1 className="text-xl font-bold text-white">ניהול משתמשים</h1>
-                <p className="text-xs text-slate-400">
+                <h1 className="text-base md:text-xl font-bold text-white">ניהול משתמשים</h1>
+                <p className="text-xs text-slate-400 hidden sm:block">
                   {isSuperAdmin(user) ? 'ניהול לקוחות ועובדים' : 'ניהול עובדים'}
                 </p>
               </div>
             </div>
             <Button variant="success" icon={<PlusIcon />} onClick={() => setShowCreateModal(true)}>
-              {activeTab === 'admins' ? 'לקוח חדש' : 'עובד חדש'}
+              <span className="hidden sm:inline">{activeTab === 'admins' ? 'לקוח חדש' : 'עובד חדש'}</span>
+              <span className="sm:hidden">חדש</span>
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-8">
+      <main className="max-w-6xl mx-auto px-3 md:px-6 py-4 md:py-8">
         {/* Super Admin Management Section */}
         {isSuperAdmin(user) && (
           <div className="mb-8">
@@ -179,24 +180,24 @@ function UsersPage() {
               <div className="grid gap-3">
                 {superAdmins.map((sa) => (
                   <Card key={sa.id} padding="none">
-                    <div className="p-4 flex justify-between items-center">
+                    <div className="p-3 md:p-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
+                        <div className="w-9 h-9 md:w-10 md:h-10 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0">
                           <KeyIcon />
                         </div>
-                        <div>
-                          <span className="text-white font-medium">{sa.name}</span>
-                          <div className="text-sm text-slate-400">{sa.email}</div>
+                        <div className="min-w-0">
+                          <span className="text-white font-medium text-sm md:text-base">{sa.name}</span>
+                          <div className="text-xs md:text-sm text-slate-400 truncate">{sa.email}</div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
                         <Button
                           variant="secondary"
                           size="sm"
                           icon={<KeyIcon />}
                           onClick={() => { setResetSAPassword(sa); setSaNewPassword(''); }}
                         >
-                          איפוס סיסמה
+                          <span className="hidden sm:inline">איפוס סיסמה</span>
                         </Button>
                         {sa.id !== user?.id && (
                           <Button
@@ -205,7 +206,7 @@ function UsersPage() {
                             icon={<TrashIcon />}
                             onClick={() => handleDeleteSA(sa.id)}
                           >
-                            מחק
+                            <span className="hidden sm:inline">מחק</span>
                           </Button>
                         )}
                         {sa.id === user?.id && (
@@ -339,26 +340,26 @@ function UsersPage() {
             ) : activeTab === 'admins' ? (
               admins.map((adminItem) => (
                 <Card key={adminItem.id} hover padding="none">
-                  <div className="p-5 flex justify-between items-center">
-                    <div className="flex items-center gap-4">
+                  <div className="p-3 md:p-5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                    <div className="flex items-center gap-3 md:gap-4 min-w-0">
                       <div className={`
-                        w-12 h-12 rounded-xl flex items-center justify-center text-xl
+                        w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center text-lg md:text-xl shrink-0
                         ${adminItem.is_active ? 'bg-blue-500/10 text-blue-400' : 'bg-slate-700/50 text-slate-400'}
                       `}>
                         <UserIcon />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <span className={`status-dot ${adminItem.is_active ? 'active' : 'inactive'}`} />
-                          <span className="text-lg font-semibold text-white">{adminItem.name}</span>
+                          <span className="text-base md:text-lg font-semibold text-white truncate">{adminItem.name}</span>
                         </div>
-                        <div className="text-sm text-slate-400">{adminItem.email}</div>
+                        <div className="text-xs md:text-sm text-slate-400 truncate">{adminItem.email}</div>
                         <div className="text-xs text-slate-500 mt-1">
                           {adminItem.agent_ids.length} סוכנים משויכים
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 md:gap-3 self-end sm:self-center shrink-0">
                       {/* Toggle Active */}
                       <button
                         onClick={() => handleToggleActive(adminItem)}
@@ -418,28 +419,28 @@ function UsersPage() {
             ) : (
               employees.map((empItem) => (
                 <Card key={empItem.id} hover padding="none">
-                  <div className="p-5 flex justify-between items-center">
-                    <div className="flex items-center gap-4">
+                  <div className="p-3 md:p-5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+                    <div className="flex items-center gap-3 md:gap-4 min-w-0">
                       <div className={`
-                        w-12 h-12 rounded-xl flex items-center justify-center text-xl
+                        w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center text-lg md:text-xl shrink-0
                         ${empItem.is_active ? 'bg-blue-500/10 text-blue-400' : 'bg-slate-700/50 text-slate-400'}
                       `}>
                         <UserIcon />
                       </div>
-                      <div>
-                        <div className="flex items-center gap-2">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className={`status-dot ${empItem.is_active ? 'active' : 'inactive'}`} />
-                          <span className="text-lg font-semibold text-white">{empItem.name}</span>
+                          <span className="text-base md:text-lg font-semibold text-white truncate">{empItem.name}</span>
                           {isSuperAdmin(user) && empItem.parent_name && (
                             <span className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-300">
                               עובד של {empItem.parent_name}
                             </span>
                           )}
                         </div>
-                        <div className="text-sm text-slate-400">{empItem.email}</div>
+                        <div className="text-xs md:text-sm text-slate-400 truncate">{empItem.email}</div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 md:gap-3 self-end sm:self-center shrink-0">
                       {/* Toggle Active */}
                       <button
                         onClick={() => handleToggleActive(empItem)}

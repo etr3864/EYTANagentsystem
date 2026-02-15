@@ -40,7 +40,7 @@ export function SettingsTab({
       <Card>
         <CardHeader>🤖 פרטי סוכן</CardHeader>
         <div className="grid gap-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input 
               label="שם הסוכן" 
               value={name} 
@@ -77,7 +77,7 @@ export function SettingsTab({
           כשלקוח שולח כמה הודעות ברצף, הסוכן יחכה ויענה על כולן בתשובה אחת
         </p>
         
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <NumberInput
             label="זמן המתנה (שניות)"
             min={0}

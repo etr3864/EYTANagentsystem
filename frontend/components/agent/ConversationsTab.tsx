@@ -11,13 +11,15 @@ interface ConversationsTabProps {
   messages: Message[];
   onSelectConversation: (id: number) => void;
   onDeleteConversation: (id: number) => void;
+  onDeselectConversation?: () => void;
   onSendMessage?: (text: string) => Promise<void>;
   onTogglePause?: () => Promise<void>;
 }
 
 export function ConversationsTab({
   conversations, selectedId, messages,
-  onSelectConversation, onDeleteConversation, onSendMessage, onTogglePause
+  onSelectConversation, onDeleteConversation, onDeselectConversation,
+  onSendMessage, onTogglePause
 }: ConversationsTabProps) {
   const selectedConv = conversations.find(c => c.id === selectedId);
   if (conversations.length === 0) {
@@ -37,21 +39,38 @@ export function ConversationsTab({
   return (
     <Card padding="none" className="h-[70vh] overflow-hidden">
       <div className="flex h-full">
-        <ContactList
-          conversations={conversations}
-          selectedId={selectedId}
-          onSelect={onSelectConversation}
-          onDelete={onDeleteConversation}
-        />
-        <div className="flex-1 flex flex-col min-h-0 border-r border-slate-700">
+        {/* Contact list: full width on mobile, fixed w-80 on desktop. Hidden on mobile when chat is open */}
+        <div className={`w-full md:w-80 md:block shrink-0 ${selectedId ? 'hidden' : 'block'}`}>
+          <ContactList
+            conversations={conversations}
+            selectedId={selectedId}
+            onSelect={onSelectConversation}
+            onDelete={onDeleteConversation}
+          />
+        </div>
+
+        {/* Chat: full width on mobile, flex-1 on desktop. Hidden on mobile when no chat selected */}
+        <div className={`flex-1 flex flex-col min-h-0 border-r border-slate-700 ${selectedId ? 'flex' : 'hidden md:flex'}`}>
           {selectedId ? (
-            <ChatView 
-              messages={messages}
-              conversationId={selectedId}
-              isPaused={selectedConv?.is_paused}
-              onSend={onSendMessage} 
-              onTogglePause={onTogglePause}
-            />
+            <>
+              {/* Mobile back button */}
+              {onDeselectConversation && (
+                <button
+                  onClick={onDeselectConversation}
+                  className="md:hidden flex items-center gap-2 px-4 py-2.5 border-b border-slate-700 text-sm text-slate-300 hover:bg-slate-700/30"
+                >
+                  <span>→</span>
+                  <span className="font-medium">{selectedConv?.user_name || 'חזרה לשיחות'}</span>
+                </button>
+              )}
+              <ChatView 
+                messages={messages}
+                conversationId={selectedId}
+                isPaused={selectedConv?.is_paused}
+                onSend={onSendMessage} 
+                onTogglePause={onTogglePause}
+              />
+            </>
           ) : (
             <div className="flex-1 flex items-center justify-center bg-slate-800/30">
               <div className="text-center">

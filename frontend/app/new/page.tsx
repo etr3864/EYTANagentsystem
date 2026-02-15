@@ -85,22 +85,22 @@ export default function NewAgentPage() {
     <div className="min-h-screen">
       {/* Header */}
       <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-3xl mx-auto px-6 py-4">
-          <div className="flex items-center gap-4">
+        <div className="max-w-3xl mx-auto px-3 md:px-6 py-3 md:py-4">
+          <div className="flex items-center gap-3 md:gap-4">
             <Link href="/">
               <Button variant="ghost" size="sm">
                 <ArrowRightIcon />
-                חזרה
+                <span className="hidden sm:inline">חזרה</span>
               </Button>
             </Link>
             <div className="h-6 w-px bg-slate-700" />
-            <h1 className="font-semibold text-white">יצירת סוכן חדש</h1>
+            <h1 className="font-semibold text-white text-sm md:text-base">יצירת סוכן חדש</h1>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-3xl mx-auto px-6 py-8">
+      <main className="max-w-3xl mx-auto px-3 md:px-6 py-4 md:py-8">
         {error && (
           <div className="mb-6 p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-300 flex items-center gap-2">
             <span>⚠️</span>
@@ -113,7 +113,7 @@ export default function NewAgentPage() {
           <Card>
             <CardHeader>🤖 פרטי סוכן</CardHeader>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
                   label="שם הסוכן"
                   value={name}
@@ -192,7 +192,7 @@ export default function NewAgentPage() {
                   הסוכן יחכה לקבל מספר הודעות ברצף לפני שיענה
                 </p>
                 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <NumberInput
                     label="זמן המתנה (שניות)"
                     min={0}
