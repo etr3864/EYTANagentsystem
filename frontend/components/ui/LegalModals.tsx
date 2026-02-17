@@ -6,7 +6,7 @@ type ModalType = 'privacy' | 'terms' | null;
 
 // Contact info
 const CONTACT_EMAIL = 'support@0ptive.com';
-const CONTACT_PHONE = '+972533457580';
+const CONTACT_PHONE = '+972523006544';
 
 export function LegalFooter({ className = '' }: { className?: string }) {
   const [openModal, setOpenModal] = useState<ModalType>(null);
@@ -72,7 +72,7 @@ export function LegalModal({ type, onClose }: { type: 'privacy' | 'terms'; onClo
   );
 }
 
-function PrivacyContent() {
+export function PrivacyContent() {
   return (
     <div className="space-y-4 text-left" dir="ltr">
       <p><strong>Last Updated:</strong> February 2026</p>
@@ -124,6 +124,10 @@ function PrivacyContent() {
         <li><strong>AI Services (Anthropic, Google, OpenAI):</strong> For natural language processing</li>
       </ul>
       <p>We do not sell, trade, or rent your personal information to third parties.</p>
+      <p>
+        We do not use user data, including data accessed via Google Calendar API, to train 
+        or improve our AI models or any third-party AI models.
+      </p>
 
       <h3 className="text-white font-semibold">6. Data Retention</h3>
       <p>
@@ -163,7 +167,7 @@ function PrivacyContent() {
   );
 }
 
-function TermsContent() {
+export function TermsContent() {
   return (
     <div className="space-y-4 text-left" dir="ltr">
       <p><strong>Last Updated:</strong> February 2026</p>
@@ -205,6 +209,10 @@ function TermsContent() {
         When you connect your Google Calendar, you authorize us to access and manage 
         calendar events on your behalf. You can revoke this access at any time through 
         your Google Account settings. We comply with Google's API Services User Data Policy.
+      </p>
+      <p>
+        We do not use user data, including data accessed via Google Calendar API, to train 
+        or improve our AI models or any third-party AI models.
       </p>
 
       <h3 className="text-white font-semibold">6. AI-Generated Content</h3>

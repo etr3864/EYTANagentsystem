@@ -14,7 +14,7 @@ GOOGLE_CALENDAR_API = "https://www.googleapis.com/calendar/v3"
 
 # Scopes needed for calendar access
 SCOPES = [
-    "https://www.googleapis.com/auth/calendar",
+    "https://www.googleapis.com/auth/calendar.readonly",
     "https://www.googleapis.com/auth/calendar.events"
 ]
 
