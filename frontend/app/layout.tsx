@@ -5,6 +5,9 @@ import { AuthProvider } from "@/contexts/AuthContext";
 export const metadata: Metadata = {
   title: "WhatsApp Agents",
   description: "Manage your WhatsApp AI agents",
+  icons: {
+    icon: "/icon.png",
+  },
 };
 
 export default function RootLayout({
