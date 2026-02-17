@@ -6,6 +6,7 @@ AI evaluation logic lives in followup_evaluator.py.
 from datetime import datetime, timedelta
 
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.models.scheduled_followup import ScheduledFollowup
@@ -74,98 +75,137 @@ def scan_for_followups(db: Session) -> int:
 
 
 def _scan_agent(db: Session, agent: Agent, config: dict, now: datetime, cutoff: datetime) -> int:
-    """Scan conversations for a single agent."""
+    """Scan conversations for a single agent using a single bulk query."""
     inactivity_threshold = now - timedelta(minutes=config["inactivity_minutes"])
     min_messages = config["min_messages"]
     max_followups = config["max_followups"]
-
-    # Conversations where customer hasn't responded within the inactivity window
-    convs = db.query(Conversation).filter(
-        Conversation.agent_id == agent.id,
-        Conversation.opted_out == False,
-        Conversation.is_paused == False,
-        Conversation.last_customer_message_at.isnot(None),
-        Conversation.last_customer_message_at > cutoff,
-        Conversation.last_customer_message_at < inactivity_threshold,
-    ).all()
-
-    created = 0
-    for conv in convs:
-        sent_count = _check_eligibility(db, conv, agent, config, now, min_messages, max_followups)
-        if sent_count is not None:
-            if _schedule_followup(db, conv, agent, config, now, sent_count):
-                created += 1
-
-    if created:
-        db.commit()
-    return created
-
-
-def _check_eligibility(
-    db: Session, conv: Conversation, agent: Agent, config: dict,
-    now: datetime, min_messages: int, max_followups: int
-) -> int | None:
-    """Check all eligibility conditions. Returns sent_count if eligible, None otherwise."""
-    # Already has pending follow-up
-    pending = db.query(ScheduledFollowup).filter(
-        ScheduledFollowup.conversation_id == conv.id,
-        ScheduledFollowup.status.in_([FollowupStatus.PENDING, FollowupStatus.EVALUATING]),
-    ).first()
-    if pending:
-        return None
-
-    # Max follow-ups reached (sent + skipped count toward limit)
-    sent_count = db.query(func.count(ScheduledFollowup.id)).filter(
-        ScheduledFollowup.conversation_id == conv.id,
-        ScheduledFollowup.status.in_([FollowupStatus.SENT, FollowupStatus.SKIPPED]),
-    ).scalar()
-    if sent_count >= max_followups:
-        return None
-
-    # Message count + last message role in one query
-    last_msg = db.query(Message.role).filter(
-        Message.conversation_id == conv.id,
-    ).order_by(Message.created_at.desc()).first()
-    if not last_msg or last_msg.role == "user":
-        return None
-
-    msg_count = db.query(func.count(Message.id)).filter(
-        Message.conversation_id == conv.id,
-    ).scalar()
-    if msg_count < min_messages:
-        return None
-
-    # Pending reminder for this user+agent — avoid double-messaging
-    has_reminder = db.query(ScheduledReminder).filter(
-        ScheduledReminder.agent_id == agent.id,
-        ScheduledReminder.user_id == conv.user_id,
-        ScheduledReminder.status == ReminderStatus.PENDING,
-    ).first()
-    if has_reminder:
-        return None
-
-    # Cooldown: minimum hours since last follow-up
+    max_attempts = max_followups * 2
     cooldown_hours = config.get("cooldown_hours", 12)
-    last_followup = db.query(ScheduledFollowup).filter(
-        ScheduledFollowup.conversation_id == conv.id,
-        ScheduledFollowup.status == FollowupStatus.SENT,
-    ).order_by(ScheduledFollowup.sent_at.desc()).first()
-    if last_followup and last_followup.sent_at:
-        if (now - last_followup.sent_at) < timedelta(hours=cooldown_hours):
-            return None
-
-    # Max per day
+    cooldown_threshold = now - timedelta(hours=cooldown_hours)
     max_per_day = config.get("max_per_day", 2)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    today_count = db.query(func.count(ScheduledFollowup.id)).filter(
-        ScheduledFollowup.conversation_id == conv.id,
+
+    agent_conv_ids = db.query(Conversation.id).filter(
+        Conversation.agent_id == agent.id,
+    ).subquery()
+
+    # Subquery: conversations with a pending/evaluating follow-up (exclude them)
+    has_pending = db.query(ScheduledFollowup.conversation_id).filter(
+        ScheduledFollowup.conversation_id.in_(agent_conv_ids),
+        ScheduledFollowup.status.in_([FollowupStatus.PENDING, FollowupStatus.EVALUATING]),
+    ).subquery()
+
+    # Subquery: sent count per conversation
+    sent_counts = db.query(
+        ScheduledFollowup.conversation_id,
+        func.count(ScheduledFollowup.id).label("cnt"),
+    ).filter(
+        ScheduledFollowup.conversation_id.in_(agent_conv_ids),
+        ScheduledFollowup.status == FollowupStatus.SENT,
+    ).group_by(ScheduledFollowup.conversation_id).subquery()
+
+    # Subquery: total attempts (sent + skipped) per conversation
+    attempt_counts = db.query(
+        ScheduledFollowup.conversation_id,
+        func.count(ScheduledFollowup.id).label("cnt"),
+    ).filter(
+        ScheduledFollowup.conversation_id.in_(agent_conv_ids),
+        ScheduledFollowup.status.in_([FollowupStatus.SENT, FollowupStatus.SKIPPED]),
+    ).group_by(ScheduledFollowup.conversation_id).subquery()
+
+    # Subquery: last message role per conversation
+    last_msg_role = db.query(
+        Message.conversation_id,
+        Message.role,
+    ).filter(
+        Message.conversation_id.in_(agent_conv_ids),
+    ).distinct(Message.conversation_id).order_by(
+        Message.conversation_id, Message.created_at.desc(),
+    ).subquery()
+
+    # Subquery: message count per conversation
+    msg_counts = db.query(
+        Message.conversation_id,
+        func.count(Message.id).label("cnt"),
+    ).filter(
+        Message.conversation_id.in_(agent_conv_ids),
+    ).group_by(Message.conversation_id).subquery()
+
+    # Subquery: conversations with pending reminders
+    has_reminder = db.query(ScheduledReminder.user_id).filter(
+        ScheduledReminder.agent_id == agent.id,
+        ScheduledReminder.status == ReminderStatus.PENDING,
+    ).subquery()
+
+    # Subquery: last sent follow-up time per conversation (for cooldown)
+    last_sent = db.query(
+        ScheduledFollowup.conversation_id,
+        func.max(ScheduledFollowup.sent_at).label("last_sent_at"),
+    ).filter(
+        ScheduledFollowup.conversation_id.in_(agent_conv_ids),
+        ScheduledFollowup.status == FollowupStatus.SENT,
+    ).group_by(ScheduledFollowup.conversation_id).subquery()
+
+    # Subquery: today's sent count per conversation
+    today_sent = db.query(
+        ScheduledFollowup.conversation_id,
+        func.count(ScheduledFollowup.id).label("cnt"),
+    ).filter(
+        ScheduledFollowup.conversation_id.in_(agent_conv_ids),
         ScheduledFollowup.status == FollowupStatus.SENT,
         ScheduledFollowup.sent_at >= today_start,
-    ).scalar()
-    if today_count >= max_per_day:
-        return None
+    ).group_by(ScheduledFollowup.conversation_id).subquery()
 
-    return sent_count
+    # Main query: eligible conversations
+    results = (
+        db.query(Conversation.id, func.coalesce(sent_counts.c.cnt, 0).label("sent_count"))
+        .outerjoin(sent_counts, sent_counts.c.conversation_id == Conversation.id)
+        .outerjoin(attempt_counts, attempt_counts.c.conversation_id == Conversation.id)
+        .outerjoin(last_msg_role, last_msg_role.c.conversation_id == Conversation.id)
+        .outerjoin(msg_counts, msg_counts.c.conversation_id == Conversation.id)
+        .outerjoin(last_sent, last_sent.c.conversation_id == Conversation.id)
+        .outerjoin(today_sent, today_sent.c.conversation_id == Conversation.id)
+        .filter(
+            Conversation.agent_id == agent.id,
+            Conversation.opted_out == False,
+            Conversation.is_paused == False,
+            Conversation.last_customer_message_at.isnot(None),
+            Conversation.last_customer_message_at > cutoff,
+            Conversation.last_customer_message_at < inactivity_threshold,
+            # No pending/evaluating follow-up
+            Conversation.id.notin_(db.query(has_pending.c.conversation_id)),
+            # Last message is from assistant
+            last_msg_role.c.role == "assistant",
+            # Minimum message count
+            func.coalesce(msg_counts.c.cnt, 0) >= min_messages,
+            # Sent count under limit
+            func.coalesce(sent_counts.c.cnt, 0) < max_followups,
+            # Total attempts under limit
+            func.coalesce(attempt_counts.c.cnt, 0) < max_attempts,
+            # No pending reminder for this user
+            Conversation.user_id.notin_(db.query(has_reminder.c.user_id)),
+            # Cooldown: no follow-up sent within cooldown window
+            func.coalesce(last_sent.c.last_sent_at, datetime.min) < cooldown_threshold,
+            # Daily limit
+            func.coalesce(today_sent.c.cnt, 0) < max_per_day,
+        )
+        .all()
+    )
+
+    created = 0
+    for conv_id, sent_count in results:
+        conv = db.query(Conversation).filter(Conversation.id == conv_id).first()
+        if not conv:
+            continue
+        try:
+            if _schedule_followup(db, conv, agent, config, now, sent_count):
+                db.commit()
+                created += 1
+        except IntegrityError:
+            db.rollback()
+
+    return created
+
 
 
 def _schedule_followup(
@@ -243,6 +283,10 @@ def _clamp_to_active_hours(dt: datetime, active_hours: dict) -> datetime:
 async def process_pending_followups(db: Session) -> int:
     """Process follow-ups that are due. Returns count processed."""
     import asyncio
+    from backend.core.database import SessionLocal
+
+    MAX_CONCURRENT = 5
+    semaphore = asyncio.Semaphore(MAX_CONCURRENT)
 
     now = datetime.utcnow()
     processed = 0
@@ -257,20 +301,47 @@ async def process_pending_followups(db: Session) -> int:
             break
 
         # Mark entire batch as EVALUATING in one commit
+        fu_ids = []
         for fu in pending:
             fu.status = FollowupStatus.EVALUATING
+            fu_ids.append(fu.id)
         db.commit()
 
-        for fu in pending:
-            try:
-                await _process_single(db, fu)
-                processed += 1
-            except Exception as e:
-                fu.status = FollowupStatus.SKIPPED
-                fu.ai_reason = f"error: {str(e)[:200]}"
-                log_error("followup", f"processing failed: {str(e)[:50]}")
+        # Process concurrently — each task gets its own DB session
+        async def _run(followup_id: int) -> bool:
+            async with semaphore:
+                local_db = SessionLocal()
+                try:
+                    fu = local_db.query(ScheduledFollowup).filter(
+                        ScheduledFollowup.id == followup_id,
+                    ).first()
+                    if not fu:
+                        return False
+                    await _process_single(local_db, fu)
+                    local_db.commit()
+                    return True
+                except Exception as e:
+                    local_db.rollback()
+                    try:
+                        fu = local_db.query(ScheduledFollowup).filter(
+                            ScheduledFollowup.id == followup_id,
+                        ).first()
+                        if fu:
+                            fu.status = FollowupStatus.SKIPPED
+                            fu.ai_reason = f"error: {str(e)[:200]}"
+                            local_db.commit()
+                    except Exception:
+                        local_db.rollback()
+                    log_error("followup", f"processing failed: {str(e)[:50]}")
+                    return False
+                finally:
+                    local_db.close()
 
-        db.commit()
+        results = await asyncio.gather(*[_run(fid) for fid in fu_ids])
+        processed += sum(1 for r in results if r)
+
+        # Refresh main session to see changes made by sub-sessions
+        db.expire_all()
 
         if len(pending) == BATCH_SIZE:
             await asyncio.sleep(1)

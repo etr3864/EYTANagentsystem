@@ -10,6 +10,7 @@ interface SummaryConfig {
   enabled: boolean;
   delay_minutes: number;
   min_messages: number;
+  max_messages: number;
   webhook_url: string;
   webhook_retry_count: number;
   webhook_retry_delay: number;
@@ -223,6 +224,23 @@ export function SummaryTab({ agentId }: SummaryTabProps) {
                 רק שיחות עם לפחות {config.min_messages} הודעות יקבלו סיכום
               </p>
             </div>
+          </div>
+
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              מקסימום הודעות לסיכום
+            </label>
+            <input
+              type="number"
+              min={10}
+              max={500}
+              value={config.max_messages}
+              onChange={(e) => updateConfig({ max_messages: parseInt(e.target.value) || 100 })}
+              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white"
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              כמה הודעות אחרונות לכלול בסיכום (ברירת מחדל: 100)
+            </p>
           </div>
         </Card>
       )}

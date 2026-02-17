@@ -62,7 +62,8 @@ def _build_history_context(db: Session, conversation_id: int, limit: int = 20) -
         role = "לקוח" if msg.role == "user" else "סוכן"
         mtype = msg.message_type or "text"
         prefix = f"[{mtype}] " if mtype != "text" else ""
-        content = msg.content[:200] + "..." if len(msg.content) > 200 else msg.content
+        raw = msg.content or ""
+        content = raw[:200] + "..." if len(raw) > 200 else raw
         lines.append(f"{role}: {prefix}{content}")
 
     return "\n".join(lines)

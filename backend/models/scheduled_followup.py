@@ -5,7 +5,7 @@ AI evaluates whether to send and generates content at execution time.
 """
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import String, Text, DateTime, ForeignKey, Index
+from sqlalchemy import String, Text, DateTime, ForeignKey, Index, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.core.database import Base
 from backend.core.enums import FollowupStatus
@@ -41,4 +41,10 @@ class ScheduledFollowup(Base):
         Index("ix_followups_pending", "status", "scheduled_for"),
         Index("ix_followups_conversation", "conversation_id"),
         Index("ix_followups_agent", "agent_id"),
+        Index(
+            "ix_followups_one_pending_per_conv",
+            "conversation_id",
+            unique=True,
+            postgresql_where=text("status IN ('pending', 'evaluating')"),
+        ),
     )

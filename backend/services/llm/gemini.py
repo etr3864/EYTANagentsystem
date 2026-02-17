@@ -223,3 +223,21 @@ class GeminiProvider:
             usage=usage_data,
             media_actions=media_actions
         )
+
+    async def generate_simple_response(self, prompt: str) -> str:
+        """Generate a simple text response without tools (for follow-ups, reminders)."""
+        config = types.GenerateContentConfig(
+            max_output_tokens=300,
+            temperature=0.7,
+        )
+        response = await self._call_with_retry(
+            self._client.models.generate_content,
+            model="gemini-2.0-flash",
+            contents=[types.Content(role="user", parts=[types.Part(text=prompt)])],
+            config=config,
+        )
+        if response.candidates and response.candidates[0].content:
+            for part in response.candidates[0].content.parts:
+                if hasattr(part, "text") and part.text:
+                    return part.text.strip()
+        return ""

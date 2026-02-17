@@ -21,7 +21,7 @@ from backend.core.enums import SummaryWebhookStatus
 
 # Configuration
 BATCH_SIZE = 50
-MAX_MESSAGES_FOR_SUMMARY = 500  # Limit messages to avoid token overflow
+DEFAULT_MAX_MESSAGES = 100
 DEFAULT_DELAY_MINUTES = 30
 DEFAULT_MIN_MESSAGES = 5
 DEFAULT_RETRY_COUNT = 3
@@ -38,6 +38,7 @@ def get_summary_config(agent: Agent) -> dict:
         "enabled": config.get("enabled", False),
         "delay_minutes": config.get("delay_minutes", DEFAULT_DELAY_MINUTES),
         "min_messages": config.get("min_messages", DEFAULT_MIN_MESSAGES),
+        "max_messages": config.get("max_messages", DEFAULT_MAX_MESSAGES),
         "webhook_url": config.get("webhook_url", ""),
         "webhook_retry_count": config.get("webhook_retry_count", DEFAULT_RETRY_COUNT),
         "webhook_retry_delay": config.get("webhook_retry_delay", DEFAULT_RETRY_DELAY_SECONDS),
@@ -59,24 +60,34 @@ def _get_conversations_needing_summary(
     """
     threshold = now - timedelta(minutes=delay_minutes)
     
+    # Filter to this agent's conversations for all subqueries
+    agent_conv_ids = db.query(Conversation.id).filter(
+        Conversation.agent_id == agent_id
+    ).subquery()
+
     # Subquery: last user message time per conversation
     last_user_msg = db.query(
         Message.conversation_id,
         func.max(Message.created_at).label("last_user_msg_time")
     ).filter(
-        Message.role == "user"
+        Message.role == "user",
+        Message.conversation_id.in_(agent_conv_ids)
     ).group_by(Message.conversation_id).subquery()
     
     # Subquery: last summary time per conversation
     last_summary = db.query(
         ConversationSummary.conversation_id,
         func.max(ConversationSummary.created_at).label("last_summary_time")
+    ).filter(
+        ConversationSummary.agent_id == agent_id
     ).group_by(ConversationSummary.conversation_id).subquery()
     
     # Subquery: message count per conversation
     msg_count = db.query(
         Message.conversation_id,
         func.count(Message.id).label("msg_count")
+    ).filter(
+        Message.conversation_id.in_(agent_conv_ids)
     ).group_by(Message.conversation_id).subquery()
     
     # Main query: find conversations that need summary
@@ -104,13 +115,13 @@ def _get_conversations_needing_summary(
     return [(r[0], r[1], r[2]) for r in results]
 
 
-def _get_conversation_text(db: Session, conversation_id: int) -> str:
+def _get_conversation_text(db: Session, conversation_id: int, max_messages: int = DEFAULT_MAX_MESSAGES) -> str:
     """Get conversation text for summarization with message limit."""
     messages = db.query(Message).filter(
         Message.conversation_id == conversation_id
     ).order_by(
-        Message.created_at.desc()  # Get most recent first
-    ).limit(MAX_MESSAGES_FOR_SUMMARY).all()
+        Message.created_at.desc()
+    ).limit(max_messages).all()
     
     # Reverse to chronological order
     messages = list(reversed(messages))
@@ -119,7 +130,7 @@ def _get_conversation_text(db: Session, conversation_id: int) -> str:
     for msg in messages:
         role = "לקוח" if msg.role == "user" else "סוכן"
         # Truncate very long messages
-        content = msg.content[:1000] + "..." if len(msg.content) > 1000 else msg.content
+        content = (msg.content or "")[:1000]
         lines.append(f"{role}: {content}")
     
     return "\n".join(lines)
@@ -171,7 +182,22 @@ async def create_and_send_summary(
     config: dict
 ) -> ConversationSummary | None:
     """Create a summary for conversation and attempt webhook send."""
-    conversation_text = _get_conversation_text(db, conversation_id)
+    # Guard: skip if a summary was already created for the current message window
+    last_user_msg_time = db.query(func.max(Message.created_at)).filter(
+        Message.conversation_id == conversation_id,
+        Message.role == "user"
+    ).scalar()
+
+    if last_user_msg_time:
+        existing = db.query(ConversationSummary.id).filter(
+            ConversationSummary.conversation_id == conversation_id,
+            ConversationSummary.created_at >= last_user_msg_time
+        ).first()
+        if existing:
+            return None
+
+    max_msgs = config.get("max_messages", DEFAULT_MAX_MESSAGES)
+    conversation_text = _get_conversation_text(db, conversation_id, max_msgs)
     if not conversation_text:
         return None
     

@@ -82,11 +82,10 @@ async def start_scheduler():
     
     while _running:
         try:
-            # Try to acquire distributed lock
+            # NX+TTL lock — only one worker runs per LOCK_DURATION window
             if await _acquire_scheduler_lock():
                 await _process_cycle()
-                await _release_scheduler_lock()
-            # else: another instance is handling it
+                # Lock expires via TTL — do NOT release manually
         except Exception as e:
             log_error("scheduler", f"cycle error: {str(e)[:50]}")
         
