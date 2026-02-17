@@ -67,7 +67,17 @@ def scan_for_followups(db: Session) -> int:
         config = get_config(agent)
         if not config["enabled"]:
             continue
-        created += _scan_agent(db, agent, config, now, cutoff)
+        # Use enabled_at as cutoff floor to prevent retroactive follow-ups
+        agent_cutoff = cutoff
+        enabled_at = config.get("enabled_at")
+        if enabled_at:
+            try:
+                enabled_dt = datetime.fromisoformat(enabled_at)
+                if enabled_dt > agent_cutoff:
+                    agent_cutoff = enabled_dt
+            except (ValueError, TypeError):
+                pass
+        created += _scan_agent(db, agent, config, now, agent_cutoff)
 
     if created:
         log("followup", msg=f"scheduled {created} follow-ups")

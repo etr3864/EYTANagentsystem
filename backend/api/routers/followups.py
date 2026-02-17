@@ -55,9 +55,23 @@ def update_followup_config(
 
     # Deep copy to ensure SQLAlchemy detects the JSON change
     import copy
+    from datetime import datetime
     config = copy.deepcopy(agent.followup_config) if agent.followup_config else DEFAULT_CONFIG.copy()
     update_dict = data.model_dump(exclude_none=True)
+
+    # Track when follow-up was enabled (prevents retroactive follow-ups)
+    was_enabled = config.get("enabled", False)
     config.update(update_dict)
+    if config.get("enabled") and not was_enabled:
+        config["enabled_at"] = datetime.utcnow().isoformat()
+
+    # Cancel all pending follow-ups when disabling
+    if was_enabled and not config.get("enabled"):
+        from backend.models.scheduled_followup import ScheduledFollowup
+        db.query(ScheduledFollowup).filter(
+            ScheduledFollowup.agent_id == agent_id,
+            ScheduledFollowup.status.in_([FollowupStatus.PENDING, FollowupStatus.EVALUATING]),
+        ).update({"status": FollowupStatus.CANCELLED}, synchronize_session="fetch")
 
     agents_service.update(db, agent_id, followup_config=config)
     return config
