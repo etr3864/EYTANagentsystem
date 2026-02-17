@@ -87,7 +87,7 @@ def _scan_agent(db: Session, agent: Agent, config: dict, now: datetime, cutoff: 
 
     agent_conv_ids = db.query(Conversation.id).filter(
         Conversation.agent_id == agent.id,
-    ).subquery()
+    )
 
     # Subquery: conversations with a pending/evaluating follow-up (exclude them)
     has_pending = db.query(ScheduledFollowup.conversation_id).filter(

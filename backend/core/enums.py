@@ -26,6 +26,7 @@ class AppointmentStatus(str, Enum):
 class ReminderStatus(str, Enum):
     """Reminder status values."""
     PENDING = "pending"
+    PROCESSING = "processing"
     SENT = "sent"
     FAILED = "failed"
     CANCELLED = "cancelled"

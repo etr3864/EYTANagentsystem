@@ -235,7 +235,8 @@ def _get_conversation_context(db: Session, agent_id: int, user_id: int, limit: i
     for msg in reversed(recent):
         role = "לקוח" if msg.role == "user" else "סוכן"
         # Truncate long messages
-        content = msg.content[:150] + "..." if len(msg.content) > 150 else msg.content
+        raw = msg.content or ""
+        content = raw[:150] + "..." if len(raw) > 150 else raw
         lines.append(f"{role}: {content}")
     
     return "\n".join(lines)
@@ -452,8 +453,8 @@ def _mark_failed(reminder: ScheduledReminder, error: str) -> None:
 async def process_pending_reminders(db: Session) -> int:
     """Process pending reminders that are due.
     
-    Uses row locking to prevent duplicate sends in multi-instance deployments.
-    Processes in batches to avoid memory issues and rate limits.
+    Marks entire batch as PROCESSING before sending to prevent
+    duplicate sends in multi-instance deployments.
     """
     import asyncio
     
@@ -461,7 +462,6 @@ async def process_pending_reminders(db: Session) -> int:
     processed = 0
     
     while True:
-        # Fetch batch of pending reminders
         pending = db.query(ScheduledReminder).filter(
             ScheduledReminder.status == ReminderStatus.PENDING,
             ScheduledReminder.scheduled_for <= now
@@ -470,10 +470,12 @@ async def process_pending_reminders(db: Session) -> int:
         if not pending:
             break
         
+        # Mark entire batch as PROCESSING in one commit
         for reminder in pending:
-            # Mark as processing to prevent double-send
-            reminder.status = "processing"
-            db.commit()
+            reminder.status = ReminderStatus.PROCESSING
+        db.commit()
+        
+        for reminder in pending:
             try:
                 await send_reminder(db, reminder)
                 processed += 1
@@ -483,7 +485,6 @@ async def process_pending_reminders(db: Session) -> int:
         
         db.commit()
         
-        # Rate limit between batches
         if len(pending) == BATCH_SIZE:
             await asyncio.sleep(BATCH_DELAY_SECONDS)
     

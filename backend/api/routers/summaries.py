@@ -23,6 +23,7 @@ class SummaryConfigUpdate(BaseModel):
     enabled: Optional[bool] = None
     delay_minutes: Optional[int] = None
     min_messages: Optional[int] = None
+    max_messages: Optional[int] = None
     webhook_url: Optional[str] = None
     webhook_retry_count: Optional[int] = None
     webhook_retry_delay: Optional[int] = None
@@ -40,6 +41,13 @@ class SummaryConfigUpdate(BaseModel):
     def validate_min_messages(cls, v):
         if v is not None and (v < 1 or v > 100):
             raise ValueError("min_messages must be 1-100")
+        return v
+    
+    @field_validator("max_messages")
+    @classmethod
+    def validate_max_messages(cls, v):
+        if v is not None and (v < 10 or v > 500):
+            raise ValueError("max_messages must be 10-500")
         return v
     
     @field_validator("webhook_retry_count")
@@ -70,6 +78,7 @@ async def get_config(agent_id: int, db: Session = Depends(get_db)):
         "enabled": config["enabled"],
         "delay_minutes": config["delay_minutes"],
         "min_messages": config["min_messages"],
+        "max_messages": config.get("max_messages", 100),
         "webhook_url": config["webhook_url"],
         "webhook_retry_count": config["webhook_retry_count"],
         "webhook_retry_delay": config["webhook_retry_delay"],
@@ -97,6 +106,8 @@ async def update_config(
         agent.summary_config["delay_minutes"] = config.delay_minutes
     if config.min_messages is not None:
         agent.summary_config["min_messages"] = config.min_messages
+    if config.max_messages is not None:
+        agent.summary_config["max_messages"] = config.max_messages
     if config.webhook_url is not None:
         agent.summary_config["webhook_url"] = config.webhook_url or None
     if config.webhook_retry_count is not None:

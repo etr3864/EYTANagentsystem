@@ -63,7 +63,7 @@ def _get_conversations_needing_summary(
     # Filter to this agent's conversations for all subqueries
     agent_conv_ids = db.query(Conversation.id).filter(
         Conversation.agent_id == agent_id
-    ).subquery()
+    )
 
     # Subquery: last user message time per conversation
     last_user_msg = db.query(
