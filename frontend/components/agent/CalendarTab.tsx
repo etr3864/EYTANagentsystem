@@ -394,12 +394,14 @@ export function CalendarTab({
   const [config, setConfig] = useState<CalendarConfig>({});
   const [calendars, setCalendars] = useState<GoogleCalendar[]>([]);
   const [approvedTemplates, setApprovedTemplates] = useState<ApprovedTemplate[]>([]);
+  const [summaryEnabled, setSummaryEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const isMeta = provider === 'meta';
 
   useEffect(() => {
     loadConfig();
+    loadSummaryStatus();
     if (isMeta) loadApprovedTemplates();
   }, [agentId, isMeta]);
 
@@ -442,6 +444,18 @@ export function CalendarTab({
       }
     } catch {
       // Non-critical — templates will show as empty list
+    }
+  }
+
+  async function loadSummaryStatus() {
+    try {
+      const res = await fetch(`${API_URL}/api/summaries/${agentId}/config`);
+      if (res.ok) {
+        const data = await res.json();
+        setSummaryEnabled(data.enabled === true);
+      }
+    } catch {
+      // Non-critical — indicator will default to disabled
     }
   }
 
@@ -641,6 +655,20 @@ export function CalendarTab({
             value={config.webhook_url || ''}
             onChange={(e) => saveConfig({ ...config, webhook_url: e.target.value })}
           />
+
+          {/* Summary status indicator */}
+          <div className={`mt-4 p-3 rounded-lg border text-sm ${
+            summaryEnabled
+              ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400'
+              : 'bg-slate-700/30 border-slate-600/30 text-slate-400'
+          }`}>
+            <span className="font-medium">סיכום שיחה:</span>{' '}
+            {summaryEnabled ? (
+              <>פעיל — סיכום השיחה יישלח יחד עם ה-Webhook בכל תיאום פגישה, לפי ההנחיות בטאב &quot;סיכומים&quot;</>
+            ) : (
+              <>כבוי — כדי לצרף סיכום שיחה ל-Webhook, הפעל את הפיצ&apos;ר בטאב &quot;סיכומים&quot;</>
+            )}
+          </div>
         </Card>
       )}
 

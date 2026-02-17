@@ -5,7 +5,7 @@ import { useState } from 'react';
 type ModalType = 'privacy' | 'terms' | null;
 
 // Contact info
-const CONTACT_EMAIL = 'optiveltd@gmail.com';
+const CONTACT_EMAIL = 'support@0ptive.com';
 const CONTACT_PHONE = '+972533457580';
 
 export function LegalFooter({ className = '' }: { className?: string }) {

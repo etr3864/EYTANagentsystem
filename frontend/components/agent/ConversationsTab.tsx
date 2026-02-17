@@ -37,7 +37,7 @@ export function ConversationsTab({
   }
 
   return (
-    <Card padding="none" className="h-[70vh] overflow-hidden">
+    <Card padding="none" className="h-[85vh] md:h-[70vh] overflow-hidden">
       <div className="flex h-full">
         {/* Contact list: full width on mobile, fixed w-80 on desktop. Hidden on mobile when chat is open */}
         <div className={`w-full md:w-80 md:block shrink-0 ${selectedId ? 'hidden' : 'block'}`}>

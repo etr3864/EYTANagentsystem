@@ -9,6 +9,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from backend.models.appointment import Appointment
 from backend.models.agent import Agent
+from backend.models.conversation import Conversation
 from backend.services import calendar
 from backend.core.logger import log, log_error
 
@@ -410,6 +411,57 @@ def get_appointment_by_id(db: Session, appointment_id: int) -> Optional[Appointm
 
 # --- Webhook ---
 
+async def _generate_appointment_summary(agent: Agent, appointment: Appointment, db: Session) -> str | None:
+    """Generate conversation summary for appointment webhook if summaries are enabled."""
+    from backend.services.summaries import get_summary_config, _get_conversation_text, _generate_summary
+
+    summary_config = get_summary_config(agent)
+    if not summary_config["enabled"]:
+        return None
+
+    conv = db.query(Conversation).filter(
+        Conversation.agent_id == agent.id,
+        Conversation.user_id == appointment.user_id
+    ).first()
+    if not conv:
+        return None
+
+    conversation_text = _get_conversation_text(db, conv.id)
+    if not conversation_text:
+        return None
+
+    try:
+        summary_text = await _generate_summary(conversation_text, summary_config["summary_prompt"])
+    except Exception as e:
+        log_error("appointments", f"summary generation failed: {str(e)[:50]}")
+        return None
+
+    # Save to DB so the scheduler won't create a duplicate
+    from backend.models.conversation_summary import ConversationSummary
+    from backend.core.enums import SummaryWebhookStatus
+    from backend.models.message import Message
+    from sqlalchemy import func
+
+    msg_count = db.query(func.count(Message.id)).filter(
+        Message.conversation_id == conv.id
+    ).scalar() or 0
+
+    record = ConversationSummary(
+        conversation_id=conv.id,
+        agent_id=agent.id,
+        user_id=appointment.user_id,
+        summary_text=summary_text,
+        message_count=msg_count,
+        webhook_status=SummaryWebhookStatus.SENT,
+        webhook_attempts=1,
+        webhook_sent_at=datetime.utcnow(),
+    )
+    db.add(record)
+    db.commit()
+
+    return summary_text
+
+
 async def send_webhook(agent: Agent, appointment: Appointment, event: str, db: Session) -> None:
     """Send webhook notification for appointment events."""
     config = get_calendar_config(agent)
@@ -420,12 +472,14 @@ async def send_webhook(agent: Agent, appointment: Appointment, event: str, db: S
     
     from backend.services import users
     user = users.get_by_id(db, appointment.user_id)
+
+    # Generate conversation summary if summaries are enabled
+    summary_text = await _generate_appointment_summary(agent, appointment, db)
     
     payload = {
         "event": event,
         "appointment": {
             "id": appointment.id,
-            # DB stores UTC - add Z suffix for clarity
             "start_time": f"{appointment.start_time.isoformat()}Z",
             "end_time": f"{appointment.end_time.isoformat()}Z",
             "duration_minutes": appointment.duration_minutes,
@@ -442,10 +496,11 @@ async def send_webhook(agent: Agent, appointment: Appointment, event: str, db: S
             "name": agent.name,
         },
         "calendar_id": config.get("google_calendar_id"),
+        "conversation_summary": summary_text,
     }
     
     try:
         async with httpx.AsyncClient() as client:
-            await client.post(webhook_url, json=payload, timeout=10)
+            await client.post(webhook_url, json=payload, timeout=15)
     except Exception as e:
         log_error("webhook", f"appointment webhook failed: {str(e)[:60]}")
