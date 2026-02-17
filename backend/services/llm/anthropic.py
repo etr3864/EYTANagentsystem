@@ -96,7 +96,7 @@ class AnthropicProvider:
         
         response = await self._call_with_retry(
             model=model,
-            max_tokens=1024,
+            max_tokens=4096,
             system=system_blocks,
             messages=messages,
             tools=USER_TOOLS,
@@ -167,7 +167,7 @@ class AnthropicProvider:
             
             current_response = await self._call_with_retry(
                 model=model,
-                max_tokens=1024,
+                max_tokens=4096,
                 system=system_blocks,
                 messages=messages,
                 tools=USER_TOOLS,

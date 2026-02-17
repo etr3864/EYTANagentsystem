@@ -127,7 +127,7 @@ class GeminiProvider:
         config = types.GenerateContentConfig(
             system_instruction=system_text,
             tools=[self._gemini_tools],
-            max_output_tokens=1024,
+            max_output_tokens=4096,
             temperature=0.7
         )
         
