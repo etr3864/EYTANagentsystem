@@ -4,7 +4,6 @@ import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Input, PasswordInput } from '@/components/ui';
-import { LegalFooter } from '@/components/ui/LegalModals';
 
 interface FormErrors {
   email?: string;
@@ -81,7 +80,7 @@ export default function LoginPage() {
             alt="WhatsApp Agents"
             className="h-12 sm:h-16 mx-auto mb-4"
           />
-          <p className="text-gray-400">התחברות למערכת</p>
+          <p className="text-gray-400">פלטפורמה לניהול סוכני WhatsApp מבוססי AI</p>
         </div>
 
         {/* Login Card */}
@@ -148,7 +147,11 @@ export default function LoginPage() {
         <p className="text-center text-gray-500 text-sm mt-6">
           גישה למערכת מותרת למורשים בלבד
         </p>
-        <LegalFooter className="mt-4" />
+        <div className="flex justify-center gap-3 mt-4 text-xs text-gray-600">
+          <a href="/privacy" className="hover:text-gray-400 transition underline">Privacy Policy</a>
+          <span>•</span>
+          <a href="/terms" className="hover:text-gray-400 transition underline">Terms of Service</a>
+        </div>
       </div>
     </div>
   );
