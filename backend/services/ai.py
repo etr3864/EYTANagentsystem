@@ -290,7 +290,12 @@ async def get_response(
         tool_handler=tool_handler
     )
     
-    return response.text, response.tool_calls, response.usage, response.media_actions
+    text = response.text
+    if text and ("<invoke" in text or "<tool_use" in text or "<function_call" in text):
+        log_error("ai", f"stripped leaked tool markup from response ({len(text)} chars)")
+        text = ""
+
+    return text, response.tool_calls, response.usage, response.media_actions
 
 
 async def generate_simple_response(prompt: str) -> str:
