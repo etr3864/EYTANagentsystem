@@ -236,63 +236,89 @@ def _fetch_templates_info(db: Session, agent_id: int, meta_templates: list) -> l
 # Response parsing
 # ──────────────────────────────────────────
 
-def _escape_newlines_in_strings(text: str) -> str:
-    """Fix literal newlines inside JSON string values (AI sometimes forgets to escape)."""
-    result = []
-    in_string = False
-    prev_escape = False
-    for ch in text:
-        if prev_escape:
-            result.append(ch)
-            prev_escape = False
-            continue
-        if ch == '\\':
-            result.append(ch)
-            prev_escape = True
-            continue
-        if ch == '"':
-            in_string = not in_string
-        if in_string and ch == '\n':
-            result.append('\\n')
-            continue
-        result.append(ch)
-    return ''.join(result)
+import re
+
+_SEND_RE = re.compile(r'"send"\s*:\s*(true|false)', re.IGNORECASE)
+_CONTENT_RE = re.compile(r'"content"\s*:\s*"((?:[^"\\]|\\.)*)"', re.DOTALL)
+_REASON_RE = re.compile(r'"reason"\s*:\s*"((?:[^"\\]|\\.)*)"', re.DOTALL)
+_TEMPLATE_NAME_RE = re.compile(r'"template_name"\s*:\s*"((?:[^"\\]|\\.)*)"')
+_TEMPLATE_LANG_RE = re.compile(r'"template_language"\s*:\s*"((?:[^"\\]|\\.)*)"')
+_TEMPLATE_PARAMS_RE = re.compile(r'"template_params"\s*:\s*\[(.*?)\]', re.DOTALL)
 
 
 def _parse_ai_decision(response: str) -> dict:
-    """Parse AI JSON response with safe fallback to skip."""
-    text = response.strip()
-
-    if "```" in text:
-        parts = text.split("```")
-        for part in parts:
-            candidate = part.strip()
-            if candidate.startswith("json"):
-                candidate = candidate[4:].strip()
-            if candidate.startswith("{"):
-                text = candidate
-                break
-
-    if not text.startswith("{"):
-        start = text.find("{")
-        end = text.rfind("}") + 1
-        if start != -1 and end > start:
-            text = text[start:end]
+    """Parse AI JSON response. Tries json.loads first, falls back to regex extraction."""
+    text = _extract_json_block(response)
 
     try:
         result = json.loads(text)
         if isinstance(result, dict):
             return result
-        return {"send": False, "reason": "AI returned non-object JSON"}
     except (json.JSONDecodeError, ValueError):
         pass
 
-    fixed = _escape_newlines_in_strings(text)
-    try:
-        result = json.loads(fixed)
-        if isinstance(result, dict):
-            return result
-    except (json.JSONDecodeError, ValueError):
-        pass
+    return _extract_via_regex(text)
 
-    return {"send": False, "reason": f"failed to parse AI response: {text[:80]}"}
+
+def _extract_json_block(response: str) -> str:
+    """Extract JSON substring from AI response (handles code blocks and surrounding text)."""
+    text = response.strip()
+
+    if "```" in text:
+        for part in text.split("```"):
+            candidate = part.strip()
+            if candidate.startswith("json"):
+                candidate = candidate[4:].strip()
+            if candidate.startswith("{"):
+                return candidate
+
+    if not text.startswith("{"):
+        start = text.find("{")
+        end = text.rfind("}") + 1
+        if start != -1 and end > start:
+            return text[start:end]
+
+    return text
+
+
+def _extract_via_regex(text: str) -> dict:
+    """Regex fallback: extract send/content/reason from malformed JSON."""
+    send_match = _SEND_RE.search(text)
+    if not send_match:
+        return {"send": False, "reason": f"no 'send' field found: {text[:80]}"}
+
+    send = send_match.group(1).lower() == "true"
+
+    if not send:
+        reason = _regex_field(_REASON_RE, text) or "AI decided not to send"
+        return {"send": False, "reason": reason}
+
+    result: dict = {"send": True}
+
+    content = _regex_field(_CONTENT_RE, text)
+    if content is not None:
+        result["content"] = content.replace("\\n", "\n").replace('\\"', '"')
+
+    reason = _regex_field(_REASON_RE, text)
+    if reason:
+        result["reason"] = reason
+
+    tpl_name = _regex_field(_TEMPLATE_NAME_RE, text)
+    if tpl_name:
+        result["template_name"] = tpl_name
+
+    tpl_lang = _regex_field(_TEMPLATE_LANG_RE, text)
+    if tpl_lang:
+        result["template_language"] = tpl_lang
+
+    params_match = _TEMPLATE_PARAMS_RE.search(text)
+    if params_match:
+        raw = params_match.group(1)
+        result["template_params"] = [p.strip().strip('"') for p in raw.split(",") if p.strip()]
+
+    return result
+
+
+def _regex_field(pattern: re.Pattern, text: str) -> str | None:
+    m = pattern.search(text)
+    return m.group(1) if m else None
