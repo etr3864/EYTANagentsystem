@@ -44,13 +44,18 @@ class GeminiProvider:
         self._client = genai.Client(api_key=new_key)
         self._api_key = new_key
 
-    async def _call_with_retry(self, func, *args, **kwargs):
-        """Execute function with retry logic, key rotation on rate limit/auth errors."""
+    async def _call_with_retry(self, method_name: str, *args, **kwargs):
+        """Execute function with retry logic, key rotation on rate limit/auth errors.
+
+        Uses method_name (e.g. 'generate_content') to always resolve from the
+        current self._client, so key rotation takes effect on retry.
+        """
         from . import key_manager
         last_error = None
         
         for attempt in range(self.MAX_RETRIES):
             try:
+                func = getattr(self._client.models, method_name)
                 return await asyncio.to_thread(func, *args, **kwargs)
             except Exception as e:
                 last_error = e
@@ -161,9 +166,8 @@ class GeminiProvider:
             temperature=0.7
         )
         
-        # Make API call with retry
         response = await self._call_with_retry(
-            self._client.models.generate_content,
+            "generate_content",
             model=model,
             contents=gemini_contents,
             config=config
@@ -225,9 +229,8 @@ class GeminiProvider:
             
             gemini_contents.append(types.Content(role="user", parts=response_parts))
             
-            # Get next response
             response = await self._call_with_retry(
-                self._client.models.generate_content,
+                "generate_content",
                 model=model,
                 contents=gemini_contents,
                 config=config
@@ -261,7 +264,7 @@ class GeminiProvider:
             temperature=0.7,
         )
         response = await self._call_with_retry(
-            self._client.models.generate_content,
+            "generate_content",
             model="gemini-2.0-flash",
             contents=[types.Content(role="user", parts=[types.Part(text=prompt)])],
             config=config,
