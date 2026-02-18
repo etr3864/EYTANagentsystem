@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { Message } from '@/lib/types';
+import { parseUTCDate } from '@/lib/dates';
 import { VoiceIcon, ImageIcon, VideoIcon, SendIcon, PauseIcon, PlayIcon } from '@/components/ui/Icons';
 
 interface ChatViewProps {
@@ -106,8 +107,8 @@ export function ChatView({ messages, conversationId, isPaused, onSend, onToggleP
           </div>
         ) : (
         messages.map((msg, i) => {
-        const msgDate = msg.created_at ? new Date(msg.created_at) : null;
-        const prevDate = i > 0 && messages[i-1].created_at ? new Date(messages[i-1].created_at!) : null;
+        const msgDate = parseUTCDate(msg.created_at);
+        const prevDate = i > 0 ? parseUTCDate(messages[i-1].created_at) : null;
         const showDate = msgDate && (!prevDate || msgDate.toDateString() !== prevDate.toDateString());
         
         const isUser = msg.role === 'user';

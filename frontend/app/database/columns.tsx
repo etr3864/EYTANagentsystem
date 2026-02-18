@@ -3,6 +3,7 @@
  * Each export is an array of column configs consumed by DataTable.
  */
 import type { Agent, User, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, DbMedia, DbTemplate, DbFollowup } from '@/lib/types';
+import { parseUTCDate } from '@/lib/dates';
 
 // ─── Helpers ────────────────────────────────────────────
 function StatusBadge({ active }: { active: boolean }) {
@@ -17,8 +18,8 @@ function StatusBadge({ active }: { active: boolean }) {
 }
 
 function DateCell({ value, withTime }: { value: string | null; withTime?: boolean }) {
-  if (!value) return <span className="text-slate-500 text-xs">—</span>;
-  const d = new Date(value);
+  const d = parseUTCDate(value);
+  if (!d) return <span className="text-slate-500 text-xs">—</span>;
   const formatted = withTime
     ? d.toLocaleString('he-IL')
     : d.toLocaleDateString('he-IL');
@@ -219,11 +220,11 @@ export const appointmentColumns = [
   { key: 'time', header: 'זמן', render: (a: DbAppointment) => (
     <div className="text-sm">
       <div className="text-white">
-        {a.start_time ? new Date(a.start_time).toLocaleDateString('he-IL') : '—'}
+        {parseUTCDate(a.start_time)?.toLocaleDateString('he-IL') ?? '—'}
       </div>
       <div className="text-slate-400">
-        {a.start_time ? new Date(a.start_time).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : ''}
-        {a.end_time ? ` - ${new Date(a.end_time).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}` : ''}
+        {parseUTCDate(a.start_time)?.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) ?? ''}
+        {parseUTCDate(a.end_time) ? ` - ${parseUTCDate(a.end_time)!.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}` : ''}
       </div>
     </div>
   )},
@@ -274,8 +275,8 @@ export const reminderColumns = [
     </div>
   )},
   { key: 'sent', header: 'נשלח ב', render: (r: DbReminder) => (
-    r.sent_at 
-      ? <span className="text-emerald-400 text-xs">{new Date(r.sent_at).toLocaleString('he-IL')}</span>
+    parseUTCDate(r.sent_at)
+      ? <span className="text-emerald-400 text-xs">{parseUTCDate(r.sent_at)!.toLocaleString('he-IL')}</span>
       : <span className="text-slate-500 text-xs">—</span>
   )},
   { key: 'error', header: 'שגיאה', render: (r: DbReminder) => (
@@ -333,7 +334,7 @@ export const summaryColumns = [
       )}
       {s.next_retry_at && s.webhook_status === 'pending' && (
         <span className="text-yellow-400 text-xs">
-          ניסיון הבא: {new Date(s.next_retry_at).toLocaleTimeString('he-IL')}
+          ניסיון הבא: {parseUTCDate(s.next_retry_at)?.toLocaleTimeString('he-IL')}
         </span>
       )}
       {!s.webhook_last_error && !s.next_retry_at && (
