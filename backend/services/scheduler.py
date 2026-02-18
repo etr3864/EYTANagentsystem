@@ -104,7 +104,7 @@ async def _process_cycle():
     """Single cycle of processing reminders, summaries, and follow-ups."""
     from backend.services.reminders import process_pending_reminders
     from backend.services.summaries import process_pending_summaries, retry_pending_webhooks
-    from backend.services.followups import scan_for_followups, process_pending_followups
+    from backend.services.followups import check_followup_timers, process_pending_followups
     
     db = SessionLocal()
     try:
@@ -112,8 +112,8 @@ async def _process_cycle():
         await process_pending_summaries(db)
         await retry_pending_webhooks(db)
 
-        # Follow-ups: scan for new candidates and process due ones
-        scan_for_followups(db)
+        # Follow-ups: check Redis timers for new candidates, then process due ones
+        await check_followup_timers(db)
         await process_pending_followups(db)
     finally:
         db.close()

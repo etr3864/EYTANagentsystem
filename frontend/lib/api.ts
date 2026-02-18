@@ -712,4 +712,4 @@ export async function deleteDbFollowup(id: number): Promise<void> {
 }
 
 // Re-export types
-export type { Agent, AgentCreate, AgentUpdate, AgentBatchingConfig, Provider, WaSenderConfig, CustomApiKeys, User, Gender, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DataTable, DbMedia, AgentMedia, MediaConfig, MediaType, WhatsAppTemplate, TemplateCategory, TemplateStatus, DbTemplate, FollowupConfig, FollowupStats, DbFollowup } from './types';
+export type { Agent, AgentCreate, AgentUpdate, AgentBatchingConfig, Provider, WaSenderConfig, CustomApiKeys, User, Gender, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DataTable, DbMedia, AgentMedia, MediaConfig, MediaType, WhatsAppTemplate, TemplateCategory, TemplateStatus, DbTemplate, FollowupConfig, FollowupStep, FollowupStats, DbFollowup } from './types';

@@ -285,18 +285,18 @@ export interface FollowupActiveHours {
   end: string;
 }
 
+export interface FollowupStep {
+  delay_hours: number;
+  instruction: string;
+}
+
 export interface FollowupConfig {
   enabled: boolean;
   model: string;
-  ai_instructions: string;
-  inactivity_minutes: number;
   min_messages: number;
-  max_followups: number;
-  cooldown_hours: number;
-  max_per_day: number;
-  intervals_minutes: number[];
   active_hours: FollowupActiveHours;
   meta_templates: FollowupMetaTemplate[];
+  sequence: FollowupStep[];
 }
 
 export interface FollowupStats {
@@ -316,6 +316,7 @@ export interface DbFollowup {
   user_name: string | null;
   user_phone: string | null;
   followup_number: number;
+  step_instruction: string | null;
   status: FollowupStatus;
   scheduled_for: string | null;
   sent_at: string | null;

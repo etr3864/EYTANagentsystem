@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { getFollowupConfig, updateFollowupConfig, getFollowupStats } from '@/lib/api';
-import type { FollowupConfig, FollowupStats, FollowupMetaTemplate, Provider } from '@/lib/types';
+import type { FollowupConfig, FollowupStats, FollowupStep, FollowupMetaTemplate, Provider } from '@/lib/types';
 import { ModelSelect } from '@/components/ui/ModelSelect';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
@@ -23,8 +23,15 @@ interface FollowUpTabProps {
 }
 
 // ──────────────────────────────────────────
-// Helper functions
+// Helpers
 // ──────────────────────────────────────────
+
+function formatDelay(hours: number): string {
+  if (hours < 1) return `${Math.round(hours * 60)} דקות`;
+  if (hours < 24) return `${hours} שעות`;
+  const days = Math.round(hours / 24 * 10) / 10;
+  return days === 1 ? 'יום אחד' : `${days} ימים`;
+}
 
 function extractBodyText(components: ApprovedTemplate['components']): string {
   const body = components.find(c => c.type === 'BODY' || c.type === 'body');
@@ -69,72 +76,84 @@ function StatsBar({ stats }: { stats: FollowupStats | null }) {
 }
 
 // ──────────────────────────────────────────
-// Intervals editor
+// Sequence builder
 // ──────────────────────────────────────────
 
-function IntervalsEditor({
-  intervals, onChange,
+function SequenceBuilder({
+  sequence, onChange,
 }: {
-  intervals: number[];
-  onChange: (v: number[]) => void;
+  sequence: FollowupStep[];
+  onChange: (s: FollowupStep[]) => void;
 }) {
-  function formatInterval(minutes: number): string {
-    if (minutes < 60) return `${minutes} דקות`;
-    if (minutes < 1440) return `${Math.round(minutes / 60)} שעות`;
-    return `${Math.round(minutes / 1440)} ימים`;
+  function addStep() {
+    const lastDelay = sequence[sequence.length - 1]?.delay_hours || 3;
+    onChange([...sequence, { delay_hours: lastDelay * 2, instruction: '' }]);
   }
 
-  function addInterval() {
-    const last = intervals[intervals.length - 1] || 120;
-    onChange([...intervals, last * 2]);
+  function removeStep(idx: number) {
+    if (sequence.length <= 1) return;
+    onChange(sequence.filter((_, i) => i !== idx));
   }
 
-  function removeInterval(idx: number) {
-    onChange(intervals.filter((_, i) => i !== idx));
-  }
-
-  function updateInterval(idx: number, val: number) {
-    const next = [...intervals];
-    next[idx] = val;
+  function updateStep(idx: number, field: keyof FollowupStep, value: string | number) {
+    const next = [...sequence];
+    next[idx] = { ...next[idx], [field]: value };
     onChange(next);
   }
 
   return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium text-slate-300">מרווחי שליחה</label>
-      {intervals.map((min, idx) => (
-        <div key={idx} className="flex items-center gap-2">
-          <span className="text-xs text-slate-400 w-24">Follow-up {idx + 1}:</span>
-          <input
-            type="number"
-            min={1}
-            value={min}
-            onChange={e => updateInterval(idx, parseInt(e.target.value) || 1)}
-            className="w-24 px-2 py-1 bg-slate-800/50 border border-slate-600/50 rounded text-sm text-white"
+    <div className="space-y-3">
+      <label className="text-sm font-medium text-slate-300">רצף מעקב</label>
+      <p className="text-xs text-slate-500">
+        כל שלב מוגדר עם זמן המתנה והנחיה ל-AI. אם הלקוח חוזר לדבר, הרצף מתאפס.
+      </p>
+
+      {sequence.map((step, idx) => (
+        <div key={idx} className="p-3 bg-slate-800/50 border border-slate-700 rounded-lg space-y-2">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-blue-400 min-w-[60px]">שלב {idx + 1}</span>
+            <span className="text-xs text-slate-400">אחרי</span>
+            <input
+              type="number"
+              min={0.5}
+              step={0.5}
+              value={step.delay_hours}
+              onChange={e => updateStep(idx, 'delay_hours', parseFloat(e.target.value) || 1)}
+              className="w-20 px-2 py-1 bg-slate-800 border border-slate-600/50 rounded text-sm text-white text-center"
+            />
+            <span className="text-xs text-slate-400">שעות ({formatDelay(step.delay_hours)})</span>
+            <div className="flex-1" />
+            {sequence.length > 1 && (
+              <button
+                onClick={() => removeStep(idx)}
+                className="text-red-400 hover:text-red-300 text-sm"
+              >
+                הסר
+              </button>
+            )}
+          </div>
+          <textarea
+            value={step.instruction}
+            onChange={e => updateStep(idx, 'instruction', e.target.value)}
+            rows={2}
+            placeholder="הנחיה ל-AI לשלב הזה (אופציונלי). לדוגמה: שאל אם יש שאלות נוספות..."
+            className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600/30 rounded text-sm text-white placeholder-slate-500 resize-none focus:outline-none focus:border-blue-500/50"
           />
-          <span className="text-xs text-slate-400">דקות ({formatInterval(min)})</span>
-          {intervals.length > 1 && (
-            <button
-              onClick={() => removeInterval(idx)}
-              className="text-red-400 hover:text-red-300 text-sm"
-            >
-              הסר
-            </button>
-          )}
         </div>
       ))}
+
       <button
-        onClick={addInterval}
+        onClick={addStep}
         className="text-xs text-blue-400 hover:text-blue-300"
       >
-        + הוסף מרווח
+        + הוסף שלב
       </button>
     </div>
   );
 }
 
 // ──────────────────────────────────────────
-// Meta template selector for follow-ups
+// Meta template selector
 // ──────────────────────────────────────────
 
 function MetaTemplateSelector({
@@ -170,11 +189,7 @@ function MetaTemplateSelector({
     const approved = approvedTemplates.find(t => t.name === name && t.language === language);
     if (!approved) return;
     const paramCount = extractBodyParamCount(approved.components);
-    updateTemplate(idx, {
-      name,
-      language,
-      params: new Array(paramCount).fill(''),
-    });
+    updateTemplate(idx, { name, language, params: new Array(paramCount).fill('') });
   }
 
   if (approvedTemplates.length === 0) {
@@ -277,6 +292,7 @@ export default function FollowUpTab({ agentId, provider }: FollowUpTabProps) {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const isMeta = provider === 'meta';
 
@@ -363,91 +379,11 @@ export default function FollowUpTab({ agentId, provider }: FollowUpTabProps) {
 
       {config.enabled && (
         <div className="space-y-6">
-          {/* AI Model */}
-          <ModelSelect
-            label="מודל AI ליצירת Follow-up"
-            value={config.model}
-            onChange={e => updateField('model', e.target.value)}
+          {/* Sequence builder */}
+          <SequenceBuilder
+            sequence={config.sequence || [{ delay_hours: 3, instruction: '' }]}
+            onChange={s => updateField('sequence', s)}
           />
-
-          {/* AI Instructions */}
-          <div className="space-y-1.5">
-            <label className="block text-sm font-medium text-slate-300">
-              הנחיות AI ל-Follow-up
-            </label>
-            <textarea
-              value={config.ai_instructions}
-              onChange={e => updateField('ai_instructions', e.target.value)}
-              rows={4}
-              placeholder="הנחיות לסוכן ה-AI מתי ואיך לשלוח follow-up. לדוגמה: אם הלקוח שאל על מחירים אבל לא קיבל הצעת מחיר, שלח follow-up עם הצעת מחיר..."
-              className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 text-sm focus:outline-none focus:border-blue-500 resize-none"
-            />
-          </div>
-
-          {/* Triggers */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-300">זמן חוסר פעילות (דקות)</label>
-              <input
-                type="number"
-                min={30}
-                value={config.inactivity_minutes}
-                onChange={e => updateField('inactivity_minutes', parseInt(e.target.value) || 120)}
-                className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
-              />
-              <p className="text-xs text-slate-500">כמה דקות לחכות אחרי ההודעה האחרונה של הלקוח</p>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-300">מינימום הודעות בשיחה</label>
-              <input
-                type="number"
-                min={1}
-                value={config.min_messages}
-                onChange={e => updateField('min_messages', parseInt(e.target.value) || 4)}
-                className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
-              />
-              <p className="text-xs text-slate-500">מינימום הודעות שנשלחו לפני ששולחים follow-up</p>
-            </div>
-          </div>
-
-          {/* Limits */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-300">מקסימום follow-ups</label>
-              <input
-                type="number"
-                min={1}
-                max={10}
-                value={config.max_followups}
-                onChange={e => updateField('max_followups', parseInt(e.target.value) || 3)}
-                className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
-              />
-              <p className="text-xs text-slate-500">לכל שיחה</p>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-300">צינון (שעות)</label>
-              <input
-                type="number"
-                min={1}
-                value={config.cooldown_hours}
-                onChange={e => updateField('cooldown_hours', parseInt(e.target.value) || 12)}
-                className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
-              />
-              <p className="text-xs text-slate-500">מינימום שעות בין follow-ups</p>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-300">מקסימום ליום</label>
-              <input
-                type="number"
-                min={1}
-                max={10}
-                value={config.max_per_day}
-                onChange={e => updateField('max_per_day', parseInt(e.target.value) || 2)}
-                className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
-              />
-              <p className="text-xs text-slate-500">לכל שיחה ביום</p>
-            </div>
-          </div>
 
           {/* Active hours */}
           <div className="space-y-1.5">
@@ -455,14 +391,14 @@ export default function FollowUpTab({ agentId, provider }: FollowUpTabProps) {
             <div className="flex items-center gap-3">
               <input
                 type="time"
-                value={config.active_hours.start}
+                value={config.active_hours?.start || '09:00'}
                 onChange={e => updateField('active_hours', { ...config.active_hours, start: e.target.value })}
                 className="px-3 py-2 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
               />
               <span className="text-slate-400">עד</span>
               <input
                 type="time"
-                value={config.active_hours.end}
+                value={config.active_hours?.end || '21:00'}
                 onChange={e => updateField('active_hours', { ...config.active_hours, end: e.target.value })}
                 className="px-3 py-2 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
               />
@@ -470,19 +406,44 @@ export default function FollowUpTab({ agentId, provider }: FollowUpTabProps) {
             <p className="text-xs text-slate-500">שליחת follow-ups רק בתוך שעות אלו</p>
           </div>
 
-          {/* Intervals */}
-          <IntervalsEditor
-            intervals={config.intervals_minutes}
-            onChange={v => updateField('intervals_minutes', v)}
-          />
-
-          {/* Meta templates */}
-          {isMeta && (
-            <MetaTemplateSelector
-              templates={config.meta_templates}
-              approvedTemplates={approvedTemplates}
-              onChange={v => updateField('meta_templates', v)}
+          {/* Min messages */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-slate-300">מינימום הודעות בשיחה</label>
+            <input
+              type="number"
+              min={1}
+              max={50}
+              value={config.min_messages}
+              onChange={e => updateField('min_messages', parseInt(e.target.value) || 5)}
+              className="w-32 px-3 py-2 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
             />
+            <p className="text-xs text-slate-500">מינימום הודעות לפני ששולחים follow-up</p>
+          </div>
+
+          {/* Advanced toggle */}
+          <button
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="text-xs text-slate-400 hover:text-slate-300 transition-colors"
+          >
+            {showAdvanced ? '▼' : '▶'} הגדרות מתקדמות
+          </button>
+
+          {showAdvanced && (
+            <div className="space-y-6 pl-2 border-r-2 border-slate-700 pr-4">
+              <ModelSelect
+                label="מודל AI ליצירת Follow-up"
+                value={config.model}
+                onChange={e => updateField('model', e.target.value)}
+              />
+
+              {isMeta && (
+                <MetaTemplateSelector
+                  templates={config.meta_templates || []}
+                  approvedTemplates={approvedTemplates}
+                  onChange={v => updateField('meta_templates', v)}
+                />
+              )}
+            </div>
           )}
         </div>
       )}

@@ -286,6 +286,7 @@ def list_followups(db: Session = Depends(get_db)):
             "user_name": user.name if user else None,
             "user_phone": user.phone if user else None,
             "followup_number": fu.followup_number,
+            "step_instruction": fu.step_instruction,
             "status": fu.status,
             "scheduled_for": f"{fu.scheduled_for.isoformat()}Z" if fu.scheduled_for else None,
             "sent_at": f"{fu.sent_at.isoformat()}Z" if fu.sent_at else None,

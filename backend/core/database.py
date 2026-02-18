@@ -117,6 +117,23 @@ def run_migrations():
             END $$;
         """))
 
+        # Follow-up v2: add step_instruction column + clear old data (one-time)
+        conn.execute(text("""
+            DO $$
+            DECLARE col_exists BOOLEAN;
+            BEGIN
+                SELECT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_name = 'scheduled_followups' AND column_name = 'step_instruction'
+                ) INTO col_exists;
+
+                IF NOT col_exists THEN
+                    ALTER TABLE scheduled_followups ADD COLUMN step_instruction TEXT;
+                    DELETE FROM scheduled_followups;
+                END IF;
+            END $$;
+        """))
+
         conn.commit()
 
 

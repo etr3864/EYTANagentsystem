@@ -1,10 +1,14 @@
 """Follow-up service for customer re-engagement.
 
-Orchestrates: scan → schedule → process → send → cancel.
+Event-driven architecture using Redis sorted set as timer:
+  Agent responds → ZADD timer → timer fires → eligibility check → AI evaluate → send
+
 AI evaluation logic lives in followup_evaluator.py.
 """
 from datetime import datetime, timedelta
+from typing import Optional
 
+import redis.asyncio as aioredis
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -16,271 +20,290 @@ from backend.models.whatsapp_template import WhatsAppTemplate
 from backend.models.agent import Agent
 from backend.models.message import Message
 from backend.models.user import User
-from backend.services import providers, conversations, messages
+from backend.services import providers, messages
 from backend.services import followup_evaluator
+from backend.core.config import settings
 from backend.core.logger import log, log_error
 from backend.core.enums import FollowupStatus, ReminderStatus
 
 
 BATCH_SIZE = 50
-SCAN_LOOKBACK_DAYS = 30
+REDIS_KEY = "followup:timers"
+
+DEFAULT_SEQUENCE = [{"delay_hours": 3, "instruction": ""}]
 
 DEFAULT_CONFIG = {
     "enabled": False,
     "model": "claude-sonnet-4-5",
-    "ai_instructions": "",
-    "inactivity_minutes": 120,
-    "min_messages": 4,
-    "max_followups": 3,
-    "cooldown_hours": 12,
-    "max_per_day": 2,
-    "intervals_minutes": [120, 1440, 2880],
+    "min_messages": 5,
     "active_hours": {"start": "09:00", "end": "21:00"},
     "meta_templates": [],
+    "sequence": DEFAULT_SEQUENCE,
 }
 
 
 def get_config(agent: Agent) -> dict:
-    """Get follow-up config with defaults."""
-    config = DEFAULT_CONFIG.copy()
+    """Get follow-up config with defaults. Migrates old format automatically."""
+    import copy
+    config = copy.deepcopy(DEFAULT_CONFIG)
     if agent.followup_config:
-        config.update(agent.followup_config)
+        saved = agent.followup_config
+        config.update(saved)
+        if "sequence" not in saved and "intervals_minutes" in saved:
+            config["sequence"] = _migrate_old_config(saved)
     return config
 
 
+def _migrate_old_config(saved: dict) -> list[dict]:
+    """Convert old intervals_minutes config to sequence format."""
+    intervals = saved.get("intervals_minutes", [120])
+    inactivity = saved.get("inactivity_minutes", 120)
+    instructions = saved.get("ai_instructions", "")
+    sequence = []
+    for i, interval_min in enumerate(intervals):
+        delay_hours = (inactivity + interval_min) / 60 if i == 0 else interval_min / 60
+        sequence.append({"delay_hours": round(delay_hours, 1), "instruction": instructions})
+    return sequence or DEFAULT_SEQUENCE
+
+
 # ──────────────────────────────────────────
-# Scan: find conversations that need follow-up
+# Redis timer management
 # ──────────────────────────────────────────
 
-def scan_for_followups(db: Session) -> int:
-    """Find eligible conversations and schedule follow-ups. Returns count created."""
+_redis_pool: Optional[aioredis.Redis] = None
+
+
+async def _get_redis() -> Optional[aioredis.Redis]:
+    global _redis_pool
+    if _redis_pool is None:
+        try:
+            _redis_pool = aioredis.from_url(
+                settings.redis_url, encoding="utf-8", decode_responses=True,
+            )
+            await _redis_pool.ping()
+        except Exception:
+            _redis_pool = None
+    return _redis_pool
+
+
+def _timer_key(agent_id: int, conv_id: int) -> str:
+    return f"{agent_id}:{conv_id}"
+
+
+async def set_followup_timer(agent_id: int, conv_id: int, delay_hours: float) -> None:
+    """Schedule a follow-up check after delay_hours."""
+    r = await _get_redis()
+    if not r:
+        return
+    fire_at = datetime.utcnow() + timedelta(hours=delay_hours)
+    try:
+        await r.zadd(REDIS_KEY, {_timer_key(agent_id, conv_id): fire_at.timestamp()})
+    except Exception as e:
+        log_error("followup_timer", f"ZADD failed: {str(e)[:50]}")
+
+
+async def cancel_followup_timer(agent_id: int, conv_id: int) -> None:
+    """Cancel a pending follow-up timer."""
+    r = await _get_redis()
+    if not r:
+        return
+    try:
+        await r.zrem(REDIS_KEY, _timer_key(agent_id, conv_id))
+    except Exception as e:
+        log_error("followup_timer", f"ZREM failed: {str(e)[:50]}")
+
+
+# ──────────────────────────────────────────
+# Timer check: called by scheduler
+# ──────────────────────────────────────────
+
+async def check_followup_timers(db: Session) -> int:
+    """Check Redis for matured timers, create followups for eligible ones."""
+    r = await _get_redis()
+    if not r:
+        return 0
+
     now = datetime.utcnow()
-    cutoff = now - timedelta(days=SCAN_LOOKBACK_DAYS)
-
-    agents = db.query(Agent).filter(
-        Agent.is_active == True,
-        Agent.followup_config.isnot(None),
-    ).all()
-
     created = 0
-    for agent in agents:
-        config = get_config(agent)
-        if not config["enabled"]:
+
+    try:
+        ready = await r.zrangebyscore(REDIS_KEY, 0, now.timestamp(), start=0, num=BATCH_SIZE)
+    except Exception as e:
+        log_error("followup_timer", f"ZRANGEBYSCORE failed: {str(e)[:50]}")
+        return 0
+
+    for key in ready:
+        claimed = await _claim_timer(r, key)
+        if not claimed:
             continue
-        # Use enabled_at as cutoff floor to prevent retroactive follow-ups
-        agent_cutoff = cutoff
-        enabled_at = config.get("enabled_at")
-        if enabled_at:
-            try:
-                enabled_dt = datetime.fromisoformat(enabled_at)
-                if enabled_dt > agent_cutoff:
-                    agent_cutoff = enabled_dt
-            except (ValueError, TypeError):
-                pass
-        created += _scan_agent(db, agent, config, now, agent_cutoff)
+        agent_id, conv_id = _parse_timer_key(key)
+        if not agent_id:
+            continue
+        if _create_if_eligible(db, agent_id, conv_id, now):
+            created += 1
 
     if created:
-        log("followup", msg=f"scheduled {created} follow-ups")
+        log("followup", msg=f"scheduled {created} follow-ups from timers")
     return created
 
 
-def _scan_agent(db: Session, agent: Agent, config: dict, now: datetime, cutoff: datetime) -> int:
-    """Scan conversations for a single agent using a single bulk query."""
-    inactivity_threshold = now - timedelta(minutes=config["inactivity_minutes"])
-    min_messages = config["min_messages"]
-    max_followups = config["max_followups"]
-    max_attempts = max_followups * 2
-    cooldown_hours = config.get("cooldown_hours", 12)
-    cooldown_threshold = now - timedelta(hours=cooldown_hours)
-    max_per_day = config.get("max_per_day", 2)
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+async def _claim_timer(r: aioredis.Redis, key: str) -> bool:
+    """Atomically remove timer to claim it (prevents duplicate processing)."""
+    try:
+        return bool(await r.zrem(REDIS_KEY, key))
+    except Exception:
+        return False
 
-    agent_conv_ids = db.query(Conversation.id).filter(
-        Conversation.agent_id == agent.id,
-    )
 
-    # Subquery: conversations with a pending/evaluating follow-up (exclude them)
-    has_pending = db.query(ScheduledFollowup.conversation_id).filter(
-        ScheduledFollowup.conversation_id.in_(agent_conv_ids),
+def _parse_timer_key(key: str) -> tuple[int | None, int | None]:
+    parts = key.split(":")
+    if len(parts) != 2:
+        return None, None
+    try:
+        return int(parts[0]), int(parts[1])
+    except ValueError:
+        return None, None
+
+
+def _create_if_eligible(db: Session, agent_id: int, conv_id: int, now: datetime) -> bool:
+    """Check eligibility and create a scheduled followup if conditions are met."""
+    agent = db.query(Agent).filter(Agent.id == agent_id, Agent.is_active == True).first()
+    if not agent:
+        return False
+
+    config = get_config(agent)
+    if not config["enabled"]:
+        return False
+
+    conv = db.query(Conversation).filter(Conversation.id == conv_id).first()
+    if not conv or conv.opted_out or conv.is_paused:
+        return False
+
+    if not conv.last_customer_message_at:
+        return False
+
+    sequence = config.get("sequence", DEFAULT_SEQUENCE)
+    step = _get_current_step(db, conv, sequence)
+    if step is None:
+        return False
+
+    # min_messages only applies to the first step (subsequent steps = sequence already committed)
+    if step == 0 and not _has_enough_messages(db, conv, config.get("min_messages", 5)):
+        return False
+
+    if _has_pending_followup(db, conv_id):
+        return False
+
+    if _has_pending_reminder(db, conv.user_id, agent_id):
+        return False
+
+    return _schedule_followup(db, conv, agent, config, sequence, step, now)
+
+
+def _get_current_step(db: Session, conv: Conversation, sequence: list[dict]) -> Optional[int]:
+    """Determine which sequence step to schedule (0-indexed). None if sequence exhausted."""
+    sent_since = db.query(func.count(ScheduledFollowup.id)).filter(
+        ScheduledFollowup.conversation_id == conv.id,
+        ScheduledFollowup.status == FollowupStatus.SENT,
+        ScheduledFollowup.sent_at > conv.last_customer_message_at,
+    ).scalar() or 0
+    if sent_since >= len(sequence):
+        return None
+    return sent_since
+
+
+def _has_enough_messages(db: Session, conv: Conversation, min_messages: int) -> bool:
+    """Check if enough messages were exchanged since the customer last re-engaged.
+
+    Cutoff = the later of: last_customer_message_at or last sent follow-up
+    (only if the follow-up was sent AFTER the customer's last message).
+    """
+    cutoff = conv.last_customer_message_at
+    last_sent_fu = db.query(ScheduledFollowup.sent_at).filter(
+        ScheduledFollowup.conversation_id == conv.id,
+        ScheduledFollowup.status == FollowupStatus.SENT,
+        ScheduledFollowup.sent_at > conv.last_customer_message_at,
+    ).order_by(ScheduledFollowup.sent_at.desc()).first()
+
+    if last_sent_fu and last_sent_fu.sent_at:
+        cutoff = last_sent_fu.sent_at
+
+    count = db.query(func.count(Message.id)).filter(
+        Message.conversation_id == conv.id,
+        Message.created_at > cutoff,
+    ).scalar() or 0
+    return count >= min_messages
+
+
+def _has_pending_followup(db: Session, conv_id: int) -> bool:
+    return db.query(ScheduledFollowup.id).filter(
+        ScheduledFollowup.conversation_id == conv_id,
         ScheduledFollowup.status.in_([FollowupStatus.PENDING, FollowupStatus.EVALUATING]),
-    ).subquery()
+    ).first() is not None
 
-    # Subquery: sent count per conversation
-    sent_counts = db.query(
-        ScheduledFollowup.conversation_id,
-        func.count(ScheduledFollowup.id).label("cnt"),
-    ).filter(
-        ScheduledFollowup.conversation_id.in_(agent_conv_ids),
-        ScheduledFollowup.status == FollowupStatus.SENT,
-    ).group_by(ScheduledFollowup.conversation_id).subquery()
 
-    # Subquery: total attempts (sent + skipped) per conversation
-    attempt_counts = db.query(
-        ScheduledFollowup.conversation_id,
-        func.count(ScheduledFollowup.id).label("cnt"),
-    ).filter(
-        ScheduledFollowup.conversation_id.in_(agent_conv_ids),
-        ScheduledFollowup.status.in_([FollowupStatus.SENT, FollowupStatus.SKIPPED]),
-    ).group_by(ScheduledFollowup.conversation_id).subquery()
-
-    # Subquery: last message role per conversation
-    last_msg_role = db.query(
-        Message.conversation_id,
-        Message.role,
-    ).filter(
-        Message.conversation_id.in_(agent_conv_ids),
-    ).distinct(Message.conversation_id).order_by(
-        Message.conversation_id, Message.created_at.desc(),
-    ).subquery()
-
-    # Subquery: message count per conversation
-    msg_counts = db.query(
-        Message.conversation_id,
-        func.count(Message.id).label("cnt"),
-    ).filter(
-        Message.conversation_id.in_(agent_conv_ids),
-    ).group_by(Message.conversation_id).subquery()
-
-    # Subquery: conversations with pending reminders
-    has_reminder = db.query(ScheduledReminder.user_id).filter(
-        ScheduledReminder.agent_id == agent.id,
+def _has_pending_reminder(db: Session, user_id: int, agent_id: int) -> bool:
+    return db.query(ScheduledReminder.id).filter(
+        ScheduledReminder.agent_id == agent_id,
+        ScheduledReminder.user_id == user_id,
         ScheduledReminder.status == ReminderStatus.PENDING,
-    ).subquery()
-
-    # Subquery: last sent follow-up time per conversation (for cooldown)
-    last_sent = db.query(
-        ScheduledFollowup.conversation_id,
-        func.max(ScheduledFollowup.sent_at).label("last_sent_at"),
-    ).filter(
-        ScheduledFollowup.conversation_id.in_(agent_conv_ids),
-        ScheduledFollowup.status == FollowupStatus.SENT,
-    ).group_by(ScheduledFollowup.conversation_id).subquery()
-
-    # Subquery: today's sent count per conversation
-    today_sent = db.query(
-        ScheduledFollowup.conversation_id,
-        func.count(ScheduledFollowup.id).label("cnt"),
-    ).filter(
-        ScheduledFollowup.conversation_id.in_(agent_conv_ids),
-        ScheduledFollowup.status == FollowupStatus.SENT,
-        ScheduledFollowup.sent_at >= today_start,
-    ).group_by(ScheduledFollowup.conversation_id).subquery()
-
-    # Main query: eligible conversations
-    results = (
-        db.query(Conversation.id, func.coalesce(sent_counts.c.cnt, 0).label("sent_count"))
-        .outerjoin(sent_counts, sent_counts.c.conversation_id == Conversation.id)
-        .outerjoin(attempt_counts, attempt_counts.c.conversation_id == Conversation.id)
-        .outerjoin(last_msg_role, last_msg_role.c.conversation_id == Conversation.id)
-        .outerjoin(msg_counts, msg_counts.c.conversation_id == Conversation.id)
-        .outerjoin(last_sent, last_sent.c.conversation_id == Conversation.id)
-        .outerjoin(today_sent, today_sent.c.conversation_id == Conversation.id)
-        .filter(
-            Conversation.agent_id == agent.id,
-            Conversation.opted_out == False,
-            Conversation.is_paused == False,
-            Conversation.last_customer_message_at.isnot(None),
-            Conversation.last_customer_message_at > cutoff,
-            Conversation.last_customer_message_at < inactivity_threshold,
-            # No pending/evaluating follow-up
-            Conversation.id.notin_(db.query(has_pending.c.conversation_id)),
-            # Last message is from assistant
-            last_msg_role.c.role == "assistant",
-            # Minimum message count
-            func.coalesce(msg_counts.c.cnt, 0) >= min_messages,
-            # Sent count under limit
-            func.coalesce(sent_counts.c.cnt, 0) < max_followups,
-            # Total attempts under limit
-            func.coalesce(attempt_counts.c.cnt, 0) < max_attempts,
-            # No pending reminder for this user
-            Conversation.user_id.notin_(db.query(has_reminder.c.user_id)),
-            # Cooldown: no follow-up sent within cooldown window
-            func.coalesce(last_sent.c.last_sent_at, datetime.min) < cooldown_threshold,
-            # Daily limit
-            func.coalesce(today_sent.c.cnt, 0) < max_per_day,
-        )
-        .all()
-    )
-
-    created = 0
-    for conv_id, sent_count in results:
-        conv = db.query(Conversation).filter(Conversation.id == conv_id).first()
-        if not conv:
-            continue
-        try:
-            if _schedule_followup(db, conv, agent, config, now, sent_count):
-                db.commit()
-                created += 1
-        except IntegrityError:
-            db.rollback()
-
-    return created
-
+    ).first() is not None
 
 
 def _schedule_followup(
     db: Session, conv: Conversation, agent: Agent, config: dict,
-    now: datetime, sent_count: int
+    sequence: list[dict], step: int, now: datetime,
 ) -> bool:
-    """Create a scheduled follow-up record."""
-    followup_number = sent_count + 1
+    """Create a scheduled follow-up record for the given step."""
+    step_config = sequence[step]
+    scheduled_for = _clamp_to_active_hours(now, config.get("active_hours", {}))
 
-    intervals = config.get("intervals_minutes", [120])
-    idx = min(followup_number - 1, len(intervals) - 1)
-    delay_minutes = intervals[idx]
-
-    scheduled_for = now + timedelta(minutes=delay_minutes)
-    scheduled_for = _clamp_to_active_hours(scheduled_for, config.get("active_hours", {}))
-
-    db.add(ScheduledFollowup(
-        conversation_id=conv.id,
-        agent_id=agent.id,
-        user_id=conv.user_id,
-        followup_number=followup_number,
-        scheduled_for=scheduled_for,
-    ))
-    return True
+    try:
+        db.add(ScheduledFollowup(
+            conversation_id=conv.id,
+            agent_id=agent.id,
+            user_id=conv.user_id,
+            followup_number=step + 1,
+            step_instruction=step_config.get("instruction", ""),
+            scheduled_for=scheduled_for,
+        ))
+        db.commit()
+        return True
+    except IntegrityError:
+        db.rollback()
+        return False
 
 
 def _clamp_to_active_hours(dt: datetime, active_hours: dict) -> datetime:
-    """Push datetime into allowed active hours window.
-
-    Works in local timezone (Asia/Jerusalem by default).
-    Supports ranges that cross midnight (e.g. 10:00-04:00 = 10am to 4am next day).
-    Input/output are naive UTC datetimes (for DB storage).
-    """
+    """Push datetime into allowed active hours window."""
     from backend.core.timezone import from_utc, to_utc, DEFAULT_TZ
 
     start_str = active_hours.get("start", "09:00")
     end_str = active_hours.get("end", "21:00")
 
-    start_h, start_m = map(int, start_str.split(":"))
-    end_h, end_m = map(int, end_str.split(":"))
+    try:
+        start_h, start_m = map(int, start_str.split(":"))
+        end_h, end_m = map(int, end_str.split(":"))
+    except (ValueError, AttributeError):
+        return dt
 
-    # Convert UTC to local for comparison
     local = from_utc(dt, DEFAULT_TZ)
-
     local_start = local.replace(hour=start_h, minute=start_m, second=0, microsecond=0)
     local_end = local.replace(hour=end_h, minute=end_m, second=0, microsecond=0)
 
     crosses_midnight = local_end <= local_start
 
     if crosses_midnight:
-        # Range like 10:00-04:00 means "10am today → 4am tomorrow"
-        # In-window if: time >= start OR time < end
         in_window = local >= local_start or local < local_end
     else:
-        # Normal range like 09:00-21:00
         in_window = local_start <= local < local_end
 
     if in_window:
         return dt
 
-    # Outside window — push to next start
     if local < local_start:
         clamped = local_start
     else:
-        # Past end (or past midnight in cross-midnight case) — next day's start
         clamped = local_start + timedelta(days=1)
 
     return to_utc(clamped.replace(tzinfo=None), DEFAULT_TZ)
@@ -295,13 +318,14 @@ async def process_pending_followups(db: Session) -> int:
     import asyncio
     from backend.core.database import SessionLocal
 
-    MAX_CONCURRENT = 5
+    MAX_CONCURRENT = 10
     semaphore = asyncio.Semaphore(MAX_CONCURRENT)
 
     now = datetime.utcnow()
     processed = 0
+    max_iterations = 20
 
-    while True:
+    for _ in range(max_iterations):
         pending = db.query(ScheduledFollowup).filter(
             ScheduledFollowup.status == FollowupStatus.PENDING,
             ScheduledFollowup.scheduled_for <= now,
@@ -310,14 +334,12 @@ async def process_pending_followups(db: Session) -> int:
         if not pending:
             break
 
-        # Mark entire batch as EVALUATING in one commit
         fu_ids = []
         for fu in pending:
             fu.status = FollowupStatus.EVALUATING
             fu_ids.append(fu.id)
         db.commit()
 
-        # Process concurrently — each task gets its own DB session
         async def _run(followup_id: int) -> bool:
             async with semaphore:
                 local_db = SessionLocal()
@@ -332,16 +354,7 @@ async def process_pending_followups(db: Session) -> int:
                     return True
                 except Exception as e:
                     local_db.rollback()
-                    try:
-                        fu = local_db.query(ScheduledFollowup).filter(
-                            ScheduledFollowup.id == followup_id,
-                        ).first()
-                        if fu:
-                            fu.status = FollowupStatus.SKIPPED
-                            fu.ai_reason = f"error: {str(e)[:200]}"
-                            local_db.commit()
-                    except Exception:
-                        local_db.rollback()
+                    _mark_failed(local_db, followup_id, str(e))
                     log_error("followup", f"processing failed: {str(e)[:50]}")
                     return False
                 finally:
@@ -349,16 +362,28 @@ async def process_pending_followups(db: Session) -> int:
 
         results = await asyncio.gather(*[_run(fid) for fid in fu_ids])
         processed += sum(1 for r in results if r)
-
-        # Refresh main session to see changes made by sub-sessions
         db.expire_all()
 
-        if len(pending) == BATCH_SIZE:
-            await asyncio.sleep(1)
+        if len(pending) < BATCH_SIZE:
+            break
+        await asyncio.sleep(1)
 
     if processed:
         log("followup", msg=f"processed {processed} follow-ups")
     return processed
+
+
+def _mark_failed(db: Session, followup_id: int, error: str) -> None:
+    """Mark a followup as SKIPPED after a processing error."""
+    try:
+        fu = db.query(ScheduledFollowup).filter(ScheduledFollowup.id == followup_id).first()
+        if fu:
+            fu.status = FollowupStatus.SKIPPED
+            fu.ai_reason = f"error: {error[:200]}"
+            db.commit()
+    except Exception:
+        db.rollback()
+        log_error("followup", f"failed to mark followup {followup_id} as skipped")
 
 
 async def _process_single(db: Session, fu: ScheduledFollowup) -> None:
@@ -371,12 +396,10 @@ async def _process_single(db: Session, fu: ScheduledFollowup) -> None:
         _skip(fu, "missing conversation, agent, or user")
         return
 
-    # Safety re-checks (state may have changed since scheduling)
     if conv.opted_out or conv.is_paused or not agent.is_active:
         fu.status = FollowupStatus.CANCELLED
         return
 
-    # Customer responded since scheduling
     if conv.last_customer_message_at and conv.last_customer_message_at > fu.created_at:
         fu.status = FollowupStatus.CANCELLED
         return
@@ -384,30 +407,30 @@ async def _process_single(db: Session, fu: ScheduledFollowup) -> None:
     config = get_config(agent)
     needs_template = _needs_meta_template(agent, conv)
 
-    # If Meta after 24h but no templates configured — skip
     if needs_template and not config.get("meta_templates"):
         _skip(fu, "meta provider after 24h but no templates configured")
         return
 
-    # AI evaluation
     decision = await followup_evaluator.evaluate(db, fu, agent, user, config, needs_template, conv.id)
 
     if not decision.get("send"):
         _skip(fu, decision.get("reason", "AI decided not to send"))
         return
 
-    # Send
     success, err = await _send(db, fu, conv, agent, user, decision, needs_template)
     if success:
         fu.status = FollowupStatus.SENT
         fu.sent_at = datetime.utcnow()
         fu.content = decision.get("content", "")
+        sequence = config.get("sequence", DEFAULT_SEQUENCE)
+        next_step = fu.followup_number  # followup_number is 1-indexed, so this is already the next 0-indexed step
+        if next_step < len(sequence):
+            await set_followup_timer(agent.id, conv.id, sequence[next_step]["delay_hours"])
     else:
         _skip(fu, err or "send failed")
 
 
 def _needs_meta_template(agent: Agent, conv: Conversation) -> bool:
-    """Check if this follow-up requires a Meta template (24h window expired)."""
     if agent.provider != "meta":
         return False
     if not conv.last_customer_message_at:
@@ -429,7 +452,6 @@ async def _send(
     db: Session, fu: ScheduledFollowup, conv: Conversation,
     agent: Agent, user: User, decision: dict, needs_template: bool
 ) -> tuple[bool, str | None]:
-    """Send the follow-up message. Returns (success, error)."""
     if not user.phone:
         return False, "no customer phone"
 
@@ -443,7 +465,6 @@ async def _send_as_freetext(
     db: Session, fu: ScheduledFollowup, conv: Conversation,
     agent: Agent, user: User, decision: dict
 ) -> tuple[bool, str | None]:
-    """Send follow-up as free-text message."""
     content = decision.get("content", "")
     if not content:
         return False, "AI returned empty content"
@@ -462,7 +483,6 @@ async def _send_as_template(
     db: Session, fu: ScheduledFollowup, conv: Conversation,
     agent: Agent, user: User, decision: dict
 ) -> tuple[bool, str | None]:
-    """Send follow-up as Meta template message."""
     template_name = decision.get("template_name", "")
     language = decision.get("template_language", "he")
     params = decision.get("template_params", [])
@@ -470,7 +490,6 @@ async def _send_as_template(
     if not template_name:
         return False, "AI did not select a template"
 
-    # Verify template is still approved
     tpl = db.query(WhatsAppTemplate).filter(
         WhatsAppTemplate.agent_id == agent.id,
         WhatsAppTemplate.name == template_name,
@@ -481,7 +500,6 @@ async def _send_as_template(
     if not tpl:
         return False, f"template '{template_name}' not found or not approved"
 
-    # Build components
     components = []
     if params:
         components = [{
@@ -495,7 +513,6 @@ async def _send_as_template(
     if not sent:
         return False, "meta template send failed"
 
-    # Save a readable version to conversation history
     summary = f"[follow-up template: {template_name}]"
     messages.add(db, conv.id, "assistant", summary, message_type="followup")
     fu.sent_via = "meta_template"

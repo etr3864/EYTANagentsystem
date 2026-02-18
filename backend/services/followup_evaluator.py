@@ -28,11 +28,20 @@ async def evaluate(
     history = _build_history_context(db, conversation_id)
     prev_followups = _build_prev_followups(db, conversation_id)
     personality = _get_personality(agent)
+    sequence = config.get("sequence", [])
+    total_steps = len(sequence)
 
     if needs_template:
-        prompt = _build_template_prompt(config, history, prev_followups, personality, fu.followup_number, agent, db)
+        prompt = _build_template_prompt(
+            history, prev_followups, personality,
+            fu.followup_number, total_steps, fu.step_instruction,
+            agent, db, config,
+        )
     else:
-        prompt = _build_freetext_prompt(config, history, prev_followups, personality, fu.followup_number, user)
+        prompt = _build_freetext_prompt(
+            history, prev_followups, personality,
+            fu.followup_number, total_steps, fu.step_instruction, user,
+        )
 
     model = config.get("model", "claude-sonnet-4-5")
     try:
@@ -49,7 +58,6 @@ async def evaluate(
 # ──────────────────────────────────────────
 
 def _build_history_context(db: Session, conversation_id: int, limit: int = 20) -> str:
-    """Build conversation history string for AI prompt."""
     recent = db.query(Message).filter(
         Message.conversation_id == conversation_id,
     ).order_by(Message.created_at.desc()).limit(limit).all()
@@ -70,7 +78,6 @@ def _build_history_context(db: Session, conversation_id: int, limit: int = 20) -
 
 
 def _build_prev_followups(db: Session, conversation_id: int) -> str:
-    """Build a summary of previously sent follow-ups."""
     prev = db.query(ScheduledFollowup).filter(
         ScheduledFollowup.conversation_id == conversation_id,
         ScheduledFollowup.status == FollowupStatus.SENT,
@@ -84,7 +91,6 @@ def _build_prev_followups(db: Session, conversation_id: int) -> str:
 
 
 def _get_personality(agent: Agent, max_chars: int = 500) -> str:
-    """Extract agent personality from system prompt."""
     if not agent.system_prompt:
         return ""
     prompt = agent.system_prompt.strip()
@@ -102,32 +108,29 @@ def _get_personality(agent: Agent, max_chars: int = 500) -> str:
 # ──────────────────────────────────────────
 
 def _build_freetext_prompt(
-    config: dict, history: str, prev_followups: str,
-    personality: str, followup_number: int, user: User
+    history: str, prev_followups: str, personality: str,
+    step_number: int, total_steps: int, step_instruction: str | None,
+    user: User,
 ) -> str:
-    """Build AI prompt for free-text follow-up decision."""
-    instructions = config.get("ai_instructions", "")
-    max_followups = config.get("max_followups", 3)
     customer_name = user.name or "הלקוח"
 
     parts = [
         "אתה סוכן מכירות שמחליט אם לשלוח הודעת follow-up ללקוח.",
         "",
         f"שם הלקוח: {customer_name}",
-        f"זה follow-up מספר {followup_number} מתוך {max_followups} מקסימום.",
-        "",
-        "היסטוריית השיחה:",
-        history,
+        f"זה שלב {step_number} מתוך {total_steps} ברצף המעקב.",
     ]
+
+    if step_instruction:
+        parts.extend(["", f"הנחיית השלב: {step_instruction}"])
+
+    parts.extend(["", "היסטוריית השיחה:", history])
 
     if prev_followups:
         parts.extend(["", "הודעות follow-up קודמות שכבר שלחת:", prev_followups])
 
     if personality:
         parts.extend(["", "אישיות הסוכן:", personality])
-
-    if instructions:
-        parts.extend(["", "הנחיות follow-up:", instructions])
 
     parts.extend([
         "",
@@ -144,31 +147,28 @@ def _build_freetext_prompt(
 
 
 def _build_template_prompt(
-    config: dict, history: str, prev_followups: str,
-    personality: str, followup_number: int, agent: Agent, db: Session
+    history: str, prev_followups: str, personality: str,
+    step_number: int, total_steps: int, step_instruction: str | None,
+    agent: Agent, db: Session, config: dict,
 ) -> str:
-    """Build AI prompt for Meta template selection (24h+ window)."""
-    instructions = config.get("ai_instructions", "")
-    max_followups = config.get("max_followups", 3)
     meta_templates = config.get("meta_templates", [])
-
     templates_info = _fetch_templates_info(db, agent.id, meta_templates)
+
     if not templates_info:
         return '{"send": false, "reason": "no approved templates available"}'
 
     parts = [
         "אתה סוכן שמחליט אם לשלוח הודעת follow-up ללקוח דרך WhatsApp Template.",
-        f"זה follow-up מספר {followup_number} מתוך {max_followups} מקסימום.",
-        "",
-        "היסטוריית השיחה:",
-        history,
+        f"זה שלב {step_number} מתוך {total_steps} ברצף המעקב.",
     ]
+
+    if step_instruction:
+        parts.extend(["", f"הנחיית השלב: {step_instruction}"])
+
+    parts.extend(["", "היסטוריית השיחה:", history])
 
     if prev_followups:
         parts.extend(["", "follow-ups קודמים:", prev_followups])
-
-    if instructions:
-        parts.extend(["", "הנחיות:", instructions])
 
     parts.extend(["", "Templates זמינים:"])
     for t in templates_info:
@@ -192,7 +192,6 @@ def _build_template_prompt(
 
 
 def _fetch_templates_info(db: Session, agent_id: int, meta_templates: list) -> list[dict]:
-    """Fetch approved templates info from DB for the AI prompt."""
     results = []
     for tpl_config in meta_templates:
         name = tpl_config.get("name", "") if isinstance(tpl_config, dict) else str(tpl_config)
@@ -230,16 +229,9 @@ def _fetch_templates_info(db: Session, agent_id: int, meta_templates: list) -> l
 # ──────────────────────────────────────────
 
 def _parse_ai_decision(response: str) -> dict:
-    """Parse AI JSON response with safe fallback to skip.
-
-    Handles common LLM output variations:
-    - Raw JSON
-    - JSON wrapped in ```json ... ``` or ``` ... ```
-    - JSON preceded/followed by explanatory text
-    """
+    """Parse AI JSON response with safe fallback to skip."""
     text = response.strip()
 
-    # Strip markdown code fences
     if "```" in text:
         parts = text.split("```")
         for part in parts:
@@ -250,7 +242,6 @@ def _parse_ai_decision(response: str) -> dict:
                 text = candidate
                 break
 
-    # If still not starting with {, try to find JSON object in the text
     if not text.startswith("{"):
         start = text.find("{")
         end = text.rfind("}") + 1

@@ -486,8 +486,11 @@ export const followupColumns = [
   { key: 'user', header: 'לקוח', render: (f: DbFollowup) => (
     <span className="text-slate-200">{f.user_name || f.user_phone || `#${f.user_id}`}</span>
   )},
-  { key: 'number', header: '#', render: (f: DbFollowup) => (
+  { key: 'number', header: 'שלב', render: (f: DbFollowup) => (
     <span className="text-slate-400 font-mono">{f.followup_number}</span>
+  )},
+  { key: 'instruction', header: 'הנחיה', render: (f: DbFollowup) => (
+    <span className="text-slate-400 text-xs truncate max-w-[150px] block">{f.step_instruction || '—'}</span>
   )},
   { key: 'status', header: 'סטטוס', render: (f: DbFollowup) => {
     const s = FOLLOWUP_STATUS[f.status] || { style: '', label: f.status };

@@ -120,14 +120,15 @@ async def process_batched_messages(
         if conv.opted_out:
             conv.opted_out = False
 
-        # Track last customer message time + cancel pending follow-ups
+        # Track last customer message time + cancel pending follow-ups + cancel timer
         conv.last_customer_message_at = datetime.utcnow()
         db.commit()
 
-        from backend.services.followups import cancel_pending_followups
+        from backend.services.followups import cancel_pending_followups, cancel_followup_timer
         cancelled = cancel_pending_followups(db, conv.id)
         if cancelled:
             db.commit()
+        await cancel_followup_timer(agent.id, conv.id)
 
         if conv.is_paused:
             for msg in pending_msgs:
@@ -245,5 +246,20 @@ async def process_batched_messages(
                 log_error(provider, f"send failed to {display_name}")
         else:
             db.commit()
+
+        # Set follow-up timer if enabled for this agent
+        await _set_followup_timer_if_enabled(agent, conv)
     finally:
         db.close()
+
+
+async def _set_followup_timer_if_enabled(agent, conv) -> None:
+    """Schedule follow-up timer after agent responds (if follow-ups are enabled)."""
+    from backend.services.followups import get_config, set_followup_timer
+    config = get_config(agent)
+    if not config.get("enabled"):
+        return
+    sequence = config.get("sequence", [])
+    if not sequence:
+        return
+    await set_followup_timer(agent.id, conv.id, sequence[0]["delay_hours"])

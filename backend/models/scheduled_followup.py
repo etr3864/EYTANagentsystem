@@ -1,11 +1,11 @@
 """Scheduled follow-up model for customer re-engagement.
 
-Created by the scheduler when a conversation meets follow-up criteria.
+Created when a conversation's inactivity timer fires.
 AI evaluates whether to send and generates content at execution time.
 """
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import String, Text, DateTime, ForeignKey, Index, UniqueConstraint, text
+from sqlalchemy import String, Text, DateTime, ForeignKey, Index, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.core.database import Base
 from backend.core.enums import FollowupStatus
@@ -20,10 +20,10 @@ class ScheduledFollowup(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
 
     followup_number: Mapped[int] = mapped_column(default=1)
+    step_instruction: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     scheduled_for: Mapped[datetime] = mapped_column(DateTime)
     status: Mapped[str] = mapped_column(String(20), default=FollowupStatus.PENDING)
 
-    # Filled after AI evaluation
     content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     ai_reason: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     sent_via: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
@@ -32,7 +32,6 @@ class ScheduledFollowup(Base):
     sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-    # Relationships
     conversation: Mapped["Conversation"] = relationship()
     agent: Mapped["Agent"] = relationship()
     user: Mapped["User"] = relationship()

@@ -16,18 +16,18 @@ from backend.auth.dependencies import require_role, AgentAccessChecker
 router = APIRouter(tags=["followups"])
 
 
+class FollowupStep(BaseModel):
+    delay_hours: float
+    instruction: str = ""
+
+
 class FollowupConfigUpdate(BaseModel):
     enabled: Optional[bool] = None
     model: Optional[str] = None
-    ai_instructions: Optional[str] = None
-    inactivity_minutes: Optional[int] = None
     min_messages: Optional[int] = None
-    max_followups: Optional[int] = None
-    cooldown_hours: Optional[int] = None
-    max_per_day: Optional[int] = None
-    intervals_minutes: Optional[list[int]] = None
     active_hours: Optional[dict] = None
     meta_templates: Optional[list[dict]] = None
+    sequence: Optional[list[FollowupStep]] = None
 
 
 @router.get("/{agent_id}/followup-config")
@@ -53,21 +53,27 @@ def update_followup_config(
     if not agent:
         raise HTTPException(404, "Agent not found")
 
-    # Deep copy to ensure SQLAlchemy detects the JSON change
     import copy
-    from datetime import datetime
     config = copy.deepcopy(agent.followup_config) if agent.followup_config else DEFAULT_CONFIG.copy()
     update_dict = data.model_dump(exclude_none=True)
 
-    # Track when follow-up was enabled (prevents retroactive follow-ups)
+    # Convert sequence from Pydantic models to dicts
+    if "sequence" in update_dict:
+        update_dict["sequence"] = [
+            {"delay_hours": s["delay_hours"], "instruction": s.get("instruction", "")}
+            for s in update_dict["sequence"]
+        ]
+
     was_enabled = config.get("enabled", False)
     config.update(update_dict)
-    if config.get("enabled") and not was_enabled:
-        config["enabled_at"] = datetime.utcnow().isoformat()
+
+    # Remove legacy fields if present (migrated to sequence)
+    for key in ["ai_instructions", "inactivity_minutes", "max_followups",
+                "cooldown_hours", "max_per_day", "intervals_minutes", "enabled_at"]:
+        config.pop(key, None)
 
     # Cancel all pending follow-ups when disabling
     if was_enabled and not config.get("enabled"):
-        from backend.models.scheduled_followup import ScheduledFollowup
         db.query(ScheduledFollowup).filter(
             ScheduledFollowup.agent_id == agent_id,
             ScheduledFollowup.status.in_([FollowupStatus.PENDING, FollowupStatus.EVALUATING]),
@@ -83,7 +89,6 @@ def get_followup_stats(
     current_user: AuthUser = Depends(AgentAccessChecker()),
     db: Session = Depends(get_db),
 ):
-    """Get follow-up statistics for an agent."""
     statuses = [FollowupStatus.PENDING, FollowupStatus.SENT, FollowupStatus.SKIPPED, FollowupStatus.CANCELLED]
     counts = {}
     for s in statuses:
