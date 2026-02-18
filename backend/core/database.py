@@ -86,6 +86,24 @@ def run_migrations():
             END $$;
         """))
 
+        conn.execute(text("""
+            DO $$ BEGIN
+                ALTER TABLE conversation_summaries ADD COLUMN last_message_at TIMESTAMP;
+            EXCEPTION WHEN duplicate_column THEN null;
+            END $$;
+        """))
+        conn.execute(text("""
+            DO $$ BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_indexes
+                    WHERE indexname = 'uq_summary_per_message_window'
+                ) THEN
+                    CREATE UNIQUE INDEX uq_summary_per_message_window
+                    ON conversation_summaries (conversation_id, last_message_at);
+                END IF;
+            END $$;
+        """))
+
         conn.commit()
 
 

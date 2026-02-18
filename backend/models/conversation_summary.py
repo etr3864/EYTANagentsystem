@@ -1,7 +1,7 @@
 """Conversation summary model for automatic conversation summaries."""
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import String, Text, DateTime, Integer, ForeignKey, Index
+from sqlalchemy import String, Text, DateTime, Integer, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.core.database import Base
 from backend.core.enums import SummaryWebhookStatus
@@ -26,6 +26,9 @@ class ConversationSummary(Base):
     summary_text: Mapped[str] = mapped_column(Text)
     message_count: Mapped[int] = mapped_column(Integer)
     
+    # Timestamp of last user message when summary was created (dedup key)
+    last_message_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    
     # Webhook delivery tracking
     webhook_status: Mapped[str] = mapped_column(String(20), default=SummaryWebhookStatus.PENDING)
     webhook_attempts: Mapped[int] = mapped_column(Integer, default=0)
@@ -42,10 +45,9 @@ class ConversationSummary(Base):
     user: Mapped["User"] = relationship()
     
     __table_args__ = (
-        # Find pending webhooks due for retry
+        # One summary per conversation per message window
+        UniqueConstraint("conversation_id", "last_message_at", name="uq_summary_per_message_window"),
         Index("ix_summaries_pending_retry", "webhook_status", "next_retry_at"),
-        # Find summaries by conversation
         Index("ix_summaries_conversation", "conversation_id"),
-        # Find summaries by agent (for UI)
         Index("ix_summaries_agent", "agent_id"),
     )

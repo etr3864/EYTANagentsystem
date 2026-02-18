@@ -15,8 +15,8 @@ from backend.core.logger import log, log_error
 # How often to check for pending tasks (seconds)
 CHECK_INTERVAL = 30
 
-# Lock duration (slightly longer than check interval)
-LOCK_DURATION = 45
+# Lock duration — must be longer than a full cycle (AI calls can take 60s+)
+LOCK_DURATION = 180
 
 # Global flag to control the scheduler
 _running = False

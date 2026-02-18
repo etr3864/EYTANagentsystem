@@ -436,15 +436,20 @@ async def _generate_appointment_summary(agent: Agent, appointment: Appointment, 
         log_error("appointments", f"summary generation failed: {str(e)[:50]}")
         return None
 
-    # Save to DB so the scheduler won't create a duplicate
     from backend.models.conversation_summary import ConversationSummary
     from backend.core.enums import SummaryWebhookStatus
     from backend.models.message import Message
     from sqlalchemy import func
+    from sqlalchemy.exc import IntegrityError
 
     msg_count = db.query(func.count(Message.id)).filter(
         Message.conversation_id == conv.id
     ).scalar() or 0
+
+    last_user_msg_time = db.query(func.max(Message.created_at)).filter(
+        Message.conversation_id == conv.id,
+        Message.role == "user"
+    ).scalar()
 
     record = ConversationSummary(
         conversation_id=conv.id,
@@ -452,12 +457,18 @@ async def _generate_appointment_summary(agent: Agent, appointment: Appointment, 
         user_id=appointment.user_id,
         summary_text=summary_text,
         message_count=msg_count,
+        last_message_at=last_user_msg_time,
         webhook_status=SummaryWebhookStatus.SENT,
         webhook_attempts=1,
         webhook_sent_at=datetime.utcnow(),
     )
     db.add(record)
-    db.commit()
+    
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return None
 
     return summary_text
 

@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
+from sqlalchemy.exc import IntegrityError
 
 from backend.models.conversation_summary import ConversationSummary
 from backend.models.conversation import Conversation
@@ -74,10 +75,10 @@ def _get_conversations_needing_summary(
         Message.conversation_id.in_(agent_conv_ids)
     ).group_by(Message.conversation_id).subquery()
     
-    # Subquery: last summary time per conversation
+    # Subquery: last summarized message window per conversation
     last_summary = db.query(
         ConversationSummary.conversation_id,
-        func.max(ConversationSummary.created_at).label("last_summary_time")
+        func.max(ConversationSummary.last_message_at).label("last_summarized_msg")
     ).filter(
         ConversationSummary.agent_id == agent_id
     ).group_by(ConversationSummary.conversation_id).subquery()
@@ -107,9 +108,9 @@ def _get_conversations_needing_summary(
         msg_count.c.msg_count >= min_messages,
         # Last user message is old enough
         last_user_msg.c.last_user_msg_time <= threshold,
-        # No summary after last user message (or no summary at all)
-        (last_summary.c.last_summary_time == None) | 
-        (last_summary.c.last_summary_time < last_user_msg.c.last_user_msg_time)
+        # No summary for the current message window (or no summary at all)
+        (last_summary.c.last_summarized_msg == None) | 
+        (last_summary.c.last_summarized_msg < last_user_msg.c.last_user_msg_time)
     ).limit(BATCH_SIZE).all()
     
     return [(r[0], r[1], r[2]) for r in results]
@@ -182,7 +183,6 @@ async def create_and_send_summary(
     config: dict
 ) -> ConversationSummary | None:
     """Create a summary for conversation and attempt webhook send."""
-    # Guard: skip if a summary was already created for the current message window
     last_user_msg_time = db.query(func.max(Message.created_at)).filter(
         Message.conversation_id == conversation_id,
         Message.role == "user"
@@ -191,7 +191,7 @@ async def create_and_send_summary(
     if last_user_msg_time:
         existing = db.query(ConversationSummary.id).filter(
             ConversationSummary.conversation_id == conversation_id,
-            ConversationSummary.created_at >= last_user_msg_time
+            ConversationSummary.last_message_at == last_user_msg_time
         ).first()
         if existing:
             return None
@@ -210,7 +210,6 @@ async def create_and_send_summary(
         log_error("summaries", f"AI generation failed for conv {conversation_id}: {str(e)[:50]}")
         return None
     
-    # Calculate next retry time
     retry_delay = config.get("webhook_retry_delay", DEFAULT_RETRY_DELAY_SECONDS)
     next_retry = datetime.utcnow() + timedelta(seconds=retry_delay)
     
@@ -220,15 +219,20 @@ async def create_and_send_summary(
         user_id=user.id,
         summary_text=summary_text,
         message_count=message_count,
+        last_message_at=last_user_msg_time,
         webhook_status=SummaryWebhookStatus.PENDING,
         webhook_attempts=0,
         next_retry_at=next_retry,
     )
     db.add(summary)
-    db.commit()
-    db.refresh(summary)
     
-    # Try sending webhook immediately
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return None
+    
+    db.refresh(summary)
     await _try_send_webhook(db, summary, agent, user, config)
     
     return summary
