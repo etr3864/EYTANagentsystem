@@ -79,6 +79,13 @@ def run_migrations():
             END $$;
         """))
 
+        conn.execute(text("""
+            DO $$ BEGIN
+                ALTER TABLE agents ADD COLUMN custom_api_keys JSON;
+            EXCEPTION WHEN duplicate_column THEN null;
+            END $$;
+        """))
+
         conn.commit()
 
 

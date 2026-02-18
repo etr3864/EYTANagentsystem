@@ -36,7 +36,7 @@ async def evaluate(
 
     model = config.get("model", "claude-sonnet-4-5")
     try:
-        provider = get_provider(model)
+        provider = get_provider(model, agent=agent)
         response = await provider.generate_simple_response(prompt)
         return _parse_ai_decision(response)
     except Exception as e:

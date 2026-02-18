@@ -112,6 +112,10 @@ class Agent(Base):
     # }
     media_config: Mapped[Optional[dict]] = mapped_column(JSON, default=None)
 
+    # Per-provider API key overrides (optional, for high-consumption agents)
+    # {"anthropic": "sk-...", "openai": "sk-...", "google": "AIza-..."}
+    custom_api_keys: Mapped[Optional[dict]] = mapped_column(JSON, default=None)
+
     conversations: Mapped[list["Conversation"]] = relationship(back_populates="agent", passive_deletes=True)
     appointments: Mapped[list["Appointment"]] = relationship(back_populates="agent", passive_deletes=True)
     

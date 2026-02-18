@@ -1,5 +1,7 @@
 """Google Gemini provider implementation."""
 import asyncio
+from typing import TYPE_CHECKING
+
 from google import genai
 from google.genai import types
 
@@ -12,8 +14,9 @@ from .converters import (
 from backend.core.ai_config import USER_TOOLS
 from backend.core.logger import log_error
 
+if TYPE_CHECKING:
+    from backend.models.agent import Agent
 
-# Gemini-specific tool instructions (appended to system prompt)
 GEMINI_TOOL_SUFFIX = """
 
 הנחיות ספציפיות לשימוש בכלים:
@@ -28,17 +31,22 @@ class GeminiProvider:
     """Google Gemini API provider with tool support and retry logic."""
     
     MAX_RETRIES = 3
-    RETRY_DELAY = 1.0  # seconds
+    RETRY_DELAY = 1.0
     
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, provider_name: str = "google", agent: "Agent | None" = None):
         self._client = genai.Client(api_key=api_key)
+        self._api_key = api_key
+        self._provider_name = provider_name
+        self._agent = agent
         self._gemini_tools = anthropic_tools_to_gemini(USER_TOOLS)
-    
+
+    def _rebuild_client(self, new_key: str):
+        self._client = genai.Client(api_key=new_key)
+        self._api_key = new_key
+
     async def _call_with_retry(self, func, *args, **kwargs):
-        """Execute function with retry logic.
-        
-        Retries up to MAX_RETRIES times with exponential backoff.
-        """
+        """Execute function with retry logic, key rotation on rate limit/auth errors."""
+        from . import key_manager
         last_error = None
         
         for attempt in range(self.MAX_RETRIES):
@@ -47,17 +55,39 @@ class GeminiProvider:
             except Exception as e:
                 last_error = e
                 error_str = str(e)
-                
-                # Don't retry on auth errors or invalid requests
-                if "API key" in error_str or "Invalid" in error_str:
-                    raise
+
+                if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
+                    override = key_manager.is_override_key(self._provider_name, self._api_key, self._agent)
+                    if override:
+                        await asyncio.sleep(self.RETRY_DELAY * (2 ** attempt))
+                        continue
+                    key_manager.mark_rate_limited(self._provider_name, self._api_key)
+                    new_key = key_manager.get_key(self._provider_name, self._agent)
+                    if new_key != self._api_key:
+                        self._rebuild_client(new_key)
+                        continue
+                    await asyncio.sleep(self.RETRY_DELAY * (2 ** attempt))
+                    continue
+
+                if "API key" in error_str or "PERMISSION_DENIED" in error_str:
+                    override = key_manager.is_override_key(self._provider_name, self._api_key, self._agent)
+                    if override:
+                        log_error("gemini", "Agent override key failed, falling back to pool")
+                        key_manager.mark_dead(self._provider_name, self._api_key)
+                        new_key = key_manager.get_key(self._provider_name)
+                        self._rebuild_client(new_key)
+                        continue
+                    key_manager.mark_dead(self._provider_name, self._api_key)
+                    new_key = key_manager.get_key(self._provider_name, self._agent)
+                    self._rebuild_client(new_key)
+                    continue
                 
                 if attempt < self.MAX_RETRIES - 1:
                     delay = self.RETRY_DELAY * (2 ** attempt)
-                    log_error("gemini_retry", f"Attempt {attempt+1} failed: {error_str[:50]}. Retrying in {delay}s")
+                    log_error("gemini_retry", f"Attempt {attempt+1} failed: {error_str[:50]}")
                     await asyncio.sleep(delay)
         
-        log_error("gemini_failed", f"All {self.MAX_RETRIES} attempts failed: {str(last_error)[:100]}")
+        log_error("gemini_failed", f"All {self.MAX_RETRIES} attempts failed")
         raise last_error
     
     async def get_response(

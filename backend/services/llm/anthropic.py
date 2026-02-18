@@ -8,6 +8,7 @@ from backend.core.ai_config import USER_TOOLS
 from backend.core.logger import log_error
 
 if TYPE_CHECKING:
+    from backend.models.agent import Agent
     from backend.services.message_buffer import PendingMessage
 
 
@@ -18,24 +19,53 @@ RETRY_DELAY = 1.0
 class AnthropicProvider:
     """Claude API provider with tool support and caching."""
     
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, provider_name: str = "anthropic", agent: "Agent | None" = None):
         self._client = anthropic.AsyncAnthropic(api_key=api_key)
-    
+        self._api_key = api_key
+        self._provider_name = provider_name
+        self._agent = agent
+
+    def _rebuild_client(self, new_key: str):
+        self._client = anthropic.AsyncAnthropic(api_key=new_key)
+        self._api_key = new_key
+
     async def _call_with_retry(self, **kwargs):
-        """Execute API call with retry logic and exponential backoff."""
+        """Execute API call with retry logic, key rotation on 429, and auth fallback."""
+        from . import key_manager
         last_error = None
         
         for attempt in range(MAX_RETRIES):
             try:
                 return await self._client.messages.create(**kwargs)
+            except anthropic.RateLimitError as e:
+                last_error = e
+                override = key_manager.is_override_key(self._provider_name, self._api_key, self._agent)
+                if override:
+                    delay = RETRY_DELAY * (2 ** attempt)
+                    await asyncio.sleep(delay)
+                    continue
+                retry_after = float(e.response.headers.get("retry-after", 0)) if e.response else None
+                key_manager.mark_rate_limited(self._provider_name, self._api_key, retry_after or None)
+                new_key = key_manager.get_key(self._provider_name, self._agent)
+                if new_key != self._api_key:
+                    self._rebuild_client(new_key)
+                    continue
+                await asyncio.sleep(RETRY_DELAY * (2 ** attempt))
+            except anthropic.AuthenticationError as e:
+                last_error = e
+                override = key_manager.is_override_key(self._provider_name, self._api_key, self._agent)
+                if override:
+                    log_error("anthropic", "Agent override key failed, falling back to pool")
+                    key_manager.mark_dead(self._provider_name, self._api_key)
+                    new_key = key_manager.get_key(self._provider_name)
+                    self._rebuild_client(new_key)
+                    continue
+                key_manager.mark_dead(self._provider_name, self._api_key)
+                new_key = key_manager.get_key(self._provider_name, self._agent)
+                self._rebuild_client(new_key)
+                continue
             except Exception as e:
                 last_error = e
-                error_str = str(e).lower()
-                
-                # Don't retry auth errors
-                if "authentication" in error_str or "invalid.*api.key" in error_str:
-                    raise
-                
                 if attempt < MAX_RETRIES - 1:
                     delay = RETRY_DELAY * (2 ** attempt)
                     log_error("anthropic_retry", f"Attempt {attempt+1} failed: {str(e)[:50]}")
@@ -326,7 +356,7 @@ class AnthropicProvider:
     
     async def generate_simple_response(self, prompt: str) -> str:
         """Generate a simple text response (for reminders etc.)."""
-        response = await self._client.messages.create(
+        response = await self._call_with_retry(
             model="claude-haiku-4-5",
             max_tokens=300,
             messages=[{"role": "user", "content": prompt}]

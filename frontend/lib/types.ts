@@ -24,6 +24,12 @@ export interface WaSenderConfig {
 }
 
 // ============ Agent ============
+export interface CustomApiKeys {
+  anthropic?: string;
+  openai?: string;
+  google?: string;
+}
+
 export interface Agent {
   id: number;
   name: string;
@@ -40,6 +46,7 @@ export interface Agent {
   calendar_config: Record<string, unknown> | null;
   media_config: MediaConfig | null;
   followup_config: FollowupConfig | null;
+  custom_api_keys: CustomApiKeys | null;
   created_at: string | null;
 }
 
@@ -68,6 +75,7 @@ export interface AgentUpdate {
   provider_config?: WaSenderConfig | Record<string, never>;
   batching_config?: AgentBatchingConfig;
   media_config?: MediaConfig | null;
+  custom_api_keys?: CustomApiKeys | null;
 }
 
 // ============ User ============

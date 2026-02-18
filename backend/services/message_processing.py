@@ -186,7 +186,8 @@ async def process_batched_messages(
             tool_handler=tool_handler,
             appointment_prompt=agent.appointment_prompt,
             calendar_config=agent.calendar_config,
-            user_appointments=user_appointments
+            user_appointments=user_appointments,
+            agent=agent,
         )
         
         # Update usage

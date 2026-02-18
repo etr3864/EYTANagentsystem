@@ -1,14 +1,18 @@
 """OpenAI provider implementation."""
 import asyncio
 import json
+from typing import TYPE_CHECKING
+
+import openai
 from openai import AsyncOpenAI
 
 from .types import LLMResponse, ToolHandler
 from backend.core.ai_config import USER_TOOLS
 from backend.core.logger import log_error
 
+if TYPE_CHECKING:
+    from backend.models.agent import Agent
 
-# Retry configuration
 MAX_RETRIES = 3
 RETRY_DELAY = 1.0
 
@@ -43,28 +47,56 @@ def _build_system_text(system_blocks: list) -> str:
 class OpenAIProvider:
     """OpenAI API provider with tool support and retry logic."""
     
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, provider_name: str = "openai", agent: "Agent | None" = None):
         self._client = AsyncOpenAI(api_key=api_key)
+        self._api_key = api_key
+        self._provider_name = provider_name
+        self._agent = agent
         self._tools = _convert_tools_to_openai(USER_TOOLS)
-    
+
+    def _rebuild_client(self, new_key: str):
+        self._client = AsyncOpenAI(api_key=new_key)
+        self._api_key = new_key
+
     async def _call_with_retry(self, **kwargs):
-        """Execute API call with retry logic."""
+        """Execute API call with retry logic, key rotation on 429, and auth fallback."""
+        from . import key_manager
         last_error = None
         
         for attempt in range(MAX_RETRIES):
             try:
                 return await self._client.chat.completions.create(**kwargs)
+            except openai.RateLimitError as e:
+                last_error = e
+                override = key_manager.is_override_key(self._provider_name, self._api_key, self._agent)
+                if override:
+                    await asyncio.sleep(RETRY_DELAY * (2 ** attempt))
+                    continue
+                retry_after = float(e.response.headers.get("retry-after", 0)) if e.response else None
+                key_manager.mark_rate_limited(self._provider_name, self._api_key, retry_after or None)
+                new_key = key_manager.get_key(self._provider_name, self._agent)
+                if new_key != self._api_key:
+                    self._rebuild_client(new_key)
+                    continue
+                await asyncio.sleep(RETRY_DELAY * (2 ** attempt))
+            except openai.AuthenticationError as e:
+                last_error = e
+                override = key_manager.is_override_key(self._provider_name, self._api_key, self._agent)
+                if override:
+                    log_error("openai", "Agent override key failed, falling back to pool")
+                    key_manager.mark_dead(self._provider_name, self._api_key)
+                    new_key = key_manager.get_key(self._provider_name)
+                    self._rebuild_client(new_key)
+                    continue
+                key_manager.mark_dead(self._provider_name, self._api_key)
+                new_key = key_manager.get_key(self._provider_name, self._agent)
+                self._rebuild_client(new_key)
+                continue
             except Exception as e:
                 last_error = e
-                error_str = str(e)
-                
-                # Don't retry auth errors
-                if "api_key" in error_str.lower() or "unauthorized" in error_str.lower():
-                    raise
-                
                 if attempt < MAX_RETRIES - 1:
                     delay = RETRY_DELAY * (2 ** attempt)
-                    log_error("openai_retry", f"Attempt {attempt+1} failed: {error_str[:50]}")
+                    log_error("openai_retry", f"Attempt {attempt+1} failed: {str(e)[:50]}")
                     await asyncio.sleep(delay)
         
         log_error("openai_failed", f"All {MAX_RETRIES} attempts failed")

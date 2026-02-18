@@ -13,9 +13,20 @@ from backend.auth import service as auth_service
 router = APIRouter(tags=["agents"])
 
 
+def _mask_key(key: str) -> str:
+    """Show only last 4 chars of an API key."""
+    if not key or len(key) < 8:
+        return "***"
+    return f"...{key[-4:]}"
+
+
 def agent_to_response(a) -> dict:
     batching = a.batching_config if a.batching_config else DEFAULT_BATCHING_CONFIG
-    
+
+    masked_keys = None
+    if a.custom_api_keys:
+        masked_keys = {k: _mask_key(v) for k, v in a.custom_api_keys.items() if v}
+
     return {
         "id": a.id,
         "name": a.name,
@@ -32,6 +43,7 @@ def agent_to_response(a) -> dict:
         "calendar_config": a.calendar_config,
         "media_config": a.media_config,
         "followup_config": a.followup_config,
+        "custom_api_keys": masked_keys,
         "created_at": a.created_at.isoformat() if a.created_at else None
     }
 
@@ -135,6 +147,15 @@ async def update_agent(
     
     if data.batching_config is not None:
         update_data['batching_config'] = data.batching_config.model_dump()
+
+    if data.custom_api_keys is not None:
+        current = existing.custom_api_keys or {}
+        for provider_key, value in data.custom_api_keys.items():
+            if value and not value.startswith("..."):
+                current[provider_key] = value
+            elif not value:
+                current.pop(provider_key, None)
+        update_data['custom_api_keys'] = current or None
     
     agent = agents.update(db, agent_id, **update_data)
     return {"id": agent.id, "name": agent.name, "meta_info": meta_info}

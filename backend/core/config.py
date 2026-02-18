@@ -4,9 +4,14 @@ from typing import Optional
 
 class Settings(BaseSettings):
     database_url: str = "postgresql://postgres:postgres@localhost:5432/whatsapp_agents"
-    anthropic_api_key: str
+    anthropic_api_key: str = ""
     openai_api_key: Optional[str] = None
     google_api_key: Optional[str] = None  # Gemini API
+
+    # Multi-key pools (comma-separated). Falls back to singular key above if empty.
+    anthropic_api_keys: str = ""
+    openai_api_keys: str = ""
+    google_api_keys: str = ""
     google_credentials_json: Optional[str] = None
     
     # Frontend URL (for OAuth redirects back to the UI)

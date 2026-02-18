@@ -1,5 +1,9 @@
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 from backend.models.agent import Agent
+
+_JSON_FIELDS = {"provider_config", "batching_config", "usage_stats", "calendar_config",
+                "summary_config", "followup_config", "media_config", "custom_api_keys"}
 
 
 def get_by_phone_number_id(db: Session, phone_number_id: str) -> Agent | None:
@@ -53,6 +57,8 @@ def update(db: Session, agent_id: int, **kwargs) -> Agent | None:
     for key, value in kwargs.items():
         if hasattr(agent, key) and value is not None:
             setattr(agent, key, value)
+            if key in _JSON_FIELDS:
+                flag_modified(agent, key)
     db.commit()
     db.refresh(agent)
     return agent

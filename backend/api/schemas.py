@@ -112,6 +112,7 @@ class AgentUpdate(BaseModel):
     provider_config: Optional[dict] = None
     batching_config: Optional[AgentBatchingConfig] = None
     media_config: Optional[dict] = None
+    custom_api_keys: Optional[dict] = None
 
 
 class AgentResponse(BaseModel):

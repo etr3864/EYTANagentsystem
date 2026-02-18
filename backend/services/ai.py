@@ -220,7 +220,8 @@ async def get_response(
     tool_handler: callable = None,
     appointment_prompt: str = None,
     calendar_config: dict | None = None,
-    user_appointments: list = None
+    user_appointments: list = None,
+    agent=None,
 ) -> tuple[str, list[dict], dict, list[dict]]:
     """Get AI response with tool support.
     
@@ -278,8 +279,7 @@ async def get_response(
     # Build system blocks (Anthropic format, converted by Gemini provider if needed)
     system_blocks = build_system_prompt(full_prompt, user_info or {}, knowledge_context, media_context)
     
-    # Get the appropriate provider
-    provider = get_provider(actual_model)
+    provider = get_provider(actual_model, agent=agent)
     
     # Get response from provider
     response: LLMResponse = await provider.get_response(
@@ -298,14 +298,13 @@ async def get_response(
     return text, response.tool_calls, response.usage, response.media_actions
 
 
-async def generate_simple_response(prompt: str) -> str:
+async def generate_simple_response(prompt: str, agent=None) -> str:
     """Generate a simple text response without conversation history.
     
-    Async function for simple AI generation tasks like reminders.
-    Always uses Claude for consistency.
+    Uses Claude by default. Passes agent for key selection.
     """
     try:
-        provider = get_provider("claude")
+        provider = get_provider("claude", agent=agent)
         return await provider.generate_simple_response(prompt)
     except Exception as e:
         log_error("ai_simple", str(e)[:50])

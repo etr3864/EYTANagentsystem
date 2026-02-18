@@ -4,7 +4,7 @@ import { Button, Card, CardHeader } from '@/components/ui';
 import { Input, NumberInput } from '@/components/ui/Input';
 import { ModelSelect } from '@/components/ui/ModelSelect';
 import { ProviderSelector } from '@/components/agent/ProviderSelector';
-import type { AgentBatchingConfig, Provider, WaSenderConfig } from '@/lib/types';
+import type { AgentBatchingConfig, Provider, WaSenderConfig, CustomApiKeys } from '@/lib/types';
 
 interface SettingsTabProps {
   agentId: number;
@@ -16,6 +16,7 @@ interface SettingsTabProps {
   provider: Provider;
   providerConfig: WaSenderConfig | Record<string, never>;
   batchingConfig: AgentBatchingConfig;
+  customApiKeys: CustomApiKeys;
   onNameChange: (v: string) => void;
   onPhoneNumberIdChange: (v: string) => void;
   onAccessTokenChange: (v: string) => void;
@@ -24,15 +25,16 @@ interface SettingsTabProps {
   onProviderChange: (p: Provider) => void;
   onProviderConfigChange: (config: WaSenderConfig) => void;
   onBatchingConfigChange: (config: AgentBatchingConfig) => void;
+  onCustomApiKeysChange: (keys: CustomApiKeys) => void;
   onSave: () => void;
   saving: boolean;
 }
 
 export function SettingsTab({
   agentId, name, phoneNumberId, accessToken, verifyToken, model, provider, providerConfig, batchingConfig,
-  onNameChange, onPhoneNumberIdChange, onAccessTokenChange, onVerifyTokenChange, 
+  customApiKeys, onNameChange, onPhoneNumberIdChange, onAccessTokenChange, onVerifyTokenChange, 
   onModelChange, onProviderChange, onProviderConfigChange, onBatchingConfigChange,
-  onSave, saving
+  onCustomApiKeysChange, onSave, saving
 }: SettingsTabProps) {
   return (
     <div className="space-y-6">
@@ -122,6 +124,37 @@ export function SettingsTab({
               max_history_messages: parseInt(e.target.value) || 20 
             })}
             hint="מומלץ: 15-30 הודעות"
+          />
+        </div>
+      </Card>
+
+      {/* Custom API Keys */}
+      <Card>
+        <CardHeader>🔑 מפתחות API מותאמים</CardHeader>
+        <p className="text-sm text-slate-400 mb-4">
+          השאר ריק כדי להשתמש במפתחות המערכת
+        </p>
+        <div className="grid gap-4">
+          <Input
+            label="Anthropic (Claude)"
+            type="password"
+            placeholder="השאר ריק למפתח מערכת"
+            value={customApiKeys.anthropic || ''}
+            onChange={e => onCustomApiKeysChange({ ...customApiKeys, anthropic: e.target.value })}
+          />
+          <Input
+            label="OpenAI (GPT)"
+            type="password"
+            placeholder="השאר ריק למפתח מערכת"
+            value={customApiKeys.openai || ''}
+            onChange={e => onCustomApiKeysChange({ ...customApiKeys, openai: e.target.value })}
+          />
+          <Input
+            label="Google (Gemini)"
+            type="password"
+            placeholder="השאר ריק למפתח מערכת"
+            value={customApiKeys.google || ''}
+            onChange={e => onCustomApiKeysChange({ ...customApiKeys, google: e.target.value })}
           />
         </div>
       </Card>
