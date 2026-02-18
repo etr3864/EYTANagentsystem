@@ -1,9 +1,14 @@
 'use client';
 
 import { useState, FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Input, PasswordInput } from '@/components/ui';
+
+function getSafeRedirect(url: string | null): string {
+  if (!url || !url.startsWith('/') || url.startsWith('//')) return '/';
+  return url;
+}
 
 interface FormErrors {
   email?: string;
@@ -18,10 +23,11 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { login, isAuthenticated } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = getSafeRedirect(searchParams.get('redirect'));
 
-  // Redirect if already logged in
   if (isAuthenticated) {
-    router.push('/');
+    router.push(redirectTo);
     return null;
   }
 
@@ -54,6 +60,7 @@ export default function LoginPage() {
 
     try {
       await login({ email, password });
+      router.push(redirectTo);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'שגיאה בהתחברות';
       

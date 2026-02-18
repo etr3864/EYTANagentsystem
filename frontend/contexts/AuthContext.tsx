@@ -61,9 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTokens(data.access_token, data.refresh_token);
     setUser(data.user);
     setUserState(data.user);
-    
-    router.push('/');
-  }, [router]);
+  }, []);
 
   const logout = useCallback(() => {
     clearAuth();

@@ -52,9 +52,10 @@ function AgentPage() {
   
   // Default tab based on role
   const defaultTab = useMemo(() => {
+    if (searchParams.get('conv')) return 'conversations';
     if (isSuperAdmin(user)) return 'prompt';
     return 'conversations';
-  }, [user]);
+  }, [user, searchParams]);
   
   const [tab, setTab] = useState<Tab>(defaultTab);
   const [saving, setSaving] = useState(false);

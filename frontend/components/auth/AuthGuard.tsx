@@ -19,9 +19,12 @@ export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
     // Skip redirect during loading
     if (isLoading) return;
 
-    // Redirect to login if not authenticated
     if (!isAuthenticated) {
-      router.push('/login');
+      const fullPath = pathname + window.location.search;
+      const loginUrl = fullPath && fullPath !== '/'
+        ? `/login?redirect=${encodeURIComponent(fullPath)}`
+        : '/login';
+      router.push(loginUrl);
       return;
     }
 
