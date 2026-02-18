@@ -236,6 +236,29 @@ def _fetch_templates_info(db: Session, agent_id: int, meta_templates: list) -> l
 # Response parsing
 # ──────────────────────────────────────────
 
+def _escape_newlines_in_strings(text: str) -> str:
+    """Fix literal newlines inside JSON string values (AI sometimes forgets to escape)."""
+    result = []
+    in_string = False
+    prev_escape = False
+    for ch in text:
+        if prev_escape:
+            result.append(ch)
+            prev_escape = False
+            continue
+        if ch == '\\':
+            result.append(ch)
+            prev_escape = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+        if in_string and ch == '\n':
+            result.append('\\n')
+            continue
+        result.append(ch)
+    return ''.join(result)
+
+
 def _parse_ai_decision(response: str) -> dict:
     """Parse AI JSON response with safe fallback to skip."""
     text = response.strip()
@@ -262,4 +285,14 @@ def _parse_ai_decision(response: str) -> dict:
             return result
         return {"send": False, "reason": "AI returned non-object JSON"}
     except (json.JSONDecodeError, ValueError):
-        return {"send": False, "reason": f"failed to parse AI response: {text[:80]}"}
+        pass
+
+    fixed = _escape_newlines_in_strings(text)
+    try:
+        result = json.loads(fixed)
+        if isinstance(result, dict):
+            return result
+    except (json.JSONDecodeError, ValueError):
+        pass
+
+    return {"send": False, "reason": f"failed to parse AI response: {text[:80]}"}
