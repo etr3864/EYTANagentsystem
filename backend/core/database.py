@@ -93,6 +93,19 @@ def run_migrations():
             END $$;
         """))
         conn.execute(text("""
+            UPDATE conversation_summaries
+            SET last_message_at = created_at
+            WHERE last_message_at IS NULL;
+        """))
+        conn.execute(text("""
+            DELETE FROM conversation_summaries
+            WHERE id NOT IN (
+                SELECT MIN(id)
+                FROM conversation_summaries
+                GROUP BY conversation_id, last_message_at
+            );
+        """))
+        conn.execute(text("""
             DO $$ BEGIN
                 IF NOT EXISTS (
                     SELECT 1 FROM pg_indexes
