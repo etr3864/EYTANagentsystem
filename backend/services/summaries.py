@@ -15,7 +15,7 @@ from backend.models.conversation import Conversation
 from backend.models.message import Message
 from backend.models.agent import Agent
 from backend.models.user import User
-from backend.services.ai import generate_simple_response
+from backend.services.llm import get_provider
 from backend.core.logger import log, log_error
 from backend.core.enums import SummaryWebhookStatus
 
@@ -137,13 +137,16 @@ def _get_conversation_text(db: Session, conversation_id: int, max_messages: int 
     return "\n".join(lines)
 
 
+SUMMARY_MODEL = "claude-sonnet-4-5"
+SUMMARY_MAX_TOKENS = 4096
+
+
 async def _generate_summary(conversation_text: str, prompt: str) -> str:
-    """Generate summary using AI."""
-    # Truncate if too long (rough estimate: 4 chars per token, max ~8000 tokens)
+    """Generate summary using Sonnet with high token limit."""
     max_chars = 30000
     if len(conversation_text) > max_chars:
         conversation_text = conversation_text[:max_chars] + "\n...[השיחה קוצרה]"
-    
+
     full_prompt = f"""{prompt}
 
 ---
@@ -152,8 +155,11 @@ async def _generate_summary(conversation_text: str, prompt: str) -> str:
 
 ---
 כתוב סיכום תמציתי וברור."""
-    
-    return await generate_simple_response(full_prompt)
+
+    provider = get_provider(SUMMARY_MODEL)
+    return await provider.generate_simple_response(
+        full_prompt, model=SUMMARY_MODEL, max_tokens=SUMMARY_MAX_TOKENS
+    )
 
 
 async def _send_webhook(url: str, payload: dict) -> tuple[bool, str | None]:

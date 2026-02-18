@@ -354,11 +354,13 @@ class AnthropicProvider:
         except Exception:
             return {"name": "קובץ", "description": "", "caption": ""}
     
-    async def generate_simple_response(self, prompt: str) -> str:
-        """Generate a simple text response (for reminders etc.)."""
+    async def generate_simple_response(
+        self, prompt: str, model: str = "claude-haiku-4-5", max_tokens: int = 300
+    ) -> str:
+        """Generate a simple text response. Defaults to Haiku/300 for cheap calls."""
         response = await self._call_with_retry(
-            model="claude-haiku-4-5",
-            max_tokens=300,
+            model=model,
+            max_tokens=max_tokens,
             messages=[{"role": "user", "content": prompt}]
         )
         
