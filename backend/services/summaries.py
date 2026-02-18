@@ -7,7 +7,7 @@ import httpx
 from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_
+from sqlalchemy import func, and_, case
 from sqlalchemy.exc import IntegrityError
 
 from backend.models.conversation_summary import ConversationSummary
@@ -75,42 +75,44 @@ def _get_conversations_needing_summary(
         Message.conversation_id.in_(agent_conv_ids)
     ).group_by(Message.conversation_id).subquery()
     
-    # Subquery: last summarized message window per conversation
+    # Subquery: last summary time per conversation
     last_summary = db.query(
         ConversationSummary.conversation_id,
         func.max(ConversationSummary.last_message_at).label("last_summarized_msg")
     ).filter(
         ConversationSummary.agent_id == agent_id
     ).group_by(ConversationSummary.conversation_id).subquery()
-    
-    # Subquery: message count per conversation
-    msg_count = db.query(
+
+    # Subquery: total count + new count (since last summary) in one pass
+    msg_counts = db.query(
         Message.conversation_id,
-        func.count(Message.id).label("msg_count")
+        func.count(Message.id).label("total_count"),
+        func.sum(case(
+            ((last_summary.c.last_summarized_msg == None) |
+             (Message.created_at > last_summary.c.last_summarized_msg), 1),
+            else_=0
+        )).label("new_count"),
+        func.max(last_summary.c.last_summarized_msg).label("last_summarized_msg")
+    ).outerjoin(
+        last_summary, Message.conversation_id == last_summary.c.conversation_id
     ).filter(
         Message.conversation_id.in_(agent_conv_ids)
     ).group_by(Message.conversation_id).subquery()
-    
-    # Main query: find conversations that need summary
+
     results = db.query(
         Conversation.id,
-        msg_count.c.msg_count,
+        msg_counts.c.total_count,
         last_user_msg.c.last_user_msg_time
     ).join(
         last_user_msg, Conversation.id == last_user_msg.c.conversation_id
     ).join(
-        msg_count, Conversation.id == msg_count.c.conversation_id
-    ).outerjoin(
-        last_summary, Conversation.id == last_summary.c.conversation_id
+        msg_counts, Conversation.id == msg_counts.c.conversation_id
     ).filter(
         Conversation.agent_id == agent_id,
-        # Has enough messages
-        msg_count.c.msg_count >= min_messages,
-        # Last user message is old enough
+        msg_counts.c.new_count >= min_messages,
         last_user_msg.c.last_user_msg_time <= threshold,
-        # No summary for the current message window (or no summary at all)
-        (last_summary.c.last_summarized_msg == None) | 
-        (last_summary.c.last_summarized_msg < last_user_msg.c.last_user_msg_time)
+        (msg_counts.c.last_summarized_msg == None) |
+        (msg_counts.c.last_summarized_msg < last_user_msg.c.last_user_msg_time)
     ).limit(BATCH_SIZE).all()
     
     return [(r[0], r[1], r[2]) for r in results]
