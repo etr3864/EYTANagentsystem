@@ -11,6 +11,7 @@ import FollowUpTab from '@/components/agent/FollowUpTab';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useAuth } from '@/contexts/AuthContext';
 import { isSuperAdmin, isAdmin, isEmployee } from '@/lib/auth';
+import { phoneToUrl, phoneFromUrl } from '@/lib/phone';
 import { 
   getAgent, updateAgent, getConversations, getMessages, deleteConversation, 
   sendMessage, pauseConversation, resumeConversation,
@@ -170,7 +171,7 @@ function AgentPage() {
   // Update URL with conversation phone number
   const updateUrlWithConversation = useCallback((conv: Conversation | null) => {
     if (conv) {
-      router.replace(`/agent/${agentId}?conv=${conv.user_phone}`, { scroll: false });
+      router.replace(`/agent/${agentId}?conv=${phoneToUrl(conv.user_phone)}`, { scroll: false });
     } else {
       router.replace(`/agent/${agentId}`, { scroll: false });
     }
@@ -184,7 +185,7 @@ function AgentPage() {
       // Check if URL has a conversation phone to auto-select
       const urlPhone = searchParams.get('conv');
       if (urlPhone && data.length > 0) {
-        const conv = data.find(c => c.user_phone === urlPhone);
+        const conv = data.find(c => c.user_phone === phoneFromUrl(urlPhone));
         if (conv) {
           loadMessagesWithPhone(conv.id, conv.user_phone);
           setTab('conversations');
@@ -202,7 +203,7 @@ function AgentPage() {
       setSelectedConv(convId);
       
       // Update URL with the phone number
-      router.replace(`/agent/${agentId}?conv=${userPhone}`, { scroll: false });
+      router.replace(`/agent/${agentId}?conv=${phoneToUrl(userPhone)}`, { scroll: false });
     } catch (e) {
       console.error(e);
     }
