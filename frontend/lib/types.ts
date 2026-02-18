@@ -294,6 +294,7 @@ export interface FollowupConfig {
   enabled: boolean;
   model: string;
   min_messages: number;
+  general_instruction: string;
   active_hours: FollowupActiveHours;
   meta_templates: FollowupMetaTemplate[];
   sequence: FollowupStep[];

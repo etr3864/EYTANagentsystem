@@ -25,6 +25,7 @@ class FollowupConfigUpdate(BaseModel):
     enabled: Optional[bool] = None
     model: Optional[str] = None
     min_messages: Optional[int] = None
+    general_instruction: Optional[str] = None
     active_hours: Optional[dict] = None
     meta_templates: Optional[list[dict]] = None
     sequence: Optional[list[FollowupStep]] = None

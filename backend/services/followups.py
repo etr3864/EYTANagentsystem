@@ -36,6 +36,7 @@ DEFAULT_CONFIG = {
     "enabled": False,
     "model": "claude-sonnet-4-5",
     "min_messages": 5,
+    "general_instruction": "",
     "active_hours": {"start": "09:00", "end": "21:00"},
     "meta_templates": [],
     "sequence": DEFAULT_SEQUENCE,
@@ -213,25 +214,26 @@ def _get_current_step(db: Session, conv: Conversation, sequence: list[dict]) -> 
 
 
 def _has_enough_messages(db: Session, conv: Conversation, min_messages: int) -> bool:
-    """Check if enough messages were exchanged since the customer last re-engaged.
+    """Check if enough messages were exchanged.
 
-    Cutoff = the later of: last_customer_message_at or last sent follow-up
-    (only if the follow-up was sent AFTER the customer's last message).
+    - No prior followups → count ALL messages in conversation.
+    - After a followup was sent → count messages since that followup.
     """
-    cutoff = conv.last_customer_message_at
     last_sent_fu = db.query(ScheduledFollowup.sent_at).filter(
         ScheduledFollowup.conversation_id == conv.id,
         ScheduledFollowup.status == FollowupStatus.SENT,
-        ScheduledFollowup.sent_at > conv.last_customer_message_at,
     ).order_by(ScheduledFollowup.sent_at.desc()).first()
 
     if last_sent_fu and last_sent_fu.sent_at:
-        cutoff = last_sent_fu.sent_at
+        count = db.query(func.count(Message.id)).filter(
+            Message.conversation_id == conv.id,
+            Message.created_at > last_sent_fu.sent_at,
+        ).scalar() or 0
+    else:
+        count = db.query(func.count(Message.id)).filter(
+            Message.conversation_id == conv.id,
+        ).scalar() or 0
 
-    count = db.query(func.count(Message.id)).filter(
-        Message.conversation_id == conv.id,
-        Message.created_at > cutoff,
-    ).scalar() or 0
     return count >= min_messages
 
 

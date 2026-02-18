@@ -30,17 +30,19 @@ async def evaluate(
     personality = _get_personality(agent)
     sequence = config.get("sequence", [])
     total_steps = len(sequence)
+    general_instruction = config.get("general_instruction", "")
 
     if needs_template:
         prompt = _build_template_prompt(
             history, prev_followups, personality,
             fu.followup_number, total_steps, fu.step_instruction,
-            agent, db, config,
+            general_instruction, agent, db, config,
         )
     else:
         prompt = _build_freetext_prompt(
             history, prev_followups, personality,
-            fu.followup_number, total_steps, fu.step_instruction, user,
+            fu.followup_number, total_steps, fu.step_instruction,
+            general_instruction, user,
         )
 
     model = config.get("model", "claude-sonnet-4-5")
@@ -110,7 +112,7 @@ def _get_personality(agent: Agent, max_chars: int = 500) -> str:
 def _build_freetext_prompt(
     history: str, prev_followups: str, personality: str,
     step_number: int, total_steps: int, step_instruction: str | None,
-    user: User,
+    general_instruction: str, user: User,
 ) -> str:
     customer_name = user.name or "הלקוח"
 
@@ -120,6 +122,9 @@ def _build_freetext_prompt(
         f"שם הלקוח: {customer_name}",
         f"זה שלב {step_number} מתוך {total_steps} ברצף המעקב.",
     ]
+
+    if general_instruction:
+        parts.extend(["", f"הנחיות כלליות: {general_instruction}"])
 
     if step_instruction:
         parts.extend(["", f"הנחיית השלב: {step_instruction}"])
@@ -149,7 +154,7 @@ def _build_freetext_prompt(
 def _build_template_prompt(
     history: str, prev_followups: str, personality: str,
     step_number: int, total_steps: int, step_instruction: str | None,
-    agent: Agent, db: Session, config: dict,
+    general_instruction: str, agent: Agent, db: Session, config: dict,
 ) -> str:
     meta_templates = config.get("meta_templates", [])
     templates_info = _fetch_templates_info(db, agent.id, meta_templates)
@@ -161,6 +166,9 @@ def _build_template_prompt(
         "אתה סוכן שמחליט אם לשלוח הודעת follow-up ללקוח דרך WhatsApp Template.",
         f"זה שלב {step_number} מתוך {total_steps} ברצף המעקב.",
     ]
+
+    if general_instruction:
+        parts.extend(["", f"הנחיות כלליות: {general_instruction}"])
 
     if step_instruction:
         parts.extend(["", f"הנחיית השלב: {step_instruction}"])

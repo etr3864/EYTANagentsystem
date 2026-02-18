@@ -379,6 +379,19 @@ export default function FollowUpTab({ agentId, provider }: FollowUpTabProps) {
 
       {config.enabled && (
         <div className="space-y-6">
+          {/* General AI instruction */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-slate-300">הנחיות כלליות ל-AI</label>
+            <textarea
+              value={config.general_instruction || ''}
+              onChange={e => updateField('general_instruction', e.target.value)}
+              rows={3}
+              placeholder="הנחיות שיחולו על כל שלבי המעקב. לדוגמה: תתמקד במכירת קורס X, אל תציע הנחות..."
+              className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600/50 rounded-lg text-sm text-white placeholder-slate-500 resize-none focus:outline-none focus:border-blue-500"
+            />
+            <p className="text-xs text-slate-500">אופציונלי. אם ריק, ה-AI עובד לפי היסטוריית השיחה ואישיות הסוכן בלבד.</p>
+          </div>
+
           {/* Sequence builder */}
           <SequenceBuilder
             sequence={config.sequence || [{ delay_hours: 3, instruction: '' }]}
