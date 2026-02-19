@@ -129,14 +129,27 @@ export function PrivacyContent() {
         or improve our AI models or any third-party AI models.
       </p>
 
-      <h3 className="text-white font-semibold">6. Data Retention</h3>
+      <h3 className="text-white font-semibold">6. Sharing of Google User Data</h3>
+      <p>
+        We do not share, transfer, or disclose Google user data to any third party, 
+        except as strictly necessary to provide the scheduling functionality described 
+        in this policy (e.g., our hosting provider Render, located in Frankfurt, EU).
+      </p>
+      <p>We do not sell Google user data to any third party under any circumstances.</p>
+      <p>
+        Google Calendar data is accessed solely for appointment scheduling and availability 
+        checks initiated by the business user. No Google user data is used for advertising, 
+        marketing, or any purpose unrelated to the core scheduling features of our platform.
+      </p>
+
+      <h3 className="text-white font-semibold">7. Data Retention</h3>
       <p>
         We retain your data for as long as your account is active or as needed to provide services. 
         Google Calendar tokens are stored securely and can be revoked at any time through your 
         Google Account settings.
       </p>
 
-      <h3 className="text-white font-semibold">7. Your Rights</h3>
+      <h3 className="text-white font-semibold">8. Your Rights</h3>
       <p>You have the right to:</p>
       <ul className="list-disc list-inside ml-4 space-y-1">
         <li>Access your personal data</li>
@@ -146,7 +159,7 @@ export function PrivacyContent() {
         <li>Export your data</li>
       </ul>
 
-      <h3 className="text-white font-semibold">8. Google API Services User Data Policy</h3>
+      <h3 className="text-white font-semibold">9. Google API Services User Data Policy</h3>
       <p>
         Our use and transfer of information received from Google APIs adheres to the 
         <a href="https://developers.google.com/terms/api-services-user-data-policy" 
@@ -155,7 +168,7 @@ export function PrivacyContent() {
         </a>, including the Limited Use requirements.
       </p>
 
-      <h3 className="text-white font-semibold">9. Contact Us</h3>
+      <h3 className="text-white font-semibold">10. Contact Us</h3>
       <p>
         For questions about this Privacy Policy or to exercise your rights, please contact us:
       </p>
