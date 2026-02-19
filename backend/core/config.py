@@ -59,3 +59,6 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+if not settings.jwt_secret:
+    raise RuntimeError("JWT_SECRET environment variable must be set")

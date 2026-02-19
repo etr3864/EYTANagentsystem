@@ -1,7 +1,8 @@
 """
 Auth API endpoints.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+import time
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from backend.core.database import get_db
@@ -35,23 +36,55 @@ from .schemas import (
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+# --- Login rate limiting (in-memory, per IP) ---
+_MAX_ATTEMPTS = 5
+_WINDOW_SECONDS = 300  # 5 minutes
+_login_attempts: dict[str, list[float]] = {}
+
+
+def _check_rate_limit(ip: str) -> None:
+    """Raise 429 if too many failed login attempts from this IP."""
+    now = time.time()
+    attempts = _login_attempts.get(ip, [])
+    attempts = [t for t in attempts if now - t < _WINDOW_SECONDS]
+    _login_attempts[ip] = attempts
+
+    if len(attempts) >= _MAX_ATTEMPTS:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many login attempts. Try again in a few minutes."
+        )
+
+
+def _record_failed_attempt(ip: str) -> None:
+    _login_attempts.setdefault(ip, []).append(time.time())
+
+
+def _clear_attempts(ip: str) -> None:
+    _login_attempts.pop(ip, None)
+
 
 # ============================================================
 # Public Endpoints
 # ============================================================
 
 @router.post("/login", response_model=TokenResponse)
-def login(request: LoginRequest, db: Session = Depends(get_db)):
+def login(request: LoginRequest, req: Request, db: Session = Depends(get_db)):
     """Authenticate and get access tokens."""
+    client_ip = req.client.host if req.client else "unknown"
+    _check_rate_limit(client_ip)
+
     user = service.authenticate(db, request.email, request.password)
     
     if not user:
+        _record_failed_attempt(client_ip)
         log("AUTH_FAIL", email=request.email)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
         )
     
+    _clear_attempts(client_ip)
     log("AUTH_OK", user_id=user.id, role=user.role.value)
     
     return TokenResponse(

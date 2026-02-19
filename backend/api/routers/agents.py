@@ -31,8 +31,8 @@ def agent_to_response(a) -> dict:
         "id": a.id,
         "name": a.name,
         "phone_number_id": a.phone_number_id,
-        "access_token": a.access_token,
-        "verify_token": a.verify_token,
+        "access_token": _mask_key(a.access_token),
+        "verify_token": _mask_key(a.verify_token),
         "system_prompt": a.system_prompt,
         "appointment_prompt": a.appointment_prompt,
         "model": a.model,
@@ -142,8 +142,11 @@ async def update_agent(
     update_data = {}
     for field in ['name', 'phone_number_id', 'access_token', 'verify_token', 'system_prompt', 'appointment_prompt', 'model', 'is_active', 'provider', 'provider_config', 'media_config']:
         value = getattr(data, field)
-        if value is not None:
-            update_data[field] = value
+        if value is None:
+            continue
+        if field in ('access_token', 'verify_token') and isinstance(value, str) and value.startswith("..."):
+            continue
+        update_data[field] = value
     
     if data.batching_config is not None:
         update_data['batching_config'] = data.batching_config.model_dump()
