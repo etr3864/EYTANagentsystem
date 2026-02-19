@@ -3,12 +3,16 @@ from sqlalchemy.orm import Session
 
 from backend.core.database import get_db
 from backend.services import users
+from backend.auth.models import AuthUser, UserRole
+from backend.auth.dependencies import require_role
+
+_super = Depends(require_role(UserRole.SUPER_ADMIN))
 
 router = APIRouter(tags=["users"])
 
 
 @router.get("")
-def list_users(db: Session = Depends(get_db)):
+def list_users(_: AuthUser = _super, db: Session = Depends(get_db)):
     all_users = users.get_all(db)
     return [{
         "id": u.id,
@@ -22,7 +26,7 @@ def list_users(db: Session = Depends(get_db)):
 
 
 @router.get("/{user_id}")
-def get_user(user_id: int, db: Session = Depends(get_db)):
+def get_user(user_id: int, _: AuthUser = _super, db: Session = Depends(get_db)):
     user = db.query(users.User).filter(users.User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -38,7 +42,7 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/{user_id}")
-def delete_user(user_id: int, db: Session = Depends(get_db)):
+def delete_user(user_id: int, _: AuthUser = _super, db: Session = Depends(get_db)):
     from backend.models.user import User
     from backend.models.conversation import Conversation
     from backend.models.message import Message

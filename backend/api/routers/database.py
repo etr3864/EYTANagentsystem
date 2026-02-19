@@ -2,12 +2,16 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.core.database import get_db
+from backend.auth.models import AuthUser, UserRole
+from backend.auth.dependencies import require_role
+
+_super = Depends(require_role(UserRole.SUPER_ADMIN))
 
 router = APIRouter(tags=["database"])
 
 
 @router.get("/conversations")
-def list_conversations(db: Session = Depends(get_db)):
+def list_conversations(_: AuthUser = _super, db: Session = Depends(get_db)):
     from backend.models.conversation import Conversation
     from backend.models.user import User
     
@@ -27,7 +31,7 @@ def list_conversations(db: Session = Depends(get_db)):
 
 
 @router.get("/messages")
-def list_messages(limit: int = 100, db: Session = Depends(get_db)):
+def list_messages(limit: int = 100, _: AuthUser = _super, db: Session = Depends(get_db)):
     from backend.models.message import Message
     msgs = db.query(Message).order_by(Message.created_at.desc()).limit(limit).all()
     return [{
@@ -43,7 +47,7 @@ def list_messages(limit: int = 100, db: Session = Depends(get_db)):
 
 
 @router.delete("/messages/{msg_id}")
-def delete_message(msg_id: int, db: Session = Depends(get_db)):
+def delete_message(msg_id: int, _: AuthUser = _super, db: Session = Depends(get_db)):
     from backend.models.message import Message
     msg = db.query(Message).filter(Message.id == msg_id).first()
     if not msg:
@@ -54,7 +58,7 @@ def delete_message(msg_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/usage")
-def list_usage(db: Session = Depends(get_db)):
+def list_usage(_: AuthUser = _super, db: Session = Depends(get_db)):
     """Get cumulative usage stats per agent, broken down by model."""
     from backend.models.agent import Agent
     
@@ -83,7 +87,7 @@ def list_usage(db: Session = Depends(get_db)):
 
 
 @router.get("/appointments")
-def list_appointments(db: Session = Depends(get_db)):
+def list_appointments(_: AuthUser = _super, db: Session = Depends(get_db)):
     """Get all appointments."""
     from backend.models.appointment import Appointment
     from backend.models.agent import Agent
@@ -115,7 +119,7 @@ def list_appointments(db: Session = Depends(get_db)):
 
 
 @router.delete("/appointments/{apt_id}")
-def delete_appointment(apt_id: int, db: Session = Depends(get_db)):
+def delete_appointment(apt_id: int, _: AuthUser = _super, db: Session = Depends(get_db)):
     """Delete an appointment."""
     from backend.models.appointment import Appointment
     apt = db.query(Appointment).filter(Appointment.id == apt_id).first()
@@ -127,7 +131,7 @@ def delete_appointment(apt_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/reminders")
-def list_reminders(db: Session = Depends(get_db)):
+def list_reminders(_: AuthUser = _super, db: Session = Depends(get_db)):
     """Get all scheduled reminders."""
     from backend.models.scheduled_reminder import ScheduledReminder
     from backend.models.appointment import Appointment
@@ -164,7 +168,7 @@ def list_reminders(db: Session = Depends(get_db)):
 
 
 @router.delete("/reminders/{reminder_id}")
-def delete_reminder(reminder_id: int, db: Session = Depends(get_db)):
+def delete_reminder(reminder_id: int, _: AuthUser = _super, db: Session = Depends(get_db)):
     """Delete a scheduled reminder."""
     from backend.models.scheduled_reminder import ScheduledReminder
     rem = db.query(ScheduledReminder).filter(ScheduledReminder.id == reminder_id).first()
@@ -176,7 +180,7 @@ def delete_reminder(reminder_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/summaries")
-def list_summaries(db: Session = Depends(get_db)):
+def list_summaries(_: AuthUser = _super, db: Session = Depends(get_db)):
     """Get all conversation summaries."""
     from backend.models.conversation_summary import ConversationSummary
     from backend.models.agent import Agent
@@ -210,7 +214,7 @@ def list_summaries(db: Session = Depends(get_db)):
 
 
 @router.delete("/summaries/{summary_id}")
-def delete_summary(summary_id: int, db: Session = Depends(get_db)):
+def delete_summary(summary_id: int, _: AuthUser = _super, db: Session = Depends(get_db)):
     """Delete a conversation summary."""
     from backend.models.conversation_summary import ConversationSummary
     s = db.query(ConversationSummary).filter(ConversationSummary.id == summary_id).first()
@@ -222,7 +226,7 @@ def delete_summary(summary_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/media")
-def list_media(db: Session = Depends(get_db)):
+def list_media(_: AuthUser = _super, db: Session = Depends(get_db)):
     """Get all agent media files."""
     from backend.models.agent_media import AgentMedia
     from backend.models.agent import Agent
@@ -254,7 +258,7 @@ def list_media(db: Session = Depends(get_db)):
 
 
 @router.delete("/media/{media_id}")
-def delete_media(media_id: int, db: Session = Depends(get_db)):
+def delete_media(media_id: int, _: AuthUser = _super, db: Session = Depends(get_db)):
     """Delete an agent media file."""
     from backend.models.agent_media import AgentMedia
     m = db.query(AgentMedia).filter(AgentMedia.id == media_id).first()
@@ -266,7 +270,7 @@ def delete_media(media_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/followups")
-def list_followups(db: Session = Depends(get_db)):
+def list_followups(_: AuthUser = _super, db: Session = Depends(get_db)):
     """Get all scheduled follow-ups."""
     from backend.models.scheduled_followup import ScheduledFollowup
     from backend.models.agent import Agent
@@ -300,7 +304,7 @@ def list_followups(db: Session = Depends(get_db)):
 
 
 @router.delete("/followups/{followup_id}")
-def delete_followup(followup_id: int, db: Session = Depends(get_db)):
+def delete_followup(followup_id: int, _: AuthUser = _super, db: Session = Depends(get_db)):
     """Delete a scheduled follow-up."""
     from backend.models.scheduled_followup import ScheduledFollowup
     fu = db.query(ScheduledFollowup).filter(ScheduledFollowup.id == followup_id).first()
@@ -312,7 +316,7 @@ def delete_followup(followup_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/templates")
-def list_templates(db: Session = Depends(get_db)):
+def list_templates(_: AuthUser = _super, db: Session = Depends(get_db)):
     """List all WhatsApp templates across all agents."""
     from backend.models.whatsapp_template import WhatsAppTemplate
     from backend.models.agent import Agent
@@ -335,7 +339,7 @@ def list_templates(db: Session = Depends(get_db)):
 
 
 @router.delete("/templates/{template_id}")
-def delete_template_db(template_id: int, db: Session = Depends(get_db)):
+def delete_template_db(template_id: int, _: AuthUser = _super, db: Session = Depends(get_db)):
     """Delete a template from DB (does NOT delete from Meta)."""
     from backend.models.whatsapp_template import WhatsAppTemplate
     t = db.query(WhatsAppTemplate).filter(WhatsAppTemplate.id == template_id).first()

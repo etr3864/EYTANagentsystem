@@ -13,6 +13,8 @@ from backend.services.summaries import (
     send_test_webhook,
     DEFAULT_SUMMARY_PROMPT
 )
+from backend.auth.models import AuthUser
+from backend.auth.dependencies import AgentAccessChecker
 
 
 router = APIRouter(prefix="/summaries", tags=["summaries"])
@@ -66,7 +68,7 @@ class SummaryConfigUpdate(BaseModel):
 
 
 @router.get("/{agent_id}/config")
-async def get_config(agent_id: int, db: Session = Depends(get_db)):
+async def get_config(agent_id: int, _: AuthUser = Depends(AgentAccessChecker()), db: Session = Depends(get_db)):
     """Get summary configuration for an agent."""
     agent = agents.get_by_id(db, agent_id)
     if not agent:
@@ -90,6 +92,7 @@ async def get_config(agent_id: int, db: Session = Depends(get_db)):
 async def update_config(
     agent_id: int, 
     config: SummaryConfigUpdate, 
+    _: AuthUser = Depends(AgentAccessChecker()),
     db: Session = Depends(get_db)
 ):
     """Update summary configuration for an agent."""
@@ -124,7 +127,7 @@ async def update_config(
 
 
 @router.post("/{agent_id}/test-webhook")
-async def test_webhook_endpoint(agent_id: int, db: Session = Depends(get_db)):
+async def test_webhook_endpoint(agent_id: int, _: AuthUser = Depends(AgentAccessChecker()), db: Session = Depends(get_db)):
     """Send a test webhook to verify the URL works."""
     agent = agents.get_by_id(db, agent_id)
     if not agent:
