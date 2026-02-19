@@ -158,6 +158,7 @@ async def _build_from_ai(
     ai_prompt: str, 
     variables: dict, 
     fallback_template: str,
+    timezone: str = "Asia/Jerusalem",
     agent_personality: str = "",
     conversation_history: str = ""
 ) -> str:
@@ -167,15 +168,19 @@ async def _build_from_ai(
         ai_prompt: Custom instructions from user
         variables: Template variables (customer_name, date, etc.)
         fallback_template: Template to use if AI fails
+        timezone: Agent timezone for current time context
         agent_personality: First part of agent's system prompt (optional)
         conversation_history: Recent messages with customer (optional)
     """
     if not ai_prompt:
         return _build_from_template(fallback_template, variables)
     
-    # Build context with all available info
+    now = now_local(timezone)
+    
     context_parts = [
         "צור הודעת תזכורת לפגישה עבור הלקוח.",
+        "",
+        f"עכשיו: {now.strftime('%d/%m/%Y %H:%M')} (יום {_get_hebrew_day(now.weekday())})",
         "",
         "פרטי הפגישה:",
         f"- כותרת: {variables['title']}",
@@ -278,14 +283,16 @@ async def build_reminder_content(
     template = reminder.template or DEFAULT_TEMPLATE
     
     if reminder.content_type == ReminderContentType.AI:
-        # Get additional context for better AI generation
         agent_personality = _get_agent_personality(agent)
         conversation_history = _get_conversation_context(db, agent.id, user.id)
+        calendar_config = agent.calendar_config or {}
+        timezone = calendar_config.get("timezone", "Asia/Jerusalem")
         
         return await _build_from_ai(
             reminder.ai_prompt, 
             variables, 
             template,
+            timezone,
             agent_personality,
             conversation_history
         )
