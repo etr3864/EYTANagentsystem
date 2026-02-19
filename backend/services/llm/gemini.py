@@ -186,7 +186,7 @@ class GeminiProvider:
         tool_calls = []
         media_actions = []
         
-        if response.candidates and response.candidates[0].content:
+        if response.candidates and response.candidates[0].content and response.candidates[0].content.parts:
             for part in response.candidates[0].content.parts:
                 if hasattr(part, 'text') and part.text:
                     text_response = part.text
@@ -269,7 +269,7 @@ class GeminiProvider:
             contents=[types.Content(role="user", parts=[types.Part(text=prompt)])],
             config=config,
         )
-        if response.candidates and response.candidates[0].content:
+        if response.candidates and response.candidates[0].content and response.candidates[0].content.parts:
             for part in response.candidates[0].content.parts:
                 if hasattr(part, "text") and part.text:
                     return part.text.strip()
