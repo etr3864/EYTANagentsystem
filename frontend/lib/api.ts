@@ -14,7 +14,8 @@ function getAuthHeaders(): HeadersInit {
 }
 
 // Helper for authenticated fetch
-async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
+export { API_URL };
+export async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const headers = {
     ...getAuthHeaders(),
     ...options.headers,

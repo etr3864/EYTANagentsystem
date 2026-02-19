@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Button, Card, CardHeader } from '@/components/ui';
 import { Input, Textarea } from '@/components/ui/Input';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { authFetch, API_URL } from '@/lib/api';
 
 interface SummaryConfig {
   enabled: boolean;
@@ -35,7 +34,7 @@ export function SummaryTab({ agentId }: SummaryTabProps) {
 
   async function loadConfig() {
     try {
-      const res = await fetch(`${API_URL}/api/summaries/${agentId}/config`);
+      const res = await authFetch(`${API_URL}/api/summaries/${agentId}/config`);
       if (res.ok) {
         const data = await res.json();
         setConfig(data);
@@ -58,7 +57,7 @@ export function SummaryTab({ agentId }: SummaryTabProps) {
     
     setSaving(true);
     try {
-      const res = await fetch(`${API_URL}/api/summaries/${agentId}/config`, {
+      const res = await authFetch(`${API_URL}/api/summaries/${agentId}/config`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),
@@ -83,7 +82,7 @@ export function SummaryTab({ agentId }: SummaryTabProps) {
     
     setSaving(true);
     try {
-      const res = await fetch(`${API_URL}/api/summaries/${agentId}/config`, {
+      const res = await authFetch(`${API_URL}/api/summaries/${agentId}/config`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled: !config.enabled }),
@@ -108,7 +107,7 @@ export function SummaryTab({ agentId }: SummaryTabProps) {
     
     setTestingWebhook(true);
     try {
-      const res = await fetch(`${API_URL}/api/summaries/${agentId}/test-webhook`, {
+      const res = await authFetch(`${API_URL}/api/summaries/${agentId}/test-webhook`, {
         method: 'POST',
       });
       

@@ -9,7 +9,10 @@ from backend.core.database import get_db
 from backend.core.config import settings
 from backend.core.logger import log_error
 from backend.services import agents, calendar, appointments
+from backend.auth.models import AuthUser
+from backend.auth.dependencies import AgentAccessChecker
 
+_agent_auth = Depends(AgentAccessChecker())
 
 router = APIRouter(prefix="/calendar", tags=["calendar"])
 
@@ -47,6 +50,7 @@ class CalendarConfigUpdate(BaseModel):
 async def get_oauth_url(
     agent_id: int, 
     request: Request, 
+    _: AuthUser = _agent_auth,
     db: Session = Depends(get_db)
 ):
     """Get Google OAuth URL for calendar connection."""
@@ -115,7 +119,7 @@ async def oauth_callback(code: str, state: str, request: Request, db: Session = 
 
 
 @router.get("/{agent_id}/calendars")
-async def list_calendars(agent_id: int, db: Session = Depends(get_db)):
+async def list_calendars(agent_id: int, _: AuthUser = _agent_auth, db: Session = Depends(get_db)):
     """List available Google calendars for the agent."""
     agent = agents.get_by_id(db, agent_id)
     if not agent:
@@ -140,7 +144,7 @@ async def list_calendars(agent_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{agent_id}/config")
-async def get_config(agent_id: int, db: Session = Depends(get_db)):
+async def get_config(agent_id: int, _: AuthUser = _agent_auth, db: Session = Depends(get_db)):
     """Get calendar configuration for an agent."""
     agent = agents.get_by_id(db, agent_id)
     if not agent:
@@ -165,7 +169,7 @@ async def get_config(agent_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{agent_id}/config")
-async def update_config(agent_id: int, config: CalendarConfigUpdate, db: Session = Depends(get_db)):
+async def update_config(agent_id: int, config: CalendarConfigUpdate, _: AuthUser = _agent_auth, db: Session = Depends(get_db)):
     """Update calendar configuration for an agent."""
     agent = agents.get_by_id(db, agent_id)
     if not agent:
@@ -201,7 +205,7 @@ async def update_config(agent_id: int, config: CalendarConfigUpdate, db: Session
 
 
 @router.delete("/{agent_id}/disconnect")
-async def disconnect_calendar(agent_id: int, db: Session = Depends(get_db)):
+async def disconnect_calendar(agent_id: int, _: AuthUser = _agent_auth, db: Session = Depends(get_db)):
     """Disconnect Google Calendar from agent."""
     agent = agents.get_by_id(db, agent_id)
     if not agent:
@@ -212,7 +216,7 @@ async def disconnect_calendar(agent_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{agent_id}/approved-templates")
-def list_approved_templates(agent_id: int, db: Session = Depends(get_db)):
+def list_approved_templates(agent_id: int, _: AuthUser = _agent_auth, db: Session = Depends(get_db)):
     """List approved WhatsApp templates available for reminders (Meta only)."""
     from backend.models.whatsapp_template import WhatsAppTemplate
 
@@ -249,6 +253,7 @@ class TestReminderRequest(BaseModel):
 async def send_test_reminder(
     agent_id: int,
     request: TestReminderRequest,
+    _: AuthUser = _agent_auth,
     db: Session = Depends(get_db)
 ):
     """Send a test reminder to verify the rule works."""
@@ -336,6 +341,7 @@ async def check_availability(
     start_date: str,
     end_date: str,
     duration: int = None,
+    _: AuthUser = _agent_auth,
     db: Session = Depends(get_db)
 ):
     """Check available time slots for an agent."""

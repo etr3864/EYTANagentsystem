@@ -1,14 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { getFollowupConfig, updateFollowupConfig, getFollowupStats } from '@/lib/api';
+import { getFollowupConfig, updateFollowupConfig, getFollowupStats, authFetch, API_URL } from '@/lib/api';
 import type { FollowupConfig, FollowupStats, FollowupStep, FollowupMetaTemplate, Provider } from '@/lib/types';
 import { ModelSelect } from '@/components/ui/ModelSelect';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL
-  || (typeof window !== 'undefined' && window.location.hostname.includes('onrender.com')
-    ? 'https://whatsapp-backend-6wwn.onrender.com'
-    : 'http://localhost:8000');
 
 interface ApprovedTemplate {
   name: string;
@@ -306,7 +301,7 @@ export default function FollowUpTab({ agentId, provider }: FollowUpTabProps) {
       setStats(st);
 
       if (isMeta) {
-        const res = await fetch(`${API_URL}/api/calendar/${agentId}/approved-templates`);
+        const res = await authFetch(`${API_URL}/api/calendar/${agentId}/approved-templates`);
         if (res.ok) setApprovedTemplates(await res.json());
       }
     } catch {

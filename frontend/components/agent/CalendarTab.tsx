@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Button, Card, CardHeader } from '@/components/ui';
 import { Input, Select, Textarea } from '@/components/ui/Input';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { authFetch, API_URL } from '@/lib/api';
 
 interface WorkingHours {
   [day: string]: { start: string; end: string } | null;
@@ -124,7 +123,7 @@ function TestButton({ agentId, index }: { agentId: number; index: number }) {
     setSending(true);
     setTestResult(null);
     try {
-      const res = await fetch(`${API_URL}/api/calendar/${agentId}/test-reminder`, {
+      const res = await authFetch(`${API_URL}/api/calendar/${agentId}/test-reminder`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: testPhone.replace(/\D/g, ''), rule_index: index }),
@@ -407,7 +406,7 @@ export function CalendarTab({
 
   async function loadConfig() {
     try {
-      const res = await fetch(`${API_URL}/api/calendar/${agentId}/config`);
+      const res = await authFetch(`${API_URL}/api/calendar/${agentId}/config`);
       if (res.ok) {
         const data = await res.json();
         setConfig(data);
@@ -426,7 +425,7 @@ export function CalendarTab({
 
   async function loadCalendars() {
     try {
-      const res = await fetch(`${API_URL}/api/calendar/${agentId}/calendars`);
+      const res = await authFetch(`${API_URL}/api/calendar/${agentId}/calendars`);
       if (res.ok) {
         const data = await res.json();
         setCalendars(data.calendars || []);
@@ -438,7 +437,7 @@ export function CalendarTab({
 
   async function loadApprovedTemplates() {
     try {
-      const res = await fetch(`${API_URL}/api/calendar/${agentId}/approved-templates`);
+      const res = await authFetch(`${API_URL}/api/calendar/${agentId}/approved-templates`);
       if (res.ok) {
         setApprovedTemplates(await res.json());
       }
@@ -449,7 +448,7 @@ export function CalendarTab({
 
   async function loadSummaryStatus() {
     try {
-      const res = await fetch(`${API_URL}/api/summaries/${agentId}/config`);
+      const res = await authFetch(`${API_URL}/api/summaries/${agentId}/config`);
       if (res.ok) {
         const data = await res.json();
         setSummaryEnabled(data.enabled === true);
@@ -462,7 +461,7 @@ export function CalendarTab({
   async function handleConnect() {
     setConnecting(true);
     try {
-      const res = await fetch(`${API_URL}/api/calendar/${agentId}/oauth-url`);
+      const res = await authFetch(`${API_URL}/api/calendar/${agentId}/oauth-url`);
       const data = await res.json();
       if (data.url) {
         window.location.href = data.url;
@@ -478,7 +477,7 @@ export function CalendarTab({
     if (!confirm('לנתק את חיבור Google Calendar?')) return;
     
     try {
-      await fetch(`${API_URL}/api/calendar/${agentId}/disconnect`, { method: 'DELETE' });
+      await authFetch(`${API_URL}/api/calendar/${agentId}/disconnect`, { method: 'DELETE' });
       setConfig({});
       setCalendars([]);
     } catch (e) {
@@ -488,7 +487,7 @@ export function CalendarTab({
 
   async function saveConfig(newConfig: CalendarConfig) {
     try {
-      await fetch(`${API_URL}/api/calendar/${agentId}/config`, {
+      await authFetch(`${API_URL}/api/calendar/${agentId}/config`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newConfig),
