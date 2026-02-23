@@ -396,6 +396,7 @@ export function CalendarTab({
   const [summaryEnabled, setSummaryEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
+  const [tokenExpired, setTokenExpired] = useState(false);
   const isMeta = provider === 'meta';
 
   useEffect(() => {
@@ -429,6 +430,12 @@ export function CalendarTab({
       if (res.ok) {
         const data = await res.json();
         setCalendars(data.calendars || []);
+        setTokenExpired(false);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        if (data.detail === 'google_token_expired') {
+          setTokenExpired(true);
+        }
       }
     } catch (e) {
       console.error('Failed to load calendars:', e);
@@ -538,18 +545,35 @@ export function CalendarTab({
         
         {isConnected ? (
           <div className="space-y-4">
-            <div className="flex items-center gap-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-              <span className="text-emerald-400 text-xl">✓</span>
-              <span className="text-emerald-300">מחובר ל-Google Calendar</span>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={handleDisconnect}
-                className="mr-auto text-red-400 hover:text-red-300"
-              >
-                נתק
-              </Button>
-            </div>
+            {tokenExpired ? (
+              <div className="flex items-center gap-3 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                <span className="text-amber-400 text-xl">!</span>
+                <span className="text-amber-300">פג תוקף החיבור ל-Google Calendar</span>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={handleConnect}
+                  disabled={connecting}
+                  loading={connecting}
+                  className="mr-auto text-blue-400 hover:text-blue-300"
+                >
+                  התחבר מחדש
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                <span className="text-emerald-400 text-xl">✓</span>
+                <span className="text-emerald-300">מחובר ל-Google Calendar</span>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={handleDisconnect}
+                  className="mr-auto text-red-400 hover:text-red-300"
+                >
+                  נתק
+                </Button>
+              </div>
+            )}
 
             {/* Calendar Selection */}
             <div className="space-y-3">

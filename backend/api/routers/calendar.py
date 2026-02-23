@@ -133,7 +133,7 @@ async def list_calendars(agent_id: int, _: AuthUser = _agent_auth, db: Session =
     
     result = await calendar.get_valid_access_token(tokens)
     if not result:
-        raise HTTPException(status_code=401, detail="Token expired, please reconnect")
+        raise HTTPException(status_code=400, detail="google_token_expired")
     
     access_token, updated_tokens = result
     if updated_tokens != tokens:
