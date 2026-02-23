@@ -12,6 +12,7 @@ import { LegalFooter } from '@/components/ui/LegalModals';
 function HomePage() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
   const { user, logout } = useAuth();
 
   useEffect(() => {
@@ -134,6 +135,30 @@ function HomePage() {
           </Card>
         ) : (
           <div className="space-y-4">
+            {/* Search */}
+            <div className="relative">
+              <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="חיפוש סוכן..."
+                className="w-full bg-slate-800/50 border border-slate-700 rounded-xl py-2.5 pr-10 pl-10 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50 transition"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+
             {/* Stats Bar */}
             <div className="grid grid-cols-3 gap-2 md:gap-4 mb-6">
               <Card padding="sm" className="text-center">
@@ -155,7 +180,16 @@ function HomePage() {
             </div>
 
             {/* Agent Cards */}
-            {agents.map((agent, index) => (
+            {(() => {
+              const filtered = agents.filter(a => a.name.toLowerCase().includes(search.toLowerCase()));
+              if (filtered.length === 0 && search) {
+                return (
+                  <div className="text-center py-8 text-slate-500 text-sm">
+                    לא נמצאו סוכנים עבור &quot;{search}&quot;
+                  </div>
+                );
+              }
+              return filtered.map((agent, index) => (
               <Card 
                 key={agent.id} 
                 hover 
@@ -247,7 +281,8 @@ function HomePage() {
                   </div>
                 </div>
               </Card>
-            ))}
+            ));
+            })()}
           </div>
         )}
       </main>
