@@ -185,7 +185,7 @@ class AnthropicProvider:
                     media_actions.append(result_data["result"])
                     result = f"מדיה '{result_data['result'].get('name', '')}' תישלח ללקוח."
                 else:
-                    result = result_data["result"]
+                    result = str(result_data["result"]) if not isinstance(result_data["result"], str) else result_data["result"]
                 
                 tool_results.append({
                     "type": "tool_result",
