@@ -44,6 +44,7 @@ def agent_to_response(a) -> dict:
         "media_config": a.media_config,
         "followup_config": a.followup_config,
         "custom_api_keys": masked_keys,
+        "context_summary_config": a.context_summary_config,
         "created_at": a.created_at.isoformat() if a.created_at else None
     }
 
@@ -150,6 +151,9 @@ async def update_agent(
     
     if data.batching_config is not None:
         update_data['batching_config'] = data.batching_config.model_dump()
+
+    if data.context_summary_config is not None:
+        update_data['context_summary_config'] = data.context_summary_config
 
     if data.custom_api_keys is not None:
         current = existing.custom_api_keys or {}

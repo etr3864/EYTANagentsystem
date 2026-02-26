@@ -4,7 +4,7 @@ import { Button, Card, CardHeader } from '@/components/ui';
 import { Input, NumberInput } from '@/components/ui/Input';
 import { ModelSelect } from '@/components/ui/ModelSelect';
 import { ProviderSelector } from '@/components/agent/ProviderSelector';
-import type { AgentBatchingConfig, Provider, WaSenderConfig, CustomApiKeys } from '@/lib/types';
+import type { AgentBatchingConfig, ContextSummaryConfig, Provider, WaSenderConfig, CustomApiKeys } from '@/lib/types';
 
 interface SettingsTabProps {
   agentId: number;
@@ -17,6 +17,7 @@ interface SettingsTabProps {
   providerConfig: WaSenderConfig | Record<string, never>;
   batchingConfig: AgentBatchingConfig;
   customApiKeys: CustomApiKeys;
+  contextSummaryConfig: ContextSummaryConfig;
   onNameChange: (v: string) => void;
   onPhoneNumberIdChange: (v: string) => void;
   onAccessTokenChange: (v: string) => void;
@@ -26,15 +27,16 @@ interface SettingsTabProps {
   onProviderConfigChange: (config: WaSenderConfig) => void;
   onBatchingConfigChange: (config: AgentBatchingConfig) => void;
   onCustomApiKeysChange: (keys: CustomApiKeys) => void;
+  onContextSummaryConfigChange: (config: ContextSummaryConfig) => void;
   onSave: () => void;
   saving: boolean;
 }
 
 export function SettingsTab({
   agentId, name, phoneNumberId, accessToken, verifyToken, model, provider, providerConfig, batchingConfig,
-  customApiKeys, onNameChange, onPhoneNumberIdChange, onAccessTokenChange, onVerifyTokenChange, 
+  customApiKeys, contextSummaryConfig, onNameChange, onPhoneNumberIdChange, onAccessTokenChange, onVerifyTokenChange, 
   onModelChange, onProviderChange, onProviderConfigChange, onBatchingConfigChange,
-  onCustomApiKeysChange, onSave, saving
+  onCustomApiKeysChange, onContextSummaryConfigChange, onSave, saving
 }: SettingsTabProps) {
   return (
     <div className="space-y-6">
@@ -126,6 +128,64 @@ export function SettingsTab({
             hint="מומלץ: 15-30 הודעות"
           />
         </div>
+      </Card>
+
+      {/* Context Summary (Long Conversation Memory) */}
+      <Card>
+        <CardHeader>🧠 זיכרון שיחה ארוכה</CardHeader>
+        <p className="text-sm text-slate-400 mb-4">
+          כשהשיחה ארוכה, הסוכן יסכם את ההודעות הישנות כדי לזכור יותר בפחות מקום
+        </p>
+
+        <label className="flex items-center gap-3 mb-5 cursor-pointer">
+          <div 
+            className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${contextSummaryConfig.enabled ? 'bg-blue-500' : 'bg-slate-600'}`}
+            onClick={() => onContextSummaryConfigChange({ ...contextSummaryConfig, enabled: !contextSummaryConfig.enabled })}
+          >
+            <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${contextSummaryConfig.enabled ? 'translate-x-[1.375rem]' : 'translate-x-0.5'}`} />
+          </div>
+          <span className="text-sm text-slate-300">
+            {contextSummaryConfig.enabled ? 'פעיל' : 'כבוי'}
+          </span>
+        </label>
+
+        {contextSummaryConfig.enabled && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <NumberInput
+              label="סכם כל X הודעות"
+              min={5}
+              max={100}
+              value={contextSummaryConfig.message_threshold}
+              onChange={e => onContextSummaryConfigChange({
+                ...contextSummaryConfig,
+                message_threshold: parseInt(e.target.value) || 20,
+              })}
+              hint="מאז הסיכום האחרון"
+            />
+            <NumberInput
+              label="הודעות אחרונות לשמור"
+              min={5}
+              max={100}
+              value={contextSummaryConfig.messages_after_summary}
+              onChange={e => onContextSummaryConfigChange({
+                ...contextSummaryConfig,
+                messages_after_summary: parseInt(e.target.value) || 20,
+              })}
+              hint="נשלחות ל-AI אחרי הסיכום"
+            />
+            <NumberInput
+              label="סיכום מלא כל X גלים"
+              min={1}
+              max={20}
+              value={contextSummaryConfig.full_summary_every}
+              onChange={e => onContextSummaryConfigChange({
+                ...contextSummaryConfig,
+                full_summary_every: parseInt(e.target.value) || 5,
+              })}
+              hint="מונע הצטברות שגיאות"
+            />
+          </div>
+        )}
       </Card>
 
       {/* Custom API Keys */}

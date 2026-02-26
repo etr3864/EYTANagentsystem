@@ -9,6 +9,7 @@ from backend.models.scheduled_reminder import ScheduledReminder
 from backend.models.conversation_summary import ConversationSummary
 from backend.models.agent_media import AgentMedia
 from backend.models.scheduled_followup import ScheduledFollowup
+from backend.models.conversation_context_summary import ConversationContextSummary
 
 # Auth models (imported last to avoid circular imports)
 from backend.auth.models import AuthUser, UserRole

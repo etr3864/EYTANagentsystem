@@ -257,15 +257,17 @@ class GeminiProvider:
             media_actions=media_actions
         )
 
-    async def generate_simple_response(self, prompt: str) -> str:
+    async def generate_simple_response(
+        self, prompt: str, model: str = "gemini-2.0-flash", max_tokens: int = 300
+    ) -> str:
         """Generate a simple text response without tools (for follow-ups, reminders)."""
         config = types.GenerateContentConfig(
-            max_output_tokens=300,
+            max_output_tokens=max_tokens,
             temperature=0.7,
         )
         response = await self._call_with_retry(
             "generate_content",
-            model="gemini-2.0-flash",
+            model=model,
             contents=[types.Content(role="user", parts=[types.Part(text=prompt)])],
             config=config,
         )

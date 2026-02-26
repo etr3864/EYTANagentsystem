@@ -111,6 +111,10 @@ class Agent(Base):
     # {"anthropic": "sk-...", "openai": "sk-...", "google": "AIza-..."}
     custom_api_keys: Mapped[Optional[dict]] = mapped_column(JSON, default=None)
 
+    # Context summary config (JSON) — rolling conversation memory
+    # {"enabled": false, "message_threshold": 20, "messages_after_summary": 20, "full_summary_every": 5}
+    context_summary_config: Mapped[Optional[dict]] = mapped_column(JSON, default=None)
+
     conversations: Mapped[list["Conversation"]] = relationship(back_populates="agent", passive_deletes=True)
     appointments: Mapped[list["Appointment"]] = relationship(back_populates="agent", passive_deletes=True)
     

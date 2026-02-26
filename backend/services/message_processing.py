@@ -152,12 +152,14 @@ async def process_batched_messages(
         combined_text = "\n".join(msg.text for msg in pending_msgs)
         log_message(agent.name, display_name, combined_text, len(pending_msgs), has_images, provider=provider)
         
-        # Prepare history
-        history = messages.get_history(db, conv.id)
-        history = history[:-len(pending_msgs)]
-        
-        if len(history) > max_history:
-            history = history[-max_history:]
+        # Prepare history (use context summary if available)
+        from backend.services.context_summary.history import get_history_with_summary
+        history = get_history_with_summary(db, conv.id, agent, len(pending_msgs))
+        if history is None:
+            history = messages.get_history(db, conv.id)
+            history = history[:-len(pending_msgs)]
+            if len(history) > max_history:
+                history = history[-max_history:]
 
         # Load knowledge context
         knowledge_context = knowledge.get_context(db, agent_id)
@@ -249,8 +251,21 @@ async def process_batched_messages(
 
         # Set follow-up timer if enabled for this agent
         await _set_followup_timer_if_enabled(agent, conv)
+
+        _enqueue_context_summary_if_needed(db, agent, conv.id)
     finally:
         db.close()
+
+
+def _enqueue_context_summary_if_needed(db, agent, conversation_id: int) -> None:
+    try:
+        from backend.services.context_summary.triggers import should_trigger_summary
+        if not should_trigger_summary(db, agent, conversation_id):
+            return
+        from backend.tasks.context_summary import run_context_summary_task
+        run_context_summary_task.delay(conversation_id, agent.id)
+    except Exception as e:
+        log_error("CONTEXT_SUMMARY", f"enqueue failed: {str(e)[:80]}")
 
 
 async def _set_followup_timer_if_enabled(agent, conv) -> None:

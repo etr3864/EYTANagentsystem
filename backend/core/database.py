@@ -145,6 +145,13 @@ def _run_migration_statements(conn):
         END $$;
     """))
 
+    conn.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE agents ADD COLUMN context_summary_config JSON;
+        EXCEPTION WHEN duplicate_column THEN null;
+        END $$;
+    """))
+
     conn.commit()
 
 

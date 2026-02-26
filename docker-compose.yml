@@ -38,6 +38,17 @@ services:
       - /app/node_modules
       - /app/.next
 
+  celery_worker:
+    build: .
+    command: celery -A backend.celery_app worker --loglevel=warning --concurrency=4
+    env_file: .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
   db:
     image: pgvector/pgvector:pg16
     environment:

@@ -20,7 +20,7 @@ import {
   getAgentMedia, uploadAgentMedia, updateAgentMedia, deleteAgentMedia,
   type MediaUploadData
 } from '@/lib/api';
-import type { Agent, AgentBatchingConfig, Conversation, Message, Document, DataTable, Provider, WaSenderConfig, AgentMedia, MediaConfig, CustomApiKeys } from '@/lib/types';
+import type { Agent, AgentBatchingConfig, ContextSummaryConfig, Conversation, Message, Document, DataTable, Provider, WaSenderConfig, AgentMedia, MediaConfig, CustomApiKeys } from '@/lib/types';
 
 type Tab = 'prompt' | 'conversations' | 'knowledge' | 'media' | 'templates' | 'calendar' | 'followups' | 'summaries' | 'settings';
 
@@ -93,6 +93,9 @@ function AgentPage() {
     max_history_messages: 20 
   });
   const [customApiKeys, setCustomApiKeys] = useState<CustomApiKeys>({});
+  const [contextSummaryConfig, setContextSummaryConfig] = useState<ContextSummaryConfig>({
+    enabled: false, message_threshold: 20, messages_after_summary: 20, full_summary_every: 5,
+  });
 
   // Conversations state
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -161,6 +164,9 @@ function AgentPage() {
       });
       setMediaConfig(data.media_config || null);
       setCustomApiKeys(data.custom_api_keys || {});
+      setContextSummaryConfig(data.context_summary_config || {
+        enabled: false, message_threshold: 20, messages_after_summary: 20, full_summary_every: 5,
+      });
     } catch (e) {
       console.error(e);
     } finally {
@@ -254,6 +260,7 @@ function AgentPage() {
         provider_config: providerConfig,
         batching_config: batchingConfig,
         custom_api_keys: customApiKeys,
+        context_summary_config: contextSummaryConfig,
       });
       // Refresh agent so visibleTabs recalculates (e.g. templates tab after WABA ID saved)
       const fresh = await getAgent(agentId);
@@ -609,6 +616,7 @@ function AgentPage() {
               providerConfig={providerConfig}
               batchingConfig={batchingConfig}
               customApiKeys={customApiKeys}
+              contextSummaryConfig={contextSummaryConfig}
               onNameChange={setName}
               onPhoneNumberIdChange={setPhoneNumberId}
               onAccessTokenChange={setAccessToken}
@@ -618,6 +626,7 @@ function AgentPage() {
               onProviderConfigChange={setProviderConfig}
               onBatchingConfigChange={setBatchingConfig}
               onCustomApiKeysChange={setCustomApiKeys}
+              onContextSummaryConfigChange={setContextSummaryConfig}
               onSave={handleSaveSettings}
               saving={saving}
             />

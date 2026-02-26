@@ -231,11 +231,13 @@ class OpenAIProvider:
             media_actions=media_actions
         )
 
-    async def generate_simple_response(self, prompt: str) -> str:
+    async def generate_simple_response(
+        self, prompt: str, model: str = "gpt-4o-mini", max_tokens: int = 300
+    ) -> str:
         """Generate a simple text response without tools (for follow-ups, reminders)."""
         response = await self._call_with_retry(
-            model="gpt-4o-mini",
+            model=model,
             messages=[{"role": "user", "content": prompt}],
-            max_completion_tokens=300,
+            max_completion_tokens=max_tokens,
         )
         return (response.choices[0].message.content or "").strip()

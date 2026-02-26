@@ -14,6 +14,13 @@ export interface AgentBatchingConfig {
   max_history_messages: number;
 }
 
+export interface ContextSummaryConfig {
+  enabled: boolean;
+  message_threshold: number;
+  messages_after_summary: number;
+  full_summary_every: number;
+}
+
 // ============ Provider Config ============
 export type Provider = 'meta' | 'wasender';
 
@@ -47,6 +54,7 @@ export interface Agent {
   media_config: MediaConfig | null;
   followup_config: FollowupConfig | null;
   custom_api_keys: CustomApiKeys | null;
+  context_summary_config: ContextSummaryConfig | null;
   created_at: string | null;
 }
 
@@ -76,6 +84,7 @@ export interface AgentUpdate {
   batching_config?: AgentBatchingConfig;
   media_config?: MediaConfig | null;
   custom_api_keys?: CustomApiKeys | null;
+  context_summary_config?: ContextSummaryConfig | null;
 }
 
 // ============ User ============
