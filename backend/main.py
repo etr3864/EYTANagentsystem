@@ -5,6 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
+from sqlalchemy.exc import ProgrammingError
 
 from backend.core.database import engine, Base, init_extensions, run_migrations, SessionLocal
 from backend.core.logger import log, log_error
@@ -13,10 +14,17 @@ from backend.auth import auth_router
 from backend.services import scheduler
 
 
+_DUPLICATE_TABLE_PGCODE = "42P07"
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_extensions()
-    Base.metadata.create_all(bind=engine)
+    try:
+        Base.metadata.create_all(bind=engine)
+    except ProgrammingError as e:
+        pgcode = getattr(e.orig, "pgcode", None) if e.orig else None
+        if pgcode != _DUPLICATE_TABLE_PGCODE:
+            raise
     run_migrations()
     
     # Start the reminder scheduler as a background task
