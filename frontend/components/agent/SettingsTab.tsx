@@ -137,12 +137,12 @@ export function SettingsTab({
           כשהשיחה ארוכה, הסוכן יסכם את ההודעות הישנות כדי לזכור יותר בפחות מקום
         </p>
 
-        <label className="flex items-center gap-3 mb-5 cursor-pointer">
+        <label className="flex items-center gap-3 mb-5 cursor-pointer" dir="rtl">
           <div 
             className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${contextSummaryConfig.enabled ? 'bg-blue-500' : 'bg-slate-600'}`}
             onClick={() => onContextSummaryConfigChange({ ...contextSummaryConfig, enabled: !contextSummaryConfig.enabled })}
           >
-            <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${contextSummaryConfig.enabled ? 'translate-x-[1.375rem]' : 'translate-x-0.5'}`} />
+            <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${contextSummaryConfig.enabled ? 'translate-x-0.5' : 'translate-x-[1.375rem]'}`} />
           </div>
           <span className="text-sm text-slate-300">
             {contextSummaryConfig.enabled ? 'פעיל' : 'כבוי'}
