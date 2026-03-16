@@ -73,6 +73,7 @@ def get_user_info(user: User) -> dict:
     """Extract user info for AI context."""
     return {
         "name": user.name,
+        "phone": user.phone,
         "gender": user.gender.value if user.gender else "unknown",
         "metadata": user.metadata_
     }

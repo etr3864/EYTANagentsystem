@@ -101,6 +101,8 @@ def build_system_prompt(
     info_parts = []
     if user_info.get("name"):
         info_parts.append(f"שם: {user_info['name']}")
+    if user_info.get("phone"):
+        info_parts.append(f"טלפון: {user_info['phone']}")
     if user_info.get("gender") and user_info["gender"] != "unknown":
         gender_text = "זכר" if user_info["gender"] == "male" else "נקבה"
         info_parts.append(f"מגדר: {gender_text}")
