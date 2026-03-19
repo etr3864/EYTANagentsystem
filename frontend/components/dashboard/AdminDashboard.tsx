@@ -120,12 +120,12 @@ export function AdminDashboard() {
     <div className="space-y-6" dir="rtl">
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex gap-1.5">
+        <div className="flex flex-wrap gap-1.5">
           {PRESETS.map((p) => (
             <button
               key={p.id}
               onClick={() => p.id !== 'custom' && handlePreset(p.id)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                 preset === p.id
                   ? 'bg-purple-600 text-white'
                   : 'bg-white/5 text-slate-300 hover:bg-white/10'

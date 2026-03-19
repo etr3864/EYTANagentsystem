@@ -122,16 +122,17 @@ export default function HomePage() {
   const dir = lang === 'he' ? 'rtl' : 'ltr';
 
   return (
-    <div dir={dir} className="min-h-screen bg-[#06060E] text-white overflow-hidden">
+    <div dir={dir} className="min-h-screen bg-[var(--bg-primary)] text-white overflow-hidden">
       {/* Ambient glow */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[800px] h-[800px] rounded-full bg-purple-600/[0.07] blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] rounded-full bg-violet-600/[0.05] blur-[100px]" />
+        <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[800px] h-[800px] rounded-full bg-purple-600/[0.09] blur-[120px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] rounded-full bg-violet-600/[0.07] blur-[100px]" />
+        <div className="absolute top-[40%] left-[-5%] w-[500px] h-[500px] rounded-full bg-purple-800/[0.05] blur-[100px]" />
       </div>
 
       <div className="relative z-10">
         {/* ───── Navbar ───── */}
-        <nav className="border-b border-white/5 backdrop-blur-md bg-[#06060E]/70 sticky top-0 z-50">
+        <nav className="border-b border-white/5 backdrop-blur-md bg-[#0B0914]/70 sticky top-0 z-50">
           <div className="max-w-6xl mx-auto px-5 py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <img src={LOGO_ICON} alt="Optive" className="h-11 w-11 object-contain" />
@@ -243,7 +244,7 @@ export default function HomePage() {
         </section>
 
         {/* ───── Footer ───── */}
-        <footer className="border-t border-white/5 bg-[#06060E]/80 backdrop-blur-sm">
+        <footer className="border-t border-white/5 bg-[#0B0914]/80 backdrop-blur-sm">
           <div className="max-w-6xl mx-auto px-5 py-8">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">

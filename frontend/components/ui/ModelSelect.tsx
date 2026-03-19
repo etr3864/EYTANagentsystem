@@ -19,7 +19,7 @@ const MODEL_GROUPS: ModelGroup[] = [
     provider: 'Anthropic',
     icon: '🧠',
     models: [
-      { value: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5', description: 'מומלץ - מאוזן וחכם' },
+      { value: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', description: 'מומלץ - מאוזן וחכם' },
       { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4', description: 'יציב ומוכח' },
       { value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', description: 'מהיר וחסכוני' },
       { value: 'claude-opus-4-6', label: 'Claude Opus 4.6', description: 'הכי חזק, יקר' },

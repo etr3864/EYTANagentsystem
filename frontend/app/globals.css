@@ -2,9 +2,9 @@
 
 :root {
   /* Optive Brand — Deep Purple/Violet Dark Theme */
-  --bg-primary: #06060E;
-  --bg-secondary: #0F0B1F;
-  --bg-tertiary: #1A1333;
+  --bg-primary: #0B0914;
+  --bg-secondary: #120E24;
+  --bg-tertiary: #1E1538;
   --bg-card: rgba(255, 255, 255, 0.03);
   --bg-hover: rgba(255, 255, 255, 0.06);
 
@@ -118,7 +118,7 @@ body {
 
 /* Glassmorphism */
 .glass {
-  background: rgba(15, 11, 31, 0.7);
+  background: rgba(18, 14, 36, 0.7);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(147, 51, 234, 0.1);

@@ -129,7 +129,7 @@ export default function DatabasePage() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header className="border-b border-purple-500/10 bg-[#06060E]/80 backdrop-blur-sm sticky top-16 z-40">
+      <header className="border-b border-purple-500/10 bg-[#0B0914]/80 backdrop-blur-sm sticky top-16 z-40">
         <div className="max-w-7xl mx-auto px-3 md:px-6 py-3 md:py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 md:gap-3">

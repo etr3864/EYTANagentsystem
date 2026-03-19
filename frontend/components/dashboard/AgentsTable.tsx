@@ -95,7 +95,7 @@ export function AgentsTable({ rows, loading, fromDate, toDate }: Props) {
                   </tr>
                   {isExpanded && (
                     <tr key={`${row.agent_id}-detail`}>
-                      <td colSpan={7} className="px-4 pb-4 bg-[#06060E]/40">
+                      <td colSpan={7} className="px-4 pb-4 bg-[#0B0914]/40">
                         <AgentAccordionDetail
                           agentId={row.agent_id}
                           fromDate={fromDate}

@@ -67,7 +67,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           inline-flex items-center justify-center whitespace-nowrap
           font-medium rounded-lg
           transition-all duration-200 ease-out
-          focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-[#06060E]
+          focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-[#0B0914]
           disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
           ${variants[variant]} 
           ${sizes[size]} 

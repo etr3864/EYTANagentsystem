@@ -26,7 +26,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="he" dir="rtl">
-      <body className={`${inter.className} bg-[#06060E] text-white min-h-screen`}>
+      <body className={`${inter.className} bg-[#0B0914] text-white min-h-screen`}>
         <AuthProvider>
           <AppNavbar />
           <OctopusBackground />

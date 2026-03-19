@@ -21,7 +21,7 @@ interface FormErrors {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-[#06060E]">
+      <div className="min-h-screen flex items-center justify-center bg-[#0B0914]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500" />
       </div>
     }>
@@ -91,7 +91,7 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#06060E] px-4">
+    <div className="min-h-screen flex items-center justify-center bg-[#0B0914] px-4">
       <div className="max-w-md w-full">
         {/* Logo */}
         <div className="text-center mb-8">
@@ -142,7 +142,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-500 hover:to-violet-500 disabled:opacity-50 text-white font-medium rounded-lg transition-all shadow-lg shadow-purple-600/20 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-[#06060E]"
+              className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-500 hover:to-violet-500 disabled:opacity-50 text-white font-medium rounded-lg transition-all shadow-lg shadow-purple-600/20 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-[#0B0914]"
             >
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">

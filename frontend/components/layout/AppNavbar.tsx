@@ -50,7 +50,7 @@ export function AppNavbar() {
 
   return (
     <>
-      <nav className="sticky top-0 z-50 border-b border-purple-500/10 bg-[#06060E]/80 backdrop-blur-xl">
+      <nav className="sticky top-0 z-50 border-b border-purple-500/10 bg-[#0B0914]/80 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-3 md:px-6">
           <div className="flex items-center justify-between h-16">
             {/* Right: Logo + Nav Links */}
