@@ -378,3 +378,61 @@ export interface DashboardStats {
   followup_response_rate: number;
   has_data: boolean;
 }
+
+// ============ Super Admin Dashboard ============
+
+export interface SystemSummary {
+  total_cost_ils: number;
+  total_conversations: number;
+  avg_cost_per_conversation_ils: number;
+  avg_messages_per_conversation: number;
+}
+
+export interface AgentTableRow {
+  agent_id: number;
+  agent_name: string;
+  client_name: string;
+  total_conversations: number;
+  total_messages: number;
+  total_cost_ils: number;
+  avg_cost_per_conversation_ils: number;
+}
+
+export interface AgentPerformanceDetail {
+  total_conversations: number;
+  total_messages: number;
+  avg_messages_per_conversation: number;
+  appointments_scheduled: number;
+  conversion_rate: number;
+  followups_sent: number;
+  followup_response_rate: number;
+}
+
+export interface AgentCostByProvider {
+  anthropic_ils: number;
+  google_ils: number;
+  openai_ils: number;
+  other_ils: number;
+  total_ils: number;
+}
+
+export interface AgentCostBySource {
+  conversation_ils: number;
+  followup_ils: number;
+  context_summary_ils: number;
+  summary_ils: number;
+  reminder_ils: number;
+}
+
+export interface AgentDetail {
+  performance: AgentPerformanceDetail;
+  cost_by_provider: AgentCostByProvider;
+  cost_by_source: AgentCostBySource;
+  total_cost_ils: number;
+  avg_cost_per_conversation_ils: number;
+  total_appointments: number;
+}
+
+export interface PricingConfig {
+  config: Record<string, number>;
+}

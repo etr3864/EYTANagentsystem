@@ -726,5 +726,46 @@ export async function getDashboardStats(
   return res.json();
 }
 
+// ============ Super Admin Dashboard ============
+
+import type { SystemSummary, AgentTableRow, AgentDetail, PricingConfig } from './types';
+
+export async function getSuperAdminSummary(fromDate: string, toDate: string): Promise<SystemSummary> {
+  const params = new URLSearchParams({ from_date: fromDate, to_date: toDate });
+  const res = await authFetch(`${API_URL}/api/super-admin/summary?${params}`);
+  if (!res.ok) throw new Error('Failed to fetch system summary');
+  return res.json();
+}
+
+export async function getSuperAdminAgentsTable(fromDate: string, toDate: string): Promise<AgentTableRow[]> {
+  const params = new URLSearchParams({ from_date: fromDate, to_date: toDate });
+  const res = await authFetch(`${API_URL}/api/super-admin/agents-table?${params}`);
+  if (!res.ok) throw new Error('Failed to fetch agents table');
+  return res.json();
+}
+
+export async function getSuperAdminAgentDetail(agentId: number, fromDate: string, toDate: string): Promise<AgentDetail> {
+  const params = new URLSearchParams({ from_date: fromDate, to_date: toDate });
+  const res = await authFetch(`${API_URL}/api/super-admin/agents/${agentId}/detail?${params}`);
+  if (!res.ok) throw new Error('Failed to fetch agent detail');
+  return res.json();
+}
+
+export async function getPricingConfig(): Promise<PricingConfig> {
+  const res = await authFetch(`${API_URL}/api/super-admin/pricing`);
+  if (!res.ok) throw new Error('Failed to fetch pricing config');
+  return res.json();
+}
+
+export async function updatePricingConfig(updates: Record<string, number>): Promise<PricingConfig> {
+  const res = await authFetch(`${API_URL}/api/super-admin/pricing`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  });
+  if (!res.ok) throw new Error('Failed to update pricing config');
+  return res.json();
+}
+
 // Re-export types
-export type { Agent, AgentCreate, AgentUpdate, AgentBatchingConfig, ContextSummaryConfig, Provider, WaSenderConfig, CustomApiKeys, User, Gender, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DataTable, DbMedia, AgentMedia, MediaConfig, MediaType, WhatsAppTemplate, TemplateCategory, TemplateStatus, DbTemplate, FollowupConfig, FollowupStep, FollowupStats, DbFollowup, DashboardStats } from './types';
+export type { Agent, AgentCreate, AgentUpdate, AgentBatchingConfig, ContextSummaryConfig, Provider, WaSenderConfig, CustomApiKeys, User, Gender, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DataTable, DbMedia, AgentMedia, MediaConfig, MediaType, WhatsAppTemplate, TemplateCategory, TemplateStatus, DbTemplate, FollowupConfig, FollowupStep, FollowupStats, DbFollowup, DashboardStats, SystemSummary, AgentTableRow, AgentDetail, PricingConfig } from './types';

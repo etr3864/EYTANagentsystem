@@ -183,6 +183,21 @@ def _run_migration_statements(conn):
         ON agent_usage_daily (agent_id, date);
     """))
 
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS pricing_config (
+            key VARCHAR(100) PRIMARY KEY,
+            value NUMERIC(18, 6) NOT NULL,
+            updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+        );
+    """))
+
+    from backend.models.pricing_config import PRICING_DEFAULTS
+    for key, value in PRICING_DEFAULTS.items():
+        conn.execute(
+            text("INSERT INTO pricing_config (key, value) VALUES (:key, :value) ON CONFLICT (key) DO NOTHING"),
+            {"key": key, "value": value},
+        )
+
     conn.commit()
 
 
