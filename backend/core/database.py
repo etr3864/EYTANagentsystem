@@ -1,6 +1,10 @@
+import logging
+
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 from backend.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 engine = create_engine(
     settings.database_url,
@@ -47,9 +51,16 @@ def run_migrations():
 
         try:
             _run_migration_statements(conn)
+        except Exception as e:
+            logger.error("Migration failed: %s", e)
+            conn.rollback()
+            raise
         finally:
-            conn.execute(text("SELECT pg_advisory_unlock(1)"))
-            conn.commit()
+            try:
+                conn.execute(text("SELECT pg_advisory_unlock(1)"))
+                conn.commit()
+            except Exception:
+                conn.rollback()
 
 
 def _run_migration_statements(conn):
@@ -165,18 +176,21 @@ def _run_migration_statements(conn):
     """))
 
     conn.execute(text("""
-        CREATE TABLE IF NOT EXISTS agent_usage_daily (
-            id SERIAL PRIMARY KEY,
-            agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
-            date DATE NOT NULL,
-            model VARCHAR(50) NOT NULL,
-            source VARCHAR(30) NOT NULL,
-            input_tokens INTEGER NOT NULL DEFAULT 0,
-            output_tokens INTEGER NOT NULL DEFAULT 0,
-            cache_read_tokens INTEGER NOT NULL DEFAULT 0,
-            cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
-            CONSTRAINT uq_usage_daily UNIQUE (agent_id, date, model, source)
-        );
+        DO $$ BEGIN
+            CREATE TABLE IF NOT EXISTS agent_usage_daily (
+                id SERIAL PRIMARY KEY,
+                agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+                date DATE NOT NULL,
+                model VARCHAR(50) NOT NULL,
+                source VARCHAR(30) NOT NULL,
+                input_tokens INTEGER NOT NULL DEFAULT 0,
+                output_tokens INTEGER NOT NULL DEFAULT 0,
+                cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+                cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
+                CONSTRAINT uq_usage_daily UNIQUE (agent_id, date, model, source)
+            );
+        EXCEPTION WHEN duplicate_table THEN null;
+        END $$;
     """))
     conn.execute(text("""
         CREATE INDEX IF NOT EXISTS ix_usage_daily_agent_date
@@ -184,11 +198,14 @@ def _run_migration_statements(conn):
     """))
 
     conn.execute(text("""
-        CREATE TABLE IF NOT EXISTS pricing_config (
-            key VARCHAR(100) PRIMARY KEY,
-            value NUMERIC(18, 6) NOT NULL,
-            updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-        );
+        DO $$ BEGIN
+            CREATE TABLE IF NOT EXISTS pricing_config (
+                key VARCHAR(100) PRIMARY KEY,
+                value NUMERIC(18, 6) NOT NULL,
+                updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+            );
+        EXCEPTION WHEN duplicate_table THEN null;
+        END $$;
     """))
 
     from backend.models.pricing_config import PRICING_DEFAULTS

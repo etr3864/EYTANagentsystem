@@ -48,16 +48,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="WhatsApp AI Agents", lifespan=lifespan)
 
-
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    """Catch all unhandled exceptions - log details but return safe response."""
-    log_error("unhandled", f"{type(exc).__name__}: {str(exc)[:100]}")
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Internal server error"}
-    )
-
 # CORS - configurable via environment
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001").split(",")
 
@@ -68,6 +58,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Catch all unhandled exceptions - log details but return safe response with CORS."""
+    log_error("unhandled", f"{type(exc).__name__}: {str(exc)[:100]}")
+    origin = request.headers.get("origin", "")
+    headers = {}
+    if origin in CORS_ORIGINS:
+        headers["access-control-allow-origin"] = origin
+        headers["access-control-allow-credentials"] = "true"
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
+        headers=headers,
+    )
 
 # Routers
 app.include_router(auth_router, prefix="/api")
