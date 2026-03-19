@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Agent, getAgents, deleteAgent, updateAgent } from '@/lib/api';
-import { Button, Card, PlusIcon, DatabaseIcon, UsersIcon, ArrowLeftIcon, TrashIcon, MetaSmallIcon, WaSenderSmallIcon, LogoutIcon } from '@/components/ui';
+import { Button, Card, PlusIcon, DatabaseIcon, UsersIcon, ArrowLeftIcon, TrashIcon, MetaSmallIcon, WaSenderSmallIcon, LogoutIcon, ChartIcon } from '@/components/ui';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useAuth } from '@/contexts/AuthContext';
 import { isSuperAdmin } from '@/lib/auth';
@@ -80,6 +80,13 @@ function HomePage() {
               </div>
               
               <div className="flex gap-1.5 md:gap-3">
+                {(isSuperAdmin(user) || user?.role === 'admin') && (
+                  <Link href="/dashboard">
+                    <Button variant="secondary" icon={<ChartIcon />}>
+                      <span className="hidden md:inline">דאשבורד</span>
+                    </Button>
+                  </Link>
+                )}
                 {(isSuperAdmin(user) || user?.role === 'admin') && (
                   <Link href="/users">
                     <Button variant="secondary" icon={<UsersIcon />}>

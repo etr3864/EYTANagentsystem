@@ -712,5 +712,19 @@ export async function deleteDbFollowup(id: number): Promise<void> {
   if (!res.ok) throw new Error('Failed to delete followup');
 }
 
+// ============ Dashboard ============
+
+export async function getDashboardStats(
+  fromDate: string,
+  toDate: string,
+  agentId?: number,
+): Promise<import('./types').DashboardStats> {
+  const params = new URLSearchParams({ from_date: fromDate, to_date: toDate });
+  if (agentId !== undefined) params.set('agent_id', String(agentId));
+  const res = await authFetch(`${API_URL}/api/dashboard?${params}`);
+  if (!res.ok) throw new Error('Failed to fetch dashboard stats');
+  return res.json();
+}
+
 // Re-export types
-export type { Agent, AgentCreate, AgentUpdate, AgentBatchingConfig, ContextSummaryConfig, Provider, WaSenderConfig, CustomApiKeys, User, Gender, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DataTable, DbMedia, AgentMedia, MediaConfig, MediaType, WhatsAppTemplate, TemplateCategory, TemplateStatus, DbTemplate, FollowupConfig, FollowupStep, FollowupStats, DbFollowup } from './types';
+export type { Agent, AgentCreate, AgentUpdate, AgentBatchingConfig, ContextSummaryConfig, Provider, WaSenderConfig, CustomApiKeys, User, Gender, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DataTable, DbMedia, AgentMedia, MediaConfig, MediaType, WhatsAppTemplate, TemplateCategory, TemplateStatus, DbTemplate, FollowupConfig, FollowupStep, FollowupStats, DbFollowup, DashboardStats } from './types';

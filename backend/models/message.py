@@ -32,4 +32,5 @@ class Message(Base):
     
     __table_args__ = (
         Index("ix_messages_conv_media", "conversation_id", "media_id"),
+        Index("ix_messages_conv_created", "conversation_id", "created_at"),
     )

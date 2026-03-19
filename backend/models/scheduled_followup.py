@@ -30,6 +30,7 @@ class ScheduledFollowup(Base):
     template_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
     sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    responded_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     conversation: Mapped["Conversation"] = relationship()

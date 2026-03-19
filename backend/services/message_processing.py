@@ -123,6 +123,7 @@ async def process_batched_messages(
 
         # Track last customer message time + cancel pending follow-ups + cancel timer
         conv.last_customer_message_at = datetime.utcnow()
+        _mark_followup_responded(db, conv.id)
         db.commit()
 
         from backend.services.followups import cancel_pending_followups, cancel_followup_timer
@@ -256,6 +257,17 @@ async def process_batched_messages(
         _enqueue_context_summary_if_needed(db, agent, conv.id)
     finally:
         db.close()
+
+
+def _mark_followup_responded(db: Session, conversation_id: int) -> None:
+    """Mark any unresponded sent follow-ups for this conversation as responded."""
+    from backend.models.scheduled_followup import ScheduledFollowup
+    from backend.core.enums import FollowupStatus
+    db.query(ScheduledFollowup).filter(
+        ScheduledFollowup.conversation_id == conversation_id,
+        ScheduledFollowup.status == FollowupStatus.SENT,
+        ScheduledFollowup.responded_at.is_(None),
+    ).update({"responded_at": datetime.utcnow()}, synchronize_session="fetch")
 
 
 def _enqueue_context_summary_if_needed(db, agent, conversation_id: int) -> None:

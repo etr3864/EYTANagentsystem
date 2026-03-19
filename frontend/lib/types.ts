@@ -366,3 +366,15 @@ export interface DbTemplate {
   status: TemplateStatus;
   created_at: string | null;
 }
+
+// ============ Dashboard ============
+
+export interface DashboardStats {
+  total_conversations: number;
+  total_messages: number;
+  avg_messages_per_conversation: number;
+  appointments_scheduled: number;
+  conversion_rate: number;
+  followup_response_rate: number;
+  has_data: boolean;
+}

@@ -152,6 +152,18 @@ def _run_migration_statements(conn):
         END $$;
     """))
 
+    conn.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE scheduled_followups ADD COLUMN responded_at TIMESTAMP;
+        EXCEPTION WHEN duplicate_column THEN null;
+        END $$;
+    """))
+
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_messages_conv_created
+        ON messages (conversation_id, created_at);
+    """))
+
     conn.commit()
 
 
