@@ -276,3 +276,34 @@ class GeminiProvider:
                 if hasattr(part, "text") and part.text:
                     return part.text.strip()
         return ""
+
+    async def generate_tracked_response(
+        self, prompt: str, model: str = "gemini-2.0-flash", max_tokens: int = 300
+    ) -> tuple[str, dict]:
+        """Like generate_simple_response but also returns token usage."""
+        config = types.GenerateContentConfig(
+            max_output_tokens=max_tokens,
+            temperature=0.7,
+        )
+        response = await self._call_with_retry(
+            "generate_content",
+            model=model,
+            contents=[types.Content(role="user", parts=[types.Part(text=prompt)])],
+            config=config,
+        )
+
+        usage = {
+            "input_tokens": (getattr(response.usage_metadata, 'prompt_token_count', 0) or 0) if response.usage_metadata else 0,
+            "output_tokens": (getattr(response.usage_metadata, 'candidates_token_count', 0) or 0) if response.usage_metadata else 0,
+            "cache_read_tokens": 0,
+            "cache_creation_tokens": 0,
+        }
+
+        text = ""
+        if response.candidates and response.candidates[0].content and response.candidates[0].content.parts:
+            for part in response.candidates[0].content.parts:
+                if hasattr(part, "text") and part.text:
+                    text = part.text.strip()
+                    break
+
+        return text, usage

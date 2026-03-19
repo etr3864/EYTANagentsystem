@@ -369,3 +369,28 @@ class AnthropicProvider:
                 return block.text.strip()
         
         return ""
+
+    async def generate_tracked_response(
+        self, prompt: str, model: str = "claude-haiku-4-5", max_tokens: int = 300
+    ) -> tuple[str, dict]:
+        """Like generate_simple_response but also returns token usage."""
+        response = await self._call_with_retry(
+            model=model,
+            max_tokens=max_tokens,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        usage = {
+            "input_tokens": response.usage.input_tokens,
+            "output_tokens": response.usage.output_tokens,
+            "cache_read_tokens": getattr(response.usage, 'cache_read_input_tokens', 0),
+            "cache_creation_tokens": getattr(response.usage, 'cache_creation_input_tokens', 0),
+        }
+
+        text = ""
+        for block in response.content:
+            if block.type == "text":
+                text = block.text.strip()
+                break
+
+        return text, usage

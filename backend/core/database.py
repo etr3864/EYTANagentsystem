@@ -164,6 +164,25 @@ def _run_migration_statements(conn):
         ON messages (conversation_id, created_at);
     """))
 
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS agent_usage_daily (
+            id SERIAL PRIMARY KEY,
+            agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+            date DATE NOT NULL,
+            model VARCHAR(50) NOT NULL,
+            source VARCHAR(30) NOT NULL,
+            input_tokens INTEGER NOT NULL DEFAULT 0,
+            output_tokens INTEGER NOT NULL DEFAULT 0,
+            cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+            cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
+            CONSTRAINT uq_usage_daily UNIQUE (agent_id, date, model, source)
+        );
+    """))
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_usage_daily_agent_date
+        ON agent_usage_daily (agent_id, date);
+    """))
+
     conn.commit()
 
 

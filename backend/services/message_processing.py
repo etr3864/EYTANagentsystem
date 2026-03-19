@@ -195,13 +195,19 @@ async def process_batched_messages(
             agent=agent,
         )
         
-        # Update usage
+        # Update usage (cumulative JSON + daily table)
         agent.add_usage(
             model=agent.model,
             input_tokens=usage_data["input_tokens"],
             output_tokens=usage_data["output_tokens"],
             cache_read=usage_data["cache_read_tokens"],
             cache_create=usage_data["cache_creation_tokens"]
+        )
+        from backend.services.usage_tracking import record_usage
+        record_usage(
+            db, agent.id, agent.model, "conversation",
+            usage_data["input_tokens"], usage_data["output_tokens"],
+            usage_data["cache_read_tokens"], usage_data["cache_creation_tokens"],
         )
         
         # Limit and send media if AI requested

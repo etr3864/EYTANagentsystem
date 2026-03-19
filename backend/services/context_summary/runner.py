@@ -41,8 +41,15 @@ async def run_summary(db: Session, conversation_id: int, agent_id: int) -> None:
         return
 
     provider = get_provider(agent.model, agent=agent)
-    summary_text = await provider.generate_simple_response(
+    summary_text, usage = await provider.generate_tracked_response(
         prompt, model=agent.model, max_tokens=SUMMARY_MAX_TOKENS
+    )
+
+    from backend.services.usage_tracking import record_usage
+    record_usage(
+        db, agent.id, agent.model, "context_summary",
+        usage["input_tokens"], usage["output_tokens"],
+        usage.get("cache_read_tokens", 0), usage.get("cache_creation_tokens", 0),
     )
 
     if not summary_text or not summary_text.strip():

@@ -311,3 +311,13 @@ async def generate_simple_response(prompt: str, agent=None) -> str:
     except Exception as e:
         log_error("ai_simple", str(e)[:50])
         raise
+
+
+async def generate_tracked_response(prompt: str, agent=None) -> tuple[str, dict]:
+    """Like generate_simple_response but also returns token usage dict."""
+    try:
+        provider = get_provider("claude", agent=agent)
+        return await provider.generate_tracked_response(prompt)
+    except Exception as e:
+        log_error("ai_tracked", str(e)[:50])
+        raise

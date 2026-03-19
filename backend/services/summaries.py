@@ -143,8 +143,8 @@ SUMMARY_MODEL = "claude-sonnet-4-5"
 SUMMARY_MAX_TOKENS = 4096
 
 
-async def _generate_summary(conversation_text: str, prompt: str) -> str:
-    """Generate summary using Sonnet with high token limit."""
+async def _generate_summary(conversation_text: str, prompt: str) -> tuple[str, dict]:
+    """Generate summary using Sonnet. Returns (text, usage_dict)."""
     max_chars = 30000
     if len(conversation_text) > max_chars:
         conversation_text = conversation_text[:max_chars] + "\n...[השיחה קוצרה]"
@@ -159,7 +159,7 @@ async def _generate_summary(conversation_text: str, prompt: str) -> str:
 כתוב סיכום תמציתי וברור."""
 
     provider = get_provider(SUMMARY_MODEL)
-    return await provider.generate_simple_response(
+    return await provider.generate_tracked_response(
         full_prompt, model=SUMMARY_MODEL, max_tokens=SUMMARY_MAX_TOKENS
     )
 
@@ -210,9 +210,15 @@ async def create_and_send_summary(
         return None
     
     try:
-        summary_text = await _generate_summary(
+        summary_text, usage = await _generate_summary(
             conversation_text, 
             config["summary_prompt"]
+        )
+        from backend.services.usage_tracking import record_usage
+        record_usage(
+            db, agent.id, SUMMARY_MODEL, "summary",
+            usage["input_tokens"], usage["output_tokens"],
+            usage.get("cache_read_tokens", 0), usage.get("cache_creation_tokens", 0),
         )
     except Exception as e:
         log_error("summaries", f"AI generation failed for conv {conversation_id}: {str(e)[:50]}")

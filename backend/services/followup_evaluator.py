@@ -48,7 +48,13 @@ async def evaluate(
     model = config.get("model", "claude-sonnet-4-5")
     try:
         provider = get_provider(model, agent=agent)
-        response = await provider.generate_simple_response(prompt)
+        response, usage = await provider.generate_tracked_response(prompt)
+        from backend.services.usage_tracking import record_usage
+        record_usage(
+            db, agent.id, model, "followup",
+            usage["input_tokens"], usage["output_tokens"],
+            usage.get("cache_read_tokens", 0), usage.get("cache_creation_tokens", 0),
+        )
         return _parse_ai_decision(response)
     except Exception as e:
         log_error("followup_ai", f"AI call failed: {str(e)[:50]}")

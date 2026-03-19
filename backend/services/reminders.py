@@ -161,19 +161,13 @@ async def _build_from_ai(
     timezone: str = "Asia/Jerusalem",
     agent_personality: str = "",
     conversation_history: str = ""
-) -> str:
+) -> tuple[str, dict | None]:
     """Build content using AI generation with fallback.
     
-    Args:
-        ai_prompt: Custom instructions from user
-        variables: Template variables (customer_name, date, etc.)
-        fallback_template: Template to use if AI fails
-        timezone: Agent timezone for current time context
-        agent_personality: First part of agent's system prompt (optional)
-        conversation_history: Recent messages with customer (optional)
+    Returns (text, usage_dict_or_None).
     """
     if not ai_prompt:
-        return _build_from_template(fallback_template, variables)
+        return _build_from_template(fallback_template, variables), None
     
     now = now_local(timezone)
     
@@ -218,11 +212,12 @@ async def _build_from_ai(
     context = "\n".join(context_parts)
     
     try:
-        from backend.services.ai import generate_simple_response
-        return await generate_simple_response(context)
+        from backend.services.ai import generate_tracked_response
+        text, usage = await generate_tracked_response(context)
+        return text, usage
     except Exception as e:
         log_error("reminders", f"AI generation failed: {str(e)[:50]}")
-        return _build_from_template(fallback_template, variables)
+        return _build_from_template(fallback_template, variables), None
 
 
 def _get_conversation_context(db: Session, agent_id: int, user_id: int, limit: int = 10) -> str:
@@ -272,12 +267,10 @@ async def build_reminder_content(
     appointment: Appointment,
     agent: Agent,
     user: User
-) -> str:
+) -> tuple[str, dict | None]:
     """Build the reminder message content.
     
-    For AI-generated content, includes:
-    - Agent personality (from system prompt)
-    - Recent conversation history (last 10 messages)
+    Returns (text, usage_dict_or_None). usage is only set for AI-generated content.
     """
     variables = _build_template_variables(appointment, agent, user)
     template = reminder.template or DEFAULT_TEMPLATE
@@ -297,7 +290,7 @@ async def build_reminder_content(
             conversation_history
         )
     
-    return _build_from_template(template, variables)
+    return _build_from_template(template, variables), None
 
 
 # --- Sending ---
@@ -435,7 +428,14 @@ async def send_reminder(db: Session, reminder: ScheduledReminder) -> bool:
     if reminder.content_type == ReminderContentType.META_TEMPLATE:
         success, err = await _send_meta_template(agent, user, reminder, appointment, db)
     else:
-        content = await build_reminder_content(db, reminder, appointment, agent, user)
+        content, usage = await build_reminder_content(db, reminder, appointment, agent, user)
+        if usage:
+            from backend.services.usage_tracking import record_usage
+            record_usage(
+                db, agent.id, "claude-haiku-4-5", "reminder",
+                usage["input_tokens"], usage["output_tokens"],
+                usage.get("cache_read_tokens", 0), usage.get("cache_creation_tokens", 0),
+            )
         success, err = await _send_to_customer(agent, user, content, db)
     
     # Update status
