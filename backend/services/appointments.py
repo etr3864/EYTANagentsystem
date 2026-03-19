@@ -431,10 +431,18 @@ async def _generate_appointment_summary(agent: Agent, appointment: Appointment, 
         return None
 
     try:
-        summary_text = await _generate_summary(conversation_text, summary_config["summary_prompt"])
+        summary_text, usage = await _generate_summary(conversation_text, summary_config["summary_prompt"])
     except Exception as e:
         log_error("appointments", f"summary generation failed: {str(e)[:50]}")
         return None
+
+    from backend.services.usage_tracking import record_usage
+    from backend.services.summaries import SUMMARY_MODEL
+    record_usage(
+        db, agent.id, SUMMARY_MODEL, "summary",
+        usage["input_tokens"], usage["output_tokens"],
+        usage.get("cache_read_tokens", 0), usage.get("cache_creation_tokens", 0),
+    )
 
     from backend.models.conversation_summary import ConversationSummary
     from backend.core.enums import SummaryWebhookStatus
