@@ -5,7 +5,7 @@ Used exclusively by the Super Admin dashboard for cost calculations.
 """
 from datetime import datetime
 
-from sqlalchemy import DateTime, Numeric, String
+from sqlalchemy import DateTime, Numeric, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.core.database import Base
@@ -30,5 +30,5 @@ class PricingConfig(Base):
     key: Mapped[str] = mapped_column(String(100), primary_key=True)
     value: Mapped[float] = mapped_column(Numeric(precision=18, scale=6))
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, server_default=func.now(), onupdate=datetime.utcnow
     )

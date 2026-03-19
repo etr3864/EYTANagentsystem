@@ -208,10 +208,14 @@ def _run_migration_statements(conn):
         END $$;
     """))
 
+    conn.execute(text("""
+        ALTER TABLE pricing_config ALTER COLUMN updated_at SET DEFAULT NOW();
+    """))
+
     from backend.models.pricing_config import PRICING_DEFAULTS
     for key, value in PRICING_DEFAULTS.items():
         conn.execute(
-            text("INSERT INTO pricing_config (key, value) VALUES (:key, :value) ON CONFLICT (key) DO NOTHING"),
+            text("INSERT INTO pricing_config (key, value, updated_at) VALUES (:key, :value, NOW()) ON CONFLICT (key) DO NOTHING"),
             {"key": key, "value": value},
         )
 
