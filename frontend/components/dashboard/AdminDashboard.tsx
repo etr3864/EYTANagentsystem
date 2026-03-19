@@ -4,31 +4,61 @@ import { useState, useEffect, useCallback } from 'react';
 import { getAgents, getDashboardStats } from '@/lib/api';
 import type { Agent, DashboardStats } from '@/lib/types';
 import { KpiCard } from './KpiCard';
+import { DateRangePicker } from './DateRangePicker';
 
-type Preset = '7d' | '30d' | '90d' | 'month';
+type Preset = 'today' | '7d' | 'week' | '30d' | 'month' | '90d' | 'custom' | 'all';
 
-function getPresetDates(preset: Preset): { from: string; to: string } {
+function getPresetDates(preset: Exclude<Preset, 'custom'>): { from: string; to: string } {
   const today = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
   const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  const toStr = fmt(today);
+  const todayStr = fmt(today);
 
-  if (preset === 'month') {
-    const first = new Date(today.getFullYear(), today.getMonth(), 1);
-    return { from: fmt(first), to: toStr };
+  switch (preset) {
+    case 'today':
+      return { from: todayStr, to: todayStr };
+    case '7d': {
+      const d = new Date(today);
+      d.setDate(today.getDate() - 6);
+      return { from: fmt(d), to: todayStr };
+    }
+    case 'week': {
+      const dayOfWeek = today.getDay();
+      const lastSunday = new Date(today);
+      lastSunday.setDate(today.getDate() - dayOfWeek - 7);
+      const lastSaturday = new Date(lastSunday);
+      lastSaturday.setDate(lastSunday.getDate() + 6);
+      return { from: fmt(lastSunday), to: fmt(lastSaturday) };
+    }
+    case '30d': {
+      const d = new Date(today);
+      d.setDate(today.getDate() - 29);
+      return { from: fmt(d), to: todayStr };
+    }
+    case 'month': {
+      const first = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const last = new Date(today.getFullYear(), today.getMonth(), 0);
+      return { from: fmt(first), to: fmt(last) };
+    }
+    case '90d': {
+      const d = new Date(today);
+      d.setDate(today.getDate() - 89);
+      return { from: fmt(d), to: todayStr };
+    }
+    case 'all':
+      return { from: '2020-01-01', to: todayStr };
   }
-
-  const days = preset === '7d' ? 7 : preset === '30d' ? 30 : 90;
-  const from = new Date(today);
-  from.setDate(today.getDate() - (days - 1));
-  return { from: fmt(from), to: toStr };
 }
 
 const PRESETS: { id: Preset; label: string }[] = [
+  { id: 'today', label: 'היום' },
   { id: '7d', label: '7 ימים' },
+  { id: 'week', label: 'שבוע' },
   { id: '30d', label: '30 ימים' },
+  { id: 'month', label: 'חודש' },
   { id: '90d', label: '90 ימים' },
-  { id: 'month', label: 'החודש' },
+  { id: 'custom', label: 'מותאם' },
+  { id: 'all', label: 'הכל' },
 ];
 
 const STALE_MS = 5 * 60 * 1000;
@@ -39,7 +69,6 @@ export function AdminDashboard() {
   const [preset, setPreset] = useState<Preset>('30d');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
-  const [isCustom, setIsCustom] = useState(false);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastFetchedAt, setLastFetchedAt] = useState(0);
@@ -48,7 +77,7 @@ export function AdminDashboard() {
     getAgents().then(setAgents).catch(() => {});
   }, []);
 
-  const activeDates = isCustom
+  const activeDates = preset === 'custom'
     ? { from: customFrom, to: customTo }
     : getPresetDates(preset);
 
@@ -77,52 +106,41 @@ export function AdminDashboard() {
 
   const handlePreset = (p: Preset) => {
     setPreset(p);
-    setIsCustom(false);
   };
 
-  const handleCustomDate = (field: 'from' | 'to', value: string) => {
-    if (field === 'from') setCustomFrom(value);
-    else setCustomTo(value);
-    setIsCustom(true);
+  const handleCustomRange = (from: string, to: string) => {
+    setCustomFrom(from);
+    setCustomTo(to);
+    setPreset('custom');
   };
 
   const noData = stats !== null && !stats.has_data;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" dir="rtl">
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex gap-1.5">
           {PRESETS.map((p) => (
             <button
               key={p.id}
-              onClick={() => handlePreset(p.id)}
+              onClick={() => p.id !== 'custom' && handlePreset(p.id)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                !isCustom && preset === p.id
+                preset === p.id
                   ? 'bg-blue-600 text-white'
                   : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-              }`}
+              } ${p.id === 'custom' ? 'cursor-default' : ''}`}
             >
               {p.label}
             </button>
           ))}
         </div>
 
-        <div className="flex items-center gap-2 text-sm text-slate-400">
-          <input
-            type="date"
-            value={isCustom ? customFrom : activeDates.from}
-            onChange={(e) => handleCustomDate('from', e.target.value)}
-            className="bg-slate-800 border border-slate-600 rounded-lg px-2 py-1 text-white text-sm focus:outline-none focus:border-blue-500"
-          />
-          <span>—</span>
-          <input
-            type="date"
-            value={isCustom ? customTo : activeDates.to}
-            onChange={(e) => handleCustomDate('to', e.target.value)}
-            className="bg-slate-800 border border-slate-600 rounded-lg px-2 py-1 text-white text-sm focus:outline-none focus:border-blue-500"
-          />
-        </div>
+        <DateRangePicker
+          from={preset === 'custom' ? customFrom : ''}
+          to={preset === 'custom' ? customTo : ''}
+          onChange={handleCustomRange}
+        />
 
         {agents.length > 1 && (
           <select
@@ -140,44 +158,12 @@ export function AdminDashboard() {
 
       {/* KPI Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <KpiCard
-          title="סה״כ שיחות"
-          value={stats?.total_conversations ?? 0}
-          loading={loading && !stats}
-          noData={noData}
-        />
-        <KpiCard
-          title="סה״כ הודעות"
-          value={stats?.total_messages ?? 0}
-          loading={loading && !stats}
-          noData={noData}
-        />
-        <KpiCard
-          title="ממוצע הודעות לשיחה"
-          value={stats?.avg_messages_per_conversation ?? 0}
-          loading={loading && !stats}
-          noData={noData}
-        />
-        <KpiCard
-          title="פגישות שנקבעו"
-          value={stats?.appointments_scheduled ?? 0}
-          loading={loading && !stats}
-          noData={noData}
-        />
-        <KpiCard
-          title="אחוז המרה לפגישות"
-          value={stats?.conversion_rate ?? 0}
-          suffix="%"
-          loading={loading && !stats}
-          noData={noData}
-        />
-        <KpiCard
-          title="אחוז מענה לפולואפים"
-          value={stats?.followup_response_rate ?? 0}
-          suffix="%"
-          loading={loading && !stats}
-          noData={noData}
-        />
+        <KpiCard title="סה״כ שיחות" value={stats?.total_conversations ?? 0} loading={loading && !stats} noData={noData} />
+        <KpiCard title="סה״כ הודעות" value={stats?.total_messages ?? 0} loading={loading && !stats} noData={noData} />
+        <KpiCard title="ממוצע הודעות לשיחה" value={stats?.avg_messages_per_conversation ?? 0} loading={loading && !stats} noData={noData} />
+        <KpiCard title="פגישות שנקבעו" value={stats?.appointments_scheduled ?? 0} loading={loading && !stats} noData={noData} />
+        <KpiCard title="אחוז המרה לפגישות" value={stats?.conversion_rate ?? 0} suffix="%" loading={loading && !stats} noData={noData} />
+        <KpiCard title="אחוז מענה לפולואפים" value={stats?.followup_response_rate ?? 0} suffix="%" loading={loading && !stats} noData={noData} />
       </div>
     </div>
   );
