@@ -38,7 +38,7 @@ class Agent(Base):
     access_token: Mapped[str] = mapped_column(Text)
     verify_token: Mapped[str] = mapped_column(String(100))
     system_prompt: Mapped[str] = mapped_column(Text)
-    model: Mapped[str] = mapped_column(String(50), default="claude-sonnet-4-5")
+    model: Mapped[str] = mapped_column(String(50), default="claude-sonnet-4-6")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     
@@ -90,7 +90,7 @@ class Agent(Base):
     # Follow-up configuration (JSON) — sequence-based v2
     # {
     #   "enabled": false,
-    #   "model": "claude-sonnet-4-5",
+    #   "model": "claude-sonnet-4-6",
     #   "min_messages": 5,
     #   "active_hours": {"start": "09:00", "end": "21:00"},
     #   "sequence": [{"delay_hours": 3, "instruction": ""}, ...],

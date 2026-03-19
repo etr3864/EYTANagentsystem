@@ -45,7 +45,7 @@ async def evaluate(
             general_instruction, user,
         )
 
-    model = config.get("model", "claude-sonnet-4-5")
+    model = config.get("model", "claude-sonnet-4-6")
     try:
         provider = get_provider(model, agent=agent)
         response, usage = await provider.generate_tracked_response(prompt)

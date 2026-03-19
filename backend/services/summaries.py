@@ -139,7 +139,7 @@ def _get_conversation_text(db: Session, conversation_id: int, max_messages: int 
     return "\n".join(lines)
 
 
-SUMMARY_MODEL = "claude-sonnet-4-5"
+SUMMARY_MODEL = "claude-sonnet-4-6"
 SUMMARY_MAX_TOKENS = 4096
 
 

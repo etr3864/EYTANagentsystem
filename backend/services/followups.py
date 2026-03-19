@@ -34,7 +34,7 @@ DEFAULT_SEQUENCE = [{"delay_hours": 3, "instruction": ""}]
 
 DEFAULT_CONFIG = {
     "enabled": False,
-    "model": "claude-sonnet-4-5",
+    "model": "claude-sonnet-4-6",
     "min_messages": 5,
     "general_instruction": "",
     "active_hours": {"start": "09:00", "end": "21:00"},
