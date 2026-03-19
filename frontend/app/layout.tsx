@@ -1,10 +1,19 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { AppNavbar } from "@/components/layout/AppNavbar";
+import { OctopusBackground } from "@/components/layout/OctopusBackground";
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
-  title: "WhatsApp Agents",
-  description: "Manage your WhatsApp AI agents",
+  title: "Optive",
+  description: "Optive AI Agent Platform",
   icons: {
     icon: "/icon.png",
   },
@@ -17,9 +26,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="he" dir="rtl">
-      <body className="bg-gray-900 text-white min-h-screen">
+      <body className={`${inter.className} bg-[#06060E] text-white min-h-screen`}>
         <AuthProvider>
-          {children}
+          <AppNavbar />
+          <OctopusBackground />
+          <div className="relative z-10">
+            {children}
+          </div>
         </AuthProvider>
       </body>
     </html>

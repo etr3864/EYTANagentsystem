@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Input, PasswordInput } from '@/components/ui';
 
+const LOGO_ICON = 'https://res.cloudinary.com/daowx6msw/image/upload/v1761607495/white_logogg_uf3usn.png';
+
 function getSafeRedirect(url: string | null): string {
   if (!url || !url.startsWith('/') || url.startsWith('//')) return '/';
   return url;
@@ -19,8 +21,8 @@ interface FormErrors {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500" />
+      <div className="min-h-screen flex items-center justify-center bg-[#06060E]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500" />
       </div>
     }>
       <LoginForm />
@@ -76,7 +78,6 @@ function LoginForm() {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'שגיאה בהתחברות';
       
-      // Try to determine which field the error relates to
       if (message.toLowerCase().includes('email') || message.includes('אימייל')) {
         setErrors({ email: message });
       } else if (message.toLowerCase().includes('password') || message.includes('סיסמה')) {
@@ -90,29 +91,27 @@ function LoginForm() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-[#06060E] px-4">
       <div className="max-w-md w-full">
-        {/* Logo/Title */}
+        {/* Logo */}
         <div className="text-center mb-8">
           <img 
-            src="https://res.cloudinary.com/daowx6msw/image/upload/v1763910407/white_logoggfdsdfgdfsgds_bdqrww.png" 
-            alt="WhatsApp Agents"
-            className="h-12 sm:h-16 mx-auto mb-4"
+            src={LOGO_ICON}
+            alt="Optive"
+            className="h-16 w-16 mx-auto mb-4"
           />
-          <p className="text-gray-400">פלטפורמה לניהול סוכני WhatsApp מבוססי AI</p>
+          <p className="text-slate-400">פלטפורמה לניהול סוכני AI</p>
         </div>
 
-        {/* Login Card */}
-        <div className="bg-gray-800 rounded-xl p-8 shadow-xl">
+        {/* Login Card — glassmorphism */}
+        <div className="bg-white/[0.04] backdrop-blur-xl border border-purple-500/15 rounded-2xl p-8 shadow-2xl">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* General Error Message */}
             {errors.general && (
               <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded-lg text-sm">
                 {errors.general}
               </div>
             )}
 
-            {/* Email Field */}
             <Input
               label="אימייל"
               type="email"
@@ -127,7 +126,6 @@ function LoginForm() {
               error={errors.email}
             />
 
-            {/* Password Field */}
             <PasswordInput
               label="סיסמה"
               value={password}
@@ -141,11 +139,10 @@ function LoginForm() {
               error={errors.password}
             />
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white font-medium rounded-lg transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+              className="w-full py-3 px-4 bg-gradient-to-r from-purple-600 to-violet-600 hover:from-purple-500 hover:to-violet-500 disabled:opacity-50 text-white font-medium rounded-lg transition-all shadow-lg shadow-purple-600/20 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-[#06060E]"
             >
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -162,14 +159,13 @@ function LoginForm() {
           </form>
         </div>
 
-        {/* Footer */}
-        <p className="text-center text-gray-500 text-sm mt-6">
+        <p className="text-center text-slate-500 text-sm mt-6">
           גישה למערכת מותרת למורשים בלבד
         </p>
-        <div className="flex justify-center gap-3 mt-4 text-xs text-gray-600">
-          <a href="/privacy" className="hover:text-gray-400 transition underline">Privacy Policy</a>
+        <div className="flex justify-center gap-3 mt-4 text-xs text-slate-600">
+          <a href="/privacy" className="hover:text-slate-400 transition underline">Privacy Policy</a>
           <span>•</span>
-          <a href="/terms" className="hover:text-gray-400 transition underline">Terms of Service</a>
+          <a href="/terms" className="hover:text-slate-400 transition underline">Terms of Service</a>
         </div>
       </div>
     </div>

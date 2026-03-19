@@ -451,35 +451,24 @@ function AgentPage() {
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
-      <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-50">
+      {/* Agent Context Header */}
+      <header className="border-b border-purple-500/10 bg-[#06060E]/80 backdrop-blur-sm sticky top-16 z-40">
         <div className="max-w-5xl mx-auto px-3 md:px-6 py-3 md:py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 md:gap-4">
-              <Link href="/">
-                <Button variant="ghost" size="sm">
-                  <ArrowRightIcon />
-                  <span className="hidden sm:inline">חזרה</span>
-                </Button>
-              </Link>
-              <div className="h-6 w-px bg-slate-700" />
-              <div className="flex items-center gap-2 md:gap-3">
-                <div className={`
-                  w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center text-base md:text-lg shrink-0
-                  ${agent.is_active 
-                    ? 'bg-emerald-500/10 text-emerald-400' 
-                    : 'bg-slate-700/50 text-slate-400'
-                  }
-                `}>
-                  🤖
-                </div>
-                <div>
-                  <h1 className="font-semibold text-white text-sm md:text-base">{agent.name}</h1>
-                  <div className="flex items-center gap-2 text-xs text-slate-400">
-                    <span className={`status-dot ${agent.is_active ? 'active' : 'inactive'}`} />
-                    <span>{agent.is_active ? 'פעיל' : 'מושבת'}</span>
-                  </div>
-                </div>
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className={`
+              w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center text-base md:text-lg shrink-0
+              ${agent.is_active 
+                ? 'bg-emerald-500/10 text-emerald-400' 
+                : 'bg-slate-700/50 text-slate-400'
+              }
+            `}>
+              🤖
+            </div>
+            <div>
+              <h1 className="font-semibold text-white text-sm md:text-base">{agent.name}</h1>
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <span className={`status-dot ${agent.is_active ? 'active' : 'inactive'}`} />
+                <span>{agent.is_active ? 'פעיל' : 'מושבת'}</span>
               </div>
             </div>
           </div>

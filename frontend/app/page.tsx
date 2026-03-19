@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Agent, getAgents, deleteAgent, updateAgent } from '@/lib/api';
-import { Button, Card, PlusIcon, DatabaseIcon, UsersIcon, ArrowLeftIcon, TrashIcon, MetaSmallIcon, WaSenderSmallIcon, LogoutIcon, ChartIcon } from '@/components/ui';
+import { Button, Card, PlusIcon, ArrowLeftIcon, TrashIcon, MetaSmallIcon, WaSenderSmallIcon } from '@/components/ui';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useAuth } from '@/contexts/AuthContext';
 import { isSuperAdmin } from '@/lib/auth';
@@ -53,75 +53,6 @@ function HomePage() {
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
-      <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-3 md:px-6 py-3 md:py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2 md:gap-3">
-              <img 
-                src="https://res.cloudinary.com/daowx6msw/image/upload/v1761607495/white_logogg_uf3usn.png" 
-                alt="Logo"
-                className="h-8 w-8 md:h-10 md:w-10 object-contain"
-              />
-              <img 
-                src="https://res.cloudinary.com/daowx6msw/image/upload/v1763910407/white_logoggfdsdfgdfsgds_bdqrww.png" 
-                alt="WhatsApp Agents"
-                className="h-6 md:h-8 object-contain hidden sm:block"
-              />
-            </div>
-            <div className="flex items-center gap-2 md:gap-4">
-              {/* User Info - hidden on small mobile */}
-              <div className="hidden sm:flex items-center gap-2 text-sm">
-                <span className="text-slate-400">{user?.name}</span>
-                <span className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-300">
-                  {user?.role === 'super_admin' ? 'מנהל ראשי' : 
-                   user?.role === 'admin' ? 'לקוח' : 'עובד'}
-                </span>
-              </div>
-              
-              <div className="flex gap-1.5 md:gap-3">
-                {(isSuperAdmin(user) || user?.role === 'admin') && (
-                  <Link href="/dashboard">
-                    <Button variant="secondary" icon={<ChartIcon />}>
-                      <span className="hidden md:inline">דאשבורד</span>
-                    </Button>
-                  </Link>
-                )}
-                {(isSuperAdmin(user) || user?.role === 'admin') && (
-                  <Link href="/users">
-                    <Button variant="secondary" icon={<UsersIcon />}>
-                      <span className="hidden md:inline">משתמשים</span>
-                    </Button>
-                  </Link>
-                )}
-                {isSuperAdmin(user) && (
-                  <Link href="/database">
-                    <Button variant="secondary" icon={<DatabaseIcon />}>
-                      <span className="hidden md:inline">Database</span>
-                    </Button>
-                  </Link>
-                )}
-                {isSuperAdmin(user) && (
-                  <Link href="/new">
-                    <Button variant="success" icon={<PlusIcon />}>
-                      <span className="hidden md:inline">סוכן חדש</span>
-                    </Button>
-                  </Link>
-                )}
-                <Button 
-                  variant="ghost" 
-                  onClick={logout}
-                  className="text-slate-400 hover:text-white"
-                >
-                  <LogoutIcon />
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
       <main className="max-w-6xl mx-auto px-3 md:px-6 py-4 md:py-8">
         {loading ? (
           <div className="grid gap-4">
@@ -152,7 +83,7 @@ function HomePage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="חיפוש סוכן..."
-                className="w-full bg-slate-800/50 border border-slate-700 rounded-xl py-2.5 pr-10 pl-10 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50 transition"
+                className="w-full bg-white/[0.03] border border-purple-500/10 rounded-xl py-2.5 pr-10 pl-10 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/40 transition"
               />
               {search && (
                 <button
@@ -224,7 +155,7 @@ function HomePage() {
                           text-xs px-2 py-0.5 rounded flex items-center gap-1
                           ${agent.provider === 'wasender' 
                             ? 'bg-emerald-500/20 text-emerald-400' 
-                            : 'bg-blue-500/20 text-blue-400'
+                            : 'bg-purple-500/20 text-purple-300'
                           }
                         `}>
                           {agent.provider === 'wasender' ? (

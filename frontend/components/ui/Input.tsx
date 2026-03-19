@@ -11,13 +11,13 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 
 const inputBaseStyles = `
   w-full px-4 py-2.5
-  bg-slate-800/50 
-  border border-slate-600/50 
+  bg-white/[0.04] 
+  border border-purple-500/10 
   rounded-lg
   text-white placeholder-slate-400
   transition-all duration-200
-  focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20
-  hover:border-slate-500
+  focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20
+  hover:border-purple-500/20
   disabled:opacity-50 disabled:cursor-not-allowed
 `;
 
@@ -157,8 +157,8 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
           <div className="
             w-5 h-5 rounded
             bg-slate-700 border border-slate-600
-            peer-checked:bg-blue-600 peer-checked:border-blue-600
-            peer-focus:ring-2 peer-focus:ring-blue-500/20
+            peer-checked:bg-purple-600 peer-checked:border-purple-600
+            peer-focus:ring-2 peer-focus:ring-purple-500/20
             transition-all duration-200
           ">
             <svg 
@@ -202,13 +202,13 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
           type="number"
           className={`
             w-full px-4 py-2.5
-            bg-slate-800/50 
-            border border-slate-600/50 
+            bg-white/[0.04] 
+            border border-purple-500/10 
             rounded-lg
             text-white
             transition-all duration-200
-            focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20
-            hover:border-slate-500
+            focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20
+            hover:border-purple-500/20
             [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
             ${className}
           `} 

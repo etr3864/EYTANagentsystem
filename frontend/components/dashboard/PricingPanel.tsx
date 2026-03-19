@@ -46,20 +46,20 @@ export function PricingPanel() {
   };
 
   return (
-    <div className="border border-slate-700 rounded-xl overflow-hidden" dir="rtl">
+    <div className="border border-purple-500/10 rounded-xl overflow-hidden" dir="rtl">
       <button
         onClick={handleOpen}
-        className="w-full flex items-center justify-between px-5 py-3 text-sm text-slate-300 hover:bg-slate-800/50 transition-colors"
+        className="w-full flex items-center justify-between px-5 py-3 text-sm text-slate-300 hover:bg-white/[0.03] transition-colors"
       >
         <span className="font-medium">הגדרות תמחור</span>
         <span className={`transition-transform ${open ? 'rotate-180' : ''}`}>▼</span>
       </button>
 
       {open && (
-        <div className="px-5 pb-5 bg-slate-800/30 space-y-5">
+        <div className="px-5 pb-5 bg-white/[0.02] space-y-5">
           {!loaded ? (
             <div className="py-6 flex justify-center">
-              <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : (
             <>
@@ -75,7 +75,7 @@ export function PricingPanel() {
                         step="0.01"
                         defaultValue={config[`model.${key}.input`] ?? ''}
                         onChange={(e) => handleChange(`model.${key}.input`, e.target.value)}
-                        className="bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-sm text-white w-full focus:outline-none focus:border-blue-500"
+                        className="bg-white/5 border border-purple-500/10 rounded px-2 py-1.5 text-sm text-white w-full focus:outline-none focus:border-purple-500"
                       />
                     </label>
                     <label className="flex flex-col gap-1">
@@ -85,7 +85,7 @@ export function PricingPanel() {
                         step="0.01"
                         defaultValue={config[`model.${key}.output`] ?? ''}
                         onChange={(e) => handleChange(`model.${key}.output`, e.target.value)}
-                        className="bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-sm text-white w-full focus:outline-none focus:border-blue-500"
+                        className="bg-white/5 border border-purple-500/10 rounded px-2 py-1.5 text-sm text-white w-full focus:outline-none focus:border-purple-500"
                       />
                     </label>
                   </div>
@@ -93,7 +93,7 @@ export function PricingPanel() {
               </div>
 
               {/* Exchange rate */}
-              <div className="border-t border-slate-700 pt-4">
+              <div className="border-t border-purple-500/10 pt-4">
                 <label className="flex items-center gap-3">
                   <span className="text-sm text-slate-300 whitespace-nowrap">שער דולר-שקל (₪/$)</span>
                   <input
@@ -101,7 +101,7 @@ export function PricingPanel() {
                     step="0.01"
                     defaultValue={config['usd_to_ils'] ?? ''}
                     onChange={(e) => handleChange('usd_to_ils', e.target.value)}
-                    className="bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-sm text-white w-32 focus:outline-none focus:border-blue-500"
+                    className="bg-white/5 border border-purple-500/10 rounded px-2 py-1.5 text-sm text-white w-32 focus:outline-none focus:border-purple-500"
                   />
                 </label>
               </div>
@@ -110,7 +110,7 @@ export function PricingPanel() {
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+                  className="px-5 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
                 >
                   {saved ? 'נשמר' : saving ? 'שומר...' : 'שמור'}
                 </button>

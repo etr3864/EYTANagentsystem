@@ -21,8 +21,8 @@ export function PresetBar({ preset, customFrom, customTo, onPresetChange, onCust
             onClick={() => p.id !== 'custom' && onPresetChange(p.id)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               preset === p.id
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                ? 'bg-purple-600 text-white'
+                : 'bg-white/5 text-slate-300 hover:bg-white/10'
             } ${p.id === 'custom' ? 'cursor-default' : ''}`}
           >
             {p.label}

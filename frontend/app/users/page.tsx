@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { Button, Card, ArrowRightIcon, PlusIcon, UserIcon, EditIcon, TrashIcon, KeyIcon } from '@/components/ui';
+import { Button, Card, PlusIcon, UserIcon, EditIcon, TrashIcon, KeyIcon } from '@/components/ui';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { CreateUserModal, EditUserModal, ResetPasswordModal, AgentAssignmentModal } from '@/components/users/UserModals';
 import { useAuth } from '@/contexts/AuthContext';
@@ -139,19 +138,14 @@ function UsersPage() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b border-purple-500/10 bg-[#06060E]/80 backdrop-blur-sm sticky top-16 z-40">
         <div className="max-w-6xl mx-auto px-3 md:px-6 py-3 md:py-4">
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2 md:gap-3">
-              <Link href="/" className="text-slate-400 hover:text-white transition">
-                <ArrowRightIcon className="w-5 h-5" />
-              </Link>
-              <div>
-                <h1 className="text-base md:text-xl font-bold text-white">ניהול משתמשים</h1>
-                <p className="text-xs text-slate-400 hidden sm:block">
-                  {isSuperAdmin(user) ? 'ניהול לקוחות ועובדים' : 'ניהול עובדים'}
-                </p>
-              </div>
+            <div>
+              <h1 className="text-base md:text-xl font-bold text-white">ניהול משתמשים</h1>
+              <p className="text-xs text-slate-400 hidden sm:block">
+                {isSuperAdmin(user) ? 'ניהול לקוחות ועובדים' : 'ניהול עובדים'}
+              </p>
             </div>
             <Button variant="success" icon={<PlusIcon />} onClick={() => setShowCreateModal(true)}>
               <span className="hidden sm:inline">{activeTab === 'admins' ? 'לקוח חדש' : 'עובד חדש'}</span>
@@ -302,8 +296,8 @@ function UsersPage() {
               onClick={() => setActiveTab('admins')}
               className={`px-4 py-2 rounded-lg font-medium transition ${
                 activeTab === 'admins'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-800 text-slate-400 hover:text-white'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-white/5 text-slate-400 hover:text-white'
               }`}
             >
               לקוחות ({admins.length})
@@ -312,8 +306,8 @@ function UsersPage() {
               onClick={() => setActiveTab('employees')}
               className={`px-4 py-2 rounded-lg font-medium transition ${
                 activeTab === 'employees'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-800 text-slate-400 hover:text-white'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-white/5 text-slate-400 hover:text-white'
               }`}
             >
               עובדים ({employees.length})
@@ -344,7 +338,7 @@ function UsersPage() {
                     <div className="flex items-center gap-3 md:gap-4 min-w-0">
                       <div className={`
                         w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center text-lg md:text-xl shrink-0
-                        ${adminItem.is_active ? 'bg-blue-500/10 text-blue-400' : 'bg-slate-700/50 text-slate-400'}
+                        ${adminItem.is_active ? 'bg-purple-500/10 text-purple-400' : 'bg-slate-700/50 text-slate-400'}
                       `}>
                         <UserIcon />
                       </div>
@@ -423,7 +417,7 @@ function UsersPage() {
                     <div className="flex items-center gap-3 md:gap-4 min-w-0">
                       <div className={`
                         w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center text-lg md:text-xl shrink-0
-                        ${empItem.is_active ? 'bg-blue-500/10 text-blue-400' : 'bg-slate-700/50 text-slate-400'}
+                        ${empItem.is_active ? 'bg-purple-500/10 text-purple-400' : 'bg-slate-700/50 text-slate-400'}
                       `}>
                         <UserIcon />
                       </div>

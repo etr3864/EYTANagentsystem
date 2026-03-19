@@ -72,8 +72,8 @@ function MonthGrid({
           const isFuture = cell > today;
 
           let bg = '';
-          if (isStart || isEnd) bg = 'bg-blue-600 text-white rounded-full';
-          else if (inRange) bg = 'bg-blue-600/20 text-blue-300';
+          if (isStart || isEnd) bg = 'bg-purple-600 text-white rounded-full';
+          else if (inRange) bg = 'bg-purple-600/20 text-purple-300';
 
           return (
             <button
@@ -83,7 +83,7 @@ function MonthGrid({
               className={`
                 h-9 w-full text-sm text-center transition-colors
                 ${isFuture ? 'text-slate-700 cursor-not-allowed' : 'hover:bg-slate-600/50 cursor-pointer'}
-                ${isToday && !isStart && !isEnd ? 'font-bold text-blue-400' : ''}
+                ${isToday && !isStart && !isEnd ? 'font-bold text-purple-400' : ''}
                 ${bg}
                 ${!bg && !isFuture ? 'text-slate-300' : ''}
               `}
@@ -161,7 +161,7 @@ export function DateRangePicker({ from, to, onChange }: DateRangePickerProps) {
     <div className="relative" ref={ref} dir="rtl">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-sm text-white hover:border-slate-500 transition-colors"
+        className="flex items-center gap-2 bg-white/5 border border-purple-500/10 rounded-lg px-3 py-1.5 text-sm text-white hover:border-purple-500/20 transition-colors"
       >
         <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -173,19 +173,19 @@ export function DateRangePicker({ from, to, onChange }: DateRangePickerProps) {
         <div
           ref={popupRef}
           className={`
-            absolute z-50 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl p-4
+            absolute z-50 bg-[#0F0B1F] border border-purple-500/15 rounded-xl shadow-2xl p-4
             right-0 md:right-auto md:left-0
             ${dropUp ? 'bottom-full mb-2' : 'top-full mt-2'}
           `}
           style={{ maxWidth: 'calc(100vw - 24px)' }}
         >
           <div className="flex items-center justify-between mb-2 px-1">
-            <button onClick={goForward} className="p-1 rounded hover:bg-slate-700 text-slate-400">
+            <button onClick={goForward} className="p-1 rounded hover:bg-white/10 text-slate-400">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <button onClick={goBack} className="p-1 rounded hover:bg-slate-700 text-slate-400">
+            <button onClick={goBack} className="p-1 rounded hover:bg-white/10 text-slate-400">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
               </svg>

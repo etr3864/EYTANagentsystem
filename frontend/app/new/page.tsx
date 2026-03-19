@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createAgent } from '@/lib/api';
-import { Button, Card, CardHeader, ArrowRightIcon } from '@/components/ui';
+import { Button, Card, CardHeader } from '@/components/ui';
 import { Input, Textarea, NumberInput } from '@/components/ui/Input';
 import { ModelSelect } from '@/components/ui/ModelSelect';
 import { ProviderSelector } from '@/components/agent/ProviderSelector';
@@ -84,18 +84,9 @@ export default function NewAgentPage() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header className="border-b border-slate-800 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b border-purple-500/10 bg-[#06060E]/80 backdrop-blur-sm sticky top-16 z-40">
         <div className="max-w-3xl mx-auto px-3 md:px-6 py-3 md:py-4">
-          <div className="flex items-center gap-3 md:gap-4">
-            <Link href="/">
-              <Button variant="ghost" size="sm">
-                <ArrowRightIcon />
-                <span className="hidden sm:inline">חזרה</span>
-              </Button>
-            </Link>
-            <div className="h-6 w-px bg-slate-700" />
-            <h1 className="font-semibold text-white text-sm md:text-base">יצירת סוכן חדש</h1>
-          </div>
+          <h1 className="font-semibold text-white text-sm md:text-base">יצירת סוכן חדש</h1>
         </div>
       </header>
 

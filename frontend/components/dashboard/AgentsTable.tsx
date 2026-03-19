@@ -29,25 +29,25 @@ export function AgentsTable({ rows, loading, fromDate, toDate }: Props) {
 
   if (loading) {
     return (
-      <div className="bg-slate-800 rounded-xl p-6 animate-pulse">
-        <div className="h-8 bg-slate-700 rounded w-48 mb-4" />
+      <div className="bg-white/[0.03] border border-purple-500/10 rounded-xl p-6 animate-pulse">
+        <div className="h-8 bg-white/5 rounded w-48 mb-4" />
         {[...Array(3)].map((_, i) => (
-          <div key={i} className="h-12 bg-slate-700 rounded mb-2" />
+          <div key={i} className="h-12 bg-white/5 rounded mb-2" />
         ))}
       </div>
     );
   }
 
   return (
-    <div className="bg-slate-800 rounded-xl overflow-hidden">
+    <div className="bg-white/[0.03] border border-purple-500/10 rounded-xl overflow-hidden">
       {/* Search */}
-      <div className="p-4 border-b border-slate-700">
+      <div className="p-4 border-b border-purple-500/10">
         <input
           type="text"
           placeholder="חיפוש סוכן או לקוח..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full md:w-72 bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+          className="w-full md:w-72 bg-white/5 border border-purple-500/10 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-purple-500"
           dir="rtl"
         />
       </div>
@@ -56,7 +56,7 @@ export function AgentsTable({ rows, loading, fromDate, toDate }: Props) {
       <div className="overflow-x-auto">
         <table className="w-full text-sm text-right">
           <thead>
-            <tr className="text-slate-400 border-b border-slate-700 text-xs uppercase">
+            <tr className="text-slate-400 border-b border-purple-500/10 text-xs uppercase">
               <th className="px-4 py-3">סוכן</th>
               <th className="px-4 py-3">לקוח</th>
               <th className="px-4 py-3">שיחות</th>
@@ -81,7 +81,7 @@ export function AgentsTable({ rows, loading, fromDate, toDate }: Props) {
                   <tr
                     key={row.agent_id}
                     onClick={() => toggleExpand(row.agent_id)}
-                    className="border-b border-slate-700/50 hover:bg-slate-700/40 cursor-pointer transition-colors"
+                    className="border-b border-purple-500/5 hover:bg-white/[0.03] cursor-pointer transition-colors"
                   >
                     <td className="px-4 py-3 font-medium text-white">{row.agent_name}</td>
                     <td className="px-4 py-3 text-slate-300">{row.client_name}</td>
@@ -95,7 +95,7 @@ export function AgentsTable({ rows, loading, fromDate, toDate }: Props) {
                   </tr>
                   {isExpanded && (
                     <tr key={`${row.agent_id}-detail`}>
-                      <td colSpan={7} className="px-4 pb-4 bg-slate-900/40">
+                      <td colSpan={7} className="px-4 pb-4 bg-[#06060E]/40">
                         <AgentAccordionDetail
                           agentId={row.agent_id}
                           fromDate={fromDate}

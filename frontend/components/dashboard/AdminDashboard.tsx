@@ -127,8 +127,8 @@ export function AdminDashboard() {
               onClick={() => p.id !== 'custom' && handlePreset(p.id)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 preset === p.id
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-white/5 text-slate-300 hover:bg-white/10'
               } ${p.id === 'custom' ? 'cursor-default' : ''}`}
             >
               {p.label}
@@ -146,7 +146,7 @@ export function AdminDashboard() {
           <select
             value={selectedAgentId ?? ''}
             onChange={(e) => setSelectedAgentId(e.target.value ? Number(e.target.value) : undefined)}
-            className="bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
+            className="bg-white/5 border border-purple-500/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-purple-500"
           >
             <option value="">כל הסוכנים</option>
             {agents.map((a) => (
@@ -157,7 +157,7 @@ export function AdminDashboard() {
       </div>
 
       {/* KPI Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <KpiCard title="סה״כ שיחות" value={stats?.total_conversations ?? 0} loading={loading && !stats} noData={noData} />
         <KpiCard title="סה״כ הודעות" value={stats?.total_messages ?? 0} loading={loading && !stats} noData={noData} />
         <KpiCard title="ממוצע הודעות לשיחה" value={stats?.avg_messages_per_conversation ?? 0} loading={loading && !stats} noData={noData} />

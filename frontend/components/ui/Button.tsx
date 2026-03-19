@@ -11,8 +11,8 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variants = {
   primary: `
-    bg-gradient-to-r from-blue-600 to-blue-500 
-    hover:from-blue-500 hover:to-blue-400 
+    bg-gradient-to-r from-purple-600 to-violet-600 
+    hover:from-purple-500 hover:to-violet-500 
     text-white shadow-md hover:shadow-lg
     active:scale-[0.98]
   `,
@@ -67,7 +67,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           inline-flex items-center justify-center whitespace-nowrap
           font-medium rounded-lg
           transition-all duration-200 ease-out
-          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900
+          focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-[#06060E]
           disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
           ${variants[variant]} 
           ${sizes[size]} 

@@ -10,7 +10,7 @@ interface KpiCardProps {
 
 export function KpiCard({ title, value, suffix = '', loading = false, noData = false }: KpiCardProps) {
   return (
-    <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5 flex flex-col gap-2">
+    <div className="bg-white/[0.03] border border-purple-500/10 rounded-xl p-5 flex flex-col gap-2 backdrop-blur-sm">
       <span className="text-sm text-slate-400">{title}</span>
       {loading ? (
         <div className="h-9 w-24 rounded-lg skeleton" />
