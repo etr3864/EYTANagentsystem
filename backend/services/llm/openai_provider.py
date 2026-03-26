@@ -241,3 +241,20 @@ class OpenAIProvider:
             max_completion_tokens=max_tokens,
         )
         return (response.choices[0].message.content or "").strip()
+
+    async def generate_tracked_response(
+        self, prompt: str, model: str = "gpt-4o-mini", max_tokens: int = 300
+    ) -> tuple[str, dict]:
+        """Like generate_simple_response but also returns token usage."""
+        response = await self._call_with_retry(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            max_completion_tokens=max_tokens,
+        )
+        usage = {
+            "input_tokens": response.usage.prompt_tokens or 0 if response.usage else 0,
+            "output_tokens": response.usage.completion_tokens or 0 if response.usage else 0,
+            "cache_read_tokens": 0,
+            "cache_creation_tokens": 0,
+        }
+        return (response.choices[0].message.content or "").strip(), usage
