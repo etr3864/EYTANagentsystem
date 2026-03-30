@@ -14,6 +14,8 @@ from backend.core.database import Base
 PRICING_DEFAULTS: dict[str, float] = {
     "model.claude-sonnet-4-6.input": 3.00,
     "model.claude-sonnet-4-6.output": 15.00,
+    "model.claude-sonnet-4-5.input": 3.00,
+    "model.claude-sonnet-4-5.output": 15.00,
     "model.claude-haiku-4-5.input": 1.00,
     "model.claude-haiku-4-5.output": 5.00,
     "model.gemini-2.0-flash.input": 0.10,
