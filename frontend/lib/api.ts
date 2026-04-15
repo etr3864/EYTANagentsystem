@@ -767,5 +767,29 @@ export async function updatePricingConfig(updates: Record<string, number>): Prom
   return res.json();
 }
 
+export async function exportConversations(
+  agentId: number,
+  fromDate: string,
+  toDate: string,
+): Promise<void> {
+  const params = new URLSearchParams({ from_date: fromDate, to_date: toDate });
+  const res = await authFetch(`${API_URL}/api/super-admin/agents/${agentId}/export?${params}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { detail?: string }).detail ?? 'Export failed');
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const disposition = res.headers.get('Content-Disposition') ?? '';
+  const match = disposition.match(/filename="?([^";\n]+)"?/);
+  a.download = match?.[1] ?? `conversations_${agentId}_${fromDate}_to_${toDate}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 // Re-export types
 export type { Agent, AgentCreate, AgentUpdate, AgentBatchingConfig, ContextSummaryConfig, Provider, WaSenderConfig, CustomApiKeys, User, Gender, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DataTable, DbMedia, AgentMedia, MediaConfig, MediaType, WhatsAppTemplate, TemplateCategory, TemplateStatus, DbTemplate, FollowupConfig, FollowupStep, FollowupStats, DbFollowup, DashboardStats, SystemSummary, AgentTableRow, AgentDetail, PricingConfig } from './types';

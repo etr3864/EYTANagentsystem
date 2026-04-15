@@ -12,6 +12,7 @@ from backend.core.logger import log, log_error
 from backend.api.routers import agents_router, users_router, conversations_router, database_router, webhook_router, knowledge_router, webhook_wasender_router, calendar_router, summaries_router, media_router, templates_router, followups_router
 from backend.api.routers.dashboard import router as dashboard_router
 from backend.api.routers.super_admin_dashboard import router as super_admin_dashboard_router
+from backend.api.routers.export import router as export_router
 from backend.auth import auth_router
 from backend.services import scheduler
 
@@ -91,6 +92,7 @@ app.include_router(templates_router, prefix="/api")
 app.include_router(followups_router, prefix="/api/agents")
 app.include_router(dashboard_router, prefix="/api")
 app.include_router(super_admin_dashboard_router, prefix="/api")
+app.include_router(export_router, prefix="/api")
 
 
 @app.get("/health")

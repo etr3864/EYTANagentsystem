@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import type { AgentTableRow } from '@/lib/types';
 import { AgentAccordionDetail } from './AgentAccordionDetail';
+import { exportConversations } from '@/lib/api';
 
 interface Props {
   rows: AgentTableRow[];
@@ -14,6 +15,20 @@ interface Props {
 export function AgentsTable({ rows, loading, fromDate, toDate }: Props) {
   const [search, setSearch] = useState('');
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [exportingId, setExportingId] = useState<number | null>(null);
+
+  async function handleExport(e: React.MouseEvent, agentId: number) {
+    e.stopPropagation();
+    if (exportingId !== null) return;
+    setExportingId(agentId);
+    try {
+      await exportConversations(agentId, fromDate, toDate);
+    } catch (err) {
+      alert((err as Error).message ?? 'שגיאה בייצוא');
+    } finally {
+      setExportingId(null);
+    }
+  }
 
   const filtered = rows.filter(
     (r) =>
@@ -63,13 +78,14 @@ export function AgentsTable({ rows, loading, fromDate, toDate }: Props) {
               <th className="px-4 py-3">הודעות</th>
               <th className="px-4 py-3">עלויות כוללות</th>
               <th className="px-4 py-3">עלות/שיחה</th>
+              <th className="px-4 py-3 w-20" />
               <th className="px-4 py-3 w-8" />
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
                   {search ? 'לא נמצאו תוצאות' : 'אין נתונים'}
                 </td>
               </tr>
@@ -89,13 +105,25 @@ export function AgentsTable({ rows, loading, fromDate, toDate }: Props) {
                     <td className="px-4 py-3 text-slate-300">{row.total_messages}</td>
                     <td className="px-4 py-3 text-white font-medium">₪{row.total_cost_ils.toFixed(2)}</td>
                     <td className="px-4 py-3 text-slate-300">₪{row.avg_cost_per_conversation_ils.toFixed(4)}</td>
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      {row.total_conversations > 0 && (
+                        <button
+                          onClick={(e) => handleExport(e, row.agent_id)}
+                          disabled={exportingId !== null}
+                          title="ייצוא שיחות ל-Excel"
+                          className="text-xs px-2 py-1 rounded border border-purple-500/30 text-purple-300 hover:bg-purple-500/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                        >
+                          {exportingId === row.agent_id ? '...' : '⬇ Excel'}
+                        </button>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-slate-400">
                       <span className={`transition-transform inline-block ${isExpanded ? 'rotate-180' : ''}`}>▼</span>
                     </td>
                   </tr>
                   {isExpanded && (
                     <tr key={`${row.agent_id}-detail`}>
-                      <td colSpan={7} className="px-4 pb-4 bg-[#0B0914]/40">
+                      <td colSpan={8} className="px-4 pb-4 bg-[#0B0914]/40">
                         <AgentAccordionDetail
                           agentId={row.agent_id}
                           fromDate={fromDate}

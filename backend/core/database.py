@@ -176,6 +176,11 @@ def _run_migration_statements(conn):
     """))
 
     conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_conversations_agent_created
+        ON conversations (agent_id, created_at);
+    """))
+
+    conn.execute(text("""
         DO $$ BEGIN
             CREATE TABLE IF NOT EXISTS agent_usage_daily (
                 id SERIAL PRIMARY KEY,
