@@ -74,7 +74,7 @@ def _fmt_date(iso: str) -> str:
 
 
 def _make_filename(agent_name: str, from_date: str, to_date: str) -> str:
-    safe = "".join(c if c.isalnum() or c in "-_" else "_" for c in agent_name)
+    safe = "".join(c if (c.isascii() and c.isalnum()) or c in "-_" else "_" for c in agent_name)
     return f"conversations_{safe}_{from_date}_to_{to_date}.xlsx"
 
 
