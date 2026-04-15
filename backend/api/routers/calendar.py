@@ -44,6 +44,7 @@ class CalendarConfigUpdate(BaseModel):
     webhook_url: Optional[str] = None
     appointment_prompt: Optional[str] = None
     reminders: Optional[RemindersConfig] = None
+    allow_double_booking: Optional[bool] = None
 
 
 @router.get("/{agent_id}/oauth-url")
@@ -165,6 +166,7 @@ async def get_config(agent_id: int, _: AuthUser = _agent_auth, db: Session = Dep
         "webhook_url": config.get("webhook_url"),
         "appointment_prompt": agent.appointment_prompt,
         "reminders": raw_config.get("reminders", {"enabled": False, "rules": []}),
+        "allow_double_booking": config.get("allow_double_booking"),
     }
 
 
@@ -192,6 +194,8 @@ async def update_config(agent_id: int, config: CalendarConfigUpdate, _: AuthUser
         updates["webhook_url"] = config.webhook_url if config.webhook_url else None
     if config.reminders is not None:
         updates["reminders"] = config.reminders.model_dump()
+    if config.allow_double_booking is not None:
+        updates["allow_double_booking"] = config.allow_double_booking
     
     if updates:
         appointments.update_calendar_config(db, agent, updates)

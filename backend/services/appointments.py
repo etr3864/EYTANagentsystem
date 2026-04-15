@@ -38,6 +38,7 @@ def get_calendar_config(agent: Agent) -> dict:
         "days_ahead": config.get("days_ahead", 14),
         "timezone": config.get("timezone", "Asia/Jerusalem"),
         "webhook_url": config.get("webhook_url"),
+        "allow_double_booking": config.get("allow_double_booking", False),
     }
 
 
@@ -211,7 +212,7 @@ async def check_availability(
             if slot_start <= now:
                 continue
             
-            if _is_slot_available(slot_start, slot_end, busy_times, buffer, tz):
+            if config.get("allow_double_booking") or _is_slot_available(slot_start, slot_end, busy_times, buffer, tz):
                 available_slots.append({
                     "date": current_date.isoformat(),
                     "start": slot_start.strftime("%H:%M"),
@@ -240,17 +241,18 @@ async def book_appointment(
     config = get_calendar_config(agent)
     end_time = start_time + timedelta(minutes=duration_minutes)
     
-    # Check for conflicts
-    conflict = db.query(Appointment).filter(
-        Appointment.agent_id == agent.id,
-        Appointment.status == "scheduled",
-        Appointment.start_time < end_time,
-        Appointment.end_time > start_time
-    ).first()
-    
-    if conflict:
-        log_error("appointments", "booking conflict")
-        return None
+    # Check for conflicts (skipped when allow_double_booking is enabled)
+    if not config.get("allow_double_booking"):
+        conflict = db.query(Appointment).filter(
+            Appointment.agent_id == agent.id,
+            Appointment.status == "scheduled",
+            Appointment.start_time < end_time,
+            Appointment.end_time > start_time
+        ).first()
+        
+        if conflict:
+            log_error("appointments", "booking conflict")
+            return None
     
     # Create Google Calendar event if connected
     google_event_id = None
@@ -340,17 +342,18 @@ async def reschedule_appointment(
     duration = new_duration_minutes or appointment.duration_minutes
     new_end_time = new_start_time + timedelta(minutes=duration)
     
-    # Check for conflicts
-    conflict = db.query(Appointment).filter(
-        Appointment.agent_id == agent.id,
-        Appointment.status == "scheduled",
-        Appointment.id != appointment.id,
-        Appointment.start_time < new_end_time,
-        Appointment.end_time > new_start_time
-    ).first()
-    
-    if conflict:
-        return False
+    # Check for conflicts (skipped when allow_double_booking is enabled)
+    if not config.get("allow_double_booking"):
+        conflict = db.query(Appointment).filter(
+            Appointment.agent_id == agent.id,
+            Appointment.status == "scheduled",
+            Appointment.id != appointment.id,
+            Appointment.start_time < new_end_time,
+            Appointment.end_time > new_start_time
+        ).first()
+        
+        if conflict:
+            return False
     
     # Cancel old reminders
     from backend.services.reminders import cancel_reminders_for_appointment, create_reminders_for_appointment

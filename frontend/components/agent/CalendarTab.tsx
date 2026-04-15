@@ -38,6 +38,7 @@ interface CalendarConfig {
   timezone?: string;
   webhook_url?: string;
   reminders?: RemindersConfig;
+  allow_double_booking?: boolean;
 }
 
 interface GoogleCalendar {
@@ -660,6 +661,38 @@ export function CalendarTab({
               );
             })}
           </div>
+        </Card>
+      )}
+
+      {/* Double Booking */}
+      {isConnected && (
+        <Card>
+          <CardHeader>פגישות מרובות</CardHeader>
+          <p className="text-sm text-slate-400 mb-4">
+            אפשר קביעת כמה פגישות על אותו זמן (למשל: שיעורי קבוצה, מספר מטפלים במקביל)
+          </p>
+          
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => saveConfig({ ...config, allow_double_booking: !config.allow_double_booking })}
+              className={`relative w-12 h-6 rounded-full transition-colors ${
+                config.allow_double_booking ? 'bg-emerald-500' : 'bg-slate-600'
+              }`}
+            >
+              <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${
+                config.allow_double_booking ? 'right-1' : 'left-1'
+              }`} />
+            </button>
+            <span className="text-sm text-slate-300">
+              {config.allow_double_booking ? 'מופעל — ניתן לתאם כמה פגישות על אותו זמן' : 'כבוי — זמן תפוס חוסם קביעה נוספת'}
+            </span>
+          </div>
+
+          {config.allow_double_booking && (
+            <p className="text-xs text-amber-400/80 mt-3">
+              פגישות מרובות על אותו זמן יופיעו כהתנגשויות ב-Google Calendar
+            </p>
+          )}
         </Card>
       )}
 
