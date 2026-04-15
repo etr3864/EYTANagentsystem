@@ -5,70 +5,17 @@ import { getAgents, getDashboardStats } from '@/lib/api';
 import type { Agent, DashboardStats } from '@/lib/types';
 import { KpiCard } from './KpiCard';
 import { DateRangePicker } from './DateRangePicker';
-
-type Preset = 'today' | '7d' | 'week' | '30d' | 'month' | '90d' | 'custom' | 'all';
-
-function getPresetDates(preset: Exclude<Preset, 'custom'>): { from: string; to: string } {
-  const today = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  const todayStr = fmt(today);
-
-  switch (preset) {
-    case 'today':
-      return { from: todayStr, to: todayStr };
-    case '7d': {
-      const d = new Date(today);
-      d.setDate(today.getDate() - 6);
-      return { from: fmt(d), to: todayStr };
-    }
-    case 'week': {
-      const dayOfWeek = today.getDay();
-      const lastSunday = new Date(today);
-      lastSunday.setDate(today.getDate() - dayOfWeek - 7);
-      const lastSaturday = new Date(lastSunday);
-      lastSaturday.setDate(lastSunday.getDate() + 6);
-      return { from: fmt(lastSunday), to: fmt(lastSaturday) };
-    }
-    case '30d': {
-      const d = new Date(today);
-      d.setDate(today.getDate() - 29);
-      return { from: fmt(d), to: todayStr };
-    }
-    case 'month': {
-      const first = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      const last = new Date(today.getFullYear(), today.getMonth(), 0);
-      return { from: fmt(first), to: fmt(last) };
-    }
-    case '90d': {
-      const d = new Date(today);
-      d.setDate(today.getDate() - 89);
-      return { from: fmt(d), to: todayStr };
-    }
-    case 'all':
-      return { from: '2020-01-01', to: todayStr };
-  }
-}
-
-const PRESETS: { id: Preset; label: string }[] = [
-  { id: 'today', label: 'היום' },
-  { id: '7d', label: '7 ימים' },
-  { id: 'week', label: 'שבוע' },
-  { id: '30d', label: '30 ימים' },
-  { id: 'month', label: 'חודש' },
-  { id: '90d', label: '90 ימים' },
-  { id: 'custom', label: 'מותאם' },
-  { id: 'all', label: 'הכל' },
-];
+import { getPresetDates, PRESETS, type Preset } from './datePresets';
 
 const STALE_MS = 5 * 60 * 1000;
 
 export function AdminDashboard() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<number | undefined>(undefined);
-  const [preset, setPreset] = useState<Preset>('30d');
+  const [preset, setPreset] = useState<Preset>('week');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
+  const [isCustom, setIsCustom] = useState(false);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastFetchedAt, setLastFetchedAt] = useState(0);
@@ -77,7 +24,7 @@ export function AdminDashboard() {
     getAgents().then(setAgents).catch(() => {});
   }, []);
 
-  const activeDates = preset === 'custom'
+  const activeDates = isCustom
     ? { from: customFrom, to: customTo }
     : getPresetDates(preset);
 
@@ -104,17 +51,19 @@ export function AdminDashboard() {
     fetchStats(true);
   }, [activeDates.from, activeDates.to, selectedAgentId]);
 
-  const handlePreset = (p: Preset) => {
+  const handlePresetChange = (p: Preset) => {
     setPreset(p);
+    setIsCustom(false);
   };
 
   const handleCustomRange = (from: string, to: string) => {
     setCustomFrom(from);
     setCustomTo(to);
-    setPreset('custom');
+    setIsCustom(true);
   };
 
   const noData = stats !== null && !stats.has_data;
+  const activePreset = isCustom ? null : preset;
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -124,12 +73,12 @@ export function AdminDashboard() {
           {PRESETS.map((p) => (
             <button
               key={p.id}
-              onClick={() => p.id !== 'custom' && handlePreset(p.id)}
+              onClick={() => handlePresetChange(p.id)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                preset === p.id
+                activePreset === p.id
                   ? 'bg-purple-600 text-white'
                   : 'bg-white/5 text-slate-300 hover:bg-white/10'
-              } ${p.id === 'custom' ? 'cursor-default' : ''}`}
+              }`}
             >
               {p.label}
             </button>
@@ -137,8 +86,9 @@ export function AdminDashboard() {
         </div>
 
         <DateRangePicker
-          from={preset === 'custom' ? customFrom : ''}
-          to={preset === 'custom' ? customTo : ''}
+          from={activeDates.from}
+          to={activeDates.to}
+          isCustom={isCustom}
           onChange={handleCustomRange}
         />
 

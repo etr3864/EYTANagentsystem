@@ -5,15 +5,21 @@ import { useState, useRef, useEffect } from 'react';
 interface DateRangePickerProps {
   from: string;
   to: string;
+  isCustom?: boolean;
   onChange: (from: string, to: string) => void;
 }
 
 const DAY_NAMES = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
+const MONTHS_HE = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
 
 function pad(n: number) { return String(n).padStart(2, '0'); }
 function fmt(d: Date) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+function hebrewMonth(m: number) { return MONTHS_HE[m]; }
+
 function isSameDay(a: Date, b: Date) {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  return a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
 }
 function isBetween(d: Date, start: Date, end: Date) {
   return d >= start && d <= end;
@@ -21,9 +27,8 @@ function isBetween(d: Date, start: Date, end: Date) {
 
 function getMonthDays(year: number, month: number): (Date | null)[] {
   const first = new Date(year, month, 1);
-  const startPad = first.getDay(); // 0=Sunday
+  const startPad = first.getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-
   const cells: (Date | null)[] = [];
   for (let i = 0; i < startPad; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
@@ -31,16 +36,13 @@ function getMonthDays(year: number, month: number): (Date | null)[] {
 }
 
 function formatLabel(from: string, to: string): string {
-  if (!from || !to) return 'בחר תאריכים';
-  const f = new Date(from);
-  const t = new Date(to);
-  const fmtHe = (d: Date) => `${d.getDate()} ב${hebrewMonth(d.getMonth())} ${d.getFullYear()}`;
-  if (isSameDay(f, t)) return fmtHe(f);
-  return `מ-${fmtHe(f)} עד ${fmtHe(t)}`;
+  if (!from) return 'בחר תאריכים';
+  const f = new Date(from + 'T00:00:00');
+  const fmtHe = (d: Date) => `${d.getDate()} ${hebrewMonth(d.getMonth())} ${d.getFullYear()}`;
+  if (!to || from === to) return fmtHe(f);
+  const t = new Date(to + 'T00:00:00');
+  return `${fmtHe(f)} – ${fmtHe(t)}`;
 }
-
-const MONTHS_HE = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
-function hebrewMonth(m: number) { return MONTHS_HE[m]; }
 
 function MonthGrid({
   year, month, rangeStart, rangeEnd, selecting, onDayClick, today,
@@ -64,7 +66,6 @@ function MonthGrid({
         ))}
         {cells.map((cell, i) => {
           if (!cell) return <div key={`e-${i}`} />;
-
           const isToday = isSameDay(cell, today);
           const isStart = rangeStart && isSameDay(cell, rangeStart);
           const isEnd = rangeEnd && isSameDay(cell, rangeEnd);
@@ -97,24 +98,37 @@ function MonthGrid({
   );
 }
 
-export function DateRangePicker({ from, to, onChange }: DateRangePickerProps) {
+export function DateRangePicker({ from, to, isCustom = false, onChange }: DateRangePickerProps) {
   const [open, setOpen] = useState(false);
   const [viewDate, setViewDate] = useState(() => {
-    const d = to ? new Date(to) : new Date();
+    const d = to ? new Date(to + 'T00:00:00') : new Date();
     return { year: d.getFullYear(), month: d.getMonth() };
   });
   const [selecting, setSelecting] = useState(false);
-  const [tempStart, setTempStart] = useState<Date | null>(from ? new Date(from) : null);
-  const [tempEnd, setTempEnd] = useState<Date | null>(to ? new Date(to) : null);
+  const [tempStart, setTempStart] = useState<Date | null>(from ? new Date(from + 'T00:00:00') : null);
+  const [tempEnd, setTempEnd] = useState<Date | null>(to ? new Date(to + 'T00:00:00') : null);
   const [dropUp, setDropUp] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const popupRef = useRef<HTMLDivElement>(null);
   const today = new Date();
   today.setHours(23, 59, 59, 999);
 
+  // Sync displayed selection when preset changes externally
+  useEffect(() => {
+    setTempStart(from ? new Date(from + 'T00:00:00') : null);
+    setTempEnd(to ? new Date(to + 'T00:00:00') : null);
+    if (to) {
+      const d = new Date(to + 'T00:00:00');
+      setViewDate({ year: d.getFullYear(), month: d.getMonth() });
+    }
+    setSelecting(false);
+  }, [from, to]);
+
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSelecting(false);
+      }
     }
     if (open) document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
@@ -123,8 +137,7 @@ export function DateRangePicker({ from, to, onChange }: DateRangePickerProps) {
   useEffect(() => {
     if (!open || !ref.current) return;
     const rect = ref.current.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
-    setDropUp(spaceBelow < 420);
+    setDropUp(window.innerHeight - rect.bottom < 420);
   }, [open]);
 
   const prevMonth = viewDate.month === 0
@@ -151,27 +164,36 @@ export function DateRangePicker({ from, to, onChange }: DateRangePickerProps) {
   }
 
   function goForward() {
-    const nextMonth = viewDate.month === 11 ? { year: viewDate.year + 1, month: 0 } : { year: viewDate.year, month: viewDate.month + 1 };
+    const next = viewDate.month === 11
+      ? { year: viewDate.year + 1, month: 0 }
+      : { year: viewDate.year, month: viewDate.month + 1 };
     const now = new Date();
-    if (nextMonth.year > now.getFullYear() || (nextMonth.year === now.getFullYear() && nextMonth.month > now.getMonth())) return;
-    setViewDate(nextMonth);
+    if (next.year > now.getFullYear() || (next.year === now.getFullYear() && next.month > now.getMonth())) return;
+    setViewDate(next);
   }
 
   return (
     <div className="relative" ref={ref} dir="rtl">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 bg-white/5 border border-purple-500/10 rounded-lg px-3 py-1.5 text-sm text-white hover:border-purple-500/20 transition-colors"
+        className={`
+          flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-white transition-colors
+          ${isCustom
+            ? 'bg-purple-600/15 border border-purple-500/50 hover:border-purple-400/70'
+            : 'bg-white/5 border border-purple-500/10 hover:border-purple-500/25'
+          }
+        `}
       >
-        <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
-        <span className="text-slate-300">{formatLabel(from, to)}</span>
+        <span className={isCustom ? 'text-purple-300' : 'text-slate-300'}>
+          {formatLabel(from, to)}
+        </span>
       </button>
 
       {open && (
         <div
-          ref={popupRef}
           className={`
             absolute z-50 bg-[#0F0B1F] border border-purple-500/15 rounded-xl shadow-2xl p-4
             right-0 md:right-auto md:left-0
@@ -179,6 +201,9 @@ export function DateRangePicker({ from, to, onChange }: DateRangePickerProps) {
           `}
           style={{ maxWidth: 'calc(100vw - 24px)' }}
         >
+          {selecting && (
+            <p className="text-xs text-purple-400 text-center mb-2">בחר את תאריך הסיום</p>
+          )}
           <div className="flex items-center justify-between mb-2 px-1">
             <button onClick={goForward} className="p-1 rounded hover:bg-white/10 text-slate-400">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

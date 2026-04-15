@@ -12,15 +12,16 @@ import { getPresetDates, type Preset } from './datePresets';
 const ILS = (v: number) => `₪${v.toFixed(2)}`;
 
 export function SuperAdminDashboard() {
-  const [preset, setPreset] = useState<Preset>('30d');
+  const [preset, setPreset] = useState<Preset>('week');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
+  const [isCustom, setIsCustom] = useState(false);
   const [summary, setSummary] = useState<SystemSummary | null>(null);
   const [tableRows, setTableRows] = useState<AgentTableRow[]>([]);
   const [loadingSummary, setLoadingSummary] = useState(true);
   const [loadingTable, setLoadingTable] = useState(true);
 
-  const activeDates = preset === 'custom'
+  const activeDates = isCustom
     ? { from: customFrom, to: customTo }
     : getPresetDates(preset);
 
@@ -47,23 +48,26 @@ export function SuperAdminDashboard() {
     fetchData();
   }, [activeDates.from, activeDates.to]);
 
+  const handlePresetChange = (p: Preset) => {
+    setPreset(p);
+    setIsCustom(false);
+  };
+
   const handleCustomRange = (from: string, to: string) => {
     setCustomFrom(from);
     setCustomTo(to);
-    setPreset('custom');
+    setIsCustom(true);
   };
 
   return (
     <div className="space-y-6" dir="rtl">
       <PresetBar
-        preset={preset}
-        customFrom={customFrom}
-        customTo={customTo}
-        onPresetChange={setPreset}
+        preset={isCustom ? null : preset}
+        activeDates={activeDates}
+        onPresetChange={handlePresetChange}
         onCustomRange={handleCustomRange}
       />
 
-      {/* Summary KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard
           title="סה״כ עלות"
@@ -93,7 +97,6 @@ export function SuperAdminDashboard() {
         />
       </div>
 
-      {/* Agents Table */}
       <AgentsTable
         rows={tableRows}
         loading={loadingTable}
@@ -101,7 +104,6 @@ export function SuperAdminDashboard() {
         toDate={activeDates.to}
       />
 
-      {/* Pricing Panel */}
       <PricingPanel />
     </div>
   );
