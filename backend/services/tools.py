@@ -146,8 +146,29 @@ async def _handle_book_appointment(
         
         title = data.get("title", "פגישה")
         description = data.get("description", "")
-        
-        apt = await appointments.book_appointment(db, agent, user_id, dt, duration, title, description)
+
+        # Optional extras - pass-through to Google Calendar (no DB columns added)
+        attendee_email = (data.get("attendee_email") or "").strip() or None
+        if attendee_email and "@" not in attendee_email:
+            attendee_email = None  # silently ignore invalid emails
+
+        location = (data.get("location") or "").strip() or None
+        add_meet_link = bool(data.get("add_meet_link"))
+        raw_reminder = data.get("reminder_minutes")
+        try:
+            reminder_minutes = int(raw_reminder) if raw_reminder is not None else None
+        except (TypeError, ValueError):
+            reminder_minutes = None
+        if reminder_minutes is not None and reminder_minutes <= 0:
+            reminder_minutes = None
+
+        apt = await appointments.book_appointment(
+            db, agent, user_id, dt, duration, title, description,
+            attendee_email=attendee_email,
+            location=location,
+            add_meet_link=add_meet_link,
+            reminder_minutes=reminder_minutes,
+        )
         
         if apt:
             log_tool("book_appointment", 1)

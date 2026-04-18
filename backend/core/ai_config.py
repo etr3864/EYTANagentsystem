@@ -62,7 +62,11 @@ USER_TOOLS = [
                 "datetime": {"type": "string", "description": "תאריך ושעה (ISO format: YYYY-MM-DDTHH:MM)"},
                 "duration_minutes": {"type": "integer", "description": "משך הפגישה בדקות (לדוגמה: 30)"},
                 "title": {"type": "string", "description": "כותרת הפגישה"},
-                "description": {"type": "string", "description": "תיאור/הערות (אופציונלי)"}
+                "description": {"type": "string", "description": "תיאור/הערות (אופציונלי)"},
+                "attendee_email": {"type": "string", "description": "מייל הלקוח לשליחת זימון ביומן. העבר רק אם הלקוח מסר/ביקש זימון למייל. אם לא - השאר ריק."},
+                "location": {"type": "string", "description": "כתובת פיזית או מיקום של הפגישה (אופציונלי)"},
+                "add_meet_link": {"type": "boolean", "description": "האם להוסיף קישור Google Meet לפגישה. השתמש רק עבור פגישות וידאו/אונליין."},
+                "reminder_minutes": {"type": "integer", "description": "תזכורת כמה דקות לפני הפגישה (אופציונלי, למשל 60 = שעה לפני)"}
             },
             "required": ["datetime", "duration_minutes", "title"]
         }
@@ -159,6 +163,12 @@ SYSTEM_SUFFIX = """
 - אם בדקת זמינות - חובה להציג ללקוח את הזמנים הפנויים ולשאול מה מתאים לו.
 - אחרי שפגישה נקבעה בהצלחה - אם הלקוח שולח תודה, אישור או פרידה, ענה בנימוס ואל תקרא ל-check_availability שוב. הזמן שנקבע תפוס כי אתה עצמך קבעת אותו.
 - אל תשתמש בכלי check_availability בלי שהלקוח ביקש לקבוע/לשנות פגישה.
+
+שדות אופציונליים ב-book_appointment (השתמש רק כשרלוונטי לפי ההנחיות של הסוכן או בקשת הלקוח):
+- attendee_email: מייל הלקוח לזימון ביומן - השתמש רק אם הלקוח מסר מייל תקין או ביקש במפורש לקבל זימון למייל. אל תמציא/תנחש מייל.
+- location: כתובת/מיקום - רק אם ידועה כתובת הפגישה מההנחיות של העסק.
+- add_meet_link: קישור Google Meet - רק לפגישות וידאו/אונליין.
+- reminder_minutes: תזכורת X דקות לפני - רק אם הלקוח ביקש תזכורת או אם הוגדר בהנחיות.
 
 כלי מדיה וקבצים (אם יש מדיה זמינה):
 - send_media: שלח תמונה, וידאו או קובץ ללקוח (דורש media_id מהרשימה)

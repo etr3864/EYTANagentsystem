@@ -199,10 +199,64 @@ async def create_event(
     start_time: datetime,
     end_time: datetime,
     description: str = "",
-    timezone: str = "Asia/Jerusalem"
+    timezone: str = "Asia/Jerusalem",
+    attendee_email: Optional[str] = None,
+    location: Optional[str] = None,
+    add_meet_link: bool = False,
+    reminder_minutes: Optional[int] = None,
 ) -> Optional[str]:
-    """Create a calendar event. Returns event ID or None."""
+    """Create a calendar event. Returns event ID or None.
+
+    Optional extras:
+    - attendee_email: invites this email (email notification sent when sendUpdates=all)
+    - location: physical address / location string
+    - add_meet_link: if True, creates a Google Meet link on the event
+    - reminder_minutes: adds email + popup reminder X minutes before start
+    """
     try:
+        body: dict = {
+            "summary": title,
+            "description": description,
+            "start": {
+                "dateTime": start_time.isoformat(),
+                "timeZone": timezone,
+            },
+            "end": {
+                "dateTime": end_time.isoformat(),
+                "timeZone": timezone,
+            },
+        }
+
+        if location:
+            body["location"] = location
+
+        if attendee_email:
+            body["attendees"] = [{"email": attendee_email}]
+
+        if add_meet_link:
+            import uuid
+            body["conferenceData"] = {
+                "createRequest": {
+                    "requestId": uuid.uuid4().hex,
+                    "conferenceSolutionKey": {"type": "hangoutsMeet"},
+                }
+            }
+
+        if reminder_minutes is not None and reminder_minutes > 0:
+            body["reminders"] = {
+                "useDefault": False,
+                "overrides": [
+                    {"method": "email", "minutes": reminder_minutes},
+                    {"method": "popup", "minutes": reminder_minutes},
+                ],
+            }
+
+        params: dict = {}
+        if attendee_email:
+            params["sendUpdates"] = "all"
+        if add_meet_link:
+            params["conferenceDataVersion"] = 1
+
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{GOOGLE_CALENDAR_API}/calendars/{calendar_id}/events",
@@ -210,24 +264,14 @@ async def create_event(
                     "Authorization": f"Bearer {access_token}",
                     "Content-Type": "application/json",
                 },
-                json={
-                    "summary": title,
-                    "description": description,
-                    "start": {
-                        "dateTime": start_time.isoformat(),
-                        "timeZone": timezone,
-                    },
-                    "end": {
-                        "dateTime": end_time.isoformat(),
-                        "timeZone": timezone,
-                    },
-                },
+                params=params or None,
+                json=body,
             )
-        
+
         if response.status_code not in (200, 201):
             log_error("calendar", f"create event failed: {response.text[:100]}")
             return None
-        
+
         data = response.json()
         return data.get("id")
     except Exception as e:

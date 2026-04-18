@@ -234,9 +234,18 @@ async def book_appointment(
     start_time: datetime,
     duration_minutes: int,
     title: str,
-    description: str = ""
+    description: str = "",
+    attendee_email: Optional[str] = None,
+    location: Optional[str] = None,
+    add_meet_link: bool = False,
+    reminder_minutes: Optional[int] = None,
 ) -> Optional[Appointment]:
-    """Book an appointment with race condition protection."""
+    """Book an appointment with race condition protection.
+
+    Optional extras (pass-through to Google Calendar event):
+    - attendee_email, location, add_meet_link, reminder_minutes
+    All existing callers keep working (default to None/False).
+    """
     log("calendar", msg=f"booking: {title} at {start_time} for {duration_minutes}min")
     config = get_calendar_config(agent)
     end_time = start_time + timedelta(minutes=duration_minutes)
@@ -266,7 +275,11 @@ async def book_appointment(
             start_time,
             end_time,
             description,
-            config["timezone"]
+            config["timezone"],
+            attendee_email=attendee_email,
+            location=location,
+            add_meet_link=add_meet_link,
+            reminder_minutes=reminder_minutes,
         )
         log("calendar", event_id=google_event_id)
     
