@@ -237,7 +237,7 @@ async def _exchange_ig_long_lived(short_token: str) -> Optional[dict]:
     """Exchange a short-lived Instagram token for a 60-day long-lived token."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.post(INSTAGRAM_LONG_LIVED_URL, data={
+            resp = await client.get(INSTAGRAM_LONG_LIVED_URL, params={
                 "grant_type": "ig_exchange_token",
                 "client_secret": settings.meta_instagram_app_secret or settings.meta_app_secret,
                 "access_token": short_token,
