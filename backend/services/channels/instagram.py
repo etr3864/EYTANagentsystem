@@ -12,6 +12,24 @@ from backend.core.logger import log_error
 META_GRAPH_URL = "https://graph.instagram.com/v20.0"
 
 
+async def get_user_profile(access_token: str, user_id: str) -> Optional[dict]:
+    """Fetch Instagram user profile (name/username) by IGSID.
+
+    Returns {"name": "...", "username": "..."} or None on failure.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.get(
+                f"{META_GRAPH_URL}/{user_id}",
+                params={"access_token": access_token, "fields": "name,username"},
+            )
+        if resp.status_code == 200:
+            return resp.json()
+        return None
+    except Exception:
+        return None
+
+
 async def send_message(access_token: str, ig_account_id: str, recipient_id: str, text: str) -> bool:
     """Send a text message via Instagram.
 

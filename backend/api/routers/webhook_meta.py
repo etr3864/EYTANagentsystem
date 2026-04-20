@@ -119,14 +119,28 @@ async def _handle_single_message(msg: ParsedIncomingMessage) -> None:
             log_error("webhook_meta", f"no active channel for {msg.channel_type}/{msg.external_account_id}")
             return
 
-        # Get or create channel user (atomic upsert)
+        # For Instagram/Messenger: fetch display name from profile API if missing
+        display_name = msg.display_name
+        if not display_name and msg.channel_type in ("instagram", "messenger"):
+            try:
+                from backend.services.channels.credential_store import decrypt_credentials
+                creds = decrypt_credentials(channel.credentials_encrypted)
+                token = creds.get("access_token", "")
+                if msg.channel_type == "instagram":
+                    from backend.services.channels.instagram import get_user_profile
+                    profile = await get_user_profile(token, msg.external_user_id)
+                    if profile:
+                        display_name = profile.get("username") or profile.get("name")
+            except Exception:
+                pass
+
         channel_user_id = get_or_create_for_incoming(
             db,
             channel,
             IncomingUserInfo(
                 external_id=msg.external_user_id,
                 bsuid=msg.bsuid,
-                display_name=msg.display_name,
+                display_name=display_name,
             ),
         )
         db.commit()

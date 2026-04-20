@@ -38,15 +38,13 @@ async def send_message(
     current_user: AuthUser = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Send a message to a conversation via WhatsApp."""
+    """Send a manual message to a conversation via the correct channel."""
     require_conversation_access(conv_id, current_user, db)
     
-    # Get conversation
     conv = conversations.get_by_id(db, conv_id)
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
     
-    # Get agent and user
     agent = agents.get_by_id(db, conv.agent_id)
     user = users.get_by_id(db, conv.user_id)
     
@@ -56,13 +54,27 @@ async def send_message(
     if not agent.is_active:
         raise HTTPException(status_code=400, detail="Agent is not active")
     
-    # Send via appropriate provider
-    success = await providers.send_message(agent, user.phone, req.text)
+    # Route through the correct channel
+    success = False
+    if conv.channel_id:
+        from backend.services.channels.agent_channels import get_channel
+        channel = get_channel(db, conv.channel_id)
+        if channel and channel.is_active:
+            recipient = user.phone
+            if conv.channel_user_id:
+                from backend.models.channel_user import ChannelUser
+                cu = db.get(ChannelUser, conv.channel_user_id)
+                if cu:
+                    recipient = cu.external_id
+            success = await providers.send_channel_message(channel, recipient, req.text, db)
+        else:
+            raise HTTPException(status_code=400, detail="Channel is inactive or not found")
+    else:
+        success = await providers.send_message(agent, user.phone, req.text)
     
     if not success:
         raise HTTPException(status_code=500, detail="Failed to send message")
     
-    # Save to DB with manual indicator
     msg = messages.add(db, conv_id, "assistant", req.text, message_type="manual")
     log("MANUAL_SEND", agent=agent.name, user=user.name or user.phone[-4:])
     
