@@ -3,38 +3,35 @@
 Meta signs every webhook POST with:
     X-Hub-Signature-256: sha256=<hex_digest>
 
-The digest is computed over the raw request body using the App Secret as key.
+Different Meta products use different App Secrets:
+    - Messenger / WhatsApp: Facebook App Secret  (META_APP_SECRET)
+    - Instagram Login:      Instagram App Secret  (META_INSTAGRAM_APP_SECRET)
 """
 import hashlib
 import hmac
 
 
-def verify_meta_signature(payload: bytes, signature: str, app_secret: str) -> bool:
-    """Verify Meta webhook X-Hub-Signature-256 header.
-
-    Args:
-        payload: Raw request body bytes (before any parsing).
-        signature: Value of X-Hub-Signature-256 header (e.g. "sha256=abc123...").
-        app_secret: Meta App Secret from developer console.
-
-    Returns:
-        True if signature is valid, False otherwise.
-    """
-    if not signature or not app_secret:
+def verify_meta_signature(payload: bytes, signature: str, secret: str) -> bool:
+    """Verify Meta webhook X-Hub-Signature-256 against a specific secret."""
+    if not signature or not secret:
         return False
 
-    secret_clean = app_secret.strip()
     expected = "sha256=" + hmac.new(
-        secret_clean.encode("utf-8"),
+        secret.strip().encode("utf-8"),
         payload,
         hashlib.sha256,
     ).hexdigest()
 
-    match = hmac.compare_digest(expected, signature)
-    if not match:
-        from backend.core.logger import log_error
-        log_error("hmac_debug", 
-            f"secret_len={len(app_secret)} clean_len={len(secret_clean)} "
-            f"expected={expected[:20]}... received={signature[:20]}..."
-        )
-    return match
+    return hmac.compare_digest(expected, signature)
+
+
+def select_secret_for_object(obj: str, app_secret: str | None,
+                              instagram_app_secret: str | None) -> str | None:
+    """Pick the correct signing secret based on the webhook object type.
+
+    Instagram Login webhooks (object="instagram") are signed with the
+    Instagram App Secret. Everything else uses the main Facebook App Secret.
+    """
+    if obj == "instagram" and instagram_app_secret:
+        return instagram_app_secret
+    return app_secret

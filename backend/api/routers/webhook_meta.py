@@ -18,7 +18,7 @@ import hmac
 from fastapi import APIRouter, Request, HTTPException, Query
 
 from backend.core.config import settings
-from backend.core.hmac_verify import verify_meta_signature
+from backend.core.hmac_verify import verify_meta_signature, select_secret_for_object
 from backend.core.database import SessionLocal
 from backend.core.logger import log, log_error
 from backend.services.messaging.processing import is_duplicate, process_batched_messages
@@ -68,12 +68,8 @@ async def receive_meta_webhook(request: Request):
 
     log("webhook_meta_raw", body_len=len(body), has_signature=bool(signature))
 
-    if not settings.meta_app_secret:
-        raise HTTPException(status_code=503, detail="META_APP_SECRET not configured")
-
-    if not verify_meta_signature(body, signature, settings.meta_app_secret):
-        log_error("webhook_meta", f"HMAC failed, body_preview={body[:200]}")
-        raise HTTPException(status_code=401, detail="Invalid HMAC signature")
+    if not settings.meta_app_secret and not settings.meta_instagram_app_secret:
+        raise HTTPException(status_code=503, detail="No META_APP_SECRET or META_INSTAGRAM_APP_SECRET configured")
 
     try:
         payload = await request.json()
@@ -81,6 +77,12 @@ async def receive_meta_webhook(request: Request):
         raise HTTPException(status_code=400, detail="Invalid JSON payload")
 
     obj = payload.get("object", "")
+    secret = select_secret_for_object(obj, settings.meta_app_secret, settings.meta_instagram_app_secret)
+
+    if not secret or not verify_meta_signature(body, signature, secret):
+        log_error("webhook_meta", f"HMAC failed for object={obj}, body_preview={body[:200]}")
+        raise HTTPException(status_code=401, detail="Invalid HMAC signature")
+
     log("webhook_meta_dispatch", object=obj, entry_count=len(payload.get("entry", [])))
 
     if obj == "instagram":
@@ -212,8 +214,12 @@ async def meta_data_deletion(request: Request):
     body = await request.body()
     signature = request.headers.get("X-Hub-Signature-256", "")
 
-    if settings.meta_app_secret and not verify_meta_signature(body, signature, settings.meta_app_secret):
-        raise HTTPException(status_code=401, detail="Invalid signature")
+    any_secret = settings.meta_app_secret or settings.meta_instagram_app_secret
+    if any_secret:
+        ok = verify_meta_signature(body, signature, settings.meta_app_secret or "") or \
+             verify_meta_signature(body, signature, settings.meta_instagram_app_secret or "")
+        if not ok:
+            raise HTTPException(status_code=401, detail="Invalid signature")
 
     try:
         payload = await request.json()
@@ -259,8 +265,12 @@ async def meta_deauthorize(request: Request):
     body = await request.body()
     signature = request.headers.get("X-Hub-Signature-256", "")
 
-    if settings.meta_app_secret and not verify_meta_signature(body, signature, settings.meta_app_secret):
-        raise HTTPException(status_code=401, detail="Invalid signature")
+    any_secret = settings.meta_app_secret or settings.meta_instagram_app_secret
+    if any_secret:
+        ok = verify_meta_signature(body, signature, settings.meta_app_secret or "") or \
+             verify_meta_signature(body, signature, settings.meta_instagram_app_secret or "")
+        if not ok:
+            raise HTTPException(status_code=401, detail="Invalid signature")
 
     try:
         payload = await request.json()

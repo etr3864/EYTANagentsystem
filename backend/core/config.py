@@ -44,7 +44,8 @@ class Settings(BaseSettings):
     #   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
     # Store the key securely — losing it makes all stored tokens unreadable.
     meta_app_id: Optional[str] = None
-    meta_app_secret: Optional[str] = None
+    meta_app_secret: Optional[str] = None                  # Facebook App Secret (Messenger, WhatsApp)
+    meta_instagram_app_secret: Optional[str] = None        # Instagram App Secret (Instagram Login webhooks)
     meta_verify_token: Optional[str] = None  # Single verify token for /webhook/meta
     credentials_encryption_key: Optional[str] = None  # Fernet key for encrypting channel credentials
 
