@@ -83,7 +83,8 @@ async def receive_meta_webhook(request: Request):
         log_error("webhook_meta", f"HMAC failed for object={obj}, body_preview={body[:200]}")
         raise HTTPException(status_code=401, detail="Invalid HMAC signature")
 
-    log("webhook_meta_dispatch", object=obj, entry_count=len(payload.get("entry", [])))
+    log("webhook_meta_dispatch", object=obj, entry_count=len(payload.get("entry", [])),
+        payload_preview=str(payload)[:500])
 
     if obj == "instagram":
         messages = parse_instagram_payload(payload)
