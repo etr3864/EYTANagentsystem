@@ -66,10 +66,13 @@ async def receive_meta_webhook(request: Request):
     body = await request.body()
     signature = request.headers.get("X-Hub-Signature-256", "")
 
+    log("webhook_meta_raw", body_len=len(body), has_signature=bool(signature))
+
     if not settings.meta_app_secret:
         raise HTTPException(status_code=503, detail="META_APP_SECRET not configured")
 
     if not verify_meta_signature(body, signature, settings.meta_app_secret):
+        log_error("webhook_meta", f"HMAC failed, body_preview={body[:200]}")
         raise HTTPException(status_code=401, detail="Invalid HMAC signature")
 
     try:
@@ -78,9 +81,11 @@ async def receive_meta_webhook(request: Request):
         raise HTTPException(status_code=400, detail="Invalid JSON payload")
 
     obj = payload.get("object", "")
+    log("webhook_meta_dispatch", object=obj, entry_count=len(payload.get("entry", [])))
 
     if obj == "instagram":
         messages = parse_instagram_payload(payload)
+        log("webhook_meta_ig", parsed_count=len(messages))
         asyncio.create_task(_dispatch_messages(messages))
 
     elif obj == "page":
