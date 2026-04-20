@@ -84,15 +84,21 @@ async def receive_meta_webhook(request: Request):
 
     if obj == "instagram":
         messages = parse_instagram_payload(payload)
+        log("webhook_meta_parse", msg=f"IG parsed {len(messages)} message(s)")
         asyncio.create_task(_dispatch_messages(messages))
 
     elif obj == "page":
         messages = parse_messenger_payload(payload)
+        log("webhook_meta_parse", msg=f"MS parsed {len(messages)} message(s)")
         asyncio.create_task(_dispatch_messages(messages))
 
     elif obj == "whatsapp_business_account":
         messages = parse_whatsapp_payload(payload)
+        log("webhook_meta_parse", msg=f"WA parsed {len(messages)} message(s)")
         asyncio.create_task(_dispatch_messages(messages))
+
+    else:
+        log("webhook_meta_parse", msg=f"unknown object type: {obj}")
 
     return {"status": "ok"}
 
@@ -100,10 +106,10 @@ async def receive_meta_webhook(request: Request):
 async def _dispatch_messages(messages: list[ParsedIncomingMessage]) -> None:
     """Process a list of parsed Meta messages through the pipeline."""
     for msg in messages:
+        log("webhook_dispatch", msg=f"type={msg.channel_type}, ext_id={msg.external_account_id}, user={msg.external_user_id}, echo={msg.is_echo}, mid={msg.message_id[:20]}")
         if msg.is_echo:
             continue
 
-        # Deduplication
         if is_duplicate(msg.message_id):
             log("dedup", msg=f"skipped duplicate {msg.message_id[:20]}")
             continue
