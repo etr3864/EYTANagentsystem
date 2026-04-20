@@ -91,15 +91,17 @@ def parse_whatsapp_payload(payload: dict) -> list[ParsedIncomingMessage]:
 # ── Internal parsers ──────────────────────────────────────────────────────────
 
 def _parse_ig_messaging_event(ig_account_id: str, event: dict) -> Optional[ParsedIncomingMessage]:
+    from backend.core.logger import log
     sender_id = event.get("sender", {}).get("id", "")
     recipient_id = event.get("recipient", {}).get("id", "")
 
-    # Echo: sender == ig_account_id (the business sent it)
     is_echo = (sender_id == ig_account_id)
 
+    event_keys = list(event.keys())
     msg = event.get("message", {})
+    log("ig_event_debug", msg=f"event_keys={event_keys}, sender={sender_id}, recipient={recipient_id}, has_message={bool(msg)}, msg_keys={list(msg.keys()) if isinstance(msg, dict) else 'N/A'}")
     if not msg:
-        return None  # Delivery / read receipts etc.
+        return None
 
     msg_id = msg.get("mid", "")
     text = msg.get("text", "")
