@@ -33,13 +33,26 @@ class ParsedIncomingMessage:
 
 def parse_instagram_payload(payload: dict) -> list[ParsedIncomingMessage]:
     """Parse Instagram webhook payload (object = 'instagram')."""
+    from backend.core.logger import log
     results = []
-    for entry in payload.get("entry", []):
+    entries = payload.get("entry", [])
+    for entry in entries:
         ig_account_id = entry.get("id", "")
-        for msg_event in entry.get("messaging", []):
+        entry_keys = list(entry.keys())
+        messaging = entry.get("messaging", [])
+        changes = entry.get("changes", [])
+        log("ig_parse_debug", msg=f"entry keys={entry_keys}, id={ig_account_id}, messaging={len(messaging)}, changes={len(changes)}")
+
+        for msg_event in messaging:
             parsed = _parse_ig_messaging_event(ig_account_id, msg_event)
             if parsed:
                 results.append(parsed)
+
+        # Fallback: some IG webhooks use changes[] instead of messaging[]
+        for change in changes:
+            field = change.get("field", "")
+            value = change.get("value", {})
+            log("ig_parse_debug", msg=f"change field={field}, value_keys={list(value.keys()) if isinstance(value, dict) else type(value).__name__}")
     return results
 
 
