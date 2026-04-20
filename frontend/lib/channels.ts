@@ -141,3 +141,19 @@ export async function deleteChannel(channelId: number): Promise<void> {
   });
   if (!res.ok) throw new Error('Failed to delete channel');
 }
+
+export async function updateWaSenderCredentials(
+  channelId: number,
+  payload: { api_key?: string; session?: string; webhook_secret?: string; external_account_id?: string },
+): Promise<AgentChannel> {
+  const res = await fetch(`${API_URL}/api/channels/${channelId}/credentials`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to update credentials');
+  }
+  return res.json();
+}

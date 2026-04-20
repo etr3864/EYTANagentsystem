@@ -8,7 +8,7 @@
  * - If one is active, the other shows a disabled "conflict" state.
  * - Switching requires explicitly disabling the active one first.
  */
-import { type AgentChannel, CHANNEL_DISPLAY_NAMES, toggleChannel } from '@/lib/channels';
+import { type AgentChannel, CHANNEL_DISPLAY_NAMES, toggleChannel, updateWaSenderCredentials } from '@/lib/channels';
 import { useState } from 'react';
 
 interface WhatsAppChannelCardProps {
@@ -32,8 +32,45 @@ export function WhatsAppChannelCard({
 }: WhatsAppChannelCardProps) {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editApiKey, setEditApiKey] = useState('');
+  const [editSession, setEditSession] = useState('');
+  const [editSecret, setEditSecret] = useState('');
+  const [editError, setEditError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
   const wasenderWebhookUrl = `${API_URL}/webhook/wasender/${agentId}`;
+
+  function startEdit() {
+    setEditApiKey('');
+    setEditSession(wasenderChannel?.external_account_id || 'default');
+    setEditSecret('');
+    setEditError(null);
+    setEditing(true);
+  }
+
+  async function saveEdit() {
+    if (!wasenderChannel) return;
+    setSaving(true);
+    setEditError(null);
+    try {
+      const payload: Record<string, string> = {};
+      if (editApiKey.trim()) payload.api_key = editApiKey.trim();
+      if (editSession.trim() && editSession.trim() !== wasenderChannel.external_account_id) {
+        payload.session = editSession.trim();
+        payload.external_account_id = editSession.trim();
+      }
+      if (editSecret.trim()) payload.webhook_secret = editSecret.trim();
+      if (Object.keys(payload).length === 0) { setEditing(false); return; }
+      await updateWaSenderCredentials(wasenderChannel.id, payload);
+      setEditing(false);
+      onChanged();
+    } catch (e) {
+      setEditError(e instanceof Error ? e.message : 'שגיאה בשמירה');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const activeWa = wasenderChannel?.is_active ? 'wasender' : metaChannel?.is_active ? 'meta' : null;
 
@@ -100,18 +137,61 @@ export function WhatsAppChannelCard({
                   </div>
                 </div>
               )}
+
+              {/* Edit form */}
+              {editing && (
+                <div className="mb-2 p-2 bg-slate-900/60 border border-slate-700/50 rounded-lg space-y-2">
+                  <div>
+                    <label className="text-[10px] text-slate-400 block mb-0.5">API Key (השאר ריק = ללא שינוי)</label>
+                    <input type="password" value={editApiKey} onChange={e => setEditApiKey(e.target.value)}
+                      className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
+                      placeholder="ey..." autoComplete="off" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-400 block mb-0.5">Session</label>
+                    <input value={editSession} onChange={e => setEditSession(e.target.value)}
+                      className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
+                      placeholder="default" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-400 block mb-0.5">Webhook Secret (השאר ריק = ללא שינוי)</label>
+                    <input type="password" value={editSecret} onChange={e => setEditSecret(e.target.value)}
+                      className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
+                      placeholder="סודי" autoComplete="off" />
+                  </div>
+                  {editError && <p className="text-[10px] text-red-400">{editError}</p>}
+                  <div className="flex gap-1.5">
+                    <button onClick={() => setEditing(false)} disabled={saving}
+                      className="flex-1 py-1 rounded text-[10px] bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors">ביטול</button>
+                    <button onClick={saveEdit} disabled={saving}
+                      className="flex-1 py-1 rounded text-[10px] bg-blue-600 hover:bg-blue-500 text-white font-medium transition-colors disabled:opacity-50">
+                      {saving ? '...' : 'שמור'}</button>
+                  </div>
+                </div>
+              )}
+
               {canEdit && (
-                <button
-                  onClick={() => handleToggle(wasenderChannel, !wasenderChannel.is_active)}
-                  disabled={loading || (!wasenderChannel.is_active && !!metaChannel?.is_active)}
-                  className={`w-full py-1 px-2 rounded text-xs font-medium transition-all
-                    ${wasenderChannel.is_active
-                      ? 'bg-slate-700 hover:bg-slate-600 text-slate-300'
-                      : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 disabled:opacity-40 disabled:cursor-not-allowed'
-                    }`}
-                >
-                  {wasenderChannel.is_active ? 'השבת' : 'הפעל'}
-                </button>
+                <div className="flex gap-1.5">
+                  {!editing && (
+                    <button
+                      onClick={startEdit}
+                      className="flex-1 py-1 px-2 rounded text-xs bg-slate-700/50 hover:bg-slate-700 text-slate-400 transition-all"
+                    >
+                      ✏️ ערוך
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleToggle(wasenderChannel, !wasenderChannel.is_active)}
+                    disabled={loading || (!wasenderChannel.is_active && !!metaChannel?.is_active)}
+                    className={`flex-1 py-1 px-2 rounded text-xs font-medium transition-all
+                      ${wasenderChannel.is_active
+                        ? 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                        : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 disabled:opacity-40 disabled:cursor-not-allowed'
+                      }`}
+                  >
+                    {wasenderChannel.is_active ? 'השבת' : 'הפעל'}
+                  </button>
+                </div>
               )}
             </>
           ) : (

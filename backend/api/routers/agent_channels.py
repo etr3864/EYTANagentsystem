@@ -32,6 +32,7 @@ from backend.services.channels.agent_channels import (
     toggle_active,
     get_channel,
     get_credentials,
+    update_credentials,
     ChannelConflictError,
     ChannelNotFoundError,
 )
@@ -77,6 +78,13 @@ class AddChannelRequest(BaseModel):
 
 class ToggleChannelRequest(BaseModel):
     is_active: bool
+
+
+class UpdateWaSenderRequest(BaseModel):
+    api_key: Optional[str] = None
+    session: Optional[str] = None
+    webhook_secret: Optional[str] = None
+    external_account_id: Optional[str] = None
 
 
 def _serialize_channel(ch: AgentChannel) -> ChannelResponse:
@@ -286,6 +294,42 @@ async def update_channel(
         return _serialize_channel(channel)
     except ChannelNotFoundError:
         raise HTTPException(status_code=404, detail="Channel not found")
+
+
+@router.put("/channels/{channel_id}/credentials")
+async def update_channel_credentials(
+    channel_id: int,
+    body: UpdateWaSenderRequest,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = _super_admin,
+):
+    """Update credentials for a WaSender channel (super-admin only)."""
+    channel = get_channel(db, channel_id)
+    if not channel:
+        raise HTTPException(status_code=404, detail="Channel not found")
+
+    if channel.channel_type != "whatsapp_wasender":
+        raise HTTPException(status_code=400, detail="Credential editing is only supported for WaSender channels")
+
+    try:
+        current_creds = get_credentials(channel)
+    except Exception:
+        current_creds = {}
+
+    if body.api_key is not None:
+        current_creds["api_key"] = body.api_key
+    if body.session is not None:
+        current_creds["session"] = body.session
+    if body.webhook_secret is not None:
+        current_creds["webhook_secret"] = body.webhook_secret
+
+    update_credentials(db, channel, current_creds)
+
+    if body.external_account_id is not None:
+        channel.external_account_id = body.external_account_id
+
+    db.commit()
+    return _serialize_channel(channel)
 
 
 @router.delete("/channels/{channel_id}")
