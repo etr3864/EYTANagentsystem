@@ -8,6 +8,7 @@ import { Button, Card, ArrowRightIcon } from '@/components/ui';
 import { PromptTab, SettingsTab, ConversationsTab, KnowledgeTab, CalendarTab, SummaryTab, MediaTab } from '@/components/agent';
 import { TemplatesTab } from '@/components/agent/TemplatesTab';
 import FollowUpTab from '@/components/agent/FollowUpTab';
+import { ChannelsTab } from '@/components/agent/channels/ChannelsTab';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useAuth } from '@/contexts/AuthContext';
 import { isSuperAdmin, isAdmin, isEmployee } from '@/lib/auth';
@@ -22,7 +23,7 @@ import {
 } from '@/lib/api';
 import type { Agent, AgentBatchingConfig, ContextSummaryConfig, Conversation, Message, Document, DataTable, Provider, WaSenderConfig, AgentMedia, MediaConfig, CustomApiKeys } from '@/lib/types';
 
-type Tab = 'prompt' | 'conversations' | 'knowledge' | 'media' | 'templates' | 'calendar' | 'followups' | 'summaries' | 'settings';
+type Tab = 'prompt' | 'conversations' | 'knowledge' | 'media' | 'templates' | 'calendar' | 'followups' | 'summaries' | 'settings' | 'channels';
 
 interface TabConfig {
   id: Tab;
@@ -34,6 +35,7 @@ interface TabConfig {
 const allTabs: TabConfig[] = [
   { id: 'prompt', label: 'System Prompt', icon: '🎯', roles: ['super_admin'] },
   { id: 'conversations', label: 'שיחות', icon: '💬', roles: ['super_admin', 'admin', 'employee'] },
+  { id: 'channels', label: 'ערוצים', icon: '📡', roles: ['super_admin', 'admin'] },
   { id: 'knowledge', label: 'מאגר מידע', icon: '📚', roles: ['super_admin', 'admin'] },
   { id: 'media', label: 'מדיה', icon: '📸', roles: ['super_admin', 'admin'] },
   { id: 'templates', label: 'Templates', icon: '📋', roles: ['super_admin'] },
@@ -80,6 +82,7 @@ function AgentPage() {
     return allTabs.filter(t => {
       if (!t.roles.includes(user.role)) return false;
       if (t.id === 'templates') {
+        if (agent?.has_whatsapp_meta_channel) return true;
         const savedProvider = agent?.provider || 'meta';
         const savedWabaId = (agent?.provider_config as Record<string, string>)?.waba_id;
         return savedProvider === 'meta' && !!savedWabaId;
@@ -249,28 +252,18 @@ function AgentPage() {
     setSaving(true);
     setFeedback(null);
     try {
-      const result = await updateAgent(agentId, {
-        name, 
-        phone_number_id: phoneNumberId, 
-        access_token: accessToken,
-        verify_token: verifyToken, 
-        model, 
+      await updateAgent(agentId, {
+        name,
+        model,
         is_active: isActive,
-        provider,
-        provider_config: providerConfig,
         batching_config: batchingConfig,
         custom_api_keys: customApiKeys,
         context_summary_config: contextSummaryConfig,
       });
-      // Refresh agent so visibleTabs recalculates (e.g. templates tab after WABA ID saved)
       const fresh = await getAgent(agentId);
       setAgent(fresh);
-      const info = result.meta_info;
-      const successText = info
-        ? `נשמר! ✓ ${info.verified_name} (${info.display_phone}) | WABA: ${info.waba_name} | איכות: ${info.quality}${info.is_test ? ' [טסט]' : ''}`
-        : 'נשמר בהצלחה!';
-      setFeedback({ type: 'success', text: successText });
-      setTimeout(() => setFeedback(null), 5000);
+      setFeedback({ type: 'success', text: 'נשמר בהצלחה!' });
+      setTimeout(() => setFeedback(null), 3000);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'שגיאה בשמירה';
       setFeedback({ type: 'error', text: msg });
@@ -593,31 +586,26 @@ function AgentPage() {
             <SummaryTab agentId={agentId} />
           )}
 
+          {tab === 'channels' && (
+            <ChannelsTab agentId={agentId} canEdit={isSuperAdmin(user)} />
+          )}
+
           {tab === 'settings' && (
             <SettingsTab
               agentId={agentId}
               name={name}
-              phoneNumberId={phoneNumberId}
-              accessToken={accessToken}
-              verifyToken={verifyToken}
               model={model}
-              provider={provider}
-              providerConfig={providerConfig}
               batchingConfig={batchingConfig}
               customApiKeys={customApiKeys}
               contextSummaryConfig={contextSummaryConfig}
               onNameChange={setName}
-              onPhoneNumberIdChange={setPhoneNumberId}
-              onAccessTokenChange={setAccessToken}
-              onVerifyTokenChange={setVerifyToken}
               onModelChange={setModel}
-              onProviderChange={setProvider}
-              onProviderConfigChange={setProviderConfig}
               onBatchingConfigChange={setBatchingConfig}
               onCustomApiKeysChange={setCustomApiKeys}
               onContextSummaryConfigChange={setContextSummaryConfig}
               onSave={handleSaveSettings}
               saving={saving}
+              onNavigateToChannels={() => setTab('channels')}
             />
           )}
         </div>

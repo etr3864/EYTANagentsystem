@@ -10,7 +10,9 @@ from backend.models.scheduled_reminder import ScheduledReminder
 from backend.models.appointment import Appointment
 from backend.models.agent import Agent
 from backend.models.user import User
-from backend.services import providers, conversations, messages
+from backend.services.channels import providers
+from backend.services.entities import conversations
+from backend.services.messaging import messages
 from backend.core.logger import log, log_error
 from backend.core.enums import ReminderStatus, ReminderContentType
 from backend.core.timezone import get_tz, to_utc, from_utc, now_local, now_utc, UTC
@@ -212,7 +214,7 @@ async def _build_from_ai(
     context = "\n".join(context_parts)
     
     try:
-        from backend.services.ai import generate_tracked_response
+        from backend.services.entities.ai import generate_tracked_response
         text, usage = await generate_tracked_response(context)
         return text, usage
     except Exception as e:
@@ -430,7 +432,7 @@ async def send_reminder(db: Session, reminder: ScheduledReminder) -> bool:
     else:
         content, usage = await build_reminder_content(db, reminder, appointment, agent, user)
         if usage:
-            from backend.services.usage_tracking import record_usage
+            from backend.services.entities.usage_tracking import record_usage
             record_usage(
                 db, agent.id, "claude-haiku-4-5", "reminder",
                 usage["input_tokens"], usage["output_tokens"],
@@ -462,17 +464,29 @@ async def process_pending_reminders(db: Session) -> int:
     
     Marks entire batch as PROCESSING before sending to prevent
     duplicate sends in multi-instance deployments.
+    Uses joinedload to avoid N+1 queries on appointment/agent/user.
     """
     import asyncio
-    
+    from sqlalchemy.orm import joinedload
+
     now = datetime.utcnow()
     processed = 0
     
     while True:
-        pending = db.query(ScheduledReminder).filter(
-            ScheduledReminder.status == ReminderStatus.PENDING,
-            ScheduledReminder.scheduled_for <= now
-        ).limit(BATCH_SIZE).all()
+        pending = (
+            db.query(ScheduledReminder)
+            .options(
+                joinedload(ScheduledReminder.appointment),
+                joinedload(ScheduledReminder.agent),
+                joinedload(ScheduledReminder.user),
+            )
+            .filter(
+                ScheduledReminder.status == ReminderStatus.PENDING,
+                ScheduledReminder.scheduled_for <= now,
+            )
+            .limit(BATCH_SIZE)
+            .all()
+        )
         
         if not pending:
             break

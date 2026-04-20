@@ -7,8 +7,8 @@ from pydantic import BaseModel, field_validator
 from typing import Optional
 
 from backend.core.database import get_db
-from backend.services import agents
-from backend.services.summaries import (
+from backend.services.entities import agents
+from backend.services.engagement.summaries import (
     get_summary_config, 
     send_test_webhook,
     DEFAULT_SUMMARY_PROMPT

@@ -14,7 +14,7 @@ from backend.services.llm import get_provider
 from backend.services.llm.types import LLMResponse
 
 if TYPE_CHECKING:
-    from backend.services.message_buffer import PendingMessage
+    from backend.services.messaging.buffer import PendingMessage
 
 # Max media items to inject directly into prompt (above this, use search_media tool)
 MAX_MEDIA_IN_PROMPT = 15
@@ -30,7 +30,7 @@ def build_media_context(db: Session, agent_id: int, media_config: dict | None) -
     if not media_config or not media_config.get("enabled"):
         return ""
     
-    from backend.services import agent_media
+    from backend.services.media import agent_media
     
     media_count = agent_media.count_by_agent(db, agent_id)
     

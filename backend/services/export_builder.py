@@ -8,10 +8,11 @@ from datetime import datetime
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
-from sqlalchemy import func
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from backend.core.enums import AppointmentStatus, FollowupStatus
+from backend.core.channel_types import CHANNEL_DISPLAY_NAMES
 from backend.models.agent import Agent
 from backend.models.appointment import Appointment
 from backend.models.conversation import Conversation
@@ -51,8 +52,10 @@ def build_export(
         )
 
     wb = Workbook()
-    _build_summary_sheet(wb, agent.name, from_date, to_date, len(conv_rows))
+    channel_stats = _fetch_channel_stats(db, agent_id, start_dt, end_dt)
+    _build_summary_sheet(wb, agent.name, from_date, to_date, len(conv_rows), channel_stats)
     _build_conversations_sheet(wb, db, agent.name, conv_rows)
+    _build_channel_stats_sheet(wb, channel_stats)
 
     buffer = io.BytesIO()
     wb.save(buffer)
@@ -83,19 +86,65 @@ def _make_filename(agent_name: str, from_date: str, to_date: str) -> str:
 
 def _fetch_conversations(
     db: Session, agent_id: int, start_dt: datetime, end_dt: datetime
-) -> list[tuple[int, datetime, int]]:
-    """Return (conv_id, created_at, user_id) ordered by created_at."""
-    return (
-        db.query(Conversation.id, Conversation.created_at, Conversation.user_id)
-        .filter(
-            Conversation.agent_id == agent_id,
-            Conversation.created_at >= start_dt,
-            Conversation.created_at <= end_dt,
-        )
-        .order_by(Conversation.created_at)
-        .limit(MAX_EXPORT_CONVERSATIONS + 1)
-        .all()
-    )
+) -> list[tuple]:
+    """Return (conv_id, created_at, user_id, channel_type, channel_external_id)."""
+    rows = db.execute(text("""
+        SELECT c.id,
+               c.created_at,
+               c.user_id,
+               c.channel_type_snapshot AS channel_type,
+               COALESCE(cu.external_id, u.phone) AS customer_id
+        FROM conversations c
+        JOIN users u ON u.id = c.user_id
+        LEFT JOIN channel_users cu ON cu.id = c.channel_user_id
+        WHERE c.agent_id = :agent_id
+          AND c.created_at >= :start_dt
+          AND c.created_at <= :end_dt
+        ORDER BY c.created_at
+        LIMIT :lim
+    """), {
+        "agent_id": agent_id,
+        "start_dt": start_dt,
+        "end_dt": end_dt,
+        "lim": MAX_EXPORT_CONVERSATIONS + 1,
+    }).fetchall()
+    return rows
+
+
+def _fetch_channel_stats(
+    db: Session, agent_id: int, start_dt: datetime, end_dt: datetime
+) -> list[dict]:
+    """Channel-level stats for Sheet 3."""
+    rows = db.execute(text("""
+        SELECT
+            COALESCE(c.channel_type_snapshot, 'legacy') AS channel_type,
+            COUNT(DISTINCT c.id)                          AS conversations,
+            COUNT(m.id)                                   AS messages,
+            COUNT(DISTINCT CASE WHEN a.id IS NOT NULL THEN c.id END) AS with_appointment
+        FROM conversations c
+        LEFT JOIN messages m ON m.conversation_id = c.id AND m.role = 'user'
+            AND m.created_at >= :start_dt AND m.created_at <= :end_dt
+        LEFT JOIN appointments a ON a.conversation_id = c.id
+        WHERE c.agent_id = :agent_id
+          AND c.created_at >= :start_dt
+          AND c.created_at <= :end_dt
+        GROUP BY channel_type
+        ORDER BY conversations DESC
+    """), {"agent_id": agent_id, "start_dt": start_dt, "end_dt": end_dt}).fetchall()
+
+    result = []
+    for r in rows:
+        convs = int(r.conversations or 0)
+        msgs = int(r.messages or 0)
+        result.append({
+            "channel_type": r.channel_type,
+            "display_name": CHANNEL_DISPLAY_NAMES.get(r.channel_type, r.channel_type),
+            "conversations": convs,
+            "messages": msgs,
+            "avg_msg_per_conv": round(msgs / convs, 1) if convs else 0,
+            "with_appointment": int(r.with_appointment or 0),
+        })
+    return result
 
 
 # ── Sheet builders ────────────────────────────────────────────────────────────
@@ -107,6 +156,7 @@ def _build_summary_sheet(
     from_date: str,
     to_date: str,
     total: int,
+    channel_stats: list[dict],
 ) -> None:
     ws = wb.active
     ws.title = "Summary"
@@ -116,20 +166,33 @@ def _build_summary_sheet(
         ("Date Range", f"{_fmt_date(from_date)} – {_fmt_date(to_date)}"),
         ("Total Conversations", total),
         ("Exported At", datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")),
+        ("", ""),
+        ("Channel Breakdown", ""),
     ]
     for i, (label, value) in enumerate(rows, start=1):
-        ws.cell(row=i, column=1, value=label).font = Font(bold=True)
+        cell = ws.cell(row=i, column=1, value=label)
+        cell.font = Font(bold=True)
         ws.cell(row=i, column=2, value=value)
 
-    ws.column_dimensions["A"].width = 22
-    ws.column_dimensions["B"].width = 40
+    offset = len(rows) + 1
+    ws.cell(row=offset, column=1, value="Channel").font = Font(bold=True)
+    ws.cell(row=offset, column=2, value="Conversations").font = Font(bold=True)
+    ws.cell(row=offset, column=3, value="Messages").font = Font(bold=True)
+    for j, stat in enumerate(channel_stats, start=offset + 1):
+        ws.cell(row=j, column=1, value=stat["display_name"])
+        ws.cell(row=j, column=2, value=stat["conversations"])
+        ws.cell(row=j, column=3, value=stat["messages"])
+
+    ws.column_dimensions["A"].width = 26
+    ws.column_dimensions["B"].width = 20
+    ws.column_dimensions["C"].width = 15
 
 
 def _build_conversations_sheet(
     wb: Workbook,
     db: Session,
     agent_name: str,
-    conv_rows: list[tuple[int, datetime, int]],
+    conv_rows: list[tuple],
 ) -> None:
     ws = wb.create_sheet("Conversations")
     _write_header(ws)
@@ -141,15 +204,37 @@ def _build_conversations_sheet(
         _write_batch(ws, db, agent_name, batch, batch_start, user_cache)
 
     ws.freeze_panes = "A2"
-    ws.auto_filter.ref = "A1:H1"
+    ws.auto_filter.ref = "A1:J1"
+
+
+def _build_channel_stats_sheet(wb: Workbook, channel_stats: list[dict]) -> None:
+    """Sheet 3: Channel Stats summary."""
+    ws = wb.create_sheet("Channel Stats")
+    headers = ["Channel", "Conversations", "Messages", "Avg Msgs/Conv", "With Appointment"]
+    col_widths = [24, 16, 12, 16, 18]
+
+    for col, header in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = _HEADER_FONT
+        cell.fill = _HEADER_FILL
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+    for col, width in enumerate(col_widths, start=1):
+        ws.column_dimensions[ws.cell(row=1, column=col).column_letter].width = width
+
+    for i, stat in enumerate(channel_stats, start=2):
+        ws.cell(row=i, column=1, value=stat["display_name"])
+        ws.cell(row=i, column=2, value=stat["conversations"])
+        ws.cell(row=i, column=3, value=stat["messages"])
+        ws.cell(row=i, column=4, value=stat["avg_msg_per_conv"])
+        ws.cell(row=i, column=5, value=stat["with_appointment"])
 
 
 def _write_header(ws) -> None:
     headers = [
-        "Agent", "Customer Name", "Phone", "Opened At",
+        "Agent", "Customer Name", "Customer ID", "Channel", "Phone", "Opened At",
         "Messages", "Appointment Booked", "Conversation", "AI Summary",
     ]
-    col_widths = [20, 20, 18, 20, 10, 18, 70, 40]
+    col_widths = [20, 20, 22, 18, 18, 20, 10, 18, 70, 40]
 
     for col, header in enumerate(headers, start=1):
         cell = ws.cell(row=1, column=col, value=header)
@@ -165,7 +250,7 @@ def _write_batch(
     ws,
     db: Session,
     agent_name: str,
-    batch: list[tuple[int, datetime, int]],
+    batch: list[tuple],
     batch_start: int,
     user_cache: dict[int, User],
 ) -> None:
@@ -178,26 +263,35 @@ def _write_batch(
     summaries_by_conv = _load_summaries(db, conv_ids)
     users_with_appointments = _load_appointment_user_ids(db, user_ids)
 
-    for offset, (conv_id, created_at, user_id) in enumerate(batch):
+    for offset, row in enumerate(batch):
+        conv_id = row[0]
+        created_at = row[1]
+        user_id = row[2]
+        channel_type = row[3] if len(row) > 3 else None
+        customer_id = row[4] if len(row) > 4 else None
+
         row_idx = batch_start + offset + 2  # +1 header, +1 1-indexed
 
         user = user_cache.get(user_id)
-        messages = messages_by_conv.get(conv_id, [])
+        msgs = messages_by_conv.get(conv_id, [])
         followups = followups_by_conv.get(conv_id, [])
+        channel_display = CHANNEL_DISPLAY_NAMES.get(channel_type, channel_type or "legacy")
 
         data = [
             agent_name,
             (user.name or "") if user else "",
+            customer_id or (user.phone if user else ""),
+            channel_display,
             user.phone if user else "",
             created_at.strftime("%Y-%m-%d %H:%M"),
-            len(messages),
+            len(msgs),
             "Yes" if user_id in users_with_appointments else "No",
-            _format_conversation(messages, followups),
+            _format_conversation(msgs, followups),
             summaries_by_conv.get(conv_id, ""),
         ]
         for col, value in enumerate(data, start=1):
             cell = ws.cell(row=row_idx, column=col, value=value)
-            wrap = col in (7, 8)
+            wrap = col in (9, 10)
             cell.alignment = Alignment(wrap_text=wrap, vertical="top")
 
 

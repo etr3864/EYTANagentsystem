@@ -114,6 +114,7 @@ class AgentUpdate(BaseModel):
     media_config: Optional[dict] = None
     custom_api_keys: Optional[dict] = None
     context_summary_config: Optional[dict] = None
+    business_assistant_mode: Optional[bool] = None
 
 
 class AgentResponse(BaseModel):
@@ -128,6 +129,7 @@ class AgentResponse(BaseModel):
     provider: str = "meta"
     provider_config: Optional[dict] = None
     batching_config: AgentBatchingConfig
+    business_assistant_mode: bool = False
     created_at: Optional[str] = None
 
     class Config:

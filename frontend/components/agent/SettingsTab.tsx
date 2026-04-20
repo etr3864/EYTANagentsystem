@@ -3,40 +3,31 @@
 import { Button, Card, CardHeader } from '@/components/ui';
 import { Input, NumberInput } from '@/components/ui/Input';
 import { ModelSelect } from '@/components/ui/ModelSelect';
-import { ProviderSelector } from '@/components/agent/ProviderSelector';
-import type { AgentBatchingConfig, ContextSummaryConfig, Provider, WaSenderConfig, CustomApiKeys } from '@/lib/types';
+import type { AgentBatchingConfig, ContextSummaryConfig, CustomApiKeys } from '@/lib/types';
 
 interface SettingsTabProps {
   agentId: number;
   name: string;
-  phoneNumberId: string;
-  accessToken: string;
-  verifyToken: string;
   model: string;
-  provider: Provider;
-  providerConfig: WaSenderConfig | Record<string, never>;
   batchingConfig: AgentBatchingConfig;
   customApiKeys: CustomApiKeys;
   contextSummaryConfig: ContextSummaryConfig;
   onNameChange: (v: string) => void;
-  onPhoneNumberIdChange: (v: string) => void;
-  onAccessTokenChange: (v: string) => void;
-  onVerifyTokenChange: (v: string) => void;
   onModelChange: (v: string) => void;
-  onProviderChange: (p: Provider) => void;
-  onProviderConfigChange: (config: WaSenderConfig) => void;
   onBatchingConfigChange: (config: AgentBatchingConfig) => void;
   onCustomApiKeysChange: (keys: CustomApiKeys) => void;
   onContextSummaryConfigChange: (config: ContextSummaryConfig) => void;
   onSave: () => void;
   saving: boolean;
+  onNavigateToChannels?: () => void;
 }
 
 export function SettingsTab({
-  agentId, name, phoneNumberId, accessToken, verifyToken, model, provider, providerConfig, batchingConfig,
-  customApiKeys, contextSummaryConfig, onNameChange, onPhoneNumberIdChange, onAccessTokenChange, onVerifyTokenChange, 
-  onModelChange, onProviderChange, onProviderConfigChange, onBatchingConfigChange,
-  onCustomApiKeysChange, onContextSummaryConfigChange, onSave, saving
+  name, model, batchingConfig,
+  customApiKeys, contextSummaryConfig, onNameChange,
+  onModelChange, onBatchingConfigChange,
+  onCustomApiKeysChange, onContextSummaryConfigChange, onSave, saving,
+  onNavigateToChannels,
 }: SettingsTabProps) {
   return (
     <div className="space-y-6">
@@ -59,20 +50,22 @@ export function SettingsTab({
         </div>
       </Card>
 
-      {/* Provider Settings */}
-      <ProviderSelector
-        provider={provider}
-        providerConfig={providerConfig}
-        phoneNumberId={phoneNumberId}
-        accessToken={accessToken}
-        verifyToken={verifyToken}
-        agentId={agentId}
-        onProviderChange={onProviderChange}
-        onProviderConfigChange={onProviderConfigChange}
-        onPhoneNumberIdChange={onPhoneNumberIdChange}
-        onAccessTokenChange={onAccessTokenChange}
-        onVerifyTokenChange={onVerifyTokenChange}
-      />
+      {/* Channels notice — moved to dedicated tab */}
+      <Card>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <div className="text-sm font-medium text-white mb-1">📡 ערוצי תקשורת</div>
+            <p className="text-sm text-slate-400">
+              חיבור WhatsApp (WaSender או Meta רשמי), Instagram ו-Messenger נעשה בטאב הייעודי
+            </p>
+          </div>
+          {onNavigateToChannels && (
+            <Button onClick={onNavigateToChannels} variant="secondary">
+              פתח ערוצים ←
+            </Button>
+          )}
+        </div>
+      </Card>
 
       {/* Message Batching */}
       <Card>

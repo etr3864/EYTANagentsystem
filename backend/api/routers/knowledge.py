@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from backend.core.database import get_db
-from backend.services import documents, tables
+from backend.services.knowledge import documents, tables
 from backend.auth.models import AuthUser, UserRole
 from backend.auth.dependencies import get_current_user, require_role
 from backend.auth import service as auth_service

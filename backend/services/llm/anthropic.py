@@ -9,7 +9,7 @@ from backend.core.logger import log_error
 
 if TYPE_CHECKING:
     from backend.models.agent import Agent
-    from backend.services.message_buffer import PendingMessage
+    from backend.services.messaging.buffer import PendingMessage
 
 
 MAX_RETRIES = 3

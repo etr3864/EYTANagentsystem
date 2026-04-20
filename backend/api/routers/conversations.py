@@ -4,7 +4,9 @@ from sqlalchemy.orm import Session
 from backend.core.database import get_db
 from backend.core.logger import log
 from backend.api.schemas import SendMessageRequest
-from backend.services import conversations, messages, agents, users, providers
+from backend.services.entities import conversations, agents, users
+from backend.services.messaging import messages
+from backend.services.channels import providers
 from backend.auth.models import AuthUser
 from backend.auth.dependencies import get_current_user
 from backend.auth import service as auth_service

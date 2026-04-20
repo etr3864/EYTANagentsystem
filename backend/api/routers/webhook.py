@@ -6,9 +6,13 @@ from backend.core.database import SessionLocal
 from backend.core.logger import log_audio, log_image, log_error
 from backend.api.webhook import extract_message
 from backend.api.schemas import WebhookPayload
-from backend.services import agents, whatsapp, message_buffer, transcription, media
-from backend.services.message_buffer import PendingMessage
-from backend.services.message_processing import process_batched_messages, is_duplicate
+from backend.services import media
+from backend.services.entities import agents
+from backend.services.channels import whatsapp
+from backend.services.messaging import buffer as message_buffer
+from backend.services.media import transcription
+from backend.services.messaging.buffer import PendingMessage
+from backend.services.messaging.processing import process_batched_messages, is_duplicate
 
 router = APIRouter(tags=["webhook"])
 

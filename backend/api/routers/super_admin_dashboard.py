@@ -20,7 +20,7 @@ from backend.models.conversation import Conversation
 from backend.models.message import Message
 from backend.models.scheduled_followup import ScheduledFollowup
 from backend.core.enums import FollowupStatus
-from backend.services.pricing import get_pricing, calc_cost_ils, upsert_pricing
+from backend.services.entities.pricing import get_pricing, calc_cost_ils, upsert_pricing
 
 router = APIRouter(tags=["super-admin-dashboard"])
 
@@ -40,6 +40,7 @@ class AgentTableRow(BaseModel):
     agent_id: int
     agent_name: str
     client_name: str
+    active_channels: list[str] = []
     total_conversations: int
     total_messages: int
     total_cost_ils: float
@@ -224,6 +225,15 @@ def get_agents_table(
     costs = _query_usage_cost(db, agent_ids, from_date, to_date, pricing)
     perf = _query_perf(db, agent_ids, from_dt, to_dt)
 
+    # Active channels per agent (single bulk query)
+    from backend.models.agent_channel import AgentChannel
+    channels_by_agent: dict[int, list[str]] = {}
+    for ch_agent_id, ch_type in db.query(AgentChannel.agent_id, AgentChannel.channel_type).filter(
+        AgentChannel.agent_id.in_(agent_ids),
+        AgentChannel.is_active == True,
+    ).all():
+        channels_by_agent.setdefault(ch_agent_id, []).append(ch_type)
+
     rows = []
     for agent_id, agent_name, owner_id in agents:
         cost = costs.get(agent_id, 0.0)
@@ -233,6 +243,7 @@ def get_agents_table(
             agent_id=agent_id,
             agent_name=agent_name,
             client_name=owners.get(owner_id, "—") if owner_id else "—",
+            active_channels=channels_by_agent.get(agent_id, []),
             total_conversations=convs,
             total_messages=p["messages"],
             total_cost_ils=round(cost, 4),
@@ -424,3 +435,61 @@ def update_pricing_config(
     upsert_pricing(db, updates)
     db.commit()
     return PricingConfigResponse(config=get_pricing(db))
+
+
+@router.get("/super-admin/channel-breakdown")
+def get_channel_breakdown(
+    from_date: date = Query(...),
+    to_date: date = Query(...),
+    db: Session = Depends(get_db),
+    _: AuthUser = Depends(_require_super_admin),
+):
+    """Channel breakdown: conversations + messages per channel_type for all agents.
+
+    Uses INNER JOIN — only conversations with a channel_id (post-backfill) appear here.
+    Conversations without channel_id are counted separately as 'legacy'.
+    """
+    from_dt = datetime.combine(from_date, time.min)
+    to_dt = datetime.combine(to_date, time.max)
+
+    rows = db.execute(text("""
+        SELECT
+            ac.channel_type,
+            COUNT(DISTINCT c.id)  AS conversations,
+            COUNT(m.id)           AS messages
+        FROM conversations c
+        JOIN agent_channels ac ON c.channel_id = ac.id
+        JOIN messages m ON m.conversation_id = c.id
+        WHERE m.role = 'user'
+          AND m.created_at >= :from_dt
+          AND m.created_at <= :to_dt
+        GROUP BY ac.channel_type
+        ORDER BY conversations DESC
+    """), {"from_dt": from_dt, "to_dt": to_dt}).fetchall()
+
+    # Also count legacy (no channel_id)
+    legacy = db.execute(text("""
+        SELECT COUNT(DISTINCT c.id) AS conversations, COUNT(m.id) AS messages
+        FROM conversations c
+        JOIN messages m ON m.conversation_id = c.id
+        WHERE c.channel_id IS NULL
+          AND m.role = 'user'
+          AND m.created_at >= :from_dt
+          AND m.created_at <= :to_dt
+    """), {"from_dt": from_dt, "to_dt": to_dt}).first()
+
+    result = [
+        {
+            "channel_type": r.channel_type,
+            "conversations": int(r.conversations),
+            "messages": int(r.messages),
+        }
+        for r in rows
+    ]
+    if legacy and (legacy.conversations or 0) > 0:
+        result.append({
+            "channel_type": "legacy",
+            "conversations": int(legacy.conversations),
+            "messages": int(legacy.messages),
+        })
+    return result

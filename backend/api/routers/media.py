@@ -5,7 +5,7 @@ from pydantic import BaseModel, field_validator
 from typing import Optional
 
 from backend.core.database import get_db
-from backend.services import agent_media
+from backend.services.media import agent_media
 from backend.auth.models import AuthUser, UserRole
 from backend.auth.dependencies import get_current_user, require_role
 from backend.auth import service as auth_service
@@ -152,7 +152,7 @@ async def upload_media(
     
     # Auto-analyze images
     if media_type == "image" and auto_analyze:
-        from backend.services import ai
+        from backend.services.entities import ai
         import base64
         
         image_base64 = base64.b64encode(content).decode("utf-8")
@@ -169,7 +169,8 @@ async def upload_media(
     
     # Auto-analyze documents
     if media_type == "document" and auto_analyze:
-        from backend.services import ai, document_extraction
+        from backend.services.entities import ai
+        from backend.services.media import document_extraction
         
         extracted_text = document_extraction.extract_text(content, content_type)
         if extracted_text:

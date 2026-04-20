@@ -13,8 +13,10 @@ from backend.api.routers import agents_router, users_router, conversations_route
 from backend.api.routers.dashboard import router as dashboard_router
 from backend.api.routers.super_admin_dashboard import router as super_admin_dashboard_router
 from backend.api.routers.export import router as export_router
+from backend.api.routers.webhook_meta import router as webhook_meta_router
+from backend.api.routers.agent_channels import router as agent_channels_router
 from backend.auth import auth_router
-from backend.services import scheduler
+from backend.services.scheduling import scheduler
 
 
 _DUPLICATE_TABLE_PGCODE = "42P07"
@@ -93,6 +95,8 @@ app.include_router(followups_router, prefix="/api/agents")
 app.include_router(dashboard_router, prefix="/api")
 app.include_router(super_admin_dashboard_router, prefix="/api")
 app.include_router(export_router, prefix="/api")
+app.include_router(webhook_meta_router)
+app.include_router(agent_channels_router, prefix="/api")
 
 
 @app.get("/health")

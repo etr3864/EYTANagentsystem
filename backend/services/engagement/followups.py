@@ -20,8 +20,9 @@ from backend.models.whatsapp_template import WhatsAppTemplate
 from backend.models.agent import Agent
 from backend.models.message import Message
 from backend.models.user import User
-from backend.services import providers, messages
-from backend.services import followup_evaluator
+from backend.services.channels import providers
+from backend.services.messaging import messages
+from backend.services.engagement import followup_evaluator
 from backend.core.config import settings
 from backend.core.logger import log, log_error
 from backend.core.enums import FollowupStatus, ReminderStatus

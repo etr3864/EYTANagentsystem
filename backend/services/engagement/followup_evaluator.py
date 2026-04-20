@@ -49,7 +49,7 @@ async def evaluate(
     try:
         provider = get_provider(model, agent=agent)
         response, usage = await provider.generate_tracked_response(prompt)
-        from backend.services.usage_tracking import record_usage
+        from backend.services.entities.usage_tracking import record_usage
         record_usage(
             db, agent.id, model, "followup",
             usage["input_tokens"], usage["output_tokens"],

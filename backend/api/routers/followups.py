@@ -6,8 +6,8 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from backend.core.database import get_db
-from backend.services import agents as agents_service
-from backend.services.followups import get_config, DEFAULT_CONFIG
+from backend.services.entities import agents as agents_service
+from backend.services.engagement.followups import get_config, DEFAULT_CONFIG
 from backend.models.scheduled_followup import ScheduledFollowup
 from backend.core.enums import FollowupStatus
 from backend.auth.models import AuthUser, UserRole

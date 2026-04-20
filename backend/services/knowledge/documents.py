@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 from backend.models.knowledge import Document, DocumentChunk
-from backend.services import embeddings
+from backend.services.knowledge import embeddings
 from backend.core.logger import log_upload
 
 CHUNK_SIZE = 1000

@@ -38,6 +38,19 @@ class Settings(BaseSettings):
     jwt_access_expire_minutes: int = 60
     jwt_refresh_expire_days: int = 7
 
+    # ── Meta / Facebook App (Optive central App) ──────────────────────────────
+    # Required for Instagram, Messenger, WhatsApp Meta channels.
+    # Generate CREDENTIALS_ENCRYPTION_KEY with:
+    #   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    # Store the key securely — losing it makes all stored tokens unreadable.
+    meta_app_id: Optional[str] = None
+    meta_app_secret: Optional[str] = None
+    meta_verify_token: Optional[str] = None  # Single verify token for /webhook/meta
+    credentials_encryption_key: Optional[str] = None  # Fernet key for encrypting channel credentials
+
+    # Alert channel for delivery failures / disconnected channels
+    alert_webhook_url: Optional[str] = None  # Slack/Discord/custom webhook URL
+
     model_config = {"env_file": ".env", "extra": "ignore"}
     
     @property
@@ -55,6 +68,16 @@ class Settings(BaseSettings):
             self.r2_access_key_id,
             self.r2_secret_access_key,
             self.r2_public_url
+        ])
+
+    @property
+    def meta_configured(self) -> bool:
+        """Check if Meta App is configured for new channels."""
+        return all([
+            self.meta_app_id,
+            self.meta_app_secret,
+            self.meta_verify_token,
+            self.credentials_encryption_key,
         ])
 
 

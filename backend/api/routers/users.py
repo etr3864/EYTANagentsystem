@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.core.database import get_db
-from backend.services import users
+from backend.services.entities import users
 from backend.auth.models import AuthUser, UserRole
 from backend.auth.dependencies import require_role
 

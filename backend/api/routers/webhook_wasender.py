@@ -5,9 +5,15 @@ from typing import Optional
 
 from backend.core.database import SessionLocal
 from backend.core.logger import log_error, log_audio, log_image
-from backend.services import agents, message_buffer, transcription, media, wasender
-from backend.services.message_buffer import PendingMessage
-from backend.services.message_processing import process_batched_messages, is_duplicate
+from backend.services import media
+from backend.services.entities import agents
+from backend.services.messaging import buffer as message_buffer
+from backend.services.media import transcription
+from backend.services.channels import wasender
+from backend.services.messaging.buffer import PendingMessage
+from backend.services.messaging.processing import process_batched_messages, is_duplicate
+from backend.services.channels.agent_channels import get_channel_by_type
+from backend.services.channels.channel_users import get_or_create_for_incoming, IncomingUserInfo
 
 router = APIRouter(tags=["webhook-wasender"])
 
@@ -92,7 +98,23 @@ async def handle_wasender_message(agent_id: int, msg_data: dict):
         # Save provider config for callbacks (agent won't be valid after db close)
         provider_api_key = config.get("api_key", "")
         provider_session = config.get("session", "default")
-        
+
+        # ── Phase 2: resolve channel_id + channel_user_id ────────────────────
+        channel = get_channel_by_type(db, agent.id, "whatsapp_wasender")
+        channel_id_for_closure = channel.id if channel else None
+        channel_user_id_for_closure = None
+        if channel:
+            try:
+                channel_user_id_for_closure = get_or_create_for_incoming(
+                    db,
+                    channel,
+                    IncomingUserInfo(external_id=phone, display_name=name),
+                )
+                db.commit()
+            except Exception as e:
+                log_error("wasender", f"channel_user upsert failed: {e}")
+        # ─────────────────────────────────────────────────────────────────────
+
         pending = PendingMessage(
             text=final_text,
             msg_type=final_msg_type,
@@ -110,11 +132,17 @@ async def handle_wasender_message(agent_id: int, msg_data: dict):
             return await wasender.send_media(provider_api_key, provider_session, to, url, media_type, caption)
         
         if debounce == 0:
-            await process_batched_messages(agent_id_for_closure, phone, name, [pending], send_fn, "wasender", send_media_fn)
+            await process_batched_messages(
+                agent_id_for_closure, phone, name, [pending], send_fn, "wasender", send_media_fn,
+                channel_id=channel_id_for_closure, channel_user_id=channel_user_id_for_closure,
+            )
             return
         
         async def process_callback(pending_msgs: list[PendingMessage]):
-            await process_batched_messages(agent_id_for_closure, phone, name, pending_msgs, send_fn, "wasender", send_media_fn)
+            await process_batched_messages(
+                agent_id_for_closure, phone, name, pending_msgs, send_fn, "wasender", send_media_fn,
+                channel_id=channel_id_for_closure, channel_user_id=channel_user_id_for_closure,
+            )
         
         await message_buffer.add_message(
             agent_id=agent_id_for_closure,

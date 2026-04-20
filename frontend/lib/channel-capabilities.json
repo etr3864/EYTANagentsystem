@@ -1,0 +1,50 @@
+{
+  "whatsapp_wasender": {
+    "text": true,
+    "images": true,
+    "files": true,
+    "voice": true,
+    "reminders": true,
+    "followups": true,
+    "templates": false,
+    "has_24h_window": false,
+    "story_replies": false,
+    "mentions": false
+  },
+  "whatsapp_meta": {
+    "text": true,
+    "images": true,
+    "files": true,
+    "voice": true,
+    "reminders": true,
+    "followups": true,
+    "templates": true,
+    "has_24h_window": false,
+    "story_replies": false,
+    "mentions": false
+  },
+  "instagram": {
+    "text": true,
+    "images": true,
+    "files": false,
+    "voice": false,
+    "reminders": false,
+    "followups": false,
+    "templates": false,
+    "has_24h_window": true,
+    "story_replies": true,
+    "mentions": true
+  },
+  "messenger": {
+    "text": true,
+    "images": true,
+    "files": true,
+    "voice": true,
+    "reminders": false,
+    "followups": false,
+    "templates": false,
+    "has_24h_window": true,
+    "story_replies": false,
+    "mentions": false
+  }
+}

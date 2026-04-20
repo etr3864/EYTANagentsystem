@@ -7,6 +7,7 @@ from backend.core.database import Base
 
 if TYPE_CHECKING:
     from backend.auth.models import AuthUser
+    from backend.models.agent_channel import AgentChannel
 
 
 # Default batching config
@@ -115,8 +116,13 @@ class Agent(Base):
     # {"enabled": false, "message_threshold": 20, "messages_after_summary": 20, "full_summary_every": 5}
     context_summary_config: Mapped[Optional[dict]] = mapped_column(JSON, default=None)
 
+    # Business Assistant mode — injects compliance prompt for Meta channels
+    # Default False; auto-enabled when a Meta channel is first connected.
+    business_assistant_mode: Mapped[bool] = mapped_column(Boolean, default=False)
+
     conversations: Mapped[list["Conversation"]] = relationship(back_populates="agent", passive_deletes=True)
     appointments: Mapped[list["Appointment"]] = relationship(back_populates="agent", passive_deletes=True)
+    channels: Mapped[list["AgentChannel"]] = relationship("AgentChannel", back_populates="agent", passive_deletes=True)
     
     def get_batching_config(self) -> dict:
         """Get batching configuration with defaults."""

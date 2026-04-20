@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.core.database import get_db
-from backend.services import agents
-from backend.services.meta_validation import validate_meta_credentials
+from backend.services.entities import agents
+from backend.services.meta.validation import validate_meta_credentials
 from backend.api.schemas import AgentCreate, AgentUpdate
 from backend.models.agent import Agent, DEFAULT_BATCHING_CONFIG
 from backend.auth.models import AuthUser, UserRole
@@ -45,6 +45,14 @@ def agent_to_response(a) -> dict:
         "followup_config": a.followup_config,
         "custom_api_keys": masked_keys,
         "context_summary_config": a.context_summary_config,
+        "business_assistant_mode": getattr(a, "business_assistant_mode", False),
+        "has_whatsapp_meta_channel": any(
+            ch.channel_type == "whatsapp_meta" and ch.is_active
+            for ch in (getattr(a, "channels", None) or [])
+        ),
+        "active_channel_types": [
+            ch.channel_type for ch in (getattr(a, "channels", None) or []) if ch.is_active
+        ],
         "created_at": a.created_at.isoformat() if a.created_at else None
     }
 
@@ -155,6 +163,9 @@ async def update_agent(
     if data.context_summary_config is not None:
         update_data['context_summary_config'] = data.context_summary_config
 
+    if data.business_assistant_mode is not None:
+        update_data['business_assistant_mode'] = data.business_assistant_mode
+
     if data.custom_api_keys is not None:
         current = existing.custom_api_keys or {}
         for provider_key, value in data.custom_api_keys.items():
@@ -186,22 +197,46 @@ def list_agent_conversations(
     current_user: AuthUser = Depends(AgentAccessChecker()),
     db: Session = Depends(get_db)
 ):
-    """List conversations for an agent (must have access)."""
-    from backend.services import conversations
-    from backend.models.user import User
-    
-    convs = conversations.get_by_agent(db, agent_id)
+    """List conversations for an agent with channel info. Uses a single JOIN query."""
+    from sqlalchemy import text
+    from backend.core.channel_types import CHANNEL_DISPLAY_NAMES
+
+    rows = db.execute(text("""
+        SELECT
+            c.id,
+            c.user_id,
+            c.is_paused,
+            c.opted_out,
+            c.last_customer_message_at,
+            c.created_at,
+            c.updated_at,
+            c.channel_type_snapshot,
+            u.phone   AS user_phone,
+            u.name    AS user_name,
+            u.gender  AS user_gender,
+            cu.external_id AS channel_external_id
+        FROM conversations c
+        JOIN users u ON u.id = c.user_id
+        LEFT JOIN channel_users cu ON cu.id = c.channel_user_id
+        WHERE c.agent_id = :agent_id
+        ORDER BY c.updated_at DESC
+    """), {"agent_id": agent_id}).fetchall()
+
     result = []
-    for c in convs:
-        user = db.query(User).filter(User.id == c.user_id).first()
+    for r in rows:
+        channel_type = r.channel_type_snapshot
         result.append({
-            "id": c.id,
-            "user_id": c.user_id,
-            "user_phone": user.phone if user else None,
-            "user_name": user.name if user else None,
-            "user_gender": user.gender.value if user else None,
-            "is_paused": c.is_paused,
-            "created_at": c.created_at.isoformat() if c.created_at else None,
-            "updated_at": c.updated_at.isoformat() if c.updated_at else None
+            "id": r.id,
+            "user_id": r.user_id,
+            "user_phone": r.channel_external_id or r.user_phone,
+            "user_name": r.user_name,
+            "user_gender": r.user_gender,
+            "is_paused": r.is_paused,
+            "opted_out": r.opted_out,
+            "last_customer_message_at": r.last_customer_message_at.isoformat() if r.last_customer_message_at else None,
+            "channel_type": channel_type,
+            "channel_display_name": CHANNEL_DISPLAY_NAMES.get(channel_type, channel_type) if channel_type else None,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "updated_at": r.updated_at.isoformat() if r.updated_at else None,
         })
     return result

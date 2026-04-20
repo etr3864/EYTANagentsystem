@@ -10,7 +10,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from backend.models.appointment import Appointment
 from backend.models.agent import Agent
 from backend.models.conversation import Conversation
-from backend.services import calendar
+from backend.services.scheduling import calendar
 from backend.core.logger import log, log_error
 
 
@@ -308,7 +308,7 @@ async def book_appointment(
     await send_webhook(agent, appointment, "appointment.created", db)
     
     # Create scheduled reminders
-    from backend.services.reminders import create_reminders_for_appointment
+    from backend.services.engagement.reminders import create_reminders_for_appointment
     create_reminders_for_appointment(db, appointment, agent, user_id)
     
     log("APPOINTMENT_CREATED", agent=agent.name, title=title)
@@ -320,7 +320,7 @@ async def cancel_appointment(db: Session, appointment: Appointment, agent: Agent
     config = get_calendar_config(agent)
     
     # Cancel pending reminders
-    from backend.services.reminders import cancel_reminders_for_appointment
+    from backend.services.engagement.reminders import cancel_reminders_for_appointment
     cancel_reminders_for_appointment(db, appointment.id)
     
     # Delete from Google Calendar if exists
@@ -369,7 +369,7 @@ async def reschedule_appointment(
             return False
     
     # Cancel old reminders
-    from backend.services.reminders import cancel_reminders_for_appointment, create_reminders_for_appointment
+    from backend.services.engagement.reminders import cancel_reminders_for_appointment, create_reminders_for_appointment
     cancel_reminders_for_appointment(db, appointment.id)
     
     # Update Google Calendar if exists
@@ -429,7 +429,7 @@ def get_appointment_by_id(db: Session, appointment_id: int) -> Optional[Appointm
 
 async def _generate_appointment_summary(agent: Agent, appointment: Appointment, db: Session) -> str | None:
     """Generate conversation summary for appointment webhook if summaries are enabled."""
-    from backend.services.summaries import get_summary_config, _get_conversation_text, _generate_summary
+    from backend.services.engagement.summaries import get_summary_config, _get_conversation_text, _generate_summary
 
     summary_config = get_summary_config(agent)
     if not summary_config["enabled"]:
@@ -452,8 +452,8 @@ async def _generate_appointment_summary(agent: Agent, appointment: Appointment, 
         log_error("appointments", f"summary generation failed: {str(e)[:50]}")
         return None
 
-    from backend.services.usage_tracking import record_usage
-    from backend.services.summaries import SUMMARY_MODEL
+    from backend.services.entities.usage_tracking import record_usage
+    from backend.services.engagement.summaries import SUMMARY_MODEL
     record_usage(
         db, agent.id, SUMMARY_MODEL, "summary",
         usage["input_tokens"], usage["output_tokens"],
@@ -505,7 +505,7 @@ async def send_webhook(agent: Agent, appointment: Appointment, event: str, db: S
     if not webhook_url:
         return
     
-    from backend.services import users
+    from backend.services.entities import users
     user = users.get_by_id(db, appointment.user_id)
 
     # Generate conversation summary if summaries are enabled

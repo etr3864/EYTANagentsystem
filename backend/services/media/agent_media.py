@@ -13,7 +13,8 @@ from backend.models.agent_media import (
     ALLOWED_IMAGE_TYPES, ALLOWED_VIDEO_TYPES, ALLOWED_DOCUMENT_TYPES,
     MAX_IMAGE_SIZE, MAX_VIDEO_SIZE, MAX_DOCUMENT_SIZE
 )
-from backend.services import embeddings, storage
+from backend.services.knowledge import embeddings
+from backend.services.media import storage
 
 logger = logging.getLogger(__name__)
 

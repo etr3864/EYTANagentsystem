@@ -7,6 +7,7 @@ import { KpiCard } from './KpiCard';
 import { PresetBar } from './PresetBar';
 import { AgentsTable } from './AgentsTable';
 import { PricingPanel } from './PricingPanel';
+import { ChannelBreakdownCard } from './ChannelBreakdownCard';
 import { getPresetDates, type Preset } from './datePresets';
 
 const ILS = (v: number) => `₪${v.toFixed(2)}`;
@@ -97,12 +98,20 @@ export function SuperAdminDashboard() {
         />
       </div>
 
-      <AgentsTable
-        rows={tableRows}
-        loading={loadingTable}
-        fromDate={activeDates.from}
-        toDate={activeDates.to}
-      />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="md:col-span-2">
+          <AgentsTable
+            rows={tableRows}
+            loading={loadingTable}
+            fromDate={activeDates.from}
+            toDate={activeDates.to}
+          />
+        </div>
+        <ChannelBreakdownCard
+          fromDate={activeDates.from}
+          toDate={activeDates.to}
+        />
+      </div>
 
       <PricingPanel />
     </div>

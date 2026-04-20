@@ -1,0 +1,296 @@
+"""Agent channels management API.
+
+Endpoints for connecting / disconnecting / listing channels per agent.
+Super-admin only for write operations; admin can view in read-only.
+
+OAuth flow (parallel to /calendar OAuth):
+  1. GET  /api/agents/{id}/channels/oauth-url  → redirect to Meta
+  2. GET  /api/channels/oauth-callback          → exchange code, list pages
+  3. POST /api/agents/{id}/channels             → create channel with page selection
+  4. PATCH /api/channels/{id}                   → toggle is_active
+  5. DELETE /api/channels/{id}                  → remove channel
+"""
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from backend.auth.dependencies import get_current_user, require_super_admin
+from backend.auth.models import AuthUser, UserRole
+from backend.core.config import settings
+from backend.core.database import get_db
+from backend.core.channel_types import CHANNEL_DISPLAY_NAMES
+from backend.core.oauth_state import create_oauth_state, verify_oauth_state
+from backend.models.agent_channel import AgentChannel
+from backend.services.entities import agents
+from backend.services.channels.agent_channels import (
+    get_active_channels,
+    add_channel,
+    toggle_active,
+    get_channel,
+    get_credentials,
+    ChannelConflictError,
+    ChannelNotFoundError,
+)
+from backend.services.meta.oauth import (
+    get_oauth_url,
+    exchange_code_for_tokens,
+    get_user_pages,
+    subscribe_page_to_app,
+)
+
+router = APIRouter(tags=["channels"])
+
+_super_admin = Depends(require_super_admin())
+
+
+# ── Schemas ───────────────────────────────────────────────────────────────────
+
+class ChannelResponse(BaseModel):
+    id: int
+    agent_id: int
+    channel_type: str
+    channel_display_name: str
+    external_account_id: str
+    page_id: Optional[str]
+    waba_id: Optional[str]
+    is_active: bool
+    health_status: str
+    last_health_check_at: Optional[str]
+    created_at: str
+
+    class Config:
+        from_attributes = True
+
+
+class AddChannelRequest(BaseModel):
+    channel_type: str          # "instagram" | "messenger" | "whatsapp_meta"
+    access_token: str          # from OAuth callback
+    external_account_id: str   # phone_number_id / ig_account_id / page_id
+    page_id: Optional[str] = None
+    waba_id: Optional[str] = None
+
+
+class ToggleChannelRequest(BaseModel):
+    is_active: bool
+
+
+def _serialize_channel(ch: AgentChannel) -> ChannelResponse:
+    return ChannelResponse(
+        id=ch.id,
+        agent_id=ch.agent_id,
+        channel_type=ch.channel_type,
+        channel_display_name=CHANNEL_DISPLAY_NAMES.get(ch.channel_type, ch.channel_type),
+        external_account_id=ch.external_account_id,
+        page_id=ch.page_id,
+        waba_id=ch.waba_id,
+        is_active=ch.is_active,
+        health_status=ch.health_status,
+        last_health_check_at=ch.last_health_check_at.isoformat() if ch.last_health_check_at else None,
+        created_at=ch.created_at.isoformat(),
+    )
+
+
+# ── Endpoints ─────────────────────────────────────────────────────────────────
+
+@router.get("/agents/{agent_id}/channels")
+async def list_channels(
+    agent_id: int,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
+):
+    """List all active channels for an agent (admin read-only, super-admin full access)."""
+    agent = agents.get_by_id(db, agent_id)
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    if current_user.role not in (UserRole.SUPER_ADMIN, UserRole.ADMIN):
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    channels = get_active_channels(db, agent_id)
+    return [_serialize_channel(ch) for ch in channels]
+
+
+@router.get("/agents/{agent_id}/channels/oauth-url")
+async def get_channel_oauth_url(
+    agent_id: int,
+    channel_type: str = Query(..., description="instagram | messenger | whatsapp_meta"),
+    db: Session = Depends(get_db),
+    current_user: AuthUser = _super_admin,
+):
+    """Generate a Meta OAuth URL for connecting a channel (super-admin only)."""
+    if not settings.meta_configured:
+        raise HTTPException(status_code=503, detail="Meta App not configured")
+
+    agent = agents.get_by_id(db, agent_id)
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    state = create_oauth_state(agent_id, channel_type)
+    redirect_uri = f"{settings.oauth_redirect_base or settings.frontend_url}/api/channels/oauth-callback"
+    url = get_oauth_url(redirect_uri, state)
+    return {"url": url}
+
+
+@router.get("/channels/oauth-callback")
+async def oauth_callback(
+    code: str = Query(...),
+    state: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    """Handle Meta OAuth callback.
+
+    Verifies signed state, exchanges code, lists available pages.
+    Returns page list for super-admin to select from.
+    """
+    try:
+        state_data = verify_oauth_state(state)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    agent_id = state_data["agent_id"]
+    channel_type = state_data["channel_type"]
+
+    redirect_uri = f"{settings.oauth_redirect_base or settings.frontend_url}/api/channels/oauth-callback"
+    tokens = await exchange_code_for_tokens(code, redirect_uri)
+    if not tokens:
+        raise HTTPException(status_code=400, detail="Failed to exchange OAuth code")
+
+    pages = await get_user_pages(tokens["access_token"])
+
+    # Return to frontend with data; frontend completes connection
+    return {
+        "agent_id": agent_id,
+        "channel_type": channel_type,
+        "access_token": tokens["access_token"],
+        "token_expires_at": tokens.get("token_expires_at"),
+        "pages": pages,
+    }
+
+
+@router.post("/agents/{agent_id}/channels")
+async def create_channel(
+    agent_id: int,
+    body: AddChannelRequest,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = _super_admin,
+):
+    """Connect a new channel to an agent (super-admin only).
+
+    Uses pg_advisory_xact_lock for mutex enforcement.
+    """
+    agent = agents.get_by_id(db, agent_id)
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+
+    credentials = {
+        "access_token": body.access_token,
+        "scopes": [],
+    }
+
+    try:
+        channel = add_channel(
+            db=db,
+            agent_id=agent_id,
+            channel_type=body.channel_type,
+            external_account_id=body.external_account_id,
+            credentials=credentials,
+            page_id=body.page_id,
+            waba_id=body.waba_id,
+        )
+        db.commit()
+    except ChannelConflictError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+    # Subscribe page to webhooks (best effort)
+    if body.page_id and body.channel_type in ("instagram", "messenger"):
+        await subscribe_page_to_app(body.page_id, body.access_token)
+
+    # Auto-enable Business Assistant mode for Meta channels
+    if body.channel_type in ("instagram", "messenger", "whatsapp_meta"):
+        if not agent.business_assistant_mode:
+            agent.business_assistant_mode = True
+            db.commit()
+
+    return _serialize_channel(channel)
+
+
+@router.patch("/channels/{channel_id}")
+async def update_channel(
+    channel_id: int,
+    body: ToggleChannelRequest,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = _super_admin,
+):
+    """Toggle is_active for a channel (super-admin only)."""
+    try:
+        channel = toggle_active(db, channel_id, body.is_active)
+        db.commit()
+        return _serialize_channel(channel)
+    except ChannelNotFoundError:
+        raise HTTPException(status_code=404, detail="Channel not found")
+
+
+@router.delete("/channels/{channel_id}")
+async def delete_channel(
+    channel_id: int,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = _super_admin,
+):
+    """Remove a channel (super-admin only).
+
+    Raises 409 if the channel has active conversations (ON DELETE RESTRICT).
+    """
+    channel = get_channel(db, channel_id)
+    if not channel:
+        raise HTTPException(status_code=404, detail="Channel not found")
+
+    try:
+        db.delete(channel)
+        db.commit()
+        return {"status": "deleted", "channel_id": channel_id}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete channel with existing conversations. Disable it instead."
+        )
+
+
+@router.get("/channels/{channel_id}/health")
+async def channel_health(
+    channel_id: int,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = _super_admin,
+):
+    """Check and refresh health status for a channel."""
+    channel = get_channel(db, channel_id)
+    if not channel:
+        raise HTTPException(status_code=404, detail="Channel not found")
+
+    if channel.channel_type == "whatsapp_wasender":
+        return {"channel_id": channel_id, "health_status": "not_checked", "message": "WaSender health check not implemented"}
+
+    try:
+        creds = get_credentials(channel)
+        import httpx
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.get(
+                "https://graph.facebook.com/v20.0/me",
+                params={"access_token": creds.get("access_token", "")},
+            )
+        status_val = "healthy" if resp.status_code == 200 else "degraded"
+    except Exception:
+        status_val = "error"
+
+    from backend.services.channels.agent_channels import update_health
+    update_health(db, channel, status_val)
+    db.commit()
+
+    return {
+        "channel_id": channel_id,
+        "health_status": status_val,
+        "last_checked": channel.last_health_check_at.isoformat() if channel.last_health_check_at else None,
+    }

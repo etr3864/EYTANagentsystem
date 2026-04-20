@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import type { Conversation } from '@/lib/types';
+import { CHANNEL_DISPLAY_NAMES, CHANNEL_ICONS } from '@/lib/channels';
 
 interface ContactListProps {
   conversations: Conversation[];
@@ -16,27 +17,50 @@ function getGenderIcon(gender: string | null): string {
   return '👤';
 }
 
+function ChannelBadge({ channelType }: { channelType: string | null | undefined }) {
+  if (!channelType) return null;
+  const icon = CHANNEL_ICONS[channelType as keyof typeof CHANNEL_ICONS] ?? '📡';
+  const name = CHANNEL_DISPLAY_NAMES[channelType as keyof typeof CHANNEL_DISPLAY_NAMES] ?? channelType;
+  return (
+    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-slate-700 text-slate-300" title={name}>
+      <span>{icon}</span>
+    </span>
+  );
+}
+
 export function ContactList({ conversations, selectedId, onSelect, onDelete }: ContactListProps) {
   const [search, setSearch] = useState('');
+  const [channelFilter, setChannelFilter] = useState<string>('all');
+
+  const channelTypes = useMemo(() => {
+    const types = new Set<string>();
+    conversations.forEach(c => { if (c.channel_type) types.add(c.channel_type); });
+    return Array.from(types);
+  }, [conversations]);
+
+  const showChannelBadges = channelTypes.length > 1;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return conversations;
-    return conversations.filter(c =>
-      c.user_name?.toLowerCase().includes(q) || c.user_phone?.includes(q)
-    );
-  }, [conversations, search]);
+    return conversations.filter(c => {
+      const matchSearch = !q || c.user_name?.toLowerCase().includes(q) || c.user_phone?.includes(q);
+      const matchChannel = channelFilter === 'all' || c.channel_type === channelFilter || (!c.channel_type && channelFilter === 'legacy');
+      return matchSearch && matchChannel;
+    });
+  }, [conversations, search, channelFilter]);
 
   return (
     <div className="h-full border-l border-slate-700 flex flex-col bg-slate-800/30">
       <div className="p-4 border-b border-slate-700">
         <div className="text-sm font-medium text-white">שיחות</div>
         <div className="text-xs text-slate-400">
-          {search ? `${filtered.length} מתוך ${conversations.length}` : `${conversations.length} פעילות`}
+          {search || channelFilter !== 'all'
+            ? `${filtered.length} מתוך ${conversations.length}`
+            : `${conversations.length} פעילות`}
         </div>
       </div>
 
-      <div className="px-3 py-2 border-b border-slate-700/50">
+      <div className="px-3 py-2 border-b border-slate-700/50 space-y-2">
         <div className="relative">
           <svg className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -57,6 +81,27 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete }: C
             </button>
           )}
         </div>
+
+        {channelTypes.length > 1 && (
+          <div className="flex gap-1 flex-wrap">
+            <button
+              onClick={() => setChannelFilter('all')}
+              className={`px-2 py-0.5 rounded text-xs transition-colors ${channelFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+            >
+              הכל
+            </button>
+            {channelTypes.map(ct => (
+              <button
+                key={ct}
+                onClick={() => setChannelFilter(ct === channelFilter ? 'all' : ct)}
+                className={`px-2 py-0.5 rounded text-xs transition-colors flex items-center gap-1 ${channelFilter === ct ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+              >
+                <span>{CHANNEL_ICONS[ct as keyof typeof CHANNEL_ICONS] ?? '📡'}</span>
+                <span>{CHANNEL_DISPLAY_NAMES[ct as keyof typeof CHANNEL_DISPLAY_NAMES] ?? ct}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="overflow-y-auto flex-1">
@@ -86,8 +131,9 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete }: C
                   {getGenderIcon(conv.user_gender)}
                 </div>
                 <div>
-                  <div className="font-medium text-white text-sm">
+                  <div className="font-medium text-white text-sm flex items-center gap-1.5">
                     {conv.user_name || `לקוח ${conv.user_phone.slice(-4)}`}
+                    {showChannelBadges && <ChannelBadge channelType={conv.channel_type} />}
                   </div>
                   <div className="text-xs text-slate-400 font-mono">
                     {conv.user_phone}

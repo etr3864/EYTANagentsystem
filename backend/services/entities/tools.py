@@ -6,7 +6,10 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from backend.models.agent import Agent
-from backend.services import users, documents, tables, appointments, agent_media, conversations
+from backend.services.entities import users, conversations
+from backend.services.knowledge import documents, tables
+from backend.services.scheduling import appointments
+from backend.services.media import agent_media
 from backend.core.logger import log, log_tool, log_error
 from backend.core.timezone import from_utc
 

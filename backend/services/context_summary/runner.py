@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from backend.models.agent import Agent
 from backend.models.conversation_context_summary import ConversationContextSummary
-from backend.services import agents as agents_service
+from backend.services.entities import agents as agents_service
 from backend.services.llm import get_provider
 from backend.services.context_summary.config import get_context_summary_config
 from backend.services.context_summary.builder import (
@@ -45,7 +45,7 @@ async def run_summary(db: Session, conversation_id: int, agent_id: int) -> None:
         prompt, model=agent.model, max_tokens=SUMMARY_MAX_TOKENS
     )
 
-    from backend.services.usage_tracking import record_usage
+    from backend.services.entities.usage_tracking import record_usage
     record_usage(
         db, agent.id, agent.model, "context_summary",
         usage["input_tokens"], usage["output_tokens"],

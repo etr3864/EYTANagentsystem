@@ -1,14 +1,18 @@
 """Shared message processing logic for all webhook handlers."""
 from datetime import datetime, timedelta
-from typing import Callable, Awaitable
+from typing import Callable, Awaitable, Optional
 
 from sqlalchemy.orm import Session
 
 from backend.core.database import SessionLocal
 from backend.core.logger import log, log_message, log_response, log_error
-from backend.services import agents, users, conversations, messages, ai, knowledge, appointments
-from backend.services.tools import handle_tool_calls
-from backend.services.message_buffer import PendingMessage
+from backend.core.channel_types import get_capabilities
+from backend.services import knowledge
+from backend.services.entities import agents, users, conversations, ai
+from backend.services.messaging import messages
+from backend.services.scheduling import appointments
+from backend.services.entities.tools import handle_tool_calls
+from backend.services.messaging.buffer import PendingMessage
 from backend.models.user import User
 from backend.models.processed_message import ProcessedMessage
 
@@ -86,18 +90,22 @@ async def process_batched_messages(
     pending_msgs: list[PendingMessage],
     send_message: Callable[[str, str], Awaitable[bool]],
     provider: str = "meta",
-    send_media: MediaSendCallback | None = None
+    send_media: MediaSendCallback | None = None,
+    channel_id: Optional[int] = None,
+    channel_user_id: Optional[int] = None,
 ) -> None:
     """Process batched messages with knowledge base integration.
     
     Args:
         agent_id: The agent ID
-        user_phone: User's phone number
+        user_phone: User's phone number (external_id)
         user_name: User's name (optional)
         pending_msgs: List of pending messages to process
         send_message: Async function to send message (phone, text) -> bool
         provider: Provider name for logging
         send_media: Optional async function to send media (phone, url, type, caption) -> bool
+        channel_id: AgentChannel.id — when set, new multichannel path is used
+        channel_user_id: ChannelUser.id — when set, stored on new messages
     """
     db = SessionLocal()
     try:
@@ -109,13 +117,36 @@ async def process_batched_messages(
         user = users.get_or_create(db, user_phone, user_name)
         user_info = get_user_info(user)
         
-        prompt = agent.system_prompt or ""
+        # Build compliance system prompt prefix when Business Assistant mode is on
+        base_prompt = agent.system_prompt or ""
+        if getattr(agent, "business_assistant_mode", False):
+            compliance_prefix = (
+                f"You are a customer service assistant for {agent.name}. "
+                f"You ONLY assist with topics related to this business.\n\n"
+            )
+            prompt = compliance_prefix + base_prompt
+        else:
+            prompt = base_prompt
+
         display_name = user.name or user_phone[-4:]
         
         batching_config = agent.get_batching_config()
         max_history = batching_config.get("max_history_messages", 20)
 
         conv = conversations.get_or_create(db, agent.id, user.id)
+
+        # Backfill channel columns if available but not yet set on this conversation
+        if channel_id and conv.channel_id is None:
+            conv.channel_id = channel_id
+            conv.channel_user_id = channel_user_id
+            # Determine channel type snapshot from channel record
+            try:
+                from backend.models.agent_channel import AgentChannel
+                ch = db.query(AgentChannel).filter(AgentChannel.id == channel_id).first()
+                if ch:
+                    conv.channel_type_snapshot = ch.channel_type
+            except Exception:
+                pass
         
         # Auto opt-in: customer sending a message re-enables proactive messages
         if conv.opted_out:
@@ -126,7 +157,7 @@ async def process_batched_messages(
         _mark_followup_responded(db, conv.id)
         db.commit()
 
-        from backend.services.followups import cancel_pending_followups, cancel_followup_timer
+        from backend.services.engagement.followups import cancel_pending_followups, cancel_followup_timer
         cancelled = cancel_pending_followups(db, conv.id)
         if cancelled:
             db.commit()
@@ -203,7 +234,7 @@ async def process_batched_messages(
             cache_read=usage_data["cache_read_tokens"],
             cache_create=usage_data["cache_creation_tokens"]
         )
-        from backend.services.usage_tracking import record_usage
+        from backend.services.entities.usage_tracking import record_usage
         record_usage(
             db, agent.id, agent.model, "conversation",
             usage_data["input_tokens"], usage_data["output_tokens"],
@@ -257,8 +288,13 @@ async def process_batched_messages(
         else:
             db.commit()
 
-        # Set follow-up timer if enabled for this agent
-        await _set_followup_timer_if_enabled(agent, conv)
+        # Resolve channel capabilities from CHANNEL_CAPABILITIES matrix
+        channel_type = conv.channel_type_snapshot or "whatsapp_wasender"
+        caps = get_capabilities(channel_type)
+
+        # Set follow-up timer only if this channel supports followups
+        if caps.get("followups", True):
+            await _set_followup_timer_if_enabled(agent, conv)
 
         _enqueue_context_summary_if_needed(db, agent, conv.id)
     finally:
@@ -289,7 +325,7 @@ def _enqueue_context_summary_if_needed(db, agent, conversation_id: int) -> None:
 
 async def _set_followup_timer_if_enabled(agent, conv) -> None:
     """Schedule follow-up timer after agent responds (if follow-ups are enabled)."""
-    from backend.services.followups import get_config, set_followup_timer
+    from backend.services.engagement.followups import get_config, set_followup_timer
     config = get_config(agent)
     if not config.get("enabled"):
         return

@@ -5,8 +5,10 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from backend.core.database import get_db
-from backend.services import agents
-from backend.services import whatsapp_templates as templates_service
+from backend.core.encryption import decrypt_credentials
+from backend.services.entities import agents
+from backend.services.channels import agent_channels as agent_channels_service
+from backend.services.messaging import templates as templates_service
 from backend.auth.models import UserRole
 from backend.auth.dependencies import require_role
 
@@ -36,12 +38,35 @@ MAX_UPLOAD_SIZE = 16 * 1024 * 1024  # 16MB
 # ============ Helpers ============
 
 def _get_meta_agent(db: Session, agent_id: int):
-    """Get agent and verify it's a Meta provider with WABA ID configured."""
+    """Get agent and verify WA Meta channel is configured.
+
+    Credentials resolution order (for unified model):
+    1. Active `whatsapp_meta` AgentChannel with decrypted credentials (preferred).
+    2. Legacy: agent.access_token + agent.provider_config.waba_id (backward compat).
+
+    Injects `access_token` and `waba_id` into the returned Agent object so that
+    downstream `templates_service` keeps working without refactor.
+    """
     agent = agents.get_by_id(db, agent_id)
     if not agent:
         raise HTTPException(404, "Agent not found")
+
+    channel = agent_channels_service.get_channel_by_type(db, agent_id, "whatsapp_meta")
+    if channel and channel.is_active:
+        try:
+            creds = decrypt_credentials(channel.credentials_encrypted)
+        except Exception:
+            raise HTTPException(500, "Failed to decrypt channel credentials")
+        access_token = creds.get("access_token")
+        waba_id = channel.waba_id
+        if not access_token or not waba_id:
+            raise HTTPException(400, "WA Meta channel missing access_token or waba_id")
+        agent.access_token = access_token
+        agent.provider_config = {**(agent.provider_config or {}), "waba_id": waba_id}
+        return agent
+
     if agent.provider != "meta":
-        raise HTTPException(400, "Templates are only available for Meta WhatsApp agents")
+        raise HTTPException(400, "Templates are only available for WhatsApp Meta channel")
     config = agent.provider_config or {}
     if not config.get("waba_id"):
         raise HTTPException(400, "WABA ID not configured for this agent")

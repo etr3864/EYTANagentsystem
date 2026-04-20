@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { AgentTableRow } from '@/lib/types';
 import { AgentAccordionDetail } from './AgentAccordionDetail';
 import { exportConversations } from '@/lib/api';
+import { CHANNEL_ICONS, CHANNEL_DISPLAY_NAMES } from '@/lib/channels';
 
 interface Props {
   rows: AgentTableRow[];
@@ -74,6 +75,7 @@ export function AgentsTable({ rows, loading, fromDate, toDate }: Props) {
             <tr className="text-slate-400 border-b border-purple-500/10 text-xs uppercase">
               <th className="px-4 py-3">סוכן</th>
               <th className="px-4 py-3">לקוח</th>
+              <th className="px-4 py-3">ערוצים</th>
               <th className="px-4 py-3">שיחות</th>
               <th className="px-4 py-3">הודעות</th>
               <th className="px-4 py-3">עלויות כוללות</th>
@@ -85,7 +87,7 @@ export function AgentsTable({ rows, loading, fromDate, toDate }: Props) {
           <tbody>
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
                   {search ? 'לא נמצאו תוצאות' : 'אין נתונים'}
                 </td>
               </tr>
@@ -101,6 +103,22 @@ export function AgentsTable({ rows, loading, fromDate, toDate }: Props) {
                   >
                     <td className="px-4 py-3 font-medium text-white">{row.agent_name}</td>
                     <td className="px-4 py-3 text-slate-300">{row.client_name}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1 text-base">
+                        {(row.active_channels ?? []).length === 0 ? (
+                          <span className="text-slate-500 text-xs">—</span>
+                        ) : (
+                          (row.active_channels ?? []).map((ct) => (
+                            <span
+                              key={ct}
+                              title={CHANNEL_DISPLAY_NAMES[ct as keyof typeof CHANNEL_DISPLAY_NAMES] ?? ct}
+                            >
+                              {CHANNEL_ICONS[ct as keyof typeof CHANNEL_ICONS] ?? '📡'}
+                            </span>
+                          ))
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-slate-300">{row.total_conversations}</td>
                     <td className="px-4 py-3 text-slate-300">{row.total_messages}</td>
                     <td className="px-4 py-3 text-white font-medium">₪{row.total_cost_ils.toFixed(2)}</td>
@@ -123,7 +141,7 @@ export function AgentsTable({ rows, loading, fromDate, toDate }: Props) {
                   </tr>
                   {isExpanded && (
                     <tr key={`${row.agent_id}-detail`}>
-                      <td colSpan={8} className="px-4 pb-4 bg-[#0B0914]/40">
+                      <td colSpan={9} className="px-4 pb-4 bg-[#0B0914]/40">
                         <AgentAccordionDetail
                           agentId={row.agent_id}
                           fromDate={fromDate}

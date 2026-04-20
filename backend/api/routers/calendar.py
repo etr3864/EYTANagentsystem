@@ -8,7 +8,8 @@ from typing import Optional
 from backend.core.database import get_db
 from backend.core.config import settings
 from backend.core.logger import log_error
-from backend.services import agents, calendar, appointments
+from backend.services.entities import agents
+from backend.services.scheduling import calendar, appointments
 from backend.auth.models import AuthUser
 from backend.auth.dependencies import AgentAccessChecker
 
@@ -263,8 +264,8 @@ async def send_test_reminder(
     """Send a test reminder to verify the rule works."""
     from datetime import datetime, timedelta
     from zoneinfo import ZoneInfo
-    from backend.services import providers
-    from backend.services.reminders import (
+    from backend.services.channels import providers
+    from backend.services.engagement.reminders import (
         get_reminder_config, _build_from_template, _build_from_ai,
         _get_agent_personality, _build_template_components, DEFAULT_TEMPLATE,
     )

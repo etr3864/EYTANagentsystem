@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 
 from backend.models.knowledge import DataTable, DataRow
-from backend.services import embeddings
+from backend.services.knowledge import embeddings
 from backend.core.logger import log_upload
 
 

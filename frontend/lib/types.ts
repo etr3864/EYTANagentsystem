@@ -55,6 +55,9 @@ export interface Agent {
   followup_config: FollowupConfig | null;
   custom_api_keys: CustomApiKeys | null;
   context_summary_config: ContextSummaryConfig | null;
+  business_assistant_mode: boolean;
+  has_whatsapp_meta_channel?: boolean;
+  active_channel_types?: string[];
   created_at: string | null;
 }
 
@@ -85,6 +88,7 @@ export interface AgentUpdate {
   media_config?: MediaConfig | null;
   custom_api_keys?: CustomApiKeys | null;
   context_summary_config?: ContextSummaryConfig | null;
+  business_assistant_mode?: boolean;
 }
 
 // ============ User ============
@@ -110,6 +114,8 @@ export interface Conversation {
   is_paused: boolean;
   created_at: string | null;
   updated_at: string | null;
+  channel_type?: string | null;
+  channel_external_id?: string | null;
 }
 
 // ============ Message ============
@@ -392,6 +398,7 @@ export interface AgentTableRow {
   agent_id: number;
   agent_name: string;
   client_name: string;
+  active_channels?: string[];
   total_conversations: number;
   total_messages: number;
   total_cost_ils: number;

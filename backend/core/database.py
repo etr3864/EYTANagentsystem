@@ -224,6 +224,103 @@ def _run_migration_statements(conn):
             {"key": key, "value": value},
         )
 
+    # ── Phase 1: Multichannel platform foundation ──────────────────────────────
+
+    # agent_channels — one row per channel per agent (WaSender, WA Meta, IG, MS)
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS agent_channels (
+            id                    SERIAL PRIMARY KEY,
+            agent_id              INT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+            channel_type          VARCHAR(30) NOT NULL,
+            external_account_id   VARCHAR(100) NOT NULL,
+            page_id               VARCHAR(100),
+            waba_id               VARCHAR(100),
+            credentials_encrypted BYTEA NOT NULL,
+            verify_token          VARCHAR(100),
+            is_active             BOOLEAN NOT NULL DEFAULT TRUE,
+            last_health_check_at  TIMESTAMP,
+            health_status         VARCHAR(20) DEFAULT 'unknown',
+            created_at            TIMESTAMP NOT NULL DEFAULT NOW(),
+            updated_at            TIMESTAMP NOT NULL DEFAULT NOW(),
+            CONSTRAINT uq_agent_channel_type UNIQUE (agent_id, channel_type),
+            CONSTRAINT uq_channel_account UNIQUE (channel_type, external_account_id)
+        );
+    """))
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_agent_channels_agent_active
+        ON agent_channels(agent_id) WHERE is_active;
+    """))
+
+    # channel_users — channel-specific user identities (BSUID ready)
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS channel_users (
+            id              SERIAL PRIMARY KEY,
+            channel_id      INT NOT NULL REFERENCES agent_channels(id) ON DELETE CASCADE,
+            external_id     VARCHAR(200) NOT NULL,
+            bsuid           VARCHAR(200),
+            display_name    VARCHAR(200),
+            profile_pic_url TEXT,
+            metadata        JSONB,
+            created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+            updated_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+            CONSTRAINT uq_channel_user UNIQUE (channel_id, external_id)
+        );
+    """))
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_channel_users_bsuid
+        ON channel_users(channel_id, bsuid) WHERE bsuid IS NOT NULL;
+    """))
+
+    # conversations: add channel_id, channel_user_id, channel_type_snapshot (nullable)
+    conn.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE conversations
+                ADD COLUMN channel_id INT REFERENCES agent_channels(id) ON DELETE RESTRICT;
+        EXCEPTION WHEN duplicate_column THEN null;
+        END $$;
+    """))
+    conn.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE conversations
+                ADD COLUMN channel_user_id INT REFERENCES channel_users(id) ON DELETE SET NULL;
+        EXCEPTION WHEN duplicate_column THEN null;
+        END $$;
+    """))
+    conn.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE conversations ADD COLUMN channel_type_snapshot VARCHAR(30);
+        EXCEPTION WHEN duplicate_column THEN null;
+        END $$;
+    """))
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_conv_channel
+        ON conversations(channel_id) WHERE channel_id IS NOT NULL;
+    """))
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_conv_channel_user
+        ON conversations(channel_id, channel_user_id) WHERE channel_id IS NOT NULL;
+    """))
+
+    # agent_usage_daily: add channel_type column
+    conn.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE agent_usage_daily ADD COLUMN channel_type VARCHAR(30);
+        EXCEPTION WHEN duplicate_column THEN null;
+        END $$;
+    """))
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_usage_daily_channel
+        ON agent_usage_daily(agent_id, channel_type, date);
+    """))
+
+    # agents: add business_assistant_mode flag (compliance toggle)
+    conn.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE agents ADD COLUMN business_assistant_mode BOOLEAN NOT NULL DEFAULT FALSE;
+        EXCEPTION WHEN duplicate_column THEN null;
+        END $$;
+    """))
+
     conn.commit()
 
 

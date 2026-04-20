@@ -214,7 +214,7 @@ async def create_and_send_summary(
             conversation_text, 
             config["summary_prompt"]
         )
-        from backend.services.usage_tracking import record_usage
+        from backend.services.entities.usage_tracking import record_usage
         record_usage(
             db, agent.id, SUMMARY_MODEL, "summary",
             usage["input_tokens"], usage["output_tokens"],
