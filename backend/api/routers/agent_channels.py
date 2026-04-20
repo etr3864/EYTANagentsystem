@@ -27,6 +27,7 @@ from backend.models.agent_channel import AgentChannel
 from backend.services.entities import agents
 from backend.services.channels.agent_channels import (
     get_active_channels,
+    get_all_channels,
     add_channel,
     toggle_active,
     get_channel,
@@ -110,7 +111,7 @@ async def list_channels(
     if current_user.role not in (UserRole.SUPER_ADMIN, UserRole.ADMIN):
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    channels = get_active_channels(db, agent_id)
+    channels = get_all_channels(db, agent_id)
     return [_serialize_channel(ch) for ch in channels]
 
 

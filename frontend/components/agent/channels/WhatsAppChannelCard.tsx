@@ -12,6 +12,7 @@ import { type AgentChannel, CHANNEL_DISPLAY_NAMES, toggleChannel } from '@/lib/c
 import { useState } from 'react';
 
 interface WhatsAppChannelCardProps {
+  agentId: number;
   wasenderChannel: AgentChannel | null;
   metaChannel: AgentChannel | null;
   canEdit: boolean;
@@ -21,6 +22,7 @@ interface WhatsAppChannelCardProps {
 }
 
 export function WhatsAppChannelCard({
+  agentId,
   wasenderChannel,
   metaChannel,
   canEdit,
@@ -29,6 +31,9 @@ export function WhatsAppChannelCard({
   onAddMeta,
 }: WhatsAppChannelCardProps) {
   const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const wasenderWebhookUrl = `${API_URL}/webhook/wasender/${agentId}`;
 
   const activeWa = wasenderChannel?.is_active ? 'wasender' : metaChannel?.is_active ? 'meta' : null;
 
@@ -80,6 +85,21 @@ export function WhatsAppChannelCard({
           {wasenderChannel ? (
             <>
               <div className="text-xs text-slate-500 truncate mb-2">{wasenderChannel.external_account_id}</div>
+              {wasenderChannel.is_active && (
+                <div className="mb-2 p-2 bg-slate-900/60 border border-slate-700/50 rounded-lg">
+                  <div className="text-[10px] text-slate-400 mb-1">🔗 Webhook URL</div>
+                  <div className="flex items-center gap-1.5">
+                    <code className="flex-1 text-[10px] text-emerald-400 font-mono truncate select-all">{wasenderWebhookUrl}</code>
+                    <button
+                      type="button"
+                      onClick={() => { navigator.clipboard.writeText(wasenderWebhookUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+                      className="flex-shrink-0 px-1.5 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-[10px] text-slate-300 transition-colors"
+                    >
+                      {copied ? '✓' : 'העתק'}
+                    </button>
+                  </div>
+                </div>
+              )}
               {canEdit && (
                 <button
                   onClick={() => handleToggle(wasenderChannel, !wasenderChannel.is_active)}

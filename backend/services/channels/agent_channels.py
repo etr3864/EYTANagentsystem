@@ -31,6 +31,16 @@ def get_active_channels(db: Session, agent_id: int) -> list[AgentChannel]:
     )
 
 
+def get_all_channels(db: Session, agent_id: int) -> list[AgentChannel]:
+    """Return all channels for an agent (including inactive)."""
+    return (
+        db.query(AgentChannel)
+        .filter(AgentChannel.agent_id == agent_id)
+        .order_by(AgentChannel.channel_type)
+        .all()
+    )
+
+
 def get_channel(db: Session, channel_id: int) -> Optional[AgentChannel]:
     return db.query(AgentChannel).filter(AgentChannel.id == channel_id).first()
 
@@ -112,7 +122,16 @@ def add_channel(
         health_status="unknown",
     )
     db.add(channel)
-    db.flush()
+    try:
+        db.flush()
+    except Exception as e:
+        db.rollback()
+        if "uq_agent_channel_type" in str(e) or "UniqueViolation" in str(type(e).__name__):
+            raise ChannelConflictError(
+                f"ערוץ {channel_type} כבר קיים לסוכן הזה. "
+                f"אם הוא מושבת — הפעל אותו במקום ליצור חדש."
+            )
+        raise
     return channel
 
 

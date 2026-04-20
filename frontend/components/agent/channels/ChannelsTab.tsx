@@ -121,6 +121,7 @@ export function ChannelsTab({ agentId, canEdit }: ChannelsTabProps) {
       <div>
         <h3 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">WhatsApp</h3>
         <WhatsAppChannelCard
+          agentId={agentId}
           wasenderChannel={wasenderChannel}
           metaChannel={metaChannel}
           canEdit={canEdit}
