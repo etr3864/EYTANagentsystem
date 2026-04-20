@@ -143,8 +143,12 @@ async def oauth_callback(
     """Handle Meta OAuth callback.
 
     Verifies signed state, exchanges code, lists available pages.
-    Returns page list for super-admin to select from.
+    Stores result in Redis for 5 minutes then redirects to frontend page-selector.
     """
+    import uuid, json
+    import redis.asyncio as aioredis
+    from fastapi.responses import RedirectResponse
+
     try:
         state_data = verify_oauth_state(state)
     except ValueError as e:
@@ -156,18 +160,60 @@ async def oauth_callback(
     redirect_uri = f"{settings.oauth_redirect_base or settings.frontend_url}/api/channels/oauth-callback"
     tokens = await exchange_code_for_tokens(code, redirect_uri)
     if not tokens:
-        raise HTTPException(status_code=400, detail="Failed to exchange OAuth code")
+        frontend_error_url = f"{settings.frontend_url}/agent/{agent_id}?tab=channels&error=oauth_failed"
+        return RedirectResponse(frontend_error_url)
 
     pages = await get_user_pages(tokens["access_token"])
 
-    # Return to frontend with data; frontend completes connection
-    return {
+    session_id = str(uuid.uuid4())
+    session_data = json.dumps({
         "agent_id": agent_id,
         "channel_type": channel_type,
         "access_token": tokens["access_token"],
         "token_expires_at": tokens.get("token_expires_at"),
         "pages": pages,
-    }
+    })
+
+    try:
+        r = aioredis.from_url(settings.redis_url, encoding="utf-8", decode_responses=True)
+        await r.setex(f"oauth_session:{session_id}", 300, session_data)
+        await r.aclose()
+    except Exception:
+        # Fallback: encode in URL (less ideal but functional)
+        import base64
+        encoded = base64.urlsafe_b64encode(session_data.encode()).decode()
+        return RedirectResponse(
+            f"{settings.frontend_url}/channels/oauth-callback?fallback=1&data={encoded}"
+        )
+
+    return RedirectResponse(
+        f"{settings.frontend_url}/channels/oauth-callback?session={session_id}"
+    )
+
+
+@router.get("/channels/oauth-session/{session_id}")
+async def get_oauth_session(session_id: str):
+    """Retrieve and consume a one-time OAuth session stored in Redis.
+
+    Called by the frontend page-selector after redirect.
+    TTL: 5 minutes. Deleted on first successful read.
+    """
+    import json
+    import redis.asyncio as aioredis
+
+    try:
+        r = aioredis.from_url(settings.redis_url, encoding="utf-8", decode_responses=True)
+        raw = await r.get(f"oauth_session:{session_id}")
+        if raw:
+            await r.delete(f"oauth_session:{session_id}")
+        await r.aclose()
+    except Exception:
+        raise HTTPException(status_code=503, detail="Redis unavailable")
+
+    if not raw:
+        raise HTTPException(status_code=404, detail="Session expired or not found")
+
+    return json.loads(raw)
 
 
 @router.post("/agents/{agent_id}/channels")

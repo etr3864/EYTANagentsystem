@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { getAgentChannels, type AgentChannel, type ChannelType } from '@/lib/channels';
 import { getAgent, updateAgent } from '@/lib/api';
 import { ChannelCard } from './ChannelCard';
@@ -18,6 +19,18 @@ export function ChannelsTab({ agentId, canEdit }: ChannelsTabProps) {
   const [addingChannelType, setAddingChannelType] = useState<ChannelType | null>(null);
   const [businessAssistantMode, setBusinessAssistantMode] = useState(false);
   const [savingMode, setSavingMode] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('connected') === '1') {
+      setSuccessMsg('הערוץ חובר בהצלחה! ✅');
+      setTimeout(() => setSuccessMsg(null), 5000);
+      // Clean URL without reload
+      window.history.replaceState({}, '', window.location.pathname + '?tab=channels');
+    }
+  }, [searchParams]);
 
   async function loadChannels() {
     try {
@@ -69,6 +82,11 @@ export function ChannelsTab({ agentId, canEdit }: ChannelsTabProps) {
 
   return (
     <div className="space-y-6">
+      {successMsg && (
+        <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm">
+          {successMsg}
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
