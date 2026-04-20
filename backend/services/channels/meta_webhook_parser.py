@@ -33,26 +33,13 @@ class ParsedIncomingMessage:
 
 def parse_instagram_payload(payload: dict) -> list[ParsedIncomingMessage]:
     """Parse Instagram webhook payload (object = 'instagram')."""
-    from backend.core.logger import log
     results = []
-    entries = payload.get("entry", [])
-    for entry in entries:
+    for entry in payload.get("entry", []):
         ig_account_id = entry.get("id", "")
-        entry_keys = list(entry.keys())
-        messaging = entry.get("messaging", [])
-        changes = entry.get("changes", [])
-        log("ig_parse_debug", msg=f"entry keys={entry_keys}, id={ig_account_id}, messaging={len(messaging)}, changes={len(changes)}")
-
-        for msg_event in messaging:
+        for msg_event in entry.get("messaging", []):
             parsed = _parse_ig_messaging_event(ig_account_id, msg_event)
             if parsed:
                 results.append(parsed)
-
-        # Fallback: some IG webhooks use changes[] instead of messaging[]
-        for change in changes:
-            field = change.get("field", "")
-            value = change.get("value", {})
-            log("ig_parse_debug", msg=f"change field={field}, value_keys={list(value.keys()) if isinstance(value, dict) else type(value).__name__}")
     return results
 
 
@@ -91,17 +78,12 @@ def parse_whatsapp_payload(payload: dict) -> list[ParsedIncomingMessage]:
 # ── Internal parsers ──────────────────────────────────────────────────────────
 
 def _parse_ig_messaging_event(ig_account_id: str, event: dict) -> Optional[ParsedIncomingMessage]:
-    from backend.core.logger import log
     sender_id = event.get("sender", {}).get("id", "")
     recipient_id = event.get("recipient", {}).get("id", "")
 
     is_echo = (sender_id == ig_account_id)
 
-    event_keys = list(event.keys())
     msg = event.get("message", {})
-    # Log non-standard keys to understand the payload
-    extra_data = {k: v for k, v in event.items() if k not in ("sender", "recipient", "message", "timestamp")}
-    log("ig_event_debug", msg=f"event_keys={event_keys}, sender={sender_id}, recipient={recipient_id}, has_message={bool(msg)}, extra={extra_data}")
     if not msg:
         return None
 
