@@ -59,6 +59,7 @@ class ChannelResponse(BaseModel):
     channel_type: str
     channel_display_name: str
     external_account_id: str
+    account_name: Optional[str] = None
     page_id: Optional[str]
     waba_id: Optional[str]
     is_active: bool
@@ -74,6 +75,7 @@ class AddChannelRequest(BaseModel):
     channel_type: str                   # "instagram" | "messenger" | "whatsapp_meta" | "whatsapp_wasender"
     access_token: str                   # Meta OAuth token OR WaSender API key
     external_account_id: str            # phone_number_id / ig_account_id / page_id / wasender session
+    account_name: Optional[str] = None  # IG username / Page name
     page_id: Optional[str] = None
     waba_id: Optional[str] = None
     wasender_secret: Optional[str] = None  # WaSender webhook secret (optional)
@@ -97,6 +99,7 @@ def _serialize_channel(ch: AgentChannel) -> ChannelResponse:
         channel_type=ch.channel_type,
         channel_display_name=CHANNEL_DISPLAY_NAMES.get(ch.channel_type, ch.channel_type),
         external_account_id=ch.external_account_id,
+        account_name=ch.account_name,
         page_id=ch.page_id,
         waba_id=ch.waba_id,
         is_active=ch.is_active,
@@ -278,6 +281,7 @@ async def create_channel(
             credentials=credentials,
             page_id=body.page_id,
             waba_id=body.waba_id,
+            account_name=body.account_name,
         )
         db.commit()
     except ChannelConflictError as e:

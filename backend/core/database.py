@@ -321,6 +321,14 @@ def _run_migration_statements(conn):
         END $$;
     """))
 
+    # agent_channels: add account_name (IG username / Page name)
+    conn.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE agent_channels ADD COLUMN account_name VARCHAR(200);
+        EXCEPTION WHEN duplicate_column THEN null;
+        END $$;
+    """))
+
     conn.commit()
 
 

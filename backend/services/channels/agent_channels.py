@@ -79,6 +79,7 @@ def add_channel(
     page_id: Optional[str] = None,
     waba_id: Optional[str] = None,
     verify_token: Optional[str] = None,
+    account_name: Optional[str] = None,
 ) -> AgentChannel:
     """Add a new channel to an agent with mutex enforcement via advisory lock.
 
@@ -114,6 +115,7 @@ def add_channel(
         agent_id=agent_id,
         channel_type=channel_type,
         external_account_id=external_account_id,
+        account_name=account_name,
         credentials_encrypted=encrypt_credentials(credentials),
         page_id=page_id,
         waba_id=waba_id,

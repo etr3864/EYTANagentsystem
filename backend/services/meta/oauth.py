@@ -205,9 +205,6 @@ async def exchange_instagram_code(code: str, redirect_uri: str) -> Optional[dict
     """Exchange Instagram Business Login auth code for a long-lived token."""
     ig_client_id = settings.meta_instagram_app_id or settings.meta_app_id
     ig_secret = settings.meta_instagram_app_secret or settings.meta_app_secret
-    log_error("ig_oauth_debug",
-        f"client_id={ig_client_id}, secret_len={len(ig_secret or '')}, "
-        f"redirect_uri={redirect_uri}, code_len={len(code)}")
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(INSTAGRAM_TOKEN_URL, data={

@@ -90,7 +90,12 @@ export function ChannelCard({ channel, canEdit, onChanged }: ChannelCardProps) {
           <span className="text-2xl">{icon}</span>
           <div>
             <div className="font-semibold text-white text-sm">{displayName}</div>
-            <div className="text-xs text-slate-500 truncate max-w-[160px]">
+            {channel.account_name && (
+              <div className="text-xs text-slate-300 truncate max-w-[180px]">
+                {channel.account_name}
+              </div>
+            )}
+            <div className="text-[10px] text-slate-500 truncate max-w-[160px]">
               {channel.external_account_id}
             </div>
           </div>

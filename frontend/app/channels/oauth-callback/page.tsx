@@ -115,6 +115,7 @@ function OAuthCallbackInner() {
           channel_type: session.channel_type,
           access_token: page.access_token || session.access_token,
           external_account_id: externalAccountId,
+          account_name: igAccount?.username || page.name || null,
           page_id: page.id,
           waba_id: null,
         }),

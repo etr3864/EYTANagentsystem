@@ -60,6 +60,7 @@ export interface AgentChannel {
   channel_type: ChannelType;
   channel_display_name: string;
   external_account_id: string;
+  account_name: string | null;
   page_id: string | null;
   waba_id: string | null;
   is_active: boolean;

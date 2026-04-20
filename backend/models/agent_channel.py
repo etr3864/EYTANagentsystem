@@ -28,6 +28,9 @@ class AgentChannel(Base):
     # wasender: session_id | meta-wa: phone_number_id | ig: ig_account_id | ms: page_id
     external_account_id: Mapped[str] = mapped_column(String(100), nullable=False)
 
+    # Human-readable name (e.g. IG username, Page name)
+    account_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+
     # Instagram + Messenger Page ID
     page_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
 
