@@ -179,7 +179,7 @@ async def subscribe_page_to_app(page_id: str, page_access_token: str) -> bool:
 # ── Instagram Business Login ───────────────────────────────────────────────────
 
 INSTAGRAM_AUTH_URL = "https://www.instagram.com/oauth/authorize"
-INSTAGRAM_TOKEN_URL = "https://graph.instagram.com/oauth/access_token"
+INSTAGRAM_TOKEN_URL = "https://api.instagram.com/oauth/access_token"
 INSTAGRAM_LONG_LIVED_URL = "https://graph.instagram.com/access_token"
 INSTAGRAM_GRAPH_URL = "https://graph.instagram.com/v20.0"
 
@@ -237,7 +237,7 @@ async def _exchange_ig_long_lived(short_token: str) -> Optional[dict]:
     """Exchange a short-lived Instagram token for a 60-day long-lived token."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(INSTAGRAM_LONG_LIVED_URL, params={
+            resp = await client.post(INSTAGRAM_LONG_LIVED_URL, data={
                 "grant_type": "ig_exchange_token",
                 "client_secret": settings.meta_instagram_app_secret or settings.meta_app_secret,
                 "access_token": short_token,
