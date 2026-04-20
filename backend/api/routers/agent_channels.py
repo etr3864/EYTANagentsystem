@@ -66,11 +66,12 @@ class ChannelResponse(BaseModel):
 
 
 class AddChannelRequest(BaseModel):
-    channel_type: str          # "instagram" | "messenger" | "whatsapp_meta"
-    access_token: str          # from OAuth callback
-    external_account_id: str   # phone_number_id / ig_account_id / page_id
+    channel_type: str                   # "instagram" | "messenger" | "whatsapp_meta" | "whatsapp_wasender"
+    access_token: str                   # Meta OAuth token OR WaSender API key
+    external_account_id: str            # phone_number_id / ig_account_id / page_id / wasender session
     page_id: Optional[str] = None
     waba_id: Optional[str] = None
+    wasender_secret: Optional[str] = None  # WaSender webhook secret (optional)
 
 
 class ToggleChannelRequest(BaseModel):
@@ -231,17 +232,24 @@ async def create_channel(
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
 
-    credentials = {
-        "access_token": body.access_token,
-        "scopes": [],
-    }
+    if body.channel_type == "whatsapp_wasender":
+        credentials = {
+            "api_key": body.access_token,
+            "session": body.external_account_id or "default",
+            "webhook_secret": body.wasender_secret or "",
+        }
+    else:
+        credentials = {
+            "access_token": body.access_token,
+            "scopes": [],
+        }
 
     try:
         channel = add_channel(
             db=db,
             agent_id=agent_id,
             channel_type=body.channel_type,
-            external_account_id=body.external_account_id,
+            external_account_id=body.external_account_id or "default",
             credentials=credentials,
             page_id=body.page_id,
             waba_id=body.waba_id,

@@ -23,6 +23,8 @@ export function AddChannelModal({ agentId, channelType, onClose, onAdded }: AddC
   const [wsSecret, setWsSecret] = useState('');
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  const BACKEND_URL = API_URL;
+  const wasenderWebhookUrl = `${BACKEND_URL}/webhook/wasender/${agentId}`;
 
   async function handleOAuth() {
     setLoading(true);
@@ -41,16 +43,6 @@ export function AddChannelModal({ agentId, channelType, onClose, onAdded }: AddC
     setLoading(true);
     setError(null);
     try {
-      const channel = await createChannel(agentId, {
-        channel_type: 'whatsapp_wasender',
-        access_token: '',
-        external_account_id: wsSession || 'default',
-        page_id: undefined,
-        waba_id: undefined,
-      });
-      // Actually we need to call the real API with credentials.
-      // The API expects access_token but for WaSender we pass empty token.
-      // We re-create using the internal API format:
       const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
       const res = await fetch(`${API_URL}/api/agents/${agentId}/channels`, {
         method: 'POST',
@@ -60,9 +52,9 @@ export function AddChannelModal({ agentId, channelType, onClose, onAdded }: AddC
         },
         body: JSON.stringify({
           channel_type: 'whatsapp_wasender',
-          access_token: '',
-          external_account_id: wsSession || 'default',
-          // credentials passed as query params workaround — server side handles via wasender config
+          access_token: wsApiKey.trim(),
+          external_account_id: wsSession.trim() || 'default',
+          wasender_secret: wsSecret.trim() || undefined,
         }),
       });
       if (!res.ok) {
@@ -104,27 +96,77 @@ export function AddChannelModal({ agentId, channelType, onClose, onAdded }: AddC
         {/* WaSender form */}
         {step === 'wasender_form' && (
           <div className="space-y-4">
-            <p className="text-sm text-slate-400">הגדר חיבור WaSender עבור הסוכן הזה.</p>
+            {/* Webhook URL — copy this into WaSender dashboard */}
+            <div className="p-3 bg-slate-800/80 border border-slate-700 rounded-xl space-y-1.5">
+              <p className="text-xs font-medium text-slate-300">🔗 Webhook URL להכנסה ב-WaSender</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 text-xs text-emerald-400 bg-slate-900 px-2 py-1.5 rounded-lg font-mono truncate select-all">
+                  {wasenderWebhookUrl}
+                </code>
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard.writeText(wasenderWebhookUrl)}
+                  className="flex-shrink-0 px-2 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs transition-colors"
+                  title="העתק"
+                >
+                  העתק
+                </button>
+              </div>
+              <p className="text-xs text-slate-500">הכנס כ-Webhook URL ב-WaSender Dashboard שלך</p>
+            </div>
+
+            {/* API Key */}
             <div>
-              <label className="text-xs text-slate-400 mb-1 block">Session (ID ייחודי)</label>
+              <label className="text-xs text-slate-400 mb-1 block">
+                API Key <span className="text-red-400">*</span>
+              </label>
               <input
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-500"
+                type="password"
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
+                value={wsApiKey}
+                onChange={e => setWsApiKey(e.target.value)}
+                placeholder="ey..."
+                autoComplete="off"
+              />
+              <p className="text-xs text-slate-500 mt-1">מ-WaSender Dashboard → Settings → API Key</p>
+            </div>
+
+            {/* Session */}
+            <div>
+              <label className="text-xs text-slate-400 mb-1 block">Session ID</label>
+              <input
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
                 value={wsSession}
                 onChange={e => setWsSession(e.target.value)}
                 placeholder="default"
               />
+              <p className="text-xs text-slate-500 mt-1">שם ה-session ב-WaSender (ברירת מחדל: default)</p>
             </div>
-            <p className="text-xs text-slate-500">
-              לאחר הוספה, הגדר את פרטי ה-API Key מהגדרות הסוכן (Settings → Provider).
-            </p>
-            <div className="flex gap-3 mt-2">
-              <button onClick={onClose} className="flex-1 py-2 rounded-lg bg-slate-700 text-slate-300 text-sm">ביטול</button>
+
+            {/* Webhook Secret */}
+            <div>
+              <label className="text-xs text-slate-400 mb-1 block">
+                Webhook Secret <span className="text-slate-500">(אופציונלי)</span>
+              </label>
+              <input
+                type="password"
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
+                value={wsSecret}
+                onChange={e => setWsSecret(e.target.value)}
+                placeholder="מחרוזת סודית לאימות"
+                autoComplete="off"
+              />
+              <p className="text-xs text-slate-500 mt-1">אם הגדרת Webhook Secret ב-WaSender — הכנס כאן</p>
+            </div>
+
+            <div className="flex gap-3 pt-1">
+              <button onClick={onClose} className="flex-1 py-2 rounded-lg bg-slate-700 text-slate-300 text-sm hover:bg-slate-600 transition-colors">ביטול</button>
               <button
                 onClick={handleAddWaSender}
-                disabled={loading}
-                className="flex-1 py-2 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 text-sm font-medium"
+                disabled={loading || !wsApiKey.trim()}
+                className="flex-1 py-2 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 text-sm font-medium disabled:opacity-40 transition-all"
               >
-                {loading ? 'מוסיף...' : 'הוסף'}
+                {loading ? 'מוסיף...' : 'הוסף ערוץ'}
               </button>
             </div>
           </div>

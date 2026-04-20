@@ -12,7 +12,7 @@ from backend.services.media import transcription
 from backend.services.channels import wasender
 from backend.services.messaging.buffer import PendingMessage
 from backend.services.messaging.processing import process_batched_messages, is_duplicate
-from backend.services.channels.agent_channels import get_channel_by_type
+from backend.services.channels.agent_channels import get_channel_by_type, get_credentials
 from backend.services.channels.channel_users import get_or_create_for_incoming, IncomingUserInfo
 
 router = APIRouter(tags=["webhook-wasender"])
@@ -32,7 +32,20 @@ async def handle_wasender_message(agent_id: int, msg_data: dict):
         msg_type = msg_data["msg_type"]
         text = msg_data.get("text", "")
         
-        config = agent.provider_config or {}
+        # Resolve credentials: prefer AgentChannel (new), fall back to provider_config (legacy)
+        _channel_early = get_channel_by_type(db, agent.id, "whatsapp_wasender")
+        if _channel_early:
+            try:
+                _creds = get_credentials(_channel_early)
+                config = {
+                    "api_key": _creds.get("api_key", ""),
+                    "session": _creds.get("session", "default"),
+                    "webhook_secret": _creds.get("webhook_secret", ""),
+                }
+            except Exception:
+                config = agent.provider_config or {}
+        else:
+            config = agent.provider_config or {}
         api_key = config.get("api_key", "")
         
         final_text = text
