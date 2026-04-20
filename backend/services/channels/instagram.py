@@ -1,10 +1,15 @@
-"""Instagram messaging adapter (Graph API v20)."""
+"""Instagram messaging adapter (Instagram Graph API v20).
+
+Uses graph.instagram.com (Instagram Business Login) rather than
+graph.facebook.com. The send-message endpoint and token type changed
+with the Instagram API with Instagram Login migration.
+"""
 import httpx
 from typing import Optional
 
 from backend.core.logger import log_error
 
-META_GRAPH_URL = "https://graph.facebook.com/v20.0"
+META_GRAPH_URL = "https://graph.instagram.com/v20.0"
 
 
 async def send_message(access_token: str, ig_account_id: str, recipient_id: str, text: str) -> bool:

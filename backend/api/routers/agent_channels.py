@@ -38,8 +38,11 @@ from backend.services.channels.agent_channels import (
 )
 from backend.services.meta.oauth import (
     get_oauth_url,
+    get_instagram_oauth_url,
     exchange_code_for_tokens,
+    exchange_instagram_code,
     get_user_pages,
+    get_instagram_accounts,
     subscribe_page_to_app,
 )
 
@@ -140,7 +143,12 @@ async def get_channel_oauth_url(
 
     state = create_oauth_state(agent_id, channel_type)
     redirect_uri = f"{settings.oauth_redirect_base or settings.frontend_url}/api/channels/oauth-callback"
-    url = get_oauth_url(redirect_uri, state)
+
+    if channel_type == "instagram":
+        url = get_instagram_oauth_url(redirect_uri, state)
+    else:
+        url = get_oauth_url(redirect_uri, state)
+
     return {"url": url}
 
 
@@ -168,12 +176,20 @@ async def oauth_callback(
     channel_type = state_data["channel_type"]
 
     redirect_uri = f"{settings.oauth_redirect_base or settings.frontend_url}/api/channels/oauth-callback"
-    tokens = await exchange_code_for_tokens(code, redirect_uri)
+
+    if channel_type == "instagram":
+        tokens = await exchange_instagram_code(code, redirect_uri)
+    else:
+        tokens = await exchange_code_for_tokens(code, redirect_uri)
+
     if not tokens:
         frontend_error_url = f"{settings.frontend_url}/agent/{agent_id}?tab=channels&error=oauth_failed"
         return RedirectResponse(frontend_error_url)
 
-    pages = await get_user_pages(tokens["access_token"])
+    if channel_type == "instagram":
+        pages = await get_instagram_accounts(tokens["access_token"])
+    else:
+        pages = await get_user_pages(tokens["access_token"])
 
     session_id = str(uuid.uuid4())
     session_data = json.dumps({

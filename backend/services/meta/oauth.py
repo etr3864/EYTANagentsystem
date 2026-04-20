@@ -1,14 +1,21 @@
 """Meta OAuth service — parallel to backend/services/calendar.py.
 
-Handles OAuth2 flow for connecting Meta channels (WhatsApp, Instagram, Messenger)
-to agents using Optive's central Meta App.
+Handles OAuth2 flow for connecting Meta channels to agents.
 
-Flow:
-  1. super-admin clicks "Connect Instagram" → GET /api/agents/{id}/channels/oauth-url
-  2. Redirected to Meta OAuth dialog with signed state
+Two separate flows:
+  - Instagram Business Login: instagram.com/oauth/authorize
+    Scopes: instagram_business_basic, instagram_business_manage_messages
+    Token host: graph.instagram.com
+  - Facebook Login (Messenger / WhatsApp Meta): facebook.com/dialog/oauth
+    Scopes: pages_messaging, whatsapp_business_*
+    Token host: graph.facebook.com
+
+Flow for both:
+  1. super-admin clicks "Connect {channel}" → GET /api/agents/{id}/channels/oauth-url
+  2. Redirected to appropriate OAuth dialog with signed state
   3. Meta redirects back to /api/channels/oauth-callback?code=...&state=...
-  4. Backend verifies state, exchanges code, lists available Pages/WABAs
-  5. super-admin selects Page → POST /api/agents/{id}/channels
+  4. Backend verifies state, exchanges code, lists available accounts/pages
+  5. super-admin selects account → POST /api/agents/{id}/channels
   6. Channel created with Fernet-encrypted credentials
 """
 from datetime import datetime, timedelta
@@ -21,11 +28,12 @@ from backend.core.config import settings
 from backend.core.logger import log_error
 
 
+# ── Facebook Login (Messenger, WhatsApp) ─────────────────────────────────────
+
 META_GRAPH_URL = "https://graph.facebook.com/v20.0"
 META_AUTH_URL = "https://www.facebook.com/v20.0/dialog/oauth"
 META_TOKEN_URL = f"{META_GRAPH_URL}/oauth/access_token"
 
-# Permissions needed for all channels
 META_SCOPES = [
     "whatsapp_business_management",
     "whatsapp_business_messaging",
@@ -33,14 +41,12 @@ META_SCOPES = [
     "pages_show_list",
     "pages_read_engagement",
     "pages_manage_metadata",
-    "instagram_basic",
-    "instagram_manage_messages",
     "business_management",
 ]
 
 
 def get_oauth_url(redirect_uri: str, state: str) -> str:
-    """Generate Meta OAuth URL with signed state."""
+    """Generate Facebook Login OAuth URL for Messenger/WhatsApp."""
     params = {
         "client_id": settings.meta_app_id,
         "redirect_uri": redirect_uri,
@@ -52,13 +58,9 @@ def get_oauth_url(redirect_uri: str, state: str) -> str:
 
 
 async def exchange_code_for_tokens(code: str, redirect_uri: str) -> Optional[dict]:
-    """Exchange auth code for a long-lived user access token.
-
-    Returns dict with access_token, token_expires_at, scopes or None on failure.
-    """
+    """Exchange Facebook Login auth code for a long-lived token."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
-            # 1. Short-lived user token
             resp = await client.get(META_TOKEN_URL, params={
                 "client_id": settings.meta_app_id,
                 "client_secret": settings.meta_app_secret,
@@ -66,7 +68,7 @@ async def exchange_code_for_tokens(code: str, redirect_uri: str) -> Optional[dic
                 "code": code,
             })
         if resp.status_code != 200:
-            log_error("meta_oauth", f"code exchange failed: {resp.text[:200]}")
+            log_error("meta_oauth", f"FB code exchange failed: {resp.text[:200]}")
             return None
 
         data = resp.json()
@@ -74,17 +76,15 @@ async def exchange_code_for_tokens(code: str, redirect_uri: str) -> Optional[dic
         if not short_token:
             return None
 
-        # 2. Exchange for long-lived token
-        long_lived = await _exchange_for_long_lived(short_token)
-        return long_lived
+        return await _exchange_fb_long_lived(short_token)
 
     except Exception as e:
         log_error("meta_oauth", f"exchange_code_for_tokens: {e}")
         return None
 
 
-async def _exchange_for_long_lived(short_token: str) -> Optional[dict]:
-    """Exchange a short-lived token for a 60-day long-lived token."""
+async def _exchange_fb_long_lived(short_token: str) -> Optional[dict]:
+    """Exchange a short-lived Facebook token for a 60-day long-lived token."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(META_TOKEN_URL, params={
@@ -94,30 +94,27 @@ async def _exchange_for_long_lived(short_token: str) -> Optional[dict]:
                 "fb_exchange_token": short_token,
             })
         if resp.status_code != 200:
-            log_error("meta_oauth", f"long-lived exchange failed: {resp.text[:200]}")
+            log_error("meta_oauth", f"FB long-lived exchange failed: {resp.text[:200]}")
             return None
         data = resp.json()
-        expires_in = data.get("expires_in", 5183944)  # ~60 days
+        expires_in = data.get("expires_in", 5183944)
         return {
             "access_token": data["access_token"],
             "token_expires_at": (datetime.utcnow() + timedelta(seconds=expires_in)).isoformat(),
             "scopes": META_SCOPES,
         }
     except Exception as e:
-        log_error("meta_oauth", f"_exchange_for_long_lived: {e}")
+        log_error("meta_oauth", f"_exchange_fb_long_lived: {e}")
         return None
 
 
 async def refresh_token(user_access_token: str) -> Optional[dict]:
-    """Refresh a long-lived token (returns new long-lived token)."""
-    return await _exchange_for_long_lived(user_access_token)
+    """Refresh a long-lived Facebook token."""
+    return await _exchange_fb_long_lived(user_access_token)
 
 
 async def get_user_pages(access_token: str) -> list[dict]:
-    """List Facebook Pages the user manages.
-
-    Returns list of {id, name, access_token, instagram_business_account}.
-    """
+    """List Facebook Pages the user manages (for Messenger/WhatsApp)."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(
@@ -163,7 +160,7 @@ async def get_waba_accounts(access_token: str) -> list[dict]:
 
 
 async def subscribe_page_to_app(page_id: str, page_access_token: str) -> bool:
-    """Subscribe a page to Optive's webhooks."""
+    """Subscribe a Facebook Page to Optive's webhooks (Messenger/WhatsApp)."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
@@ -177,3 +174,141 @@ async def subscribe_page_to_app(page_id: str, page_access_token: str) -> bool:
     except Exception as e:
         log_error("meta_oauth", f"subscribe_page_to_app: {e}")
         return False
+
+
+# ── Instagram Business Login ───────────────────────────────────────────────────
+
+INSTAGRAM_AUTH_URL = "https://www.instagram.com/oauth/authorize"
+INSTAGRAM_TOKEN_URL = "https://graph.instagram.com/oauth/access_token"
+INSTAGRAM_LONG_LIVED_URL = "https://graph.instagram.com/access_token"
+INSTAGRAM_GRAPH_URL = "https://graph.instagram.com/v20.0"
+
+INSTAGRAM_SCOPES = [
+    "instagram_business_basic",
+    "instagram_business_manage_messages",
+]
+
+
+def get_instagram_oauth_url(redirect_uri: str, state: str) -> str:
+    """Generate Instagram Business Login OAuth URL."""
+    params = {
+        "client_id": settings.meta_instagram_app_id or settings.meta_app_id,
+        "redirect_uri": redirect_uri,
+        "state": state,
+        "scope": ",".join(INSTAGRAM_SCOPES),
+        "response_type": "code",
+    }
+    return f"{INSTAGRAM_AUTH_URL}?{urlencode(params)}"
+
+
+async def exchange_instagram_code(code: str, redirect_uri: str) -> Optional[dict]:
+    """Exchange Instagram Business Login auth code for a long-lived token."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(INSTAGRAM_TOKEN_URL, data={
+                "client_id": settings.meta_instagram_app_id or settings.meta_app_id,
+                "client_secret": settings.meta_instagram_app_secret or settings.meta_app_secret,
+                "grant_type": "authorization_code",
+                "redirect_uri": redirect_uri,
+                "code": code,
+            })
+        if resp.status_code != 200:
+            log_error("ig_oauth", f"IG code exchange failed: {resp.text[:200]}")
+            return None
+
+        data = resp.json()
+        short_token = data.get("access_token")
+        if not short_token:
+            return None
+
+        return await _exchange_ig_long_lived(short_token)
+
+    except Exception as e:
+        log_error("ig_oauth", f"exchange_instagram_code: {e}")
+        return None
+
+
+async def _exchange_ig_long_lived(short_token: str) -> Optional[dict]:
+    """Exchange a short-lived Instagram token for a 60-day long-lived token."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(INSTAGRAM_LONG_LIVED_URL, params={
+                "grant_type": "ig_exchange_token",
+                "client_secret": settings.meta_instagram_app_secret or settings.meta_app_secret,
+                "access_token": short_token,
+            })
+        if resp.status_code != 200:
+            log_error("ig_oauth", f"IG long-lived exchange failed: {resp.text[:200]}")
+            return None
+        data = resp.json()
+        expires_in = data.get("expires_in", 5183944)
+        return {
+            "access_token": data["access_token"],
+            "token_expires_at": (datetime.utcnow() + timedelta(seconds=expires_in)).isoformat(),
+            "scopes": INSTAGRAM_SCOPES,
+        }
+    except Exception as e:
+        log_error("ig_oauth", f"_exchange_ig_long_lived: {e}")
+        return None
+
+
+async def refresh_instagram_token(access_token: str) -> Optional[dict]:
+    """Refresh a long-lived Instagram token (valid for 60 days, refreshable up to 1 year)."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(
+                f"{INSTAGRAM_GRAPH_URL}/refresh_access_token",
+                params={
+                    "grant_type": "ig_refresh_token",
+                    "access_token": access_token,
+                },
+            )
+        if resp.status_code != 200:
+            log_error("ig_oauth", f"IG token refresh failed: {resp.text[:200]}")
+            return None
+        data = resp.json()
+        expires_in = data.get("expires_in", 5183944)
+        return {
+            "access_token": data["access_token"],
+            "token_expires_at": (datetime.utcnow() + timedelta(seconds=expires_in)).isoformat(),
+        }
+    except Exception as e:
+        log_error("ig_oauth", f"refresh_instagram_token: {e}")
+        return None
+
+
+async def get_instagram_accounts(access_token: str) -> list[dict]:
+    """Get the Instagram account connected to this token.
+
+    Returns a list with a single item in the same shape as get_user_pages()
+    so the frontend page-selector works without changes.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(
+                f"{INSTAGRAM_GRAPH_URL}/me",
+                params={
+                    "access_token": access_token,
+                    "fields": "user_id,name,username,profile_picture_url",
+                },
+            )
+        if resp.status_code != 200:
+            log_error("ig_oauth", f"get_instagram_accounts: {resp.text[:200]}")
+            return []
+        data = resp.json()
+        ig_id = data.get("user_id") or data.get("id", "")
+        name = data.get("name", "")
+        username = data.get("username", "")
+        return [{
+            "id": ig_id,
+            "name": username or name,
+            "access_token": access_token,
+            "instagram_business_account": {
+                "id": ig_id,
+                "name": name,
+                "username": username,
+            },
+        }]
+    except Exception as e:
+        log_error("ig_oauth", f"get_instagram_accounts: {e}")
+        return []
