@@ -23,10 +23,18 @@ def verify_meta_signature(payload: bytes, signature: str, app_secret: str) -> bo
     if not signature or not app_secret:
         return False
 
+    secret_clean = app_secret.strip()
     expected = "sha256=" + hmac.new(
-        app_secret.encode("utf-8"),
+        secret_clean.encode("utf-8"),
         payload,
         hashlib.sha256,
     ).hexdigest()
 
-    return hmac.compare_digest(expected, signature)
+    match = hmac.compare_digest(expected, signature)
+    if not match:
+        from backend.core.logger import log_error
+        log_error("hmac_debug", 
+            f"secret_len={len(app_secret)} clean_len={len(secret_clean)} "
+            f"expected={expected[:20]}... received={signature[:20]}..."
+        )
+    return match
