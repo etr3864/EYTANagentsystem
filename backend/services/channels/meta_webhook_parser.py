@@ -99,7 +99,9 @@ def _parse_ig_messaging_event(ig_account_id: str, event: dict) -> Optional[Parse
 
     event_keys = list(event.keys())
     msg = event.get("message", {})
-    log("ig_event_debug", msg=f"event_keys={event_keys}, sender={sender_id}, recipient={recipient_id}, has_message={bool(msg)}, msg_keys={list(msg.keys()) if isinstance(msg, dict) else 'N/A'}")
+    # Log non-standard keys to understand the payload
+    extra_data = {k: v for k, v in event.items() if k not in ("sender", "recipient", "message", "timestamp")}
+    log("ig_event_debug", msg=f"event_keys={event_keys}, sender={sender_id}, recipient={recipient_id}, has_message={bool(msg)}, extra={extra_data}")
     if not msg:
         return None
 
