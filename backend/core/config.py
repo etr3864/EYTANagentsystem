@@ -74,13 +74,14 @@ class Settings(BaseSettings):
 
     @property
     def meta_configured(self) -> bool:
-        """Check if Meta App is configured for new channels."""
-        return all([
-            self.meta_app_id,
-            self.meta_app_secret,
-            self.meta_verify_token,
-            self.credentials_encryption_key,
-        ])
+        """Check if Meta App is configured for new channels.
+
+        Requires either the Facebook App credentials (Messenger/WhatsApp)
+        or the Instagram App credentials, plus verify token and encryption key.
+        """
+        has_fb = bool(self.meta_app_id and self.meta_app_secret)
+        has_ig = bool(self.meta_instagram_app_id and self.meta_instagram_app_secret)
+        return (has_fb or has_ig) and bool(self.meta_verify_token) and bool(self.credentials_encryption_key)
 
 
 settings = Settings()
