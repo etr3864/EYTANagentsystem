@@ -75,6 +75,7 @@ async def receive_meta_webhook(request: Request):
         raise HTTPException(status_code=400, detail="Invalid JSON payload")
 
     obj = payload.get("object", "")
+    log("webhook_meta_in", msg=f"object={obj}, sig_present={bool(signature)}")
     secret = select_secret_for_object(obj, settings.meta_app_secret, settings.meta_instagram_app_secret)
 
     if not secret or not verify_meta_signature(body, signature, secret):
