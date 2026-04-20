@@ -37,8 +37,8 @@ def get_or_create_for_incoming(
     """
     result = db.execute(
         text("""
-            INSERT INTO channel_users (channel_id, external_id, bsuid, display_name, updated_at)
-            VALUES (:channel_id, :external_id, :bsuid, :display_name, NOW())
+            INSERT INTO channel_users (channel_id, external_id, bsuid, display_name, created_at, updated_at)
+            VALUES (:channel_id, :external_id, :bsuid, :display_name, NOW(), NOW())
             ON CONFLICT (channel_id, external_id) DO UPDATE
               SET bsuid        = COALESCE(EXCLUDED.bsuid, channel_users.bsuid),
                   display_name = COALESCE(EXCLUDED.display_name, channel_users.display_name),
