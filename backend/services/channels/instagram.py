@@ -22,7 +22,7 @@ async def get_user_profile(access_token: str, user_id: str) -> Optional[dict]:
         fields = "name,username,profile_pic,follower_count,is_verified_user,is_user_follow_business"
         async with httpx.AsyncClient(timeout=5) as client:
             resp = await client.get(
-                f"https://graph.facebook.com/v21.0/{user_id}",
+                f"{META_GRAPH_URL}/{user_id}",
                 headers={"Authorization": f"Bearer {access_token}"},
                 params={"fields": fields},
             )
