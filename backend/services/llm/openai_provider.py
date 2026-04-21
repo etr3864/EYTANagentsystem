@@ -124,13 +124,25 @@ class OpenAIProvider:
                 content = " ".join(text_parts) if text_parts else str(content)
             messages.append({"role": msg["role"], "content": content})
         
-        # Add user message
+        # Add user message (convert Anthropic image blocks → OpenAI vision format)
         if isinstance(user_content, list):
-            text_parts = [b["text"] for b in user_content if isinstance(b, dict) and b.get("type") == "text"]
-            user_text = " ".join(text_parts) if text_parts else str(user_content)
+            openai_parts = []
+            for block in user_content:
+                if not isinstance(block, dict):
+                    continue
+                if block.get("type") == "text":
+                    openai_parts.append({"type": "text", "text": block["text"]})
+                elif block.get("type") == "image":
+                    src = block.get("source", {})
+                    mime = src.get("media_type", "image/jpeg")
+                    data = src.get("data", "")
+                    openai_parts.append({
+                        "type": "image_url",
+                        "image_url": {"url": f"data:{mime};base64,{data}"},
+                    })
+            messages.append({"role": "user", "content": openai_parts or str(user_content)})
         else:
-            user_text = user_content
-        messages.append({"role": "user", "content": user_text})
+            messages.append({"role": "user", "content": user_content})
         
         # Call API
         response = await self._call_with_retry(

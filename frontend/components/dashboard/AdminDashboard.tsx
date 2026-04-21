@@ -4,8 +4,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { getAgents, getDashboardStats } from '@/lib/api';
 import type { Agent, DashboardStats } from '@/lib/types';
 import { KpiCard } from './KpiCard';
+import { ChannelBreakdownCard } from './ChannelBreakdownCard';
 import { DateRangePicker } from './DateRangePicker';
 import { getPresetDates, PRESETS, type Preset } from './datePresets';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 const STALE_MS = 5 * 60 * 1000;
 
@@ -115,6 +118,14 @@ export function AdminDashboard() {
         <KpiCard title="אחוז המרה לפגישות" value={stats?.conversion_rate ?? 0} suffix="%" loading={loading && !stats} noData={noData} />
         <KpiCard title="אחוז מענה לפולואפים" value={stats?.followup_response_rate ?? 0} suffix="%" loading={loading && !stats} noData={noData} />
       </div>
+
+      {/* Channel breakdown */}
+      <ChannelBreakdownCard
+        fromDate={activeDates.from}
+        toDate={activeDates.to}
+        agentId={selectedAgentId}
+        endpoint={`${API_URL}/api/dashboard/channel-breakdown`}
+      />
     </div>
   );
 }

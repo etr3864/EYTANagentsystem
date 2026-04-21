@@ -13,6 +13,9 @@ interface ChannelStat {
 interface ChannelBreakdownCardProps {
   fromDate: string;
   toDate: string;
+  agentId?: number;
+  compact?: boolean;
+  endpoint?: string;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -22,34 +25,37 @@ function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-export function ChannelBreakdownCard({ fromDate, toDate }: ChannelBreakdownCardProps) {
+export function ChannelBreakdownCard({ fromDate, toDate, agentId, compact, endpoint }: ChannelBreakdownCardProps) {
   const [stats, setStats] = useState<ChannelStat[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!fromDate || !toDate) return;
     setLoading(true);
-    fetch(`${API_URL}/api/super-admin/channel-breakdown?from_date=${fromDate}&to_date=${toDate}`, {
-      headers: authHeaders() as HeadersInit,
-    })
+
+    const base = endpoint || `${API_URL}/api/super-admin/channel-breakdown`;
+    const params = new URLSearchParams({ from_date: fromDate, to_date: toDate });
+    if (agentId) params.set('agent_id', String(agentId));
+
+    fetch(`${base}?${params}`, { headers: authHeaders() as HeadersInit })
       .then(r => r.json())
       .then(setStats)
       .catch(() => setStats([]))
       .finally(() => setLoading(false));
-  }, [fromDate, toDate]);
+  }, [fromDate, toDate, agentId, endpoint]);
 
   const total = stats.reduce((sum, s) => sum + s.conversations, 0);
 
   return (
-    <div className="bg-[#131020] border border-slate-800 rounded-2xl p-5">
-      <h3 className="text-sm font-semibold text-white mb-4">פילוח ערוצים</h3>
+    <div className={compact ? '' : 'bg-[#131020] border border-slate-800 rounded-2xl p-5'}>
+      {!compact && <h3 className="text-sm font-semibold text-white mb-4">פילוח ערוצים</h3>}
 
       {loading ? (
-        <div className="flex justify-center py-6">
-          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <div className="flex justify-center py-4">
+          <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
         </div>
       ) : stats.length === 0 ? (
-        <p className="text-slate-500 text-sm text-center py-4">אין נתוני ערוצים לתקופה זו</p>
+        <p className="text-slate-500 text-sm text-center py-3">אין נתוני ערוצים לתקופה זו</p>
       ) : (
         <div className="space-y-3">
           {stats.map(stat => {

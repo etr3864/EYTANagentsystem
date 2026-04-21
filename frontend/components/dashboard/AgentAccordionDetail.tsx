@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { getSuperAdminAgentDetail } from '@/lib/api';
 import type { AgentDetail } from '@/lib/types';
 import { KpiCard } from './KpiCard';
+import { ChannelBreakdownCard } from './ChannelBreakdownCard';
 
 interface Props {
   agentId: number;
@@ -98,6 +99,10 @@ export function AgentAccordionDetail({ agentId, fromDate, toDate }: Props) {
         <KpiCard title="סיכום webhook" value={cs ? `₪${cs.summary_ils.toFixed(2)}` : 0} loading={loading} noData={noData} />
         <KpiCard title="תזכורות" value={cs ? `₪${cs.reminder_ils.toFixed(2)}` : 0} loading={loading} noData={noData} />
       </div>
+
+      {/* Channel breakdown */}
+      <SectionTitle>פילוח ערוצים</SectionTitle>
+      <ChannelBreakdownCard fromDate={fromDate} toDate={toDate} agentId={agentId} compact />
     </div>
   );
 }

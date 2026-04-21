@@ -4,7 +4,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import func
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from backend.auth.dependencies import get_current_user, require_admin_or_above
@@ -124,3 +124,55 @@ def get_dashboard(
     from_dt = datetime.combine(from_date, time.min)
     to_dt = datetime.combine(to_date, time.max)
     return _query_stats(db, agent_ids, from_dt, to_dt)
+
+
+@router.get("/dashboard/channel-breakdown")
+def get_dashboard_channel_breakdown(
+    from_date: date = Query(...),
+    to_date: date = Query(...),
+    agent_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(require_admin_or_above()),
+):
+    """Channel breakdown for admin users — scoped to their accessible agents."""
+    agent_ids = _resolve_agent_ids(db, current_user, agent_id)
+    if not agent_ids:
+        return []
+
+    from_dt = datetime.combine(from_date, time.min)
+    to_dt = datetime.combine(to_date, time.max)
+
+    rows = db.execute(text("""
+        SELECT
+            ac.channel_type,
+            COUNT(DISTINCT c.id) AS conversations,
+            COUNT(m.id)          AS messages
+        FROM conversations c
+        JOIN agent_channels ac ON c.channel_id = ac.id
+        JOIN messages m ON m.conversation_id = c.id
+        WHERE c.agent_id = ANY(:ids)
+          AND m.role = 'user'
+          AND m.created_at >= :from_dt
+          AND m.created_at <= :to_dt
+        GROUP BY ac.channel_type
+        ORDER BY conversations DESC
+    """), {"ids": agent_ids, "from_dt": from_dt, "to_dt": to_dt}).fetchall()
+
+    legacy = db.execute(text("""
+        SELECT COUNT(DISTINCT c.id) AS conversations, COUNT(m.id) AS messages
+        FROM conversations c
+        JOIN messages m ON m.conversation_id = c.id
+        WHERE c.agent_id = ANY(:ids)
+          AND c.channel_id IS NULL
+          AND m.role = 'user'
+          AND m.created_at >= :from_dt
+          AND m.created_at <= :to_dt
+    """), {"ids": agent_ids, "from_dt": from_dt, "to_dt": to_dt}).first()
+
+    result = [
+        {"channel_type": r.channel_type, "conversations": int(r.conversations), "messages": int(r.messages)}
+        for r in rows
+    ]
+    if legacy and (legacy.conversations or 0) > 0:
+        result.append({"channel_type": "legacy", "conversations": int(legacy.conversations), "messages": int(legacy.messages)})
+    return result

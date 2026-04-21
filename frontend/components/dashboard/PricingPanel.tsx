@@ -2,13 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { getPricingConfig, updatePricingConfig } from '@/lib/api';
-
-const MODELS = [
-  { key: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
-  { key: 'claude-haiku-4-5', label: 'Claude Haiku 4.5' },
-  { key: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
-  { key: 'gpt-5.2-chat-latest', label: 'GPT-5.2 Chat' },
-];
+import { ALL_MODELS, MODEL_PROVIDERS } from '@/lib/models';
 
 export function PricingPanel() {
   const [open, setOpen] = useState(false);
@@ -63,36 +57,43 @@ export function PricingPanel() {
             </div>
           ) : (
             <>
-              {/* Model pricing */}
-              <div className="space-y-4 pt-4">
-                {MODELS.map(({ key, label }) => (
-                  <div key={key} className="grid grid-cols-3 gap-3 items-center">
-                    <span className="text-sm text-slate-300 col-span-1">{label}</span>
-                    <label className="flex flex-col gap-1">
-                      <span className="text-xs text-slate-400">Input $/1M</span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        defaultValue={config[`model.${key}.input`] ?? ''}
-                        onChange={(e) => handleChange(`model.${key}.input`, e.target.value)}
-                        className="bg-white/5 border border-purple-500/10 rounded px-2 py-1.5 text-sm text-white w-full focus:outline-none focus:border-purple-500"
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1">
-                      <span className="text-xs text-slate-400">Output $/1M</span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        defaultValue={config[`model.${key}.output`] ?? ''}
-                        onChange={(e) => handleChange(`model.${key}.output`, e.target.value)}
-                        className="bg-white/5 border border-purple-500/10 rounded px-2 py-1.5 text-sm text-white w-full focus:outline-none focus:border-purple-500"
-                      />
-                    </label>
+              {MODEL_PROVIDERS.map(({ provider, icon }) => {
+                const models = ALL_MODELS.filter((m) => m.provider === provider);
+                if (models.length === 0) return null;
+                return (
+                  <div key={provider} className="space-y-3 pt-4">
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                      <span>{icon}</span> {provider}
+                    </h4>
+                    {models.map(({ key, label }) => (
+                      <div key={key} className="grid grid-cols-3 gap-3 items-center">
+                        <span className="text-sm text-slate-300 col-span-1">{label}</span>
+                        <label className="flex flex-col gap-1">
+                          <span className="text-xs text-slate-400">Input $/1M</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            defaultValue={config[`model.${key}.input`] ?? ''}
+                            onChange={(e) => handleChange(`model.${key}.input`, e.target.value)}
+                            className="bg-white/5 border border-purple-500/10 rounded px-2 py-1.5 text-sm text-white w-full focus:outline-none focus:border-purple-500"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1">
+                          <span className="text-xs text-slate-400">Output $/1M</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            defaultValue={config[`model.${key}.output`] ?? ''}
+                            onChange={(e) => handleChange(`model.${key}.output`, e.target.value)}
+                            className="bg-white/5 border border-purple-500/10 rounded px-2 py-1.5 text-sm text-white w-full focus:outline-none focus:border-purple-500"
+                          />
+                        </label>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                );
+              })}
 
-              {/* Exchange rate */}
               <div className="border-t border-purple-500/10 pt-4">
                 <label className="flex items-center gap-3">
                   <span className="text-sm text-slate-300 whitespace-nowrap">שער דולר-שקל (₪/$)</span>
@@ -112,7 +113,7 @@ export function PricingPanel() {
                   disabled={saving}
                   className="px-5 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
                 >
-                  {saved ? 'נשמר' : saving ? 'שומר...' : 'שמור'}
+                  {saved ? 'נשמר ✓' : saving ? 'שומר...' : 'שמור'}
                 </button>
               </div>
             </>

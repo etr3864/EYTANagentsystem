@@ -148,14 +148,14 @@ def build_system_prompt(
 
 async def describe_image(image_base64: str, media_type: str = "image/jpeg") -> str:
     """Get short Hebrew description of image for DB storage.
-    
+
     Always uses Claude (Anthropic) for image understanding.
     """
     try:
-        provider = get_provider("claude")  # Force Claude for images
+        provider = get_provider("claude")
         return await provider.describe_image(image_base64, media_type)
     except Exception as e:
-        log_error("image_describe", str(e)[:50])
+        log_error("image_describe", f"{type(e).__name__}: {str(e)[:120]}")
         return "תמונה"
 
 

@@ -441,18 +441,23 @@ def update_pricing_config(
 def get_channel_breakdown(
     from_date: date = Query(...),
     to_date: date = Query(...),
+    agent_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
     _: AuthUser = Depends(_require_super_admin),
 ):
-    """Channel breakdown: conversations + messages per channel_type for all agents.
+    """Channel breakdown: conversations + messages per channel_type.
 
-    Uses INNER JOIN — only conversations with a channel_id (post-backfill) appear here.
-    Conversations without channel_id are counted separately as 'legacy'.
+    Optional agent_id filter for per-agent breakdown inside the accordion.
     """
     from_dt = datetime.combine(from_date, time.min)
     to_dt = datetime.combine(to_date, time.max)
 
-    rows = db.execute(text("""
+    agent_filter = "AND c.agent_id = :agent_id" if agent_id else ""
+    params: dict = {"from_dt": from_dt, "to_dt": to_dt}
+    if agent_id:
+        params["agent_id"] = agent_id
+
+    rows = db.execute(text(f"""
         SELECT
             ac.channel_type,
             COUNT(DISTINCT c.id)  AS conversations,
@@ -463,12 +468,12 @@ def get_channel_breakdown(
         WHERE m.role = 'user'
           AND m.created_at >= :from_dt
           AND m.created_at <= :to_dt
+          {agent_filter}
         GROUP BY ac.channel_type
         ORDER BY conversations DESC
-    """), {"from_dt": from_dt, "to_dt": to_dt}).fetchall()
+    """), params).fetchall()
 
-    # Also count legacy (no channel_id)
-    legacy = db.execute(text("""
+    legacy = db.execute(text(f"""
         SELECT COUNT(DISTINCT c.id) AS conversations, COUNT(m.id) AS messages
         FROM conversations c
         JOIN messages m ON m.conversation_id = c.id
@@ -476,7 +481,8 @@ def get_channel_breakdown(
           AND m.role = 'user'
           AND m.created_at >= :from_dt
           AND m.created_at <= :to_dt
-    """), {"from_dt": from_dt, "to_dt": to_dt}).first()
+          {agent_filter}
+    """), params).first()
 
     result = [
         {
