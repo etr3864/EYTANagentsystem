@@ -1,10 +1,14 @@
 """WA Sender webhook handler."""
 import asyncio
-from fastapi import APIRouter, Request, HTTPException, Header
+from dataclasses import dataclass
 from typing import Optional
+
+from fastapi import APIRouter, Request, HTTPException, Header
+from sqlalchemy.orm import Session
 
 from backend.core.database import SessionLocal
 from backend.core.logger import log_error, log_audio, log_image
+from backend.models.agent import Agent
 from backend.services import media
 from backend.services.entities import agents
 from backend.services.messaging import buffer as message_buffer
@@ -13,172 +17,150 @@ from backend.services.channels import wasender
 from backend.services.messaging.buffer import PendingMessage
 from backend.services.messaging.processing import process_batched_messages, is_duplicate
 from backend.services.channels.agent_channels import get_channel_by_type, get_credentials
-from backend.services.channels.channel_users import get_or_create_for_incoming, IncomingUserInfo
+from backend.services.channels.channel_users import (
+    get_or_create_for_incoming, get_by_external_id, IncomingUserInfo,
+)
 
 router = APIRouter(tags=["webhook-wasender"])
 
 
+@dataclass
+class _ResolvedConfig:
+    api_key: str
+    session: str
+
+
+def _resolve_credentials(db: Session, agent: Agent) -> _ResolvedConfig:
+    """Resolve WaSender credentials from AgentChannel or legacy provider_config."""
+    channel = get_channel_by_type(db, agent.id, "whatsapp_wasender")
+    if channel:
+        try:
+            creds = get_credentials(channel)
+            return _ResolvedConfig(
+                api_key=creds.get("api_key", ""),
+                session=creds.get("session", "default"),
+            )
+        except Exception:
+            pass
+    config = agent.provider_config or {}
+    return _ResolvedConfig(
+        api_key=config.get("api_key", ""),
+        session=config.get("session", "default"),
+    )
+
+
+async def _process_audio(api_key: str, msg_data: dict, agent_name: str) -> tuple[str, str]:
+    """Process incoming audio → returns (text, msg_type)."""
+    log_audio("received", agent=agent_name, provider="wasender")
+    public_url = await wasender.decrypt_media(api_key, msg_data["message_key"], msg_data["message_data"])
+    if not public_url:
+        return "[הודעה קולית - לא הצלחתי לפענח]", "voice"
+    audio_bytes = await media.download_from_url(public_url)
+    if not audio_bytes:
+        return "[הודעה קולית - לא הצלחתי להוריד]", "voice"
+    transcript = await transcription.transcribe_audio(audio_bytes)
+    if transcript:
+        return f"[הודעה קולית]: {transcript}", "voice"
+    log_error("audio", "transcription failed")
+    return "[הודעה קולית - לא הצלחתי לתמלל]", "voice"
+
+
+async def _process_image(api_key: str, msg_data: dict, agent_name: str) -> tuple[str, str, Optional[str], Optional[str]]:
+    """Process incoming image → returns (text, msg_type, image_base64, mime_type)."""
+    log_image("received", agent=agent_name, provider="wasender")
+    public_url = await wasender.decrypt_media(api_key, msg_data["message_key"], msg_data["message_data"])
+    if not public_url:
+        return "[תמונה - לא הצלחתי לפענח]", "text", None, None
+    image_base64 = await media.download_url_as_base64(public_url)
+    if not image_base64:
+        log_error("image", "download failed")
+        return "[תמונה - לא הצלחתי להוריד]", "text", None, None
+    mime = media.get_media_type_from_mime(msg_data.get("mime_type", "image/jpeg"))
+    return "[תמונה]", "image", image_base64, mime
+
+
+async def _resolve_channel_user(
+    db: Session, agent_id: int, phone: str, name: Optional[str], api_key: str,
+) -> tuple[Optional[int], Optional[int]]:
+    """Resolve channel_id and channel_user_id, fetching profile pic on first contact."""
+    channel = get_channel_by_type(db, agent_id, "whatsapp_wasender")
+    if not channel:
+        return None, None
+    try:
+        existing = get_by_external_id(db, channel.id, phone)
+        profile_pic = None
+        if not existing or not existing.profile_pic_url:
+            pic_url = await wasender.get_profile_pic(api_key, phone)
+            if pic_url:
+                profile_pic = pic_url
+        cu_id = get_or_create_for_incoming(
+            db, channel,
+            IncomingUserInfo(external_id=phone, display_name=name, profile_pic_url=profile_pic),
+        )
+        db.commit()
+        return channel.id, cu_id
+    except Exception as e:
+        log_error("wasender", f"channel_user upsert failed: {e}")
+        return channel.id, None
+
+
 async def handle_wasender_message(agent_id: int, msg_data: dict):
-    """Handle incoming WA Sender message."""
+    """Orchestrate incoming WaSender message handling."""
     db = SessionLocal()
     try:
         agent = agents.get_by_id(db, agent_id)
         if not agent or agent.provider != "wasender":
             log_error("wasender", f"agent_id={agent_id} invalid or not wasender")
             return
-        
+
         phone = msg_data["phone"]
         name = msg_data.get("name")
         msg_type = msg_data["msg_type"]
+        creds = _resolve_credentials(db, agent)
+
         text = msg_data.get("text", "")
-        
-        # Resolve credentials: prefer AgentChannel (new), fall back to provider_config (legacy)
-        _channel_early = get_channel_by_type(db, agent.id, "whatsapp_wasender")
-        if _channel_early:
-            try:
-                _creds = get_credentials(_channel_early)
-                config = {
-                    "api_key": _creds.get("api_key", ""),
-                    "session": _creds.get("session", "default"),
-                    "webhook_secret": _creds.get("webhook_secret", ""),
-                }
-            except Exception:
-                config = agent.provider_config or {}
-        else:
-            config = agent.provider_config or {}
-        api_key = config.get("api_key", "")
-        
-        final_text = text
         image_base64 = None
-        final_msg_type = msg_type
-        final_mime_type = None
-        
+        mime_type = None
+
         if msg_type == "audio":
-            log_audio("received", agent=agent.name, provider="wasender")
-            
-            public_url = await wasender.decrypt_media(
-                api_key,
-                msg_data["message_key"],
-                msg_data["message_data"]
-            )
-            
-            if public_url:
-                audio_bytes = await media.download_from_url(public_url)
-                if audio_bytes:
-                    transcript = await transcription.transcribe_audio(audio_bytes)
-                    if transcript:
-                        final_text = f"[הודעה קולית]: {transcript}"
-                        final_msg_type = "voice"
-                    else:
-                        final_text = "[הודעה קולית - לא הצלחתי לתמלל]"
-                        final_msg_type = "voice"
-                        log_error("audio", "transcription failed")
-                else:
-                    final_text = "[הודעה קולית - לא הצלחתי להוריד]"
-                    final_msg_type = "voice"
-            else:
-                final_text = "[הודעה קולית - לא הצלחתי לפענח]"
-                final_msg_type = "voice"
-        
+            text, msg_type = await _process_audio(creds.api_key, msg_data, agent.name)
         elif msg_type == "image":
-            log_image("received", agent=agent.name, provider="wasender")
-            
-            public_url = await wasender.decrypt_media(
-                api_key,
-                msg_data["message_key"],
-                msg_data["message_data"]
-            )
-            
-            if public_url:
-                image_base64 = await media.download_url_as_base64(public_url)
-                if image_base64:
-                    final_text = "[תמונה]"
-                    final_msg_type = "image"
-                    final_mime_type = media.get_media_type_from_mime(msg_data.get("mime_type", "image/jpeg"))
-                else:
-                    final_text = "[תמונה - לא הצלחתי להוריד]"
-                    final_msg_type = "text"
-                    log_error("image", "download failed")
-            else:
-                final_text = "[תמונה - לא הצלחתי לפענח]"
-                final_msg_type = "text"
-        
-        agent_id_for_closure = agent.id
+            text, msg_type, image_base64, mime_type = await _process_image(creds.api_key, msg_data, agent.name)
+
+        channel_id, channel_user_id = await _resolve_channel_user(db, agent.id, phone, name, creds.api_key)
+
         batching_config = agent.get_batching_config()
         debounce = batching_config.get("debounce_seconds", 3)
         max_batch = batching_config.get("max_batch_messages", 10)
-        
-        # Save provider config for callbacks (agent won't be valid after db close)
-        provider_api_key = config.get("api_key", "")
-        provider_session = config.get("session", "default")
 
-        # ── Phase 2: resolve channel_id + channel_user_id ────────────────────
-        channel = get_channel_by_type(db, agent.id, "whatsapp_wasender")
-        channel_id_for_closure = channel.id if channel else None
-        channel_user_id_for_closure = None
-        if channel:
-            try:
-                from backend.services.channels.channel_users import get_by_external_id
-                existing_cu = get_by_external_id(db, channel.id, phone)
-                profile_pic = None
-                if not existing_cu or not existing_cu.profile_pic_url:
-                    pic_url = await wasender.get_profile_pic(provider_api_key, phone)
-                    if pic_url:
-                        profile_pic = pic_url
+        pending = PendingMessage(text=text, msg_type=msg_type, image_base64=image_base64, media_type=mime_type)
 
-                channel_user_id_for_closure = get_or_create_for_incoming(
-                    db,
-                    channel,
-                    IncomingUserInfo(
-                        external_id=phone,
-                        display_name=name,
-                        profile_pic_url=profile_pic,
-                    ),
-                )
-                db.commit()
-            except Exception as e:
-                log_error("wasender", f"channel_user upsert failed: {e}")
-        # ─────────────────────────────────────────────────────────────────────
+        async def send_fn(to: str, txt: str) -> bool:
+            return await wasender.send_message(creds.api_key, creds.session, to, txt)
 
-        pending = PendingMessage(
-            text=final_text,
-            msg_type=final_msg_type,
-            image_base64=image_base64,
-            media_type=final_mime_type
-        )
-        
-        # Create send functions for this agent
-        async def send_fn(to: str, text: str) -> bool:
-            return await wasender.send_message(provider_api_key, provider_session, to, text)
-        
-        async def send_media_fn(to: str, url: str, media_type: str, caption: str | None, filename: str | None = None) -> bool:
-            if media_type == "document":
-                return await wasender.send_document(provider_api_key, provider_session, to, url, filename or "file", caption)
-            return await wasender.send_media(provider_api_key, provider_session, to, url, media_type, caption)
-        
+        async def send_media_fn(to: str, url: str, mt: str, caption: str | None, filename: str | None = None) -> bool:
+            if mt == "document":
+                return await wasender.send_document(creds.api_key, creds.session, to, url, filename or "file", caption)
+            return await wasender.send_media(creds.api_key, creds.session, to, url, mt, caption)
+
         if debounce == 0:
             await process_batched_messages(
-                agent_id_for_closure, phone, name, [pending], send_fn, "wasender", send_media_fn,
-                channel_id=channel_id_for_closure, channel_user_id=channel_user_id_for_closure,
+                agent.id, phone, name, [pending], send_fn, "wasender", send_media_fn,
+                channel_id=channel_id, channel_user_id=channel_user_id,
             )
             return
-        
+
         async def process_callback(pending_msgs: list[PendingMessage]):
             await process_batched_messages(
-                agent_id_for_closure, phone, name, pending_msgs, send_fn, "wasender", send_media_fn,
-                channel_id=channel_id_for_closure, channel_user_id=channel_user_id_for_closure,
+                agent.id, phone, name, pending_msgs, send_fn, "wasender", send_media_fn,
+                channel_id=channel_id, channel_user_id=channel_user_id,
             )
-        
+
         await message_buffer.add_message(
-            agent_id=agent_id_for_closure,
-            user_phone=phone,
-            text=final_text,
-            debounce_seconds=debounce,
-            max_messages=max_batch,
+            agent_id=agent.id, user_phone=phone, text=text,
+            debounce_seconds=debounce, max_messages=max_batch,
             process_callback=process_callback,
-            msg_type=final_msg_type,
-            image_base64=image_base64,
-            media_type=final_mime_type
+            msg_type=msg_type, image_base64=image_base64, media_type=mime_type,
         )
     finally:
         db.close()
@@ -188,7 +170,7 @@ async def handle_wasender_message(agent_id: int, msg_data: dict):
 async def receive_wasender_webhook(
     agent_id: int,
     request: Request,
-    x_webhook_signature: Optional[str] = Header(None, alias="X-Webhook-Signature")
+    x_webhook_signature: Optional[str] = Header(None, alias="X-Webhook-Signature"),
 ):
     """Receive webhook from WA Sender for a specific agent."""
     db = SessionLocal()
@@ -196,27 +178,23 @@ async def receive_wasender_webhook(
         agent = agents.get_by_id(db, agent_id)
         if not agent:
             raise HTTPException(status_code=404, detail="Agent not found")
-        
         if agent.provider != "wasender":
             raise HTTPException(status_code=400, detail="Agent is not configured for WA Sender")
-        
+
         config = agent.provider_config or {}
         webhook_secret = config.get("webhook_secret", "")
-        
         if webhook_secret and not wasender.verify_signature(x_webhook_signature, webhook_secret):
             raise HTTPException(status_code=403, detail="Invalid signature")
-        
+
         body = await request.json()
         msg_data = wasender.extract_message_data(body)
-        
+
         if msg_data:
             message_id = msg_data.get("message_key", {}).get("id", "")
             if is_duplicate(message_id):
                 return {"status": "ok", "duplicate": True}
-            
             asyncio.create_task(handle_wasender_message(agent_id, msg_data))
-        
+
         return {"status": "ok"}
-        
     finally:
         db.close()
