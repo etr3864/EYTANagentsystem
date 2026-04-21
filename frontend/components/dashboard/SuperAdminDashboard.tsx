@@ -98,20 +98,17 @@ export function SuperAdminDashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="md:col-span-2">
-          <AgentsTable
-            rows={tableRows}
-            loading={loadingTable}
-            fromDate={activeDates.from}
-            toDate={activeDates.to}
-          />
-        </div>
-        <ChannelBreakdownCard
-          fromDate={activeDates.from}
-          toDate={activeDates.to}
-        />
-      </div>
+      <ChannelBreakdownCard
+        fromDate={activeDates.from}
+        toDate={activeDates.to}
+      />
+
+      <AgentsTable
+        rows={tableRows}
+        loading={loadingTable}
+        fromDate={activeDates.from}
+        toDate={activeDates.to}
+      />
 
       <PricingPanel />
     </div>

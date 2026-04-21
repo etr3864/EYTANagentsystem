@@ -39,7 +39,12 @@ def _resolve_agent_ids(db: Session, user: AuthUser, agent_id: Optional[int]) -> 
     return [a.id for a in agents]
 
 
-def _query_stats(db: Session, agent_ids: list[int], from_dt: datetime, to_dt: datetime) -> DashboardStats:
+def _query_stats(
+    db: Session, agent_ids: list[int], from_dt: datetime, to_dt: datetime,
+    channel_type: Optional[str] = None,
+) -> DashboardStats:
+    from backend.models.agent_channel import AgentChannel
+
     if not agent_ids:
         return DashboardStats(
             total_conversations=0, total_messages=0, avg_messages_per_conversation=0.0,
@@ -52,6 +57,11 @@ def _query_stats(db: Session, agent_ids: list[int], from_dt: datetime, to_dt: da
         .join(Conversation, Message.conversation_id == Conversation.id)
         .filter(Conversation.agent_id.in_(agent_ids), Message.created_at >= from_dt, Message.created_at <= to_dt)
     )
+    if channel_type:
+        base_msg = (
+            base_msg.join(AgentChannel, Conversation.channel_id == AgentChannel.id)
+            .filter(AgentChannel.channel_type == channel_type)
+        )
 
     total_conversations: int = (
         base_msg.with_entities(func.count(func.distinct(Message.conversation_id)))
@@ -82,6 +92,12 @@ def _query_stats(db: Session, agent_ids: list[int], from_dt: datetime, to_dt: da
         ScheduledFollowup.sent_at >= from_dt,
         ScheduledFollowup.sent_at <= to_dt,
     )
+    if channel_type:
+        base_followup = (
+            base_followup.join(Conversation, ScheduledFollowup.conversation_id == Conversation.id)
+            .join(AgentChannel, Conversation.channel_id == AgentChannel.id)
+            .filter(AgentChannel.channel_type == channel_type)
+        )
 
     followups_sent: int = (
         base_followup.with_entities(func.count(func.distinct(ScheduledFollowup.conversation_id))).scalar() or 0
@@ -114,6 +130,7 @@ def get_dashboard(
     from_date: date = Query(..., description="Start date (inclusive)"),
     to_date: date = Query(..., description="End date (inclusive)"),
     agent_id: Optional[int] = Query(None, description="Filter to specific agent; omit for all accessible agents"),
+    channel_type: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: AuthUser = Depends(require_admin_or_above()),
 ):
@@ -123,7 +140,7 @@ def get_dashboard(
     agent_ids = _resolve_agent_ids(db, current_user, agent_id)
     from_dt = datetime.combine(from_date, time.min)
     to_dt = datetime.combine(to_date, time.max)
-    return _query_stats(db, agent_ids, from_dt, to_dt)
+    return _query_stats(db, agent_ids, from_dt, to_dt, channel_type)
 
 
 @router.get("/dashboard/channel-breakdown")

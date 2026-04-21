@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { getAgents, getDashboardStats } from '@/lib/api';
 import type { Agent, DashboardStats } from '@/lib/types';
 import { KpiCard } from './KpiCard';
 import { ChannelBreakdownCard } from './ChannelBreakdownCard';
 import { DateRangePicker } from './DateRangePicker';
 import { getPresetDates, PRESETS, type Preset } from './datePresets';
+import { ChannelIcon } from '@/components/ui/Icons';
+import { CHANNEL_DISPLAY_NAMES } from '@/lib/channels';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -15,6 +17,7 @@ const STALE_MS = 5 * 60 * 1000;
 export function AdminDashboard() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<number | undefined>(undefined);
+  const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
   const [preset, setPreset] = useState<Preset>('week');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
@@ -31,6 +34,20 @@ export function AdminDashboard() {
     ? { from: customFrom, to: customTo }
     : getPresetDates(preset);
 
+  const activeChannels = useMemo(() => {
+    if (selectedAgentId) {
+      const agent = agents.find((a) => a.id === selectedAgentId);
+      return agent?.active_channel_types ?? [];
+    }
+    const all = new Set<string>();
+    agents.forEach((a) => (a.active_channel_types ?? []).forEach((ct) => all.add(ct)));
+    return Array.from(all);
+  }, [selectedAgentId, agents]);
+
+  useEffect(() => {
+    setSelectedChannel(null);
+  }, [selectedAgentId]);
+
   const fetchStats = useCallback(async (force = false) => {
     const { from, to } = activeDates;
     if (!from || !to || to < from) return;
@@ -40,7 +57,7 @@ export function AdminDashboard() {
 
     setLoading(true);
     try {
-      const data = await getDashboardStats(from, to, selectedAgentId);
+      const data = await getDashboardStats(from, to, selectedAgentId, selectedChannel ?? undefined);
       setStats(data);
       setLastFetchedAt(now);
     } catch {
@@ -48,11 +65,11 @@ export function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [activeDates.from, activeDates.to, selectedAgentId, lastFetchedAt]);
+  }, [activeDates.from, activeDates.to, selectedAgentId, selectedChannel, lastFetchedAt]);
 
   useEffect(() => {
     fetchStats(true);
-  }, [activeDates.from, activeDates.to, selectedAgentId]);
+  }, [activeDates.from, activeDates.to, selectedAgentId, selectedChannel]);
 
   const handlePresetChange = (p: Preset) => {
     setPreset(p);
@@ -67,6 +84,14 @@ export function AdminDashboard() {
 
   const noData = stats !== null && !stats.has_data;
   const activePreset = isCustom ? null : preset;
+
+  const channelTabs = [
+    { key: null as string | null, label: 'כל הערוצים' },
+    ...activeChannels.map((ct) => ({
+      key: ct,
+      label: CHANNEL_DISPLAY_NAMES[ct as keyof typeof CHANNEL_DISPLAY_NAMES] ?? ct,
+    })),
+  ];
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -109,6 +134,29 @@ export function AdminDashboard() {
         )}
       </div>
 
+      {/* Channel tabs */}
+      {activeChannels.length > 0 && (
+        <div className="flex gap-1.5">
+          {channelTabs.map((tab) => {
+            const active = selectedChannel === tab.key;
+            return (
+              <button
+                key={tab.key ?? '__all'}
+                onClick={() => setSelectedChannel(tab.key)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  active
+                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
+                    : 'bg-white/5 text-slate-400 border border-transparent hover:bg-white/10 hover:text-slate-200'
+                }`}
+              >
+                {tab.key && <ChannelIcon channelType={tab.key} size={14} />}
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* KPI Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <KpiCard title="סה״כ שיחות" value={stats?.total_conversations ?? 0} loading={loading && !stats} noData={noData} />
@@ -120,12 +168,14 @@ export function AdminDashboard() {
       </div>
 
       {/* Channel breakdown */}
-      <ChannelBreakdownCard
-        fromDate={activeDates.from}
-        toDate={activeDates.to}
-        agentId={selectedAgentId}
-        endpoint={`${API_URL}/api/dashboard/channel-breakdown`}
-      />
+      {!selectedChannel && (
+        <ChannelBreakdownCard
+          fromDate={activeDates.from}
+          toDate={activeDates.to}
+          agentId={selectedAgentId}
+          endpoint={`${API_URL}/api/dashboard/channel-breakdown`}
+        />
+      )}
     </div>
   );
 }

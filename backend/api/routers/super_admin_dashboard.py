@@ -259,6 +259,7 @@ def get_agent_detail(
     agent_id: int,
     from_date: date = Query(...),
     to_date: date = Query(...),
+    channel_type: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     _: AuthUser = Depends(_require_super_admin),
 ):
@@ -271,7 +272,7 @@ def get_agent_detail(
     pricing = get_pricing(db)
     from_dt, to_dt = _date_range(from_date, to_date)
 
-    perf = _build_performance(db, agent_id, from_dt, to_dt)
+    perf = _build_performance(db, agent_id, from_dt, to_dt, channel_type)
     cost_by_provider, cost_by_source, total_cost = _build_costs(
         db, agent_id, from_date, to_date, pricing
     )
@@ -289,8 +290,11 @@ def get_agent_detail(
 
 
 def _build_performance(
-    db: Session, agent_id: int, from_dt: datetime, to_dt: datetime
+    db: Session, agent_id: int, from_dt: datetime, to_dt: datetime,
+    channel_type: Optional[str] = None,
 ) -> AgentPerformanceDetail:
+    from backend.models.agent_channel import AgentChannel
+
     base_msg = (
         db.query(Message)
         .join(Conversation, Message.conversation_id == Conversation.id)
@@ -300,6 +304,11 @@ def _build_performance(
             Message.created_at <= to_dt,
         )
     )
+    if channel_type:
+        base_msg = (
+            base_msg.join(AgentChannel, Conversation.channel_id == AgentChannel.id)
+            .filter(AgentChannel.channel_type == channel_type)
+        )
 
     total_conversations: int = (
         base_msg.with_entities(func.count(func.distinct(Message.conversation_id)))
@@ -328,6 +337,12 @@ def _build_performance(
         ScheduledFollowup.sent_at >= from_dt,
         ScheduledFollowup.sent_at <= to_dt,
     )
+    if channel_type:
+        base_fu = (
+            base_fu.join(Conversation, ScheduledFollowup.conversation_id == Conversation.id)
+            .join(AgentChannel, Conversation.channel_id == AgentChannel.id)
+            .filter(AgentChannel.channel_type == channel_type)
+        )
     followups_sent: int = (
         base_fu.with_entities(func.count(func.distinct(ScheduledFollowup.conversation_id))).scalar() or 0
     )

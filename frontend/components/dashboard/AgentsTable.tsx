@@ -142,6 +142,7 @@ export function AgentsTable({ rows, loading, fromDate, toDate }: Props) {
                           agentId={row.agent_id}
                           fromDate={fromDate}
                           toDate={toDate}
+                          activeChannels={row.active_channels ?? []}
                         />
                       </td>
                     </tr>

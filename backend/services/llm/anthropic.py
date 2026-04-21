@@ -222,38 +222,40 @@ class AnthropicProvider:
             media_actions=media_actions
         )
     
-    async def describe_image(self, image_base64: str, media_type: str = "image/jpeg") -> str:
-        """Get short Hebrew description of image."""
-        try:
-            response = await self._client.messages.create(
-                model="claude-haiku-4-5",
-                max_tokens=150,
-                messages=[{
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": media_type,
-                                "data": image_base64
-                            }
-                        },
-                        {
-                            "type": "text",
-                            "text": "תאר את התמונה הזו בקצרה במשפט אחד בעברית."
+    async def describe_image(self, image_base64: str, media_type: str = "image/jpeg") -> tuple[str, dict]:
+        """Get short Hebrew description of image. Returns (description, usage_data)."""
+        response = await self._client.messages.create(
+            model="claude-haiku-4-5",
+            max_tokens=150,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image",
+                        "source": {
+                            "type": "base64",
+                            "media_type": media_type,
+                            "data": image_base64
                         }
-                    ]
-                }]
-            )
-            
-            for block in response.content:
-                if block.type == "text":
-                    return block.text.strip()
-            
-            return "תמונה"
-        except Exception:
-            return "תמונה"
+                    },
+                    {
+                        "type": "text",
+                        "text": "תאר את התמונה הזו בקצרה במשפט אחד בעברית."
+                    }
+                ]
+            }]
+        )
+
+        usage = {
+            "input_tokens": response.usage.input_tokens or 0,
+            "output_tokens": response.usage.output_tokens or 0,
+        }
+
+        for block in response.content:
+            if block.type == "text":
+                return block.text.strip(), usage
+
+        return "תמונה", usage
     
     async def analyze_media_image(self, image_base64: str, media_type: str = "image/jpeg") -> dict:
         """Analyze image and generate name, description, caption for media library."""

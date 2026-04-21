@@ -146,17 +146,18 @@ def build_system_prompt(
     return blocks
 
 
-async def describe_image(image_base64: str, media_type: str = "image/jpeg") -> str:
+async def describe_image(image_base64: str, media_type: str = "image/jpeg", agent=None) -> tuple[str, dict]:
     """Get short Hebrew description of image for DB storage.
 
     Always uses Claude (Anthropic) for image understanding.
+    Returns (description, usage_data).
     """
     try:
-        provider = get_provider("claude")
+        provider = get_provider("claude", agent)
         return await provider.describe_image(image_base64, media_type)
     except Exception as e:
         log_error("image_describe", f"{type(e).__name__}: {str(e)[:120]}")
-        return "תמונה"
+        return "תמונה", {"input_tokens": 0, "output_tokens": 0}
 
 
 async def analyze_media_image(image_base64: str, media_type: str = "image/jpeg") -> dict:

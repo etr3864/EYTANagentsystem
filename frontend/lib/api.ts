@@ -718,9 +718,11 @@ export async function getDashboardStats(
   fromDate: string,
   toDate: string,
   agentId?: number,
+  channelType?: string,
 ): Promise<import('./types').DashboardStats> {
   const params = new URLSearchParams({ from_date: fromDate, to_date: toDate });
   if (agentId !== undefined) params.set('agent_id', String(agentId));
+  if (channelType) params.set('channel_type', channelType);
   const res = await authFetch(`${API_URL}/api/dashboard?${params}`);
   if (!res.ok) throw new Error('Failed to fetch dashboard stats');
   return res.json();
@@ -744,8 +746,9 @@ export async function getSuperAdminAgentsTable(fromDate: string, toDate: string)
   return res.json();
 }
 
-export async function getSuperAdminAgentDetail(agentId: number, fromDate: string, toDate: string): Promise<AgentDetail> {
+export async function getSuperAdminAgentDetail(agentId: number, fromDate: string, toDate: string, channelType?: string): Promise<AgentDetail> {
   const params = new URLSearchParams({ from_date: fromDate, to_date: toDate });
+  if (channelType) params.set('channel_type', channelType);
   const res = await authFetch(`${API_URL}/api/super-admin/agents/${agentId}/detail?${params}`);
   if (!res.ok) throw new Error('Failed to fetch agent detail');
   return res.json();
