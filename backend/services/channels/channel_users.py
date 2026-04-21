@@ -43,7 +43,7 @@ def get_or_create_for_incoming(
             INSERT INTO channel_users
                 (channel_id, external_id, bsuid, display_name, profile_pic_url, metadata, created_at, updated_at)
             VALUES
-                (:channel_id, :external_id, :bsuid, :display_name, :profile_pic_url, :metadata::jsonb, NOW(), NOW())
+                (:channel_id, :external_id, :bsuid, :display_name, :profile_pic_url, CAST(:metadata AS jsonb), NOW(), NOW())
             ON CONFLICT (channel_id, external_id) DO UPDATE
               SET bsuid           = COALESCE(EXCLUDED.bsuid, channel_users.bsuid),
                   display_name    = COALESCE(EXCLUDED.display_name, channel_users.display_name),
