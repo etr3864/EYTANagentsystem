@@ -214,6 +214,7 @@ async def get_waba_phone_numbers(access_token: str) -> list[dict]:
 
 async def subscribe_page_to_app(page_id: str, page_access_token: str) -> bool:
     """Subscribe a Facebook Page to Optive's webhooks (Messenger/WhatsApp)."""
+    from backend.core.logger import log
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.post(
@@ -223,7 +224,12 @@ async def subscribe_page_to_app(page_id: str, page_access_token: str) -> bool:
                     "subscribed_fields": "messages,messaging_postbacks,message_deliveries",
                 },
             )
-        return resp.status_code == 200 and resp.json().get("success", False)
+        ok = resp.status_code == 200 and resp.json().get("success", False)
+        if ok:
+            log("meta_oauth", msg=f"page {page_id} subscribed to webhooks")
+        else:
+            log_error("meta_oauth", f"subscribe_page_to_app failed: {resp.status_code} {resp.text[:200]}")
+        return ok
     except Exception as e:
         log_error("meta_oauth", f"subscribe_page_to_app: {e}")
         return False

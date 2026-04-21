@@ -73,6 +73,8 @@ async def receive_meta_webhook(request: Request):
         raise HTTPException(status_code=400, detail="Invalid JSON payload")
 
     obj = payload.get("object", "")
+    log("webhook_meta_raw", msg=f"object={obj}")
+
     secret = select_secret_for_object(obj, settings.meta_app_secret, settings.meta_instagram_app_secret)
 
     if not secret or not verify_meta_signature(body, signature, secret):
@@ -86,7 +88,11 @@ async def receive_meta_webhook(request: Request):
     }
     parser = parsers.get(obj)
     if parser:
-        asyncio.create_task(_dispatch_messages(parser(payload)))
+        messages = parser(payload)
+        log("webhook_meta_parsed", msg=f"object={obj} msgs={len(messages)}")
+        asyncio.create_task(_dispatch_messages(messages))
+    else:
+        log("webhook_meta_skip", msg=f"no parser for object={obj}")
 
     return {"status": "ok"}
 
