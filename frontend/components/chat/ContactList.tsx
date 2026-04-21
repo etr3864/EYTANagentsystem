@@ -83,23 +83,27 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete }: C
         </div>
 
         {channelTypes.length > 1 && (
-          <div className="flex gap-1.5">
+          <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${channelTypes.length + 1}, 1fr)` }}>
             <button
               onClick={() => setChannelFilter('all')}
-              className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-all ${channelFilter === 'all' ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-700/60 text-slate-300 hover:bg-slate-600/80'}`}
+              className={`py-1.5 rounded-lg text-xs font-medium transition-all ${channelFilter === 'all' ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-700/60 text-slate-300 hover:bg-slate-600/80'}`}
             >
               הכל
             </button>
-            {channelTypes.map(ct => (
-              <button
-                key={ct}
-                onClick={() => setChannelFilter(ct === channelFilter ? 'all' : ct)}
-                className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${channelFilter === ct ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-700/60 text-slate-300 hover:bg-slate-600/80'}`}
-              >
-                <ChannelIcon channelType={ct} size={16} />
-                <span>{CHANNEL_DISPLAY_NAMES[ct as keyof typeof CHANNEL_DISPLAY_NAMES] ?? ct}</span>
-              </button>
-            ))}
+            {channelTypes.map(ct => {
+              const name = CHANNEL_DISPLAY_NAMES[ct as keyof typeof CHANNEL_DISPLAY_NAMES] ?? ct;
+              return (
+                <button
+                  key={ct}
+                  onClick={() => setChannelFilter(ct === channelFilter ? 'all' : ct)}
+                  title={name}
+                  className={`py-1.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1 overflow-hidden ${channelFilter === ct ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-700/60 text-slate-300 hover:bg-slate-600/80'}`}
+                >
+                  <ChannelIcon channelType={ct} size={14} />
+                  <span className="truncate">{name}</span>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
