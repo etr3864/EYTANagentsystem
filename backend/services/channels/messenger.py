@@ -59,29 +59,29 @@ async def send_media(
         if filename:
             payload_dict["filename"] = filename
 
-        message: dict = {
-            "attachment": {
-                "type": att_type,
-                "payload": payload_dict,
-            }
-        }
-        if caption:
-            message["text"] = caption[:500]
-
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
                 f"{META_GRAPH_URL}/{page_id}/messages",
                 params={"access_token": access_token},
                 json={
                     "recipient": {"id": psid},
-                    "message": message,
+                    "message": {
+                        "attachment": {
+                            "type": att_type,
+                            "payload": payload_dict,
+                        }
+                    },
                     "messaging_type": "RESPONSE",
                 },
             )
-        if resp.status_code == 200:
-            return True
-        log_error("messenger", f"send_media failed ({resp.status_code}): {resp.text[:200]}")
-        return False
+        if resp.status_code != 200:
+            log_error("messenger", f"send_media failed ({resp.status_code}): {resp.text[:200]}")
+            return False
+
+        if caption:
+            await send_message(access_token, page_id, psid, caption[:500])
+
+        return True
     except Exception as e:
         log_error("messenger", f"send_media exception: {e}")
         return False
