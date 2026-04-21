@@ -231,11 +231,13 @@ async def _handle_single_message(msg: ParsedIncomingMessage) -> None:
         await message_buffer.add_message(
             agent_id=channel.agent_id,
             user_phone=msg.external_user_id,
-            text=msg.text,
+            text=text,
             debounce_seconds=debounce,
             max_messages=max_batch,
             process_callback=process_callback,
             msg_type=msg.msg_type,
+            image_base64=image_base64,
+            media_type=msg.mime_type,
         )
 
     except Exception as e:
