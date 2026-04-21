@@ -191,7 +191,7 @@ export const messageColumns = [
     header: 'תוכן', 
     render: (m: DbMessage) => (
       <span className="text-slate-300 text-sm">
-        {m.content.slice(0, 50)}{m.content.length > 50 ? '...' : ''}
+        {(m.content || '').slice(0, 50)}{(m.content || '').length > 50 ? '...' : ''}
       </span>
     ), 
     className: 'max-w-[300px] truncate' 

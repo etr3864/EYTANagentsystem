@@ -7,8 +7,7 @@ import { createAgent } from '@/lib/api';
 import { Button, Card, CardHeader } from '@/components/ui';
 import { Input, Textarea, NumberInput } from '@/components/ui/Input';
 import { ModelSelect } from '@/components/ui/ModelSelect';
-import { ProviderSelector } from '@/components/agent/ProviderSelector';
-import type { AgentBatchingConfig, Provider, WaSenderConfig } from '@/lib/types';
+import type { AgentBatchingConfig } from '@/lib/types';
 
 export default function NewAgentPage() {
   const router = useRouter();
@@ -17,13 +16,8 @@ export default function NewAgentPage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const [name, setName] = useState('');
-  const [phoneNumberId, setPhoneNumberId] = useState('');
-  const [accessToken, setAccessToken] = useState('');
-  const [verifyToken, setVerifyToken] = useState('');
   const [model, setModel] = useState('claude-sonnet-4-20250514');
   const [systemPrompt, setSystemPrompt] = useState('');
-  const [provider, setProvider] = useState<Provider>('meta');
-  const [providerConfig, setProviderConfig] = useState<WaSenderConfig | Record<string, never>>({});
   
   const [batchingConfig, setBatchingConfig] = useState<AgentBatchingConfig>({ 
     debounce_seconds: 3, 
@@ -34,42 +28,21 @@ export default function NewAgentPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     
-    // Validation based on provider
     if (!name || !systemPrompt) {
-      setError('מלא את כל השדות הנדרשים');
+      setError('מלא את שם הסוכן ו-System Prompt');
       return;
-    }
-    
-    if (provider === 'meta') {
-      if (!phoneNumberId || !accessToken || !verifyToken) {
-        setError('מלא את כל שדות ה-Meta');
-        return;
-      }
-    } else {
-      const wsConfig = providerConfig as WaSenderConfig;
-      if (!wsConfig.api_key || !wsConfig.webhook_secret) {
-        setError('מלא את API Key ו-Webhook Secret');
-        return;
-      }
     }
 
     setSaving(true);
     setError('');
     try {
-      // For WA Sender, generate a unique phone_number_id
-      const finalPhoneNumberId = provider === 'wasender' 
-        ? `ws_${Date.now()}` 
-        : phoneNumberId;
-      
       await createAgent({
         name,
-        phone_number_id: finalPhoneNumberId,
-        access_token: provider === 'wasender' ? '' : accessToken,
-        verify_token: provider === 'wasender' ? '' : verifyToken,
+        phone_number_id: '',
+        access_token: '',
+        verify_token: '',
         system_prompt: systemPrompt,
         model,
-        provider,
-        provider_config: providerConfig,
         batching_config: batchingConfig,
       });
       router.push('/');
@@ -119,20 +92,6 @@ export default function NewAgentPage() {
               </div>
             </div>
           </Card>
-
-          {/* Provider Selection */}
-          <ProviderSelector
-            provider={provider}
-            providerConfig={providerConfig}
-            phoneNumberId={phoneNumberId}
-            accessToken={accessToken}
-            verifyToken={verifyToken}
-            onProviderChange={setProvider}
-            onProviderConfigChange={setProviderConfig}
-            onPhoneNumberIdChange={setPhoneNumberId}
-            onAccessTokenChange={setAccessToken}
-            onVerifyTokenChange={setVerifyToken}
-          />
 
           {/* System Prompt */}
           <Card>

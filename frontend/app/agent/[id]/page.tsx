@@ -41,7 +41,7 @@ const allTabs: TabConfig[] = [
   { id: 'calendar', label: 'יומן', icon: '📅', roles: ['super_admin'] },
   { id: 'followups', label: 'Follow-Up', icon: '🔄', roles: ['super_admin'] },
   { id: 'summaries', label: 'סיכומים', icon: '📝', roles: ['super_admin'] },
-  { id: 'channels', label: 'ערוצים', icon: '📡', roles: ['super_admin', 'admin'] },
+  { id: 'channels', label: 'ערוצים', icon: '📡', roles: ['super_admin'] },
   { id: 'settings', label: 'הגדרות', icon: '⚙️', roles: ['super_admin'] },
 ];
 
