@@ -39,11 +39,27 @@ def _is_ogg(audio_bytes: bytes) -> bool:
     return audio_bytes[:4] == b'OggS'
 
 
+def _detect_suffix(audio_bytes: bytes) -> str:
+    """Guess file extension from magic bytes for better ffmpeg detection."""
+    if audio_bytes[:4] == b'OggS':
+        return '.ogg'
+    if audio_bytes[4:8] == b'ftyp':
+        return '.m4a'
+    if audio_bytes[:4] == b'RIFF':
+        return '.wav'
+    if audio_bytes[:3] == b'ID3' or audio_bytes[:2] == b'\xff\xfb':
+        return '.mp3'
+    return '.audio'
+
+
 def _convert_to_wav(audio_bytes: bytes) -> Optional[bytes]:
     """Convert any audio format to 16kHz mono WAV using ffmpeg."""
     import subprocess
+    src_path = dst_path = None
     try:
-        with tempfile.NamedTemporaryFile(suffix='.audio', delete=False) as src:
+        suffix = _detect_suffix(audio_bytes)
+        log_audio("ffmpeg_convert", msg=f"input {len(audio_bytes)}B suffix={suffix} header={audio_bytes[:16].hex()}")
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as src:
             src.write(audio_bytes)
             src_path = src.name
         dst_path = src_path + '.wav'
@@ -52,10 +68,12 @@ def _convert_to_wav(audio_bytes: bytes) -> Optional[bytes]:
             capture_output=True, timeout=15,
         )
         if result.returncode != 0:
-            log_error("audio", f"ffmpeg failed: {result.stderr[:120].decode(errors='replace')}")
+            stderr_msg = result.stderr[:300].decode(errors='replace')
+            log_error("audio", f"ffmpeg rc={result.returncode}: {stderr_msg}")
             return None
-        with open(dst_path, 'rb') as f:
-            return f.read()
+        wav_data = open(dst_path, 'rb').read()
+        log_audio("ffmpeg_ok", msg=f"output {len(wav_data)}B")
+        return wav_data
     except FileNotFoundError:
         log_error("audio", "ffmpeg not installed")
         return None
@@ -64,10 +82,11 @@ def _convert_to_wav(audio_bytes: bytes) -> Optional[bytes]:
         return None
     finally:
         for p in (src_path, dst_path):
-            try:
-                os.unlink(p)
-            except Exception:
-                pass
+            if p:
+                try:
+                    os.unlink(p)
+                except Exception:
+                    pass
 
 
 def _sync_transcribe(audio_bytes: bytes, creds_path: str, language_code: str) -> Optional[str]:
@@ -76,12 +95,15 @@ def _sync_transcribe(audio_bytes: bytes, creds_path: str, language_code: str) ->
         from google.cloud import speech
         from google.oauth2 import service_account
 
+        log_audio("stt_start", msg=f"{len(audio_bytes)}B ogg={_is_ogg(audio_bytes)}")
+
         if _is_ogg(audio_bytes):
             encoding = speech.RecognitionConfig.AudioEncoding.OGG_OPUS
             data = audio_bytes
         else:
             wav_data = _convert_to_wav(audio_bytes)
             if not wav_data:
+                log_error("audio", "ffmpeg conversion returned None, cannot transcribe")
                 return None
             encoding = speech.RecognitionConfig.AudioEncoding.LINEAR16
             data = wav_data
@@ -104,11 +126,15 @@ def _sync_transcribe(audio_bytes: bytes, creds_path: str, language_code: str) ->
             if result.alternatives:
                 transcript_parts.append(result.alternatives[0].transcript)
         
-        return " ".join(transcript_parts) if transcript_parts else None
+        result_text = " ".join(transcript_parts) if transcript_parts else None
+        log_audio("stt_result", msg=f"results={len(response.results)} text={'yes' if result_text else 'empty'}")
+        return result_text
         
-    except ImportError:
+    except ImportError as e:
+        log_error("audio", f"import error: {e}")
         return None
-    except Exception:
+    except Exception as e:
+        log_error("audio", f"stt exception: {type(e).__name__}: {str(e)[:200]}")
         return None
 
 

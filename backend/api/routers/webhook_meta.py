@@ -204,14 +204,18 @@ async def _handle_single_message(msg: ParsedIncomingMessage) -> None:
         elif msg.msg_type == "audio" and msg.media_url:
             from backend.services.media import download_from_url
             from backend.services.media.transcription import transcribe_audio
+            from backend.core.logger import log as log_info
+            log_info("webhook_meta", f"audio download start channel={msg.channel_type} url_prefix={msg.media_url[:80]}")
             audio_bytes = await download_from_url(msg.media_url)
             if audio_bytes:
+                log_info("webhook_meta", f"audio downloaded {len(audio_bytes)}B, transcribing...")
                 transcript = await transcribe_audio(audio_bytes)
                 if transcript:
                     text = f"[הודעה קולית]: {transcript}"
                 else:
                     text = text or "[הודעה קולית - לא הצלחתי לתמלל]"
             else:
+                log_error("webhook_meta", f"audio download returned None for {msg.channel_type}")
                 text = text or "[הודעה קולית - לא הצלחתי להוריד]"
 
         pending = PendingMessage(
