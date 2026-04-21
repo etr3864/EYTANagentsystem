@@ -1,10 +1,33 @@
-"""Facebook Messenger messaging adapter (Graph API v20)."""
+"""Facebook Messenger messaging adapter (Graph API v22)."""
 import httpx
 from typing import Optional
 
 from backend.core.logger import log_error
 
 META_GRAPH_URL = "https://graph.facebook.com/v22.0"
+
+
+async def get_user_profile(access_token: str, psid: str) -> Optional[dict]:
+    """Fetch Messenger user profile by PSID.
+
+    Returns {"first_name", "last_name", "profile_pic"} or None.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.get(
+                f"{META_GRAPH_URL}/{psid}",
+                params={
+                    "fields": "first_name,last_name,profile_pic",
+                    "access_token": access_token,
+                },
+            )
+        if resp.status_code == 200:
+            return resp.json()
+        log_error("messenger", f"profile fetch failed: {resp.status_code} {resp.text[:100]}")
+        return None
+    except Exception as e:
+        log_error("messenger", f"profile fetch error: {e}")
+        return None
 
 
 async def send_message(access_token: str, page_id: str, psid: str, text: str) -> bool:

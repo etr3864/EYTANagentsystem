@@ -76,7 +76,7 @@ export function ConversationsTab({
                   <img src={selectedConv.channel_profile_pic} alt="" className="w-8 h-8 rounded-full object-cover" />
                 )}
                 <div className="text-sm font-medium text-white">
-                  {selectedConv?.channel_username ? (
+                  {selectedConv?.channel_username && selectedConv?.channel_type === 'instagram' ? (
                     <a
                       href={`https://instagram.com/${selectedConv.channel_username}`}
                       target="_blank"
@@ -84,6 +84,15 @@ export function ConversationsTab({
                       className="hover:text-pink-400 transition-colors"
                     >
                       @{selectedConv.channel_username}
+                    </a>
+                  ) : selectedConv?.channel_username && selectedConv?.channel_type === 'messenger' ? (
+                    <a
+                      href={`https://facebook.com/${selectedConv.user_phone}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-indigo-400 transition-colors"
+                    >
+                      {selectedConv.channel_username}
                     </a>
                   ) : (
                     selectedConv?.user_name || `לקוח ${selectedConv?.user_phone?.slice(-4) ?? ''}`

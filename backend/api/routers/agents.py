@@ -192,7 +192,7 @@ def list_agent_conversations(
     result = []
     for r in rows:
         channel_type = r.channel_type_snapshot
-        ig_username = r.channel_display_name_user if channel_type == "instagram" else None
+        ig_username = r.channel_display_name_user if channel_type in ("instagram", "messenger") else None
         result.append({
             "id": r.id,
             "user_id": r.user_id,

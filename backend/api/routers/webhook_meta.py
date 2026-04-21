@@ -137,6 +137,35 @@ async def _resolve_ig_profile(
     return fallback_name, None, None
 
 
+# ── Messenger profile fetching ────────────────────────────────────────────────
+
+async def _resolve_messenger_profile(
+    db: Session, channel, external_user_id: str, fallback_name: Optional[str],
+) -> tuple[Optional[str], Optional[str], Optional[dict]]:
+    """Fetch Messenger profile from DB cache or API. Returns (display_name, profile_pic, metadata)."""
+    existing = get_by_external_id(db, channel.id, external_user_id)
+    if existing and existing.display_name:
+        return existing.display_name, existing.profile_pic_url, None
+
+    try:
+        from backend.core.encryption import decrypt_credentials
+        from backend.services.channels.messenger import get_user_profile
+
+        creds = decrypt_credentials(channel.credentials_encrypted)
+        profile = await get_user_profile(creds.get("access_token", ""), external_user_id)
+        if profile:
+            first = profile.get("first_name", "")
+            last = profile.get("last_name", "")
+            display_name = f"{first} {last}".strip() or fallback_name
+            profile_pic = profile.get("profile_pic")
+            metadata = {"psid": external_user_id}
+            return display_name, profile_pic, metadata
+    except Exception as e:
+        log_error("webhook_meta", f"messenger profile fetch: {type(e).__name__}: {str(e)[:120]}")
+
+    return fallback_name, None, None
+
+
 # ── Media processing ──────────────────────────────────────────────────────────
 
 async def _process_media(
@@ -204,7 +233,11 @@ async def _handle_single_message(msg: ParsedIncomingMessage) -> None:
         display_name = msg.display_name
         profile_pic = None
         profile_metadata = None
-        if msg.channel_type == "instagram":
+        if msg.channel_type == "messenger":
+            display_name, profile_pic, profile_metadata = await _resolve_messenger_profile(
+                db, channel, msg.external_user_id, msg.display_name,
+            )
+        elif msg.channel_type == "instagram":
             display_name, profile_pic, profile_metadata = await _resolve_ig_profile(
                 db, channel, msg.external_user_id, msg.display_name,
             )

@@ -219,16 +219,15 @@ function InstagramLogo({ size = 16 }: { size: number }) {
 function MessengerLogo({ size = 16 }: { size: number }) {
   const id = `msg-grad-${size}`;
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <svg width={size} height={size} viewBox="0 0 28 28" fill="none">
       <defs>
         <linearGradient id={id} x1="50%" y1="0%" x2="50%" y2="100%">
           <stop offset="0%" stopColor="#00B2FF" />
           <stop offset="100%" stopColor="#006AFF" />
         </linearGradient>
       </defs>
-      <circle cx="12" cy="12" r="12" fill={`url(#${id})`} />
-      <path d="M6.7 14.5l2.8-3.1 2.5 2.1 2.7-3.1" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-      <path d="M17.3 14.5l-2.1 2.3-2.5-2.1" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <path d="M14 0C6.28 0 0 5.79 0 13.25c0 3.9 1.6 7.36 4.2 9.87V28l4.58-2.51c1.3.36 2.67.56 4.1.56h.12C21.72 26.05 28 20.48 28 13.25S21.72 0 14 0z" fill={`url(#${id})`} />
+      <path d="M15.1 17.2L12.12 14 6.3 17.2l6.4-6.8 3.06 3.2 5.74-3.2-6.4 6.8z" fill="white" />
     </svg>
   );
 }

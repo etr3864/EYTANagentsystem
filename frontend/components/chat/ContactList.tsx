@@ -83,10 +83,10 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete }: C
         </div>
 
         {channelTypes.length > 1 && (
-          <div className="flex gap-1 flex-wrap">
+          <div className="flex gap-1.5">
             <button
               onClick={() => setChannelFilter('all')}
-              className={`px-2 py-0.5 rounded text-xs transition-colors ${channelFilter === 'all' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+              className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-all ${channelFilter === 'all' ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-700/60 text-slate-300 hover:bg-slate-600/80'}`}
             >
               הכל
             </button>
@@ -94,9 +94,9 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete }: C
               <button
                 key={ct}
                 onClick={() => setChannelFilter(ct === channelFilter ? 'all' : ct)}
-                className={`px-2 py-0.5 rounded text-xs transition-colors flex items-center gap-1 ${channelFilter === ct ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+                className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${channelFilter === ct ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-700/60 text-slate-300 hover:bg-slate-600/80'}`}
               >
-                <ChannelIcon channelType={ct} size={14} />
+                <ChannelIcon channelType={ct} size={16} />
                 <span>{CHANNEL_DISPLAY_NAMES[ct as keyof typeof CHANNEL_DISPLAY_NAMES] ?? ct}</span>
               </button>
             ))}
@@ -141,7 +141,7 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete }: C
                 )}
                 <div>
                   <div className="font-medium text-white text-sm flex items-center gap-1.5">
-                    {conv.channel_username ? (
+                    {conv.channel_username && conv.channel_type === 'instagram' ? (
                       <a
                         href={`https://instagram.com/${conv.channel_username}`}
                         target="_blank"
@@ -151,6 +151,17 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete }: C
                         title={`@${conv.channel_username}`}
                       >
                         @{conv.channel_username}
+                      </a>
+                    ) : conv.channel_username && conv.channel_type === 'messenger' ? (
+                      <a
+                        href={`https://facebook.com/${conv.user_phone}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="hover:text-indigo-400 transition-colors"
+                        title={conv.channel_username}
+                      >
+                        {conv.channel_username}
                       </a>
                     ) : (
                       conv.user_name || `לקוח ${conv.user_phone.slice(-4)}`

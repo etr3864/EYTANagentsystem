@@ -511,6 +511,15 @@ async def send_webhook(agent: Agent, appointment: Appointment, event: str, db: S
     # Generate conversation summary if summaries are enabled
     summary_text = await _generate_appointment_summary(agent, appointment, db)
     
+    from backend.models.conversation import Conversation
+    from backend.core.channel_types import CHANNEL_DISPLAY_NAMES
+    conv = db.query(Conversation).filter(
+        Conversation.agent_id == agent.id,
+        Conversation.user_id == appointment.user_id,
+    ).order_by(Conversation.updated_at.desc()).first()
+    channel_type = conv.channel_type_snapshot if conv else None
+    channel_display = CHANNEL_DISPLAY_NAMES.get(channel_type, channel_type) if channel_type else None
+
     payload = {
         "event": event,
         "appointment": {
@@ -525,6 +534,8 @@ async def send_webhook(agent: Agent, appointment: Appointment, event: str, db: S
         "customer": {
             "name": user.name if user else None,
             "phone": user.phone if user else None,
+            "channel_type": channel_type,
+            "channel_display_name": channel_display,
         },
         "agent": {
             "id": agent.id,

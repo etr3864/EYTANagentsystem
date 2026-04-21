@@ -18,6 +18,7 @@ from backend.models.user import User
 from backend.services.llm import get_provider
 from backend.core.logger import log, log_error
 from backend.core.enums import SummaryWebhookStatus
+from backend.core.channel_types import CHANNEL_DISPLAY_NAMES
 
 
 # Configuration
@@ -143,20 +144,22 @@ SUMMARY_MODEL = "claude-sonnet-4-6"
 SUMMARY_MAX_TOKENS = 4096
 
 
-async def _generate_summary(conversation_text: str, prompt: str) -> tuple[str, dict]:
+async def _generate_summary(conversation_text: str, prompt: str, channel_display: str | None = None) -> tuple[str, dict]:
     """Generate summary using Sonnet. Returns (text, usage_dict)."""
     max_chars = 30000
     if len(conversation_text) > max_chars:
         conversation_text = conversation_text[:max_chars] + "\n...[השיחה קוצרה]"
 
-    full_prompt = f"""{prompt}
+    channel_line = f"\nערוץ: {channel_display}\n" if channel_display else ""
 
+    full_prompt = f"""{prompt}
+{channel_line}
 ---
 השיחה:
 {conversation_text}
 
 ---
-כתוב סיכום תמציתי וברור."""
+כתוב סיכום תמציתי וברור. ציין את הערוץ שממנו הגיע הלקוח."""
 
     provider = get_provider(SUMMARY_MODEL)
     return await provider.generate_tracked_response(
@@ -208,11 +211,16 @@ async def create_and_send_summary(
     conversation_text = _get_conversation_text(db, conversation_id, max_msgs)
     if not conversation_text:
         return None
-    
+
+    conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
+    channel_type = conv.channel_type_snapshot if conv else None
+    channel_display = CHANNEL_DISPLAY_NAMES.get(channel_type, channel_type) if channel_type else None
+
     try:
         summary_text, usage = await _generate_summary(
-            conversation_text, 
-            config["summary_prompt"]
+            conversation_text,
+            config["summary_prompt"],
+            channel_display,
         )
         from backend.services.entities.usage_tracking import record_usage
         record_usage(
@@ -267,6 +275,10 @@ async def _try_send_webhook(
         db.commit()
         return False
     
+    conv = db.query(Conversation).filter(Conversation.id == summary.conversation_id).first()
+    channel_type = conv.channel_type_snapshot if conv else None
+    channel_display = CHANNEL_DISPLAY_NAMES.get(channel_type, channel_type) if channel_type else None
+
     payload = {
         "event": "conversation_summary",
         "timestamp": datetime.utcnow().isoformat() + "Z",
@@ -275,6 +287,8 @@ async def _try_send_webhook(
         "conversation_id": summary.conversation_id,
         "customer_name": user.name or "",
         "customer_phone": user.phone or "",
+        "channel_type": channel_type,
+        "channel_display_name": channel_display,
         "message_count": summary.message_count,
         "summary": summary.summary_text,
     }

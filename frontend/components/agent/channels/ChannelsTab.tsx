@@ -176,9 +176,9 @@ export function ChannelsTab({ agentId, canEdit }: ChannelsTabProps) {
 
       {/* Business Assistant Mode (Meta compliance) */}
       {canEdit && (
-        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
-          <div className="flex items-center justify-between">
-            <div>
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4" dir="rtl">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1 min-w-0">
               <div className="text-sm font-medium text-amber-300 flex items-center gap-2">
                 <span>🛡️</span>
                 Business Assistant Mode
@@ -190,7 +190,8 @@ export function ChannelsTab({ agentId, canEdit }: ChannelsTabProps) {
             <button
               onClick={() => handleToggleBusinessMode(!businessAssistantMode)}
               disabled={savingMode}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+              dir="ltr"
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${
                 businessAssistantMode ? 'bg-amber-500' : 'bg-slate-700'
               } ${savingMode ? 'opacity-50 cursor-not-allowed' : ''}`}
               aria-label="Toggle Business Assistant Mode"
