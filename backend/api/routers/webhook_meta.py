@@ -135,7 +135,7 @@ async def _handle_single_message(msg: ParsedIncomingMessage) -> None:
                 profile_pic = existing_cu.profile_pic_url
             else:
                 try:
-                    from backend.services.channels.credential_store import decrypt_credentials
+                    from backend.core.encryption import decrypt_credentials
                     creds = decrypt_credentials(channel.credentials_encrypted)
                     token = creds.get("access_token", "")
                     from backend.services.channels.instagram import get_user_profile
