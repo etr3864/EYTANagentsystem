@@ -119,6 +119,10 @@ async def _handle_single_message(msg: ParsedIncomingMessage) -> None:
             log("webhook_meta_skip", msg=f"no channel for {msg.channel_type}/{msg.external_account_id}")
             return
 
+        if not channel.agent or not channel.agent.is_active:
+            log("webhook_meta_skip", msg=f"agent inactive for {msg.channel_type}/{msg.external_account_id}")
+            return
+
         # For Instagram: fetch profile from API on first contact
         display_name = msg.display_name
         profile_pic = None
@@ -213,7 +217,7 @@ async def _handle_single_message(msg: ParsedIncomingMessage) -> None:
 
         if debounce == 0:
             await process_batched_messages(
-                channel.agent_id, msg.external_user_id, msg.display_name,
+                channel.agent_id, msg.external_user_id, display_name,
                 [pending], send_fn, msg.channel_type, send_media_fn,
                 channel_id=channel.id, channel_user_id=channel_user_id,
             )
@@ -223,7 +227,7 @@ async def _handle_single_message(msg: ParsedIncomingMessage) -> None:
 
         async def process_callback(pending_msgs):
             await process_batched_messages(
-                channel.agent_id, msg.external_user_id, msg.display_name,
+                channel.agent_id, msg.external_user_id, display_name,
                 pending_msgs, send_fn, msg.channel_type, send_media_fn,
                 channel_id=channel.id, channel_user_id=channel_user_id,
             )

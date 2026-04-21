@@ -124,7 +124,7 @@ def _fetch_channel_stats(
         FROM conversations c
         LEFT JOIN messages m ON m.conversation_id = c.id AND m.role = 'user'
             AND m.created_at >= :start_dt AND m.created_at <= :end_dt
-        LEFT JOIN appointments a ON a.conversation_id = c.id
+        LEFT JOIN appointments a ON a.agent_id = c.agent_id AND a.user_id = c.user_id
         WHERE c.agent_id = :agent_id
           AND c.created_at >= :start_dt
           AND c.created_at <= :end_dt

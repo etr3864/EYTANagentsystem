@@ -8,6 +8,7 @@ import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useAuth } from '@/contexts/AuthContext';
 import { isSuperAdmin } from '@/lib/auth';
 import { LegalFooter } from '@/components/ui/LegalModals';
+import { CHANNEL_ICONS, CHANNEL_DISPLAY_NAMES, type ChannelType } from '@/lib/channels';
 
 function HomePage() {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -150,29 +151,25 @@ function HomePage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className={`status-dot ${agent.is_active ? 'active' : 'inactive'}`} />
                         <span className="text-base md:text-lg font-semibold text-white truncate">{agent.name}</span>
-                        {/* Provider Badge */}
-                        <span className={`
-                          text-xs px-2 py-0.5 rounded flex items-center gap-1
-                          ${agent.provider === 'wasender' 
-                            ? 'bg-emerald-500/20 text-emerald-400' 
-                            : 'bg-purple-500/20 text-purple-300'
-                          }
-                        `}>
-                          {agent.provider === 'wasender' ? (
-                            <>
-                              <WaSenderSmallIcon />
-                              WA Sender
-                            </>
-                          ) : (
-                            <>
-                              <MetaSmallIcon />
-                              Meta
-                            </>
-                          )}
-                        </span>
+                        {/* Channel Badges */}
+                        {(agent.active_channel_types ?? []).length > 0 ? (
+                          (agent.active_channel_types ?? []).map((ct) => (
+                            <span
+                              key={ct}
+                              title={CHANNEL_DISPLAY_NAMES[ct as ChannelType] ?? ct}
+                              className="text-xs px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300"
+                            >
+                              {CHANNEL_ICONS[ct as ChannelType] ?? '📡'}{' '}
+                              {CHANNEL_DISPLAY_NAMES[ct as ChannelType]?.split(' ')[0] ?? ct}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs px-2 py-0.5 rounded bg-slate-700/50 text-slate-500">
+                            לא מחובר
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-3 mt-1">
-                        <span className="text-xs md:text-sm text-slate-400 truncate">{agent.phone_number_id}</span>
                         <span className="text-xs text-slate-500 bg-slate-700/50 px-2 py-0.5 rounded hidden sm:inline">
                           {agent.model.split('-').slice(0, 2).join(' ')}
                         </span>

@@ -124,15 +124,37 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete }: C
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div className={`
-                  w-10 h-10 rounded-full flex items-center justify-center text-lg
-                  ${selectedId === conv.id ? 'bg-blue-500/20' : 'bg-slate-700/50'}
-                `}>
-                  {getGenderIcon(conv.user_gender)}
-                </div>
+                {conv.channel_profile_pic ? (
+                  <img
+                    src={conv.channel_profile_pic}
+                    alt=""
+                    className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                ) : (
+                  <div className={`
+                    w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0
+                    ${selectedId === conv.id ? 'bg-blue-500/20' : 'bg-slate-700/50'}
+                  `}>
+                    {getGenderIcon(conv.user_gender)}
+                  </div>
+                )}
                 <div>
                   <div className="font-medium text-white text-sm flex items-center gap-1.5">
-                    {conv.user_name || `לקוח ${conv.user_phone.slice(-4)}`}
+                    {conv.channel_username ? (
+                      <a
+                        href={`https://instagram.com/${conv.channel_username}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="hover:text-pink-400 transition-colors"
+                        title={`@${conv.channel_username}`}
+                      >
+                        @{conv.channel_username}
+                      </a>
+                    ) : (
+                      conv.user_name || `לקוח ${conv.user_phone.slice(-4)}`
+                    )}
                     {showChannelBadges && <ChannelBadge channelType={conv.channel_type} />}
                   </div>
                   <div className="text-xs text-slate-400 font-mono">

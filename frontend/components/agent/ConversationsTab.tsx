@@ -60,9 +60,36 @@ export function ConversationsTab({
                   className="md:hidden flex items-center gap-2 px-4 py-2.5 border-b border-slate-700 text-sm text-slate-300 hover:bg-slate-700/30"
                 >
                   <span>→</span>
-                  <span className="font-medium">{selectedConv?.user_name || 'חזרה לשיחות'}</span>
+                  {selectedConv?.channel_profile_pic && (
+                    <img src={selectedConv.channel_profile_pic} alt="" className="w-6 h-6 rounded-full" />
+                  )}
+                  <span className="font-medium">
+                    {selectedConv?.channel_username
+                      ? `@${selectedConv.channel_username}`
+                      : selectedConv?.user_name || 'חזרה לשיחות'}
+                  </span>
                 </button>
               )}
+              {/* Desktop chat header with user info */}
+              <div className="hidden md:flex items-center gap-3 px-4 py-2 border-b border-slate-700 bg-slate-800/30">
+                {selectedConv?.channel_profile_pic && (
+                  <img src={selectedConv.channel_profile_pic} alt="" className="w-8 h-8 rounded-full object-cover" />
+                )}
+                <div className="text-sm font-medium text-white">
+                  {selectedConv?.channel_username ? (
+                    <a
+                      href={`https://instagram.com/${selectedConv.channel_username}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-pink-400 transition-colors"
+                    >
+                      @{selectedConv.channel_username}
+                    </a>
+                  ) : (
+                    selectedConv?.user_name || `לקוח ${selectedConv?.user_phone?.slice(-4) ?? ''}`
+                  )}
+                </div>
+              </div>
               <ChatView 
                 messages={messages}
                 conversationId={selectedId}

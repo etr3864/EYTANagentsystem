@@ -214,7 +214,9 @@ def list_agent_conversations(
             u.phone   AS user_phone,
             u.name    AS user_name,
             u.gender  AS user_gender,
-            cu.external_id AS channel_external_id
+            cu.external_id   AS channel_external_id,
+            cu.display_name  AS channel_display_name_user,
+            cu.profile_pic_url AS channel_profile_pic
         FROM conversations c
         JOIN users u ON u.id = c.user_id
         LEFT JOIN channel_users cu ON cu.id = c.channel_user_id
@@ -225,17 +227,20 @@ def list_agent_conversations(
     result = []
     for r in rows:
         channel_type = r.channel_type_snapshot
+        ig_username = r.channel_display_name_user if channel_type == "instagram" else None
         result.append({
             "id": r.id,
             "user_id": r.user_id,
             "user_phone": r.channel_external_id or r.user_phone,
-            "user_name": r.user_name,
+            "user_name": r.channel_display_name_user or r.user_name,
             "user_gender": r.user_gender,
             "is_paused": r.is_paused,
             "opted_out": r.opted_out,
             "last_customer_message_at": r.last_customer_message_at.isoformat() if r.last_customer_message_at else None,
             "channel_type": channel_type,
             "channel_display_name": CHANNEL_DISPLAY_NAMES.get(channel_type, channel_type) if channel_type else None,
+            "channel_profile_pic": r.channel_profile_pic,
+            "channel_username": ig_username,
             "created_at": r.created_at.isoformat() if r.created_at else None,
             "updated_at": r.updated_at.isoformat() if r.updated_at else None,
         })

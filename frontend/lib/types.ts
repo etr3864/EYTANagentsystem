@@ -116,6 +116,8 @@ export interface Conversation {
   updated_at: string | null;
   channel_type?: string | null;
   channel_external_id?: string | null;
+  channel_profile_pic?: string | null;
+  channel_username?: string | null;
 }
 
 // ============ Message ============
