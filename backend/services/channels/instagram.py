@@ -23,7 +23,8 @@ async def get_user_profile(access_token: str, user_id: str) -> Optional[dict]:
         async with httpx.AsyncClient(timeout=5) as client:
             resp = await client.get(
                 f"https://graph.facebook.com/v21.0/{user_id}",
-                params={"access_token": access_token, "fields": fields},
+                headers={"Authorization": f"Bearer {access_token}"},
+                params={"fields": fields},
             )
         if resp.status_code == 200:
             return resp.json()

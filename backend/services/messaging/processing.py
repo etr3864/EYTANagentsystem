@@ -124,8 +124,8 @@ async def process_batched_messages(
             if cu:
                 if cu.display_name:
                     user_info["channel_username"] = cu.display_name
-                if cu.metadata:
-                    user_info["channel_meta"] = cu.metadata
+                if cu.metadata_:
+                    user_info["channel_meta"] = cu.metadata_
         
         # Build compliance system prompt prefix when Business Assistant mode is on
         base_prompt = agent.system_prompt or ""
