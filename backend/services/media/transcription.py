@@ -95,18 +95,14 @@ def _sync_transcribe(audio_bytes: bytes, creds_path: str, language_code: str) ->
         from google.cloud import speech
         from google.oauth2 import service_account
 
-        log_audio("stt_start", msg=f"{len(audio_bytes)}B ogg={_is_ogg(audio_bytes)}")
+        log_audio("stt_start", msg=f"{len(audio_bytes)}B fmt={_detect_suffix(audio_bytes)}")
 
-        if _is_ogg(audio_bytes):
-            encoding = speech.RecognitionConfig.AudioEncoding.OGG_OPUS
-            data = audio_bytes
-        else:
-            wav_data = _convert_to_wav(audio_bytes)
-            if not wav_data:
-                log_error("audio", "ffmpeg conversion returned None, cannot transcribe")
-                return None
-            encoding = speech.RecognitionConfig.AudioEncoding.LINEAR16
-            data = wav_data
+        wav_data = _convert_to_wav(audio_bytes)
+        if not wav_data:
+            log_error("audio", "ffmpeg conversion returned None, cannot transcribe")
+            return None
+        encoding = speech.RecognitionConfig.AudioEncoding.LINEAR16
+        data = wav_data
         
         credentials = service_account.Credentials.from_service_account_file(creds_path)
         client = speech.SpeechClient(credentials=credentials)
