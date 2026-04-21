@@ -13,16 +13,16 @@ META_GRAPH_URL = "https://graph.instagram.com/v20.0"
 
 
 async def get_user_profile(access_token: str, user_id: str) -> Optional[dict]:
-    """Fetch Instagram user profile by IGSID.
+    """Fetch Instagram customer profile by IGSID (Messaging User Profile API).
 
-    Returns {"name", "username", "profile_picture_url", "follower_count",
+    Returns {"name", "username", "profile_pic", "follower_count",
              "is_verified_user", "is_user_follow_business"} or None.
     """
     try:
-        fields = "name,username,profile_picture_url,follower_count,is_verified_user,is_user_follow_business"
+        fields = "name,username,profile_pic,follower_count,is_verified_user,is_user_follow_business"
         async with httpx.AsyncClient(timeout=5) as client:
             resp = await client.get(
-                f"{META_GRAPH_URL}/{user_id}",
+                f"https://graph.facebook.com/v21.0/{user_id}",
                 params={"access_token": access_token, "fields": fields},
             )
         if resp.status_code == 200:

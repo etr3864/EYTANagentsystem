@@ -142,7 +142,7 @@ async def _handle_single_message(msg: ParsedIncomingMessage) -> None:
                     profile = await get_user_profile(token, msg.external_user_id)
                     if profile:
                         display_name = profile.get("username") or profile.get("name")
-                        profile_pic = profile.get("profile_picture_url")
+                        profile_pic = profile.get("profile_pic")
                         profile_metadata = {
                             k: profile.get(k)
                             for k in ("follower_count", "is_verified_user", "is_user_follow_business")

@@ -117,6 +117,19 @@ def build_system_prompt(
         }
         ch = user_info["channel"]
         info_parts.append(f"ערוץ תקשורת: {channel_names.get(ch, ch)}")
+    if user_info.get("channel_username"):
+        info_parts.append(f"שם משתמש: @{user_info['channel_username']}")
+    if user_info.get("channel_meta"):
+        cm = user_info["channel_meta"]
+        parts = []
+        if cm.get("follower_count") is not None:
+            parts.append(f"עוקבים: {cm['follower_count']}")
+        if cm.get("is_user_follow_business") is not None:
+            parts.append(f"עוקב אחרי העסק: {'כן' if cm['is_user_follow_business'] else 'לא'}")
+        if cm.get("is_verified_user"):
+            parts.append("מאומת")
+        if parts:
+            info_parts.append(" | ".join(parts))
     if user_info.get("metadata"):
         meta = user_info["metadata"]
         if meta.get("business_type"):

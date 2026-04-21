@@ -117,6 +117,15 @@ async def process_batched_messages(
         user = users.get_or_create(db, user_phone, user_name)
         user_info = get_user_info(user)
         user_info["channel"] = provider
+
+        if channel_user_id:
+            from backend.services.channels.channel_users import get_by_id as get_cu
+            cu = get_cu(db, channel_user_id)
+            if cu:
+                if cu.display_name:
+                    user_info["channel_username"] = cu.display_name
+                if cu.metadata:
+                    user_info["channel_meta"] = cu.metadata
         
         # Build compliance system prompt prefix when Business Assistant mode is on
         base_prompt = agent.system_prompt or ""
