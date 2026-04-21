@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import type { Conversation } from '@/lib/types';
 import { CHANNEL_DISPLAY_NAMES } from '@/lib/channels';
 import { ChannelIcon } from '@/components/ui/Icons';
@@ -10,6 +10,9 @@ interface ContactListProps {
   selectedId: number | null;
   onSelect: (id: number) => void;
   onDelete: (id: number) => void;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  loadingMore?: boolean;
 }
 
 function getGenderIcon(gender: string | null): string {
@@ -28,9 +31,27 @@ function ChannelBadge({ channelType }: { channelType: string | null | undefined 
   );
 }
 
-export function ContactList({ conversations, selectedId, onSelect, onDelete }: ContactListProps) {
+export function ContactList({ conversations, selectedId, onSelect, onDelete, onLoadMore, hasMore, loadingMore }: ContactListProps) {
   const [search, setSearch] = useState('');
   const [channelFilter, setChannelFilter] = useState<string>('all');
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  const handleIntersection = useCallback(
+    (entries: IntersectionObserverEntry[]) => {
+      if (entries[0]?.isIntersecting && hasMore && !loadingMore && onLoadMore) {
+        onLoadMore();
+      }
+    },
+    [hasMore, loadingMore, onLoadMore],
+  );
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(handleIntersection, { rootMargin: '200px' });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [handleIntersection]);
 
   const channelTypes = useMemo(() => {
     const types = new Set<string>();
@@ -197,6 +218,14 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete }: C
             </div>
           </div>
         ))}
+
+        {/* Sentinel for infinite scroll */}
+        <div ref={sentinelRef} className="h-1" />
+        {loadingMore && (
+          <div className="flex justify-center py-4">
+            <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
       </div>
     </div>
   );

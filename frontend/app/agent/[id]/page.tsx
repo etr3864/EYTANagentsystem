@@ -19,7 +19,7 @@ import {
   getDocuments, uploadDocument, deleteDocument,
   getDataTables, uploadDataTable, deleteDataTable,
   getAgentMedia, uploadAgentMedia, updateAgentMedia, deleteAgentMedia,
-  type MediaUploadData
+  type MediaUploadData, type ConversationCursor,
 } from '@/lib/api';
 import type { Agent, AgentBatchingConfig, ContextSummaryConfig, Conversation, Message, Document, DataTable, Provider, WaSenderConfig, AgentMedia, MediaConfig, CustomApiKeys } from '@/lib/types';
 
@@ -100,8 +100,10 @@ function AgentPage() {
     enabled: false, message_threshold: 20, messages_after_summary: 20, full_summary_every: 5,
   });
 
-  // Conversations state
+  // Conversations state (cursor-paginated)
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [nextCursor, setNextCursor] = useState<ConversationCursor | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [selectedConv, setSelectedConv] = useState<number | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
 
@@ -188,13 +190,13 @@ function AgentPage() {
 
   async function loadConversations() {
     try {
-      const data = await getConversations(agentId);
-      setConversations(data);
-      
-      // Check if URL has a conversation phone to auto-select
+      const page = await getConversations(agentId);
+      setConversations(page.items);
+      setNextCursor(page.next_cursor);
+
       const urlPhone = searchParams.get('conv');
-      if (urlPhone && data.length > 0) {
-        const conv = data.find(c => c.user_phone === phoneFromUrl(urlPhone));
+      if (urlPhone && page.items.length > 0) {
+        const conv = page.items.find(c => c.user_phone === phoneFromUrl(urlPhone));
         if (conv) {
           loadMessagesWithPhone(conv.id, conv.user_phone);
           setTab('conversations');
@@ -202,6 +204,20 @@ function AgentPage() {
       }
     } catch (e) {
       console.error(e);
+    }
+  }
+
+  async function loadMoreConversations() {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const page = await getConversations(agentId, nextCursor);
+      setConversations(prev => [...prev, ...page.items]);
+      setNextCursor(page.next_cursor);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingMore(false);
     }
   }
 
@@ -532,6 +548,9 @@ function AgentPage() {
               onDeselectConversation={() => { setSelectedConv(null); setMessages([]); updateUrlWithConversation(null); }}
               onSendMessage={handleSendMessage}
               onTogglePause={handleTogglePause}
+              onLoadMore={loadMoreConversations}
+              hasMore={!!nextCursor}
+              loadingMore={loadingMore}
             />
           )}
 

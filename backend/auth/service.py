@@ -2,7 +2,7 @@
 Auth service - business logic for user management.
 """
 from typing import Optional
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 
 from .models import AuthUser, UserRole
@@ -272,11 +272,13 @@ def get_accessible_agents(db: Session, user: AuthUser) -> list[Agent]:
     - Admin: owned agents
     - Employee: agents owned by their admin
     """
+    base = db.query(Agent).options(joinedload(Agent.channels))
+
     if user.role == UserRole.SUPER_ADMIN:
-        return db.query(Agent).all()
-    
+        return base.all()
+
     admin_id = user.get_admin_id()
-    return db.query(Agent).filter(Agent.owner_id == admin_id).all()
+    return base.filter(Agent.owner_id == admin_id).all()
 
 
 def can_access_conversation(db: Session, user: AuthUser, conversation_id: int) -> bool:

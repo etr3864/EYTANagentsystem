@@ -1,4 +1,4 @@
-import type { Agent, AgentCreate, AgentUpdate, User, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DataTable, Provider, WaSenderConfig, DbMedia, AgentMedia, MediaConfig, WhatsAppTemplate, DbTemplate, MetaInfo, FollowupConfig, FollowupStats, DbFollowup } from './types';
+import type { Agent, AgentCreate, AgentUpdate, User, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DataTable, Provider, WaSenderConfig, DbMedia, AgentMedia, MediaConfig, WhatsAppTemplate, DbTemplate, MetaInfo, FollowupConfig, FollowupStats, DbFollowup, DbChannel, DbChannelUser } from './types';
 import { getAccessToken, clearAuth } from './auth';
 
 // Production URL or environment variable or localhost for development
@@ -91,8 +91,28 @@ export async function deleteUser(id: number): Promise<void> {
 }
 
 // ============ Conversations ============
-export async function getConversations(agentId: number): Promise<Conversation[]> {
-  const res = await authFetch(`${API_URL}/api/agents/${agentId}/conversations`);
+export interface ConversationCursor {
+  cursor_time: string;
+  cursor_id: number;
+}
+
+export interface ConversationsPage {
+  items: Conversation[];
+  next_cursor: ConversationCursor | null;
+}
+
+export async function getConversations(
+  agentId: number,
+  cursor?: ConversationCursor | null,
+): Promise<ConversationsPage> {
+  const params = new URLSearchParams();
+  if (cursor) {
+    params.set('cursor_time', cursor.cursor_time);
+    params.set('cursor_id', String(cursor.cursor_id));
+  }
+  const qs = params.toString();
+  const url = `${API_URL}/api/agents/${agentId}/conversations${qs ? `?${qs}` : ''}`;
+  const res = await authFetch(url);
   if (!res.ok) throw new Error('Failed to fetch conversations');
   return res.json();
 }
@@ -131,77 +151,46 @@ export async function sendMessage(convId: number, text: string): Promise<{ statu
   return res.json();
 }
 
-// ============ Database ============
-export async function getDbConversations(): Promise<DbConversation[]> {
-  const res = await authFetch(`${API_URL}/api/db/conversations`);
-  if (!res.ok) throw new Error('Failed to fetch conversations');
+// ============ Database (paginated) ============
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  page: number;
+  per_page: number;
+  total: number;
+  has_more: boolean;
+}
+
+async function fetchDbPage<T>(path: string, page = 1, perPage = 50): Promise<PaginatedResponse<T>> {
+  const res = await authFetch(`${API_URL}/api/db/${path}?page=${page}&per_page=${perPage}`);
+  if (!res.ok) throw new Error(`Failed to fetch ${path}`);
   return res.json();
 }
 
-export async function getDbMessages(limit = 100): Promise<DbMessage[]> {
-  const res = await authFetch(`${API_URL}/api/db/messages?limit=${limit}`);
-  if (!res.ok) throw new Error('Failed to fetch messages');
-  return res.json();
+async function deleteDbRecord(path: string, id: number): Promise<void> {
+  const res = await authFetch(`${API_URL}/api/db/${path}/${id}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail || `Failed to delete ${path}/${id}`);
+  }
 }
 
-export async function deleteDbMessage(msgId: number): Promise<void> {
-  const res = await authFetch(`${API_URL}/api/db/messages/${msgId}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete message');
-}
+export const getDbConversations = (page?: number) => fetchDbPage<DbConversation>('conversations', page);
+export const getDbMessages = (page?: number) => fetchDbPage<DbMessage>('messages', page);
+export const getDbAppointments = (page?: number) => fetchDbPage<DbAppointment>('appointments', page);
+export const getDbReminders = (page?: number) => fetchDbPage<DbReminder>('reminders', page);
+export const getDbSummaries = (page?: number) => fetchDbPage<DbSummary>('summaries', page);
+export const getDbMedia = (page?: number) => fetchDbPage<DbMedia>('media', page);
+export const getDbChannels = (page?: number) => fetchDbPage<DbChannel>('channels', page);
+export const getDbChannelUsers = (page?: number) => fetchDbPage<DbChannelUser>('channel-users', page);
 
-export async function getUsageStats(): Promise<UsageStats[]> {
-  const res = await authFetch(`${API_URL}/api/db/usage`);
-  if (!res.ok) throw new Error('Failed to fetch usage stats');
-  return res.json();
-}
-
-// ============ Appointments ============
-export async function getDbAppointments(): Promise<DbAppointment[]> {
-  const res = await authFetch(`${API_URL}/api/db/appointments`);
-  if (!res.ok) throw new Error('Failed to fetch appointments');
-  return res.json();
-}
-
-export async function deleteDbAppointment(aptId: number): Promise<void> {
-  const res = await authFetch(`${API_URL}/api/db/appointments/${aptId}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete appointment');
-}
-
-// ============ Reminders ============
-export async function getDbReminders(): Promise<DbReminder[]> {
-  const res = await authFetch(`${API_URL}/api/db/reminders`);
-  if (!res.ok) throw new Error('Failed to fetch reminders');
-  return res.json();
-}
-
-export async function deleteDbReminder(reminderId: number): Promise<void> {
-  const res = await authFetch(`${API_URL}/api/db/reminders/${reminderId}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete reminder');
-}
-
-// ============ Summaries ============
-export async function getDbSummaries(): Promise<DbSummary[]> {
-  const res = await authFetch(`${API_URL}/api/db/summaries`);
-  if (!res.ok) throw new Error('Failed to fetch summaries');
-  return res.json();
-}
-
-export async function deleteDbSummary(summaryId: number): Promise<void> {
-  const res = await authFetch(`${API_URL}/api/db/summaries/${summaryId}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete summary');
-}
-
-// ============ DB Media ============
-export async function getDbMedia(): Promise<DbMedia[]> {
-  const res = await authFetch(`${API_URL}/api/db/media`);
-  if (!res.ok) throw new Error('Failed to fetch media');
-  return res.json();
-}
-
-export async function deleteDbMedia(mediaId: number): Promise<void> {
-  const res = await authFetch(`${API_URL}/api/db/media/${mediaId}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete media');
-}
+export const deleteDbMessage = (id: number) => deleteDbRecord('messages', id);
+export const deleteDbAppointment = (id: number) => deleteDbRecord('appointments', id);
+export const deleteDbReminder = (id: number) => deleteDbRecord('reminders', id);
+export const deleteDbSummary = (id: number) => deleteDbRecord('summaries', id);
+export const deleteDbMedia = (id: number) => deleteDbRecord('media', id);
+export const deleteDbChannel = (id: number) => deleteDbRecord('channels', id);
+export const deleteDbChannelUser = (id: number) => deleteDbRecord('channel-users', id);
 
 // ============ Agent Media ============
 export async function getAgentMedia(agentId: number, mediaType?: string): Promise<AgentMedia[]> {
@@ -605,17 +594,8 @@ export async function deleteEmployee(id: number): Promise<void> {
 }
 
 // ============ DB Templates ============
-
-export async function getDbTemplates(): Promise<DbTemplate[]> {
-  const res = await authFetch(`${API_URL}/api/db/templates`);
-  if (!res.ok) throw new Error('Failed to fetch templates');
-  return res.json();
-}
-
-export async function deleteDbTemplate(id: number): Promise<void> {
-  const res = await authFetch(`${API_URL}/api/db/templates/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete template');
-}
+export const getDbTemplates = (page?: number) => fetchDbPage<DbTemplate>('templates', page);
+export const deleteDbTemplate = (id: number) => deleteDbRecord('templates', id);
 
 // ============ WhatsApp Templates ============
 
@@ -701,16 +681,9 @@ export async function getFollowupStats(agentId: number): Promise<FollowupStats> 
   return res.json();
 }
 
-export async function getDbFollowups(): Promise<DbFollowup[]> {
-  const res = await authFetch(`${API_URL}/api/db/followups`);
-  if (!res.ok) throw new Error('Failed to fetch followups');
-  return res.json();
-}
+export const getDbFollowups = (page?: number) => fetchDbPage<DbFollowup>('followups', page);
 
-export async function deleteDbFollowup(id: number): Promise<void> {
-  const res = await authFetch(`${API_URL}/api/db/followups/${id}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete followup');
-}
+export const deleteDbFollowup = (id: number) => deleteDbRecord('followups', id);
 
 // ============ Dashboard ============
 
@@ -795,4 +768,4 @@ export async function exportConversations(
 }
 
 // Re-export types
-export type { Agent, AgentCreate, AgentUpdate, AgentBatchingConfig, ContextSummaryConfig, Provider, WaSenderConfig, CustomApiKeys, User, Gender, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DataTable, DbMedia, AgentMedia, MediaConfig, MediaType, WhatsAppTemplate, TemplateCategory, TemplateStatus, DbTemplate, FollowupConfig, FollowupStep, FollowupStats, DbFollowup, DashboardStats, SystemSummary, AgentTableRow, AgentDetail, PricingConfig } from './types';
+export type { Agent, AgentCreate, AgentUpdate, AgentBatchingConfig, ContextSummaryConfig, Provider, WaSenderConfig, CustomApiKeys, User, Gender, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DataTable, DbMedia, AgentMedia, MediaConfig, MediaType, WhatsAppTemplate, TemplateCategory, TemplateStatus, DbTemplate, FollowupConfig, FollowupStep, FollowupStats, DbFollowup, DbChannel, DbChannelUser, DashboardStats, SystemSummary, AgentTableRow, AgentDetail, PricingConfig } from './types';

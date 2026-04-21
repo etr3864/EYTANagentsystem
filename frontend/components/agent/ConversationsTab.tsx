@@ -14,12 +14,16 @@ interface ConversationsTabProps {
   onDeselectConversation?: () => void;
   onSendMessage?: (text: string) => Promise<void>;
   onTogglePause?: () => Promise<void>;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  loadingMore?: boolean;
 }
 
 export function ConversationsTab({
   conversations, selectedId, messages,
   onSelectConversation, onDeleteConversation, onDeselectConversation,
-  onSendMessage, onTogglePause
+  onSendMessage, onTogglePause,
+  onLoadMore, hasMore, loadingMore,
 }: ConversationsTabProps) {
   const selectedConv = conversations.find(c => c.id === selectedId);
   if (conversations.length === 0) {
@@ -46,6 +50,9 @@ export function ConversationsTab({
             selectedId={selectedId}
             onSelect={onSelectConversation}
             onDelete={onDeleteConversation}
+            onLoadMore={onLoadMore}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
           />
         </div>
 

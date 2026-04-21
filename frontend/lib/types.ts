@@ -139,6 +139,7 @@ export interface DbConversation {
   user_id: number;
   user_phone: string | null;
   user_name: string | null;
+  channel_type_snapshot: string | null;
   updated_at: string | null;
 }
 
@@ -373,6 +374,32 @@ export interface DbTemplate {
   category: TemplateCategory;
   status: TemplateStatus;
   created_at: string | null;
+}
+
+// ============ Channels (DB view) ============
+export interface DbChannel {
+  id: number;
+  agent_id: number;
+  agent_name: string | null;
+  channel_type: string;
+  external_account_id: string;
+  account_name: string | null;
+  is_active: boolean;
+  health_status: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface DbChannelUser {
+  id: number;
+  channel_id: number;
+  channel_type: string | null;
+  external_id: string;
+  bsuid: string | null;
+  display_name: string | null;
+  profile_pic_url: string | null;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 // ============ Dashboard ============

@@ -175,7 +175,8 @@ async def process_batched_messages(
 
         if conv.is_paused:
             for msg in pending_msgs:
-                messages.add(db, conv.id, "user", msg.text, message_type=msg.msg_type)
+                messages.add_no_commit(db, conv.id, "user", msg.text, message_type=msg.msg_type)
+            db.commit()
             log("PAUSED", agent=agent.name, user=display_name, msgs=len(pending_msgs))
             return
         
@@ -194,16 +195,18 @@ async def process_batched_messages(
                 content_to_save = f"[תמונה]: {description}"
                 msg.text = content_to_save
 
-            messages.add(db, conv.id, "user", content_to_save, message_type=msg.msg_type)
-        
+            messages.add_no_commit(db, conv.id, "user", content_to_save, message_type=msg.msg_type)
+        db.commit()
+
         combined_text = "\n".join(msg.text for msg in pending_msgs)
         log_message(agent.name, display_name, combined_text, len(pending_msgs), has_images, provider=provider)
-        
+
         # Prepare history (use context summary if available)
         from backend.services.context_summary.history import get_history_with_summary
+        fetch_limit = max_history + len(pending_msgs)
         history = get_history_with_summary(db, conv.id, agent, len(pending_msgs))
         if history is None:
-            history = messages.get_history(db, conv.id)
+            history = messages.get_history(db, conv.id, limit=fetch_limit)
             history = history[:-len(pending_msgs)]
             if len(history) > max_history:
                 history = history[-max_history:]

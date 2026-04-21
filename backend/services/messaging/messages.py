@@ -36,17 +36,46 @@ def add(
     return msg
 
 
-def get_history(db: Session, conversation_id: int) -> list[dict]:
-    msgs = db.query(Message).filter(
+def add_no_commit(
+    db: Session,
+    conversation_id: int,
+    role: str,
+    content: str,
+    message_type: str = "text",
+    media_id: int | None = None,
+    media_url: str | None = None,
+) -> Message:
+    """Add a message without committing — caller is responsible for db.commit()."""
+    msg = Message(
+        conversation_id=conversation_id,
+        role=role,
+        content=content,
+        message_type=message_type,
+        media_id=media_id,
+        media_url=media_url,
+    )
+    db.add(msg)
+    return msg
+
+
+def get_history(db: Session, conversation_id: int, limit: int | None = None) -> list[dict]:
+    query = db.query(Message).filter(
         Message.conversation_id == conversation_id
-    ).order_by(Message.created_at).all()
+    )
+    if limit:
+        query = query.order_by(Message.created_at.desc(), Message.id.desc()).limit(limit)
+        msgs = query.all()
+        msgs.reverse()
+    else:
+        msgs = query.order_by(Message.created_at, Message.id).all()
+
     return [
         {
-            "role": m.role, 
-            "content": m.content, 
+            "role": m.role,
+            "content": m.content,
             "message_type": m.message_type or "text",
-            "created_at": m.created_at.isoformat() if m.created_at else None
-        } 
+            "created_at": m.created_at.isoformat() if m.created_at else None,
+        }
         for m in msgs
     ]
 

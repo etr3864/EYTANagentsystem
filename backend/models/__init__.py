@@ -12,6 +12,7 @@ from backend.models.scheduled_followup import ScheduledFollowup
 from backend.models.conversation_context_summary import ConversationContextSummary
 from backend.models.agent_channel import AgentChannel
 from backend.models.channel_user import ChannelUser
+from backend.models.whatsapp_template import WhatsAppTemplate
 
 # Auth models (imported last to avoid circular imports)
 from backend.auth.models import AuthUser, UserRole

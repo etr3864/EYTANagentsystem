@@ -31,7 +31,10 @@ def get_history_with_summary(
     config = get_context_summary_config(agent)
     messages_after = config["messages_after_summary"]
 
-    recent = _get_messages_after(db, conversation_id, summary.last_message_id_covered)
+    fetch_limit = messages_after + pending_count
+    recent = _get_messages_after(
+        db, conversation_id, summary.last_message_id_covered, limit=fetch_limit,
+    )
 
     if pending_count > 0 and len(recent) >= pending_count:
         recent = recent[:-pending_count]
@@ -60,12 +63,15 @@ def get_history_with_summary(
 
 
 def _get_messages_after(
-    db: Session, conversation_id: int, after_message_id: int
+    db: Session, conversation_id: int, after_message_id: int, limit: int | None = None,
 ) -> list[dict]:
-    msgs = db.query(Message).filter(
+    query = db.query(Message).filter(
         Message.conversation_id == conversation_id,
-        Message.id > after_message_id
-    ).order_by(Message.created_at).all()
+        Message.id > after_message_id,
+    ).order_by(Message.created_at, Message.id)
+
+    if limit:
+        query = query.limit(limit)
 
     return [
         {
@@ -74,5 +80,5 @@ def _get_messages_after(
             "message_type": m.message_type or "text",
             "created_at": m.created_at.isoformat() if m.created_at else None,
         }
-        for m in msgs
+        for m in query.all()
     ]

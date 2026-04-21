@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
-from sqlalchemy import String, Text, Boolean, DateTime, JSON, ForeignKey
+from sqlalchemy import String, Text, Boolean, DateTime, ForeignKey, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.orm.attributes import flag_modified
 from backend.core.database import Base
@@ -51,14 +52,14 @@ class Agent(Base):
     # Provider-specific config (JSON)
     # For meta: {} (uses phone_number_id, access_token, verify_token above)
     # For wasender: {"api_key": "...", "webhook_secret": "...", "session": "default"}
-    provider_config: Mapped[Optional[dict]] = mapped_column(JSON, default=dict)
+    provider_config: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
     
     # Batching config (JSON) - settings for message batching
-    batching_config: Mapped[Optional[dict]] = mapped_column(JSON, default=DEFAULT_BATCHING_CONFIG)
+    batching_config: Mapped[Optional[dict]] = mapped_column(JSONB, default=DEFAULT_BATCHING_CONFIG)
     
     # Usage stats (JSON) - cumulative token usage per model
     # Format: {"model_name": {"input": N, "output": N, "cache_read": N, "cache_create": N}}
-    usage_stats: Mapped[Optional[dict]] = mapped_column(JSON, default=dict)
+    usage_stats: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
     
     # Calendar configuration (JSON)
     # {
@@ -71,7 +72,7 @@ class Agent(Base):
     #   "timezone": "Asia/Jerusalem",
     #   "webhook_url": "https://..." (optional)
     # }
-    calendar_config: Mapped[Optional[dict]] = mapped_column(JSON, default=None)
+    calendar_config: Mapped[Optional[dict]] = mapped_column(JSONB, default=None)
     
     # Appointment scheduling prompt - instructions for AI on how to handle appointments
     appointment_prompt: Mapped[Optional[str]] = mapped_column(Text, default=None)
@@ -86,7 +87,7 @@ class Agent(Base):
     #   "webhook_retry_delay": 60,  # Seconds between retries
     #   "summary_prompt": "סכם את השיחה..."  # Prompt for AI summary generation
     # }
-    summary_config: Mapped[Optional[dict]] = mapped_column(JSON, default=None)
+    summary_config: Mapped[Optional[dict]] = mapped_column(JSONB, default=None)
     
     # Follow-up configuration (JSON) — sequence-based v2
     # {
@@ -97,24 +98,17 @@ class Agent(Base):
     #   "sequence": [{"delay_hours": 3, "instruction": ""}, ...],
     #   "meta_templates": [{"name": "...", "language": "he", "params": ["customer_name"]}]
     # }
-    followup_config: Mapped[Optional[dict]] = mapped_column(JSON, default=None)
+    followup_config: Mapped[Optional[dict]] = mapped_column(JSONB, default=None)
 
-    # Media configuration (JSON)
-    # {
-    #   "enabled": false,
-    #   "max_per_message": 3,  # Max media items in single response
-    #   "allow_duplicate_in_conversation": false,  # Allow same media twice in conversation
-    #   "instructions": "שלח תמונות כשלקוח מבקש..."  # AI instructions for media usage
-    # }
-    media_config: Mapped[Optional[dict]] = mapped_column(JSON, default=None)
+    media_config: Mapped[Optional[dict]] = mapped_column(JSONB, default=None)
 
-    # Per-provider API key overrides (optional, for high-consumption agents)
-    # {"anthropic": "sk-...", "openai": "sk-...", "google": "AIza-..."}
-    custom_api_keys: Mapped[Optional[dict]] = mapped_column(JSON, default=None)
+    custom_api_keys: Mapped[Optional[dict]] = mapped_column(JSONB, default=None)
 
-    # Context summary config (JSON) — rolling conversation memory
-    # {"enabled": false, "message_threshold": 20, "messages_after_summary": 20, "full_summary_every": 5}
-    context_summary_config: Mapped[Optional[dict]] = mapped_column(JSON, default=None)
+    context_summary_config: Mapped[Optional[dict]] = mapped_column(JSONB, default=None)
+
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, server_default=func.now(), onupdate=func.now()
+    )
 
     # Business Assistant mode — injects compliance prompt for Meta channels
     # Default False; auto-enabled when a Meta channel is first connected.

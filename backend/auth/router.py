@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from backend.core.database import get_db
-from backend.core.logger import log, log_error
+from backend.core.logger import log
 from .models import AuthUser, UserRole
 from .dependencies import get_current_user, require_role
 from .security import (
@@ -35,6 +35,32 @@ from .schemas import (
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _get_admin_or_404(db: Session, admin_id: int) -> AuthUser:
+    admin = service.get_by_id(db, admin_id)
+    if not admin or admin.role != UserRole.ADMIN:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Admin not found")
+    return admin
+
+
+def _get_super_admin_or_404(db: Session, user_id: int) -> AuthUser:
+    user = service.get_by_id(db, user_id)
+    if not user or user.role != UserRole.SUPER_ADMIN:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Super admin not found")
+    return user
+
+
+def _get_managed_employee(db: Session, employee_id: int, current_user: AuthUser) -> AuthUser:
+    emp = service.get_by_id(db, employee_id)
+    if not emp or emp.role != UserRole.EMPLOYEE:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Employee not found")
+    if not service.can_manage_employee(current_user, emp):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="You don't have access to this employee")
+    return emp
+
 
 # --- Login rate limiting (in-memory, per IP) ---
 _MAX_ATTEMPTS = 5
@@ -199,14 +225,7 @@ def get_admin(
     db: Session = Depends(get_db)
 ):
     """Get a specific admin by ID."""
-    admin = service.get_by_id(db, admin_id)
-    
-    if not admin or admin.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Admin not found"
-        )
-    
+    admin = _get_admin_or_404(db, admin_id)
     agents = service.get_admin_agents(db, admin.id)
     return UserWithAgentsResponse(
         **UserResponse.model_validate(admin).model_dump(),
@@ -222,17 +241,9 @@ def update_admin(
     db: Session = Depends(get_db)
 ):
     """Update an admin's details."""
-    admin = service.get_by_id(db, admin_id)
-    
-    if not admin or admin.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Admin not found"
-        )
-    
+    admin = _get_admin_or_404(db, admin_id)
     admin = service.update_user(db, admin, name=request.name, is_active=request.is_active)
     log("ADMIN_UPDATED", admin_id=admin.id, by=current_user.id)
-    
     return UserResponse.model_validate(admin)
 
 
@@ -244,17 +255,9 @@ def reset_admin_password(
     db: Session = Depends(get_db)
 ):
     """Reset an admin's password."""
-    admin = service.get_by_id(db, admin_id)
-    
-    if not admin or admin.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Admin not found"
-        )
-    
+    admin = _get_admin_or_404(db, admin_id)
     service.change_password(db, admin, request.new_password)
     log("PASSWORD_RESET", user_id=admin.id, by=current_user.id)
-    
     return MessageResponse(message="Password reset successfully")
 
 
@@ -265,23 +268,13 @@ def delete_admin(
     db: Session = Depends(get_db)
 ):
     """Delete an admin and their employees."""
-    admin = service.get_by_id(db, admin_id)
-    
-    if not admin or admin.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Admin not found"
-        )
-    
+    admin = _get_admin_or_404(db, admin_id)
     try:
         service.delete_user(db, admin)
         log("ADMIN_DELETED", admin_id=admin_id, by=current_user.id)
         return MessageResponse(message="Admin deleted successfully")
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 # ============================================================
@@ -320,10 +313,7 @@ def reset_super_admin_password(
     db: Session = Depends(get_db)
 ):
     """Reset a super admin's password."""
-    user = service.get_by_id(db, user_id)
-    if not user or user.role != UserRole.SUPER_ADMIN:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Super admin not found")
-
+    user = _get_super_admin_or_404(db, user_id)
     service.change_password(db, user, request.new_password)
     log("PASSWORD_RESET", user_id=user.id, by=current_user.id)
     return MessageResponse(message="Password reset successfully")
@@ -338,11 +328,7 @@ def delete_super_admin(
     """Delete a super admin (cannot delete yourself)."""
     if user_id == current_user.id:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="לא ניתן למחוק את עצמך")
-
-    user = service.get_by_id(db, user_id)
-    if not user or user.role != UserRole.SUPER_ADMIN:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Super admin not found")
-
+    user = _get_super_admin_or_404(db, user_id)
     service.delete_user(db, user)
     log("SUPER_ADMIN_DELETED", user_id=user_id, by=current_user.id)
     return MessageResponse(message="Super admin deleted successfully")
@@ -360,20 +346,10 @@ def assign_agent(
     db: Session = Depends(get_db)
 ):
     """Assign an agent to an admin."""
-    admin = service.get_by_id(db, admin_id)
-    if not admin or admin.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Admin not found"
-        )
-    
+    _get_admin_or_404(db, admin_id)
     agent = service.assign_agent_to_admin(db, agent_id, admin_id)
     if not agent:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Agent not found"
-        )
-    
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Agent not found")
     log("AGENT_ASSIGNED", agent_id=agent_id, admin_id=admin_id, by=current_user.id)
     return MessageResponse(message=f"Agent '{agent.name}' assigned to admin")
 
@@ -481,20 +457,7 @@ def get_employee(
     db: Session = Depends(get_db)
 ):
     """Get a specific employee."""
-    employee = service.get_by_id(db, employee_id)
-    
-    if not employee or employee.role != UserRole.EMPLOYEE:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Employee not found"
-        )
-    
-    if not service.can_manage_employee(current_user, employee):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have access to this employee"
-        )
-    
+    employee = _get_managed_employee(db, employee_id, current_user)
     return UserResponse.model_validate(employee)
 
 
@@ -506,23 +469,9 @@ def update_employee(
     db: Session = Depends(get_db)
 ):
     """Update an employee's details."""
-    employee = service.get_by_id(db, employee_id)
-    
-    if not employee or employee.role != UserRole.EMPLOYEE:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Employee not found"
-        )
-    
-    if not service.can_manage_employee(current_user, employee):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have access to this employee"
-        )
-    
+    employee = _get_managed_employee(db, employee_id, current_user)
     employee = service.update_user(db, employee, name=request.name, is_active=request.is_active)
     log("EMPLOYEE_UPDATED", employee_id=employee.id, by=current_user.id)
-    
     return UserResponse.model_validate(employee)
 
 
@@ -534,23 +483,9 @@ def reset_employee_password(
     db: Session = Depends(get_db)
 ):
     """Reset an employee's password."""
-    employee = service.get_by_id(db, employee_id)
-    
-    if not employee or employee.role != UserRole.EMPLOYEE:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Employee not found"
-        )
-    
-    if not service.can_manage_employee(current_user, employee):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have access to this employee"
-        )
-    
+    employee = _get_managed_employee(db, employee_id, current_user)
     service.change_password(db, employee, request.new_password)
     log("PASSWORD_RESET", user_id=employee.id, by=current_user.id)
-    
     return MessageResponse(message="Password reset successfully")
 
 
@@ -561,21 +496,7 @@ def delete_employee(
     db: Session = Depends(get_db)
 ):
     """Delete an employee."""
-    employee = service.get_by_id(db, employee_id)
-    
-    if not employee or employee.role != UserRole.EMPLOYEE:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Employee not found"
-        )
-    
-    if not service.can_manage_employee(current_user, employee):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have access to this employee"
-        )
-    
+    employee = _get_managed_employee(db, employee_id, current_user)
     service.delete_user(db, employee)
     log("EMPLOYEE_DELETED", employee_id=employee_id, by=current_user.id)
-    
     return MessageResponse(message="Employee deleted successfully")

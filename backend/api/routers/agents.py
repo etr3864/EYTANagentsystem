@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from backend.core.database import get_db
@@ -158,15 +159,25 @@ def delete_agent(
 
 @router.get("/{agent_id}/conversations")
 def list_agent_conversations(
-    agent_id: int, 
+    agent_id: int,
+    limit: int = Query(50, ge=1, le=200),
+    cursor_time: Optional[str] = Query(None),
+    cursor_id: Optional[int] = Query(None),
     current_user: AuthUser = Depends(AgentAccessChecker()),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    """List conversations for an agent with channel info. Uses a single JOIN query."""
+    """Paginated conversations for an agent. Uses compound cursor (updated_at, id)."""
     from sqlalchemy import text
     from backend.core.channel_types import CHANNEL_DISPLAY_NAMES
 
-    rows = db.execute(text("""
+    params: dict = {"agent_id": agent_id, "lim": limit + 1}
+    cursor_clause = ""
+    if cursor_time and cursor_id is not None:
+        cursor_clause = "AND (c.updated_at, c.id) < (:ct, :ci)"
+        params["ct"] = cursor_time
+        params["ci"] = cursor_id
+
+    rows = db.execute(text(f"""
         SELECT
             c.id,
             c.user_id,
@@ -185,28 +196,43 @@ def list_agent_conversations(
         FROM conversations c
         JOIN users u ON u.id = c.user_id
         LEFT JOIN channel_users cu ON cu.id = c.channel_user_id
-        WHERE c.agent_id = :agent_id
-        ORDER BY c.updated_at DESC
-    """), {"agent_id": agent_id}).fetchall()
+        WHERE c.agent_id = :agent_id {cursor_clause}
+        ORDER BY c.updated_at DESC, c.id DESC
+        LIMIT :lim
+    """), params).fetchall()
 
-    result = []
-    for r in rows:
-        channel_type = r.channel_type_snapshot
-        ig_username = r.channel_display_name_user if channel_type in ("instagram", "messenger") else None
-        result.append({
-            "id": r.id,
-            "user_id": r.user_id,
-            "user_phone": r.channel_external_id or r.user_phone,
-            "user_name": r.channel_display_name_user or r.user_name,
-            "user_gender": r.user_gender,
-            "is_paused": r.is_paused,
-            "opted_out": r.opted_out,
-            "last_customer_message_at": r.last_customer_message_at.isoformat() if r.last_customer_message_at else None,
-            "channel_type": channel_type,
-            "channel_display_name": CHANNEL_DISPLAY_NAMES.get(channel_type, channel_type) if channel_type else None,
-            "channel_profile_pic": r.channel_profile_pic,
-            "channel_username": ig_username,
-            "created_at": r.created_at.isoformat() if r.created_at else None,
-            "updated_at": r.updated_at.isoformat() if r.updated_at else None,
-        })
-    return result
+    has_more = len(rows) > limit
+    page_rows = rows[:limit]
+
+    items = [_conv_row_to_dict(r, CHANNEL_DISPLAY_NAMES) for r in page_rows]
+
+    next_cursor = None
+    if has_more and page_rows:
+        last = page_rows[-1]
+        next_cursor = {
+            "cursor_time": last.updated_at.isoformat() if last.updated_at else None,
+            "cursor_id": last.id,
+        }
+
+    return {"items": items, "next_cursor": next_cursor}
+
+
+def _conv_row_to_dict(r, channel_names: dict) -> dict:
+    channel_type = r.channel_type_snapshot
+    ig_username = r.channel_display_name_user if channel_type in ("instagram", "messenger") else None
+    return {
+        "id": r.id,
+        "user_id": r.user_id,
+        "user_phone": r.channel_external_id or r.user_phone,
+        "user_name": r.channel_display_name_user or r.user_name,
+        "user_gender": r.user_gender,
+        "is_paused": r.is_paused,
+        "opted_out": r.opted_out,
+        "last_customer_message_at": r.last_customer_message_at.isoformat() if r.last_customer_message_at else None,
+        "channel_type": channel_type,
+        "channel_display_name": channel_names.get(channel_type, channel_type) if channel_type else None,
+        "channel_profile_pic": r.channel_profile_pic,
+        "channel_username": ig_username,
+        "created_at": r.created_at.isoformat() if r.created_at else None,
+        "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+    }

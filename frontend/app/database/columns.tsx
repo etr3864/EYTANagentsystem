@@ -2,7 +2,7 @@
  * Column definitions for the Database admin page.
  * Each export is an array of column configs consumed by DataTable.
  */
-import type { Agent, User, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, DbMedia, DbTemplate, DbFollowup } from '@/lib/types';
+import type { Agent, User, DbConversation, DbMessage, DbAppointment, DbReminder, DbSummary, DbMedia, DbTemplate, DbFollowup, DbChannel, DbChannelUser } from '@/lib/types';
 import { parseUTCDate } from '@/lib/dates';
 
 // ─── Helpers ────────────────────────────────────────────
@@ -138,6 +138,11 @@ export const conversationColumns = [
   )},
   { key: 'phone', header: 'טלפון', render: (c: DbConversation) => (
     <span className="font-mono text-slate-400 text-sm">{c.user_phone}</span>
+  )},
+  { key: 'channel', header: 'ערוץ', render: (c: DbConversation) => (
+    c.channel_type_snapshot
+      ? <TagCell label={c.channel_type_snapshot} style="bg-indigo-500/10 text-indigo-400" />
+      : <span className="text-slate-500 text-xs">—</span>
   )},
   { key: 'updated', header: 'עודכן', render: (c: DbConversation) => <DateCell value={c.updated_at || null} withTime /> },
 ];
@@ -345,35 +350,6 @@ export const summaryColumns = [
   { key: 'created', header: 'נוצר', render: (s: DbSummary) => <DateCell value={s.created_at || null} withTime /> },
 ];
 
-// ─── Usage ──────────────────────────────────────────────
-export const usageColumns = [
-  { key: 'agent', header: 'סוכן', render: (u: UsageStats) => (
-    <span className="font-medium text-white">{u.agent_name || `#${u.agent_id}`}</span>
-  )},
-  { key: 'model', header: 'מודל', render: (u: UsageStats) => (
-    <span className="text-xs bg-slate-700/50 px-2 py-1 rounded">
-      {u.model.split('-').slice(0, 2).join(' ')}
-    </span>
-  )},
-  { key: 'input', header: 'Input', render: (u: UsageStats) => (
-    <span className="font-mono text-emerald-400">{u.input_tokens.toLocaleString()}</span>
-  )},
-  { key: 'output', header: 'Output', render: (u: UsageStats) => (
-    <span className="font-mono text-blue-400">{u.output_tokens.toLocaleString()}</span>
-  )},
-  { key: 'cache', header: 'Cache', render: (u: UsageStats) => (
-    <div className="text-xs text-slate-400">
-      <div>📖 {u.cache_read_tokens.toLocaleString()}</div>
-      <div>✍️ {u.cache_creation_tokens.toLocaleString()}</div>
-    </div>
-  )},
-  { key: 'total', header: 'סה״כ', render: (u: UsageStats) => (
-    <span className="font-mono text-yellow-400 font-medium">
-      {(u.input_tokens + u.output_tokens).toLocaleString()}
-    </span>
-  )},
-];
-
 // ─── Media ──────────────────────────────────────────────
 const MEDIA_STYLES = {
   image: { bg: 'bg-cyan-500/10 text-cyan-400', label: '🖼️ תמונה' },
@@ -510,4 +486,55 @@ export const followupColumns = [
     <span className="text-slate-400 text-xs truncate max-w-[200px] block">{f.ai_reason || '—'}</span>
   )},
   { key: 'created', header: 'נוצר', render: (f: DbFollowup) => <DateCell value={f.created_at} /> },
+];
+
+// ─── Channels ────────────────────────────────────────────
+export const channelColumns = [
+  { key: 'id', header: 'ID', render: (c: DbChannel) => (
+    <span className="font-mono text-slate-400">{c.id}</span>
+  )},
+  { key: 'agent', header: 'סוכן', render: (c: DbChannel) => (
+    <span className="text-blue-400">{c.agent_name || `#${c.agent_id}`}</span>
+  )},
+  { key: 'type', header: 'סוג', render: (c: DbChannel) => (
+    <TagCell label={c.channel_type} style="bg-indigo-500/10 text-indigo-400" />
+  )},
+  { key: 'account', header: 'חשבון', render: (c: DbChannel) => (
+    <div className="text-sm">
+      <div className="text-white">{c.account_name || '—'}</div>
+      <div className="text-xs text-slate-400 font-mono">{c.external_account_id}</div>
+    </div>
+  )},
+  { key: 'status', header: 'סטטוס', render: (c: DbChannel) => <StatusBadge active={c.is_active} /> },
+  { key: 'health', header: 'בריאות', render: (c: DbChannel) => {
+    const h = c.health_status || 'unknown';
+    const style = h === 'healthy' ? 'text-emerald-400' : h === 'error' ? 'text-red-400' : 'text-slate-500';
+    return <span className={`text-xs ${style}`}>{h}</span>;
+  }},
+  { key: 'created', header: 'נוצר', render: (c: DbChannel) => <DateCell value={c.created_at} /> },
+];
+
+// ─── Channel Users ───────────────────────────────────────
+export const channelUserColumns = [
+  { key: 'id', header: 'ID', render: (cu: DbChannelUser) => (
+    <span className="font-mono text-slate-400">{cu.id}</span>
+  )},
+  { key: 'channel', header: 'ערוץ', render: (cu: DbChannelUser) => (
+    <span className="text-indigo-400">#{cu.channel_id}</span>
+  )},
+  { key: 'type', header: 'סוג', render: (cu: DbChannelUser) => (
+    cu.channel_type
+      ? <TagCell label={cu.channel_type} style="bg-indigo-500/10 text-indigo-400" />
+      : <span className="text-slate-500">—</span>
+  )},
+  { key: 'external', header: 'External ID', render: (cu: DbChannelUser) => (
+    <span className="font-mono text-slate-300 text-xs">{cu.external_id}</span>
+  )},
+  { key: 'name', header: 'שם', render: (cu: DbChannelUser) => (
+    <span className="text-white">{cu.display_name || '—'}</span>
+  )},
+  { key: 'bsuid', header: 'BSUID', render: (cu: DbChannelUser) => (
+    <span className="font-mono text-slate-400 text-xs">{cu.bsuid || '—'}</span>
+  )},
+  { key: 'created', header: 'נוצר', render: (cu: DbChannelUser) => <DateCell value={cu.created_at} /> },
 ];
