@@ -83,10 +83,11 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete }: C
         </div>
 
         {channelTypes.length > 1 && (
-          <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${channelTypes.length + 1}, 1fr)` }}>
+          <div className="flex gap-1.5">
             <button
               onClick={() => setChannelFilter('all')}
-              className={`py-1.5 rounded-lg text-xs font-medium transition-all ${channelFilter === 'all' ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-700/60 text-slate-300 hover:bg-slate-600/80'}`}
+              title="כל הערוצים"
+              className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${channelFilter === 'all' ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-700/60 text-slate-300 hover:bg-slate-600/80'}`}
             >
               הכל
             </button>
@@ -97,10 +98,9 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete }: C
                   key={ct}
                   onClick={() => setChannelFilter(ct === channelFilter ? 'all' : ct)}
                   title={name}
-                  className={`py-1.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center gap-1 overflow-hidden ${channelFilter === ct ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-700/60 text-slate-300 hover:bg-slate-600/80'}`}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center ${channelFilter === ct ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-700/60 text-slate-300 hover:bg-slate-600/80'}`}
                 >
-                  <ChannelIcon channelType={ct} size={14} />
-                  <span className="truncate">{name}</span>
+                  <ChannelIcon channelType={ct} size={18} />
                 </button>
               );
             })}
