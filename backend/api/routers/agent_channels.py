@@ -192,6 +192,9 @@ async def oauth_callback(
 
     if channel_type == "instagram":
         pages = await get_instagram_accounts(tokens["access_token"])
+    elif channel_type == "whatsapp_meta":
+        from backend.services.meta.oauth import get_waba_phone_numbers
+        pages = await get_waba_phone_numbers(tokens["access_token"])
     else:
         pages = await get_user_pages(tokens["access_token"])
 

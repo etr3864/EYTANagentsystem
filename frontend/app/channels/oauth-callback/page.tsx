@@ -18,6 +18,10 @@ interface MetaPage {
   name: string;
   access_token: string;
   instagram_business_account?: InstagramAccount;
+  phone_number_id?: string;
+  display_phone_number?: string;
+  waba_id?: string;
+  waba_name?: string;
 }
 
 interface OAuthSession {
@@ -101,9 +105,12 @@ function OAuthCallbackInner() {
     setError(null);
 
     const igAccount = page.instagram_business_account;
-    const externalAccountId = session.channel_type === 'instagram'
-      ? (igAccount?.id || page.id)
-      : page.id;
+    const isWaMeta = session.channel_type === 'whatsapp_meta';
+    const externalAccountId = isWaMeta
+      ? (page.phone_number_id || page.id)
+      : session.channel_type === 'instagram'
+        ? (igAccount?.id || page.id)
+        : page.id;
 
     try {
       const res = await fetch(`${API_URL}/api/agents/${session.agent_id}/channels`, {
@@ -116,9 +123,9 @@ function OAuthCallbackInner() {
           channel_type: session.channel_type,
           access_token: page.access_token || session.access_token,
           external_account_id: externalAccountId,
-          account_name: igAccount?.username || page.name || null,
-          page_id: page.id,
-          waba_id: null,
+          account_name: isWaMeta ? page.name : (igAccount?.username || page.name || null),
+          page_id: isWaMeta ? null : page.id,
+          waba_id: page.waba_id || null,
           token_expires_at: session.token_expires_at || null,
         }),
       });
@@ -224,12 +231,16 @@ function OAuthCallbackInner() {
                             <div className="text-sm font-medium text-white truncate">
                               {session.channel_type === 'instagram' && ig
                                 ? `@${ig.username || ig.name}`
-                                : page.name}
+                                : session.channel_type === 'whatsapp_meta' && page.display_phone_number
+                                  ? page.display_phone_number
+                                  : page.name}
                             </div>
                             <div className="text-xs text-slate-400 truncate">
                               {session.channel_type === 'instagram' && ig
                                 ? `דף Facebook: ${page.name}`
-                                : `ID: ${page.id}`}
+                                : session.channel_type === 'whatsapp_meta'
+                                  ? `${page.name}${page.waba_name ? ` · ${page.waba_name}` : ''}`
+                                  : `ID: ${page.id}`}
                             </div>
                           </div>
                         </div>

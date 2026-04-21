@@ -159,6 +159,59 @@ async def get_waba_accounts(access_token: str) -> list[dict]:
         return []
 
 
+async def get_waba_phone_numbers(access_token: str) -> list[dict]:
+    """Fetch all WhatsApp phone numbers across all WABAs accessible to this token.
+
+    Returns items shaped like get_user_pages() output so the frontend selector
+    can reuse the same UI, with phone_number_id as the `id` field.
+    """
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            biz_resp = await client.get(
+                f"{META_GRAPH_URL}/me/businesses",
+                params={
+                    "access_token": access_token,
+                    "fields": "id,name,owned_whatsapp_business_accounts{id,name}",
+                },
+            )
+        if biz_resp.status_code != 200:
+            log_error("meta_oauth", f"get_waba_phone_numbers businesses: {biz_resp.text[:200]}")
+            return []
+
+        results: list[dict] = []
+        businesses = biz_resp.json().get("data", [])
+        async with httpx.AsyncClient(timeout=15) as client:
+            for biz in businesses:
+                wabas = biz.get("owned_whatsapp_business_accounts", {}).get("data", [])
+                for waba in wabas:
+                    waba_id = waba["id"]
+                    waba_name = waba.get("name", "")
+                    pn_resp = await client.get(
+                        f"{META_GRAPH_URL}/{waba_id}/phone_numbers",
+                        params={
+                            "access_token": access_token,
+                            "fields": "id,display_phone_number,verified_name,quality_rating",
+                        },
+                    )
+                    if pn_resp.status_code != 200:
+                        log_error("meta_oauth", f"phone_numbers for WABA {waba_id}: {pn_resp.text[:200]}")
+                        continue
+                    for pn in pn_resp.json().get("data", []):
+                        results.append({
+                            "id": pn["id"],
+                            "name": f'{pn.get("verified_name", "")} ({pn.get("display_phone_number", "")})',
+                            "access_token": access_token,
+                            "phone_number_id": pn["id"],
+                            "display_phone_number": pn.get("display_phone_number", ""),
+                            "waba_id": waba_id,
+                            "waba_name": waba_name,
+                        })
+        return results
+    except Exception as e:
+        log_error("meta_oauth", f"get_waba_phone_numbers: {e}")
+        return []
+
+
 async def subscribe_page_to_app(page_id: str, page_access_token: str) -> bool:
     """Subscribe a Facebook Page to Optive's webhooks (Messenger/WhatsApp)."""
     try:
