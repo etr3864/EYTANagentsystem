@@ -35,10 +35,6 @@ def _get_google_credentials():
             return None
 
 
-def _is_ogg(audio_bytes: bytes) -> bool:
-    return audio_bytes[:4] == b'OggS'
-
-
 def _detect_suffix(audio_bytes: bytes) -> str:
     """Guess file extension from magic bytes for better ffmpeg detection."""
     if audio_bytes[:4] == b'OggS':
@@ -58,7 +54,6 @@ def _convert_to_wav(audio_bytes: bytes) -> Optional[bytes]:
     src_path = dst_path = None
     try:
         suffix = _detect_suffix(audio_bytes)
-        log_audio("ffmpeg_convert", msg=f"input {len(audio_bytes)}B suffix={suffix} header={audio_bytes[:16].hex()}")
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as src:
             src.write(audio_bytes)
             src_path = src.name
@@ -71,9 +66,8 @@ def _convert_to_wav(audio_bytes: bytes) -> Optional[bytes]:
             stderr_msg = result.stderr[:300].decode(errors='replace')
             log_error("audio", f"ffmpeg rc={result.returncode}: {stderr_msg}")
             return None
-        wav_data = open(dst_path, 'rb').read()
-        log_audio("ffmpeg_ok", msg=f"output {len(wav_data)}B")
-        return wav_data
+        with open(dst_path, 'rb') as f:
+            return f.read()
     except FileNotFoundError:
         log_error("audio", "ffmpeg not installed")
         return None
@@ -95,11 +89,9 @@ def _sync_transcribe(audio_bytes: bytes, creds_path: str, language_code: str) ->
         from google.cloud import speech
         from google.oauth2 import service_account
 
-        log_audio("stt_start", msg=f"{len(audio_bytes)}B fmt={_detect_suffix(audio_bytes)}")
-
         wav_data = _convert_to_wav(audio_bytes)
         if not wav_data:
-            log_error("audio", "ffmpeg conversion returned None, cannot transcribe")
+            log_error("audio", "ffmpeg conversion failed")
             return None
         encoding = speech.RecognitionConfig.AudioEncoding.LINEAR16
         data = wav_data
@@ -122,9 +114,7 @@ def _sync_transcribe(audio_bytes: bytes, creds_path: str, language_code: str) ->
             if result.alternatives:
                 transcript_parts.append(result.alternatives[0].transcript)
         
-        result_text = " ".join(transcript_parts) if transcript_parts else None
-        log_audio("stt_result", msg=f"results={len(response.results)} text={'yes' if result_text else 'empty'}")
-        return result_text
+        return " ".join(transcript_parts) if transcript_parts else None
         
     except ImportError as e:
         log_error("audio", f"import error: {e}")
