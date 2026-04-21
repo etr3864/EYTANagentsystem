@@ -246,7 +246,7 @@ async def _handle_single_message(msg: ParsedIncomingMessage) -> None:
             debounce_seconds=debounce,
             max_messages=max_batch,
             process_callback=process_callback,
-            msg_type=msg.msg_type,
+            msg_type=pending.msg_type,
             image_base64=image_base64,
             media_type=msg.mime_type,
         )
