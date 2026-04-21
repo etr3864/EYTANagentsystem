@@ -204,6 +204,23 @@ async def _send_with_retry(
     return False
 
 
+async def get_profile_pic(api_key: str, phone: str) -> Optional[str]:
+    """Fetch WhatsApp profile picture URL for a contact."""
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            resp = await client.get(
+                f"{_BASE_URL}/contacts/{phone}/picture",
+                headers={"Authorization": f"Bearer {api_key}"},
+            )
+        if resp.status_code == 200:
+            data = resp.json()
+            if data.get("success"):
+                return data.get("data", {}).get("imgUrl")
+        return None
+    except Exception:
+        return None
+
+
 async def decrypt_media(api_key: str, message_key: dict, message_data: dict) -> Optional[str]:
     """Decrypt media and get public URL."""
     url = f"{_BASE_URL}/decrypt-media"

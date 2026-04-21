@@ -118,10 +118,22 @@ async def handle_wasender_message(agent_id: int, msg_data: dict):
         channel_user_id_for_closure = None
         if channel:
             try:
+                from backend.services.channels.channel_users import get_by_external_id
+                existing_cu = get_by_external_id(db, channel.id, phone)
+                profile_pic = None
+                if not existing_cu or not existing_cu.profile_pic_url:
+                    pic_url = await wasender.get_profile_pic(provider_api_key, phone)
+                    if pic_url:
+                        profile_pic = pic_url
+
                 channel_user_id_for_closure = get_or_create_for_incoming(
                     db,
                     channel,
-                    IncomingUserInfo(external_id=phone, display_name=name),
+                    IncomingUserInfo(
+                        external_id=phone,
+                        display_name=name,
+                        profile_pic_url=profile_pic,
+                    ),
                 )
                 db.commit()
             except Exception as e:
