@@ -163,11 +163,12 @@ async def _check_all_channel_health(db) -> None:
             try:
                 creds = get_credentials(ch)
                 token = creds.get("access_token", "")
+                if ch.channel_type == "instagram":
+                    url = "https://graph.instagram.com/v20.0/me"
+                else:
+                    url = "https://graph.facebook.com/v20.0/me"
                 async with httpx.AsyncClient(timeout=5) as client:
-                    resp = await client.get(
-                        f"https://graph.facebook.com/v20.0/me",
-                        params={"access_token": token},
-                    )
+                    resp = await client.get(url, params={"access_token": token})
                 status = "healthy" if resp.status_code == 200 else "degraded"
             except Exception:
                 status = "error"

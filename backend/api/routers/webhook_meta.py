@@ -116,21 +116,28 @@ async def _handle_single_message(msg: ParsedIncomingMessage) -> None:
         # O(1) lookup via UNIQUE(channel_type, external_account_id)
         channel = get_channel_by_external_id(db, msg.channel_type, msg.external_account_id)
         if not channel:
-            log_error("webhook_meta", f"no active channel for {msg.channel_type}/{msg.external_account_id}")
+            log("webhook_meta_skip", msg=f"no channel for {msg.channel_type}/{msg.external_account_id}")
             return
 
-        # For Instagram/Messenger: fetch display name from profile API if missing
+        # For Instagram: fetch profile from API on first contact
         display_name = msg.display_name
-        if not display_name and msg.channel_type in ("instagram", "messenger"):
+        profile_pic = None
+        profile_metadata = None
+        if not display_name and msg.channel_type == "instagram":
             try:
                 from backend.services.channels.credential_store import decrypt_credentials
                 creds = decrypt_credentials(channel.credentials_encrypted)
                 token = creds.get("access_token", "")
-                if msg.channel_type == "instagram":
-                    from backend.services.channels.instagram import get_user_profile
-                    profile = await get_user_profile(token, msg.external_user_id)
-                    if profile:
-                        display_name = profile.get("username") or profile.get("name")
+                from backend.services.channels.instagram import get_user_profile
+                profile = await get_user_profile(token, msg.external_user_id)
+                if profile:
+                    display_name = profile.get("username") or profile.get("name")
+                    profile_pic = profile.get("profile_picture_url")
+                    profile_metadata = {
+                        k: profile.get(k)
+                        for k in ("follower_count", "is_verified_user", "is_user_follow_business")
+                        if profile.get(k) is not None
+                    }
             except Exception:
                 pass
 
@@ -141,6 +148,8 @@ async def _handle_single_message(msg: ParsedIncomingMessage) -> None:
                 external_id=msg.external_user_id,
                 bsuid=msg.bsuid,
                 display_name=display_name,
+                profile_pic_url=profile_pic,
+                metadata=profile_metadata,
             ),
         )
         db.commit()
@@ -171,9 +180,34 @@ async def _handle_single_message(msg: ParsedIncomingMessage) -> None:
         async def send_media_fn(to: str, url: str, media_type: str, caption=None, filename=None) -> bool:
             return await providers.send_channel_media(channel, to, url, media_type, caption, filename, db)
 
+        # Download image for vision analysis
+        image_base64 = None
+        text = msg.text
+        if msg.msg_type == "image" and msg.media_url:
+            from backend.services import media
+            image_base64 = await media.download_url_as_base64(msg.media_url)
+            if image_base64:
+                text = text or "[תמונה]"
+            else:
+                text = text or "[תמונה - לא הצלחתי להוריד]"
+                log_error("webhook_meta", f"image download failed for {msg.channel_type}")
+        elif msg.msg_type == "audio" and msg.media_url:
+            from backend.services.media import download_from_url
+            from backend.services.media.transcription import transcribe_audio
+            audio_bytes = await download_from_url(msg.media_url)
+            if audio_bytes:
+                transcript = await transcribe_audio(audio_bytes)
+                if transcript:
+                    text = f"[הודעה קולית]: {transcript}"
+                else:
+                    text = text or "[הודעה קולית - לא הצלחתי לתמלל]"
+            else:
+                text = text or "[הודעה קולית - לא הצלחתי להוריד]"
+
         pending = PendingMessage(
-            text=msg.text,
+            text=text,
             msg_type=msg.msg_type,
+            image_base64=image_base64,
             media_type=msg.mime_type,
         )
 

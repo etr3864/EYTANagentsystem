@@ -19,6 +19,8 @@ class IncomingUserInfo:
     external_id: str          # Phone, IG user ID, PSID, etc.
     bsuid: Optional[str] = None          # WhatsApp BSUID (2026)
     display_name: Optional[str] = None
+    profile_pic_url: Optional[str] = None
+    metadata: Optional[dict] = None
 
 
 def get_or_create_for_incoming(
@@ -35,14 +37,19 @@ def get_or_create_for_incoming(
 
     Returns the channel_user.id.
     """
+    import json as _json
     result = db.execute(
         text("""
-            INSERT INTO channel_users (channel_id, external_id, bsuid, display_name, created_at, updated_at)
-            VALUES (:channel_id, :external_id, :bsuid, :display_name, NOW(), NOW())
+            INSERT INTO channel_users
+                (channel_id, external_id, bsuid, display_name, profile_pic_url, metadata, created_at, updated_at)
+            VALUES
+                (:channel_id, :external_id, :bsuid, :display_name, :profile_pic_url, :metadata::jsonb, NOW(), NOW())
             ON CONFLICT (channel_id, external_id) DO UPDATE
-              SET bsuid        = COALESCE(EXCLUDED.bsuid, channel_users.bsuid),
-                  display_name = COALESCE(EXCLUDED.display_name, channel_users.display_name),
-                  updated_at   = NOW()
+              SET bsuid           = COALESCE(EXCLUDED.bsuid, channel_users.bsuid),
+                  display_name    = COALESCE(EXCLUDED.display_name, channel_users.display_name),
+                  profile_pic_url = COALESCE(EXCLUDED.profile_pic_url, channel_users.profile_pic_url),
+                  metadata        = COALESCE(EXCLUDED.metadata, channel_users.metadata),
+                  updated_at      = NOW()
             RETURNING id
         """),
         {
@@ -50,6 +57,8 @@ def get_or_create_for_incoming(
             "external_id": user_info.external_id,
             "bsuid": user_info.bsuid,
             "display_name": user_info.display_name,
+            "profile_pic_url": user_info.profile_pic_url,
+            "metadata": _json.dumps(user_info.metadata) if user_info.metadata else None,
         },
     )
     return result.scalar_one()
