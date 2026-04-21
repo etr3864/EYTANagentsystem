@@ -148,8 +148,8 @@ async def _handle_single_message(msg: ParsedIncomingMessage) -> None:
                             for k in ("follower_count", "is_verified_user", "is_user_follow_business")
                             if profile.get(k) is not None
                         }
-                except Exception:
-                    pass
+                except Exception as e:
+                    log_error("webhook_meta", f"ig profile fetch: {type(e).__name__}: {str(e)[:120]}")
 
         channel_user_id = get_or_create_for_incoming(
             db,
@@ -217,7 +217,7 @@ async def _handle_single_message(msg: ParsedIncomingMessage) -> None:
 
         pending = PendingMessage(
             text=text,
-            msg_type=msg.msg_type,
+            msg_type="voice" if msg.msg_type == "audio" else msg.msg_type,
             image_base64=image_base64,
             media_type=msg.mime_type,
         )
