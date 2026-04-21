@@ -119,6 +119,7 @@ function OAuthCallbackInner() {
           account_name: igAccount?.username || page.name || null,
           page_id: page.id,
           waba_id: null,
+          token_expires_at: session.token_expires_at || null,
         }),
       });
 

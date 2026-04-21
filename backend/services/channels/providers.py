@@ -236,17 +236,25 @@ async def send_channel_media(
 
 
 async def _ensure_valid_token(db, channel: "AgentChannel", creds: dict) -> str:
-    """Return valid access_token, refreshing via Redis lock if expired."""
+    """Return valid access_token, refreshing via Redis lock if expired.
+
+    Facebook long-lived tokens last ~60 days. Refresh is done by passing
+    the current access_token as fb_exchange_token (no separate refresh_token).
+    """
     from datetime import datetime, timedelta
 
+    token = creds.get("access_token", "")
     expires_at = creds.get("token_expires_at")
-    if expires_at:
-        exp = datetime.fromisoformat(expires_at)
-        if datetime.utcnow() < exp - timedelta(minutes=5):
-            return creds["access_token"]
+
+    if not expires_at:
+        return token
+
+    exp = datetime.fromisoformat(expires_at)
+    if datetime.utcnow() < exp - timedelta(days=7):
+        return token
 
     if db is None:
-        return creds.get("access_token", "")
+        return token
 
     lock_key = f"token_refresh:{channel.id}"
     try:
@@ -256,28 +264,29 @@ async def _ensure_valid_token(db, channel: "AgentChannel", creds: dict) -> str:
         r = aioredis.from_url(settings.redis_url, encoding="utf-8", decode_responses=True)
         acquired = await r.set(lock_key, "1", nx=True, ex=30)
         if not acquired:
-            # Another instance refreshing — wait briefly then re-read
             import asyncio
             await asyncio.sleep(2)
             from backend.models.agent_channel import AgentChannel as AC
             from backend.core.encryption import decrypt_credentials
-            channel = db.query(AC).get(channel.id)
-            creds = decrypt_credentials(channel.credentials_encrypted)
+            fresh = db.query(AC).get(channel.id)
+            if fresh:
+                creds = decrypt_credentials(fresh.credentials_encrypted)
             return creds.get("access_token", "")
 
         try:
             from backend.services.meta.oauth import refresh_token
-            new_token = await refresh_token(creds["refresh_token"])
-            creds["access_token"] = new_token["access_token"]
-            creds["token_expires_at"] = new_token["expires_at"]
-            from backend.core.encryption import encrypt_credentials
-            from backend.services.channels.agent_channels import update_credentials
-            update_credentials(db, channel, creds)
-            db.commit()
-            return new_token["access_token"]
+            new_data = await refresh_token(token)
+            if new_data:
+                creds["access_token"] = new_data["access_token"]
+                creds["token_expires_at"] = new_data["token_expires_at"]
+                from backend.services.channels.agent_channels import update_credentials
+                update_credentials(db, channel, creds)
+                db.commit()
+                return new_data["access_token"]
+            return token
         finally:
             await r.delete(lock_key)
             await r.aclose()
     except Exception as e:
         log_error("token_refresh", f"failed: {e}")
-        return creds.get("access_token", "")
+        return token

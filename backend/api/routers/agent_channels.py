@@ -79,6 +79,7 @@ class AddChannelRequest(BaseModel):
     page_id: Optional[str] = None
     waba_id: Optional[str] = None
     wasender_secret: Optional[str] = None  # WaSender webhook secret (optional)
+    token_expires_at: Optional[str] = None  # ISO datetime for Meta token expiry
 
 
 class ToggleChannelRequest(BaseModel):
@@ -267,10 +268,12 @@ async def create_channel(
             "webhook_secret": body.wasender_secret or "",
         }
     else:
-        credentials = {
+        credentials: dict = {
             "access_token": body.access_token,
             "scopes": [],
         }
+        if body.token_expires_at:
+            credentials["token_expires_at"] = body.token_expires_at
 
     try:
         channel = add_channel(

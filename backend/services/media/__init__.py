@@ -11,7 +11,7 @@ async def download_whatsapp_media(media_id: str, access_token: str) -> Optional[
     try:
         async with httpx.AsyncClient() as client:
             url_response = await client.get(
-                f"https://graph.facebook.com/v18.0/{media_id}",
+                f"https://graph.facebook.com/v22.0/{media_id}",
                 headers={"Authorization": f"Bearer {access_token}"}
             )
             

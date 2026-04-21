@@ -133,24 +133,41 @@ async def _resolve_ig_profile(
 
 # ── Media processing ──────────────────────────────────────────────────────────
 
-async def _process_media(msg: ParsedIncomingMessage) -> tuple[str, Optional[str]]:
-    """Process image/audio attachments. Returns (text, image_base64)."""
+async def _process_media(
+    msg: ParsedIncomingMessage, access_token: Optional[str] = None,
+) -> tuple[str, Optional[str]]:
+    """Process image/audio attachments. Returns (text, image_base64).
+
+    For WhatsApp Meta, media is downloaded via media_id + access_token (two-step Graph API).
+    For Instagram/Messenger, media is downloaded from the public URL.
+    """
+    from backend.services import media
+    from backend.services.media import download_from_url
+    from backend.services.media.transcription import transcribe_audio
+
     text = msg.text
     image_base64 = None
+    has_wa_media = msg.channel_type == "whatsapp_meta" and msg.media_id and access_token
+    has_url_media = msg.media_url
 
-    if msg.msg_type == "image" and msg.media_url:
-        from backend.services import media
-        image_base64 = await media.download_url_as_base64(msg.media_url)
+    if msg.msg_type == "image" and (has_wa_media or has_url_media):
+        if has_wa_media:
+            image_base64 = await media.download_image_as_base64(msg.media_id, access_token)
+        else:
+            image_base64 = await media.download_url_as_base64(msg.media_url)
+
         if image_base64:
             text = text or "[תמונה]"
         else:
             text = text or "[תמונה - לא הצלחתי להוריד]"
             log_error("webhook_meta", f"image download failed for {msg.channel_type}")
 
-    elif msg.msg_type == "audio" and msg.media_url:
-        from backend.services.media import download_from_url
-        from backend.services.media.transcription import transcribe_audio
-        audio_bytes = await download_from_url(msg.media_url)
+    elif msg.msg_type == "audio" and (has_wa_media or has_url_media):
+        if has_wa_media:
+            audio_bytes = await media.download_whatsapp_media(msg.media_id, access_token)
+        else:
+            audio_bytes = await download_from_url(msg.media_url)
+
         if audio_bytes:
             transcript = await transcribe_audio(audio_bytes)
             if transcript:
@@ -214,7 +231,13 @@ async def _handle_single_message(msg: ParsedIncomingMessage) -> None:
         async def send_media_fn(to: str, url: str, media_type: str, caption=None, filename=None) -> bool:
             return await providers.send_channel_media(channel, to, url, media_type, caption, filename, db)
 
-        text, image_base64 = await _process_media(msg)
+        wa_token = None
+        if msg.channel_type == "whatsapp_meta" and msg.media_id:
+            from backend.core.encryption import decrypt_credentials
+            creds = decrypt_credentials(channel.credentials_encrypted)
+            wa_token = creds.get("access_token", "")
+
+        text, image_base64 = await _process_media(msg, access_token=wa_token)
         pending = PendingMessage(
             text=text,
             msg_type="voice" if msg.msg_type == "audio" else msg.msg_type,

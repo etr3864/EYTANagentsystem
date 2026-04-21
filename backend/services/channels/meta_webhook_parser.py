@@ -26,6 +26,7 @@ class ParsedIncomingMessage:
     bsuid: Optional[str] = None         # WhatsApp BSUID (2026 API)
     display_name: Optional[str] = None
     media_url: Optional[str] = None
+    media_id: Optional[str] = None
     mime_type: Optional[str] = None
     # Extra data (story reply context, mention thread, etc.)
     extra: dict = field(default_factory=dict)
@@ -163,7 +164,7 @@ def _parse_wa_message(phone_number_id: str, msg: dict, contacts: dict) -> Option
 
     text = ""
     msg_type = "text"
-    media_url = None
+    media_id = None
     mime_type = None
 
     if msg_type_raw == "text":
@@ -172,22 +173,21 @@ def _parse_wa_message(phone_number_id: str, msg: dict, contacts: dict) -> Option
     elif msg_type_raw == "image":
         text = "[תמונה]"
         msg_type = "image"
-        media_url = msg.get("image", {}).get("link")
+        media_id = msg.get("image", {}).get("id")
         mime_type = msg.get("image", {}).get("mime_type")
     elif msg_type_raw == "audio":
         text = "[הודעה קולית]"
         msg_type = "audio"
-        media_url = msg.get("audio", {}).get("link")
+        media_id = msg.get("audio", {}).get("id")
     elif msg_type_raw == "video":
         text = "[וידאו]"
         msg_type = "video"
-        media_url = msg.get("video", {}).get("link")
+        media_id = msg.get("video", {}).get("id")
     elif msg_type_raw == "document":
         text = "[קובץ]"
         msg_type = "document"
-        media_url = msg.get("document", {}).get("link")
+        media_id = msg.get("document", {}).get("id")
     elif msg_type_raw == "identity":
-        # Identity change event — not a user message, handled separately
         return None
     else:
         text = f"[{msg_type_raw}]"
@@ -202,9 +202,9 @@ def _parse_wa_message(phone_number_id: str, msg: dict, contacts: dict) -> Option
         message_id=msg_id,
         text=text,
         msg_type=msg_type,
-        is_echo=False,  # WA Meta echoes have different structure; filtered at entry
+        is_echo=False,
         bsuid=bsuid,
         display_name=display_name,
-        media_url=media_url,
+        media_id=media_id,
         mime_type=mime_type,
     )
