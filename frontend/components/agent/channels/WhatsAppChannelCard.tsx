@@ -8,7 +8,7 @@
  * - If one is active, the other shows a disabled "conflict" state.
  * - Switching requires explicitly disabling the active one first.
  */
-import { type AgentChannel, CHANNEL_DISPLAY_NAMES, toggleChannel, updateWaSenderCredentials } from '@/lib/channels';
+import { type AgentChannel, CHANNEL_DISPLAY_NAMES, toggleChannel, updateWaSenderCredentials, deleteChannel } from '@/lib/channels';
 import { useState } from 'react';
 
 interface WhatsAppChannelCardProps {
@@ -73,6 +73,24 @@ export function WhatsAppChannelCard({
   }
 
   const activeWa = wasenderChannel?.is_active ? 'wasender' : metaChannel?.is_active ? 'meta' : null;
+
+  async function handleDelete(channel: AgentChannel) {
+    if (!canEdit) return;
+    const name = CHANNEL_DISPLAY_NAMES[channel.channel_type] ?? channel.channel_type;
+    if (!confirm(`למחוק את ערוץ ${name}?\nאם יש שיחות קיימות, השבת במקום למחוק.`)) return;
+    setLoading(true);
+    try {
+      await deleteChannel(channel.id);
+      onChanged();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      alert(msg.includes('409') || msg.includes('conversations')
+        ? 'לא ניתן למחוק — יש שיחות קיימות. השבת במקום.'
+        : `שגיאה: ${msg}`);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleToggle(channel: AgentChannel, activate: boolean) {
     if (!canEdit) return;
@@ -175,7 +193,7 @@ export function WhatsAppChannelCard({
                   {!editing && (
                     <button
                       onClick={startEdit}
-                      className="flex-1 py-1 px-2 rounded text-xs bg-slate-700/50 hover:bg-slate-700 text-slate-400 transition-all"
+                      className="py-1 px-2 rounded text-xs bg-slate-700/50 hover:bg-slate-700 text-slate-400 transition-all"
                     >
                       ✏️ ערוך
                     </button>
@@ -190,6 +208,13 @@ export function WhatsAppChannelCard({
                       }`}
                   >
                     {wasenderChannel.is_active ? 'השבת' : 'הפעל'}
+                  </button>
+                  <button
+                    onClick={() => handleDelete(wasenderChannel)}
+                    disabled={loading}
+                    className="py-1 px-2 rounded text-xs font-medium bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all"
+                  >
+                    הסר
                   </button>
                 </div>
               )}
@@ -214,17 +239,26 @@ export function WhatsAppChannelCard({
             <>
               <div className="text-xs text-slate-500 truncate mb-2">{metaChannel.external_account_id}</div>
               {canEdit && (
-                <button
-                  onClick={() => handleToggle(metaChannel, !metaChannel.is_active)}
-                  disabled={loading || (!metaChannel.is_active && !!wasenderChannel?.is_active)}
-                  className={`w-full py-1 px-2 rounded text-xs font-medium transition-all
-                    ${metaChannel.is_active
-                      ? 'bg-slate-700 hover:bg-slate-600 text-slate-300'
-                      : 'bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 disabled:opacity-40 disabled:cursor-not-allowed'
-                    }`}
-                >
-                  {metaChannel.is_active ? 'השבת' : 'הפעל'}
-                </button>
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={() => handleToggle(metaChannel, !metaChannel.is_active)}
+                    disabled={loading || (!metaChannel.is_active && !!wasenderChannel?.is_active)}
+                    className={`flex-1 py-1 px-2 rounded text-xs font-medium transition-all
+                      ${metaChannel.is_active
+                        ? 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                        : 'bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 disabled:opacity-40 disabled:cursor-not-allowed'
+                      }`}
+                  >
+                    {metaChannel.is_active ? 'השבת' : 'הפעל'}
+                  </button>
+                  <button
+                    onClick={() => handleDelete(metaChannel)}
+                    disabled={loading}
+                    className="py-1 px-2 rounded text-xs font-medium bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all"
+                  >
+                    הסר
+                  </button>
+                </div>
               )}
             </>
           ) : (
