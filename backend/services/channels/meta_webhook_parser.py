@@ -57,7 +57,13 @@ def parse_messenger_payload(payload: dict) -> list[ParsedIncomingMessage]:
 
 
 def parse_whatsapp_payload(payload: dict) -> list[ParsedIncomingMessage]:
-    """Parse WhatsApp Business webhook payload (object = 'whatsapp_business_account')."""
+    """Parse WhatsApp Business webhook payload (object = 'whatsapp_business_account').
+
+    Supports both phone-number and BSUID (June 2026+) identification:
+    - contacts[].wa_id   → phone number (may be absent for username-only users)
+    - contacts[].user_id → BSUID (present from March 2026)
+    - messages[].from    → phone number OR BSUID
+    """
     results = []
     for entry in payload.get("entry", []):
         for change in entry.get("changes", []):
@@ -66,8 +72,16 @@ def parse_whatsapp_payload(payload: dict) -> list[ParsedIncomingMessage]:
             value = change.get("value", {})
             phone_number_id = value.get("metadata", {}).get("phone_number_id", "")
 
-            # Build contact lookup for display names
-            contacts = {c["wa_id"]: c.get("profile", {}).get("name") for c in value.get("contacts", [])}
+            contacts: dict[str, dict] = {}
+            for c in value.get("contacts", []):
+                profile_name = c.get("profile", {}).get("name")
+                bsuid = c.get("user_id")
+                wa_id = c.get("wa_id")
+                info = {"name": profile_name, "bsuid": bsuid, "wa_id": wa_id}
+                if wa_id:
+                    contacts[wa_id] = info
+                if bsuid:
+                    contacts[bsuid] = info
 
             for msg in value.get("messages", []):
                 parsed = _parse_wa_message(phone_number_id, msg, contacts)
@@ -159,8 +173,17 @@ def _parse_messenger_event(page_id: str, event: dict) -> Optional[ParsedIncoming
 def _parse_wa_message(phone_number_id: str, msg: dict, contacts: dict) -> Optional[ParsedIncomingMessage]:
     msg_type_raw = msg.get("type", "text")
     msg_id = msg.get("id", "")
-    from_phone = msg.get("from", "")
-    bsuid = msg.get("from_user_id") or msg.get("user_id")  # 2026 BSUID
+    from_id = msg.get("from", "")  # phone number OR BSUID
+
+    # Resolve contact info — works whether from_id is phone or BSUID
+    contact_info = contacts.get(from_id, {})
+    bsuid = contact_info.get("bsuid") or msg.get("user_id")
+    display_name = contact_info.get("name")
+
+    # Prefer phone number as external_user_id for backward compatibility;
+    # fall back to BSUID when phone is hidden (username-only users)
+    wa_id = contact_info.get("wa_id")
+    external_user_id = wa_id or from_id
 
     text = ""
     msg_type = "text"
@@ -193,12 +216,10 @@ def _parse_wa_message(phone_number_id: str, msg: dict, contacts: dict) -> Option
         text = f"[{msg_type_raw}]"
         msg_type = msg_type_raw
 
-    display_name = contacts.get(from_phone)
-
     return ParsedIncomingMessage(
         channel_type="whatsapp_meta",
         external_account_id=phone_number_id,
-        external_user_id=from_phone,
+        external_user_id=external_user_id,
         message_id=msg_id,
         text=text,
         msg_type=msg_type,

@@ -5,7 +5,7 @@ _API_URL = "https://graph.facebook.com/v22.0"
 
 
 async def send_message(phone_number_id: str, access_token: str, to: str, text: str) -> bool:
-    """Send text message via Meta WhatsApp API."""
+    """Send text message via Meta WhatsApp API. `to` may be phone (E.164) or BSUID."""
     url = f"{_API_URL}/{phone_number_id}/messages"
 
     try:
@@ -48,14 +48,14 @@ async def send_media(
     Args:
         phone_number_id: WhatsApp phone number ID
         access_token: Meta API access token
-        to: Recipient phone number
+        to: Recipient phone number (E.164) or BSUID
         media_url: Public URL of the media file
         media_type: 'image' or 'video'
         caption: Optional caption text
     """
     url = f"{_API_URL}/{phone_number_id}/messages"
     
-    log("MEDIA", msg=f"sending {media_type} to {to[-4:]}", url=media_url[:50])
+    log("MEDIA", msg=f"sending {media_type} to {to[-4:] if len(to) <= 20 else to[:8]}", url=media_url[:50])
     
     # Meta API uses 'image' or 'video' as type
     api_type = media_type if media_type in ("image", "video") else "image"
@@ -117,7 +117,7 @@ async def send_template(
     Args:
         phone_number_id: WhatsApp phone number ID
         access_token: Meta API access token
-        to: Recipient phone number (international format, no +)
+        to: Recipient phone number (E.164, no +) or BSUID
         template_name: Approved template name
         language: Template language code (e.g. "he")
         components: Template components with parameter values
@@ -155,7 +155,7 @@ async def send_template(
                 log_error("whatsapp", f"send_template status={response.status_code}")
             return False
 
-        log("whatsapp", msg=f"template sent", template=template_name, to=to[-4:])
+        log("whatsapp", msg=f"template sent", template=template_name, to=to[-4:] if len(to) <= 20 else to[:8])
         return True
     except Exception as e:
         log_error("whatsapp", f"send_template: {str(e)[:80]}")
@@ -175,7 +175,7 @@ async def send_document(
     Args:
         phone_number_id: WhatsApp phone number ID
         access_token: Meta API access token
-        to: Recipient phone number
+        to: Recipient phone number (E.164) or BSUID
         document_url: Public URL of the document
         filename: Display filename for recipient (e.g., "report.pdf")
         caption: Optional caption text
