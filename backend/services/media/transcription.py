@@ -35,18 +35,63 @@ def _get_google_credentials():
             return None
 
 
+def _is_ogg(audio_bytes: bytes) -> bool:
+    return audio_bytes[:4] == b'OggS'
+
+
+def _convert_to_wav(audio_bytes: bytes) -> Optional[bytes]:
+    """Convert any audio format to 16kHz mono WAV using ffmpeg."""
+    import subprocess
+    try:
+        with tempfile.NamedTemporaryFile(suffix='.audio', delete=False) as src:
+            src.write(audio_bytes)
+            src_path = src.name
+        dst_path = src_path + '.wav'
+        result = subprocess.run(
+            ['ffmpeg', '-y', '-i', src_path, '-ar', '16000', '-ac', '1', '-f', 'wav', dst_path],
+            capture_output=True, timeout=15,
+        )
+        if result.returncode != 0:
+            log_error("audio", f"ffmpeg failed: {result.stderr[:120].decode(errors='replace')}")
+            return None
+        with open(dst_path, 'rb') as f:
+            return f.read()
+    except FileNotFoundError:
+        log_error("audio", "ffmpeg not installed")
+        return None
+    except Exception as e:
+        log_error("audio", f"convert error: {e}")
+        return None
+    finally:
+        for p in (src_path, dst_path):
+            try:
+                os.unlink(p)
+            except Exception:
+                pass
+
+
 def _sync_transcribe(audio_bytes: bytes, creds_path: str, language_code: str) -> Optional[str]:
     """Synchronous transcription - runs in thread pool to avoid blocking."""
     try:
         from google.cloud import speech
         from google.oauth2 import service_account
+
+        if _is_ogg(audio_bytes):
+            encoding = speech.RecognitionConfig.AudioEncoding.OGG_OPUS
+            data = audio_bytes
+        else:
+            wav_data = _convert_to_wav(audio_bytes)
+            if not wav_data:
+                return None
+            encoding = speech.RecognitionConfig.AudioEncoding.LINEAR16
+            data = wav_data
         
         credentials = service_account.Credentials.from_service_account_file(creds_path)
         client = speech.SpeechClient(credentials=credentials)
         
-        audio = speech.RecognitionAudio(content=audio_bytes)
+        audio = speech.RecognitionAudio(content=data)
         config = speech.RecognitionConfig(
-            encoding=speech.RecognitionConfig.AudioEncoding.OGG_OPUS,
+            encoding=encoding,
             sample_rate_hertz=16000,
             language_code=language_code,
             enable_automatic_punctuation=True,

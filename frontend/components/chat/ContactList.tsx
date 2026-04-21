@@ -2,7 +2,8 @@
 
 import { useState, useMemo } from 'react';
 import type { Conversation } from '@/lib/types';
-import { CHANNEL_DISPLAY_NAMES, CHANNEL_ICONS } from '@/lib/channels';
+import { CHANNEL_DISPLAY_NAMES } from '@/lib/channels';
+import { ChannelIcon } from '@/components/ui/Icons';
 
 interface ContactListProps {
   conversations: Conversation[];
@@ -19,11 +20,10 @@ function getGenderIcon(gender: string | null): string {
 
 function ChannelBadge({ channelType }: { channelType: string | null | undefined }) {
   if (!channelType) return null;
-  const icon = CHANNEL_ICONS[channelType as keyof typeof CHANNEL_ICONS] ?? '📡';
   const name = CHANNEL_DISPLAY_NAMES[channelType as keyof typeof CHANNEL_DISPLAY_NAMES] ?? channelType;
   return (
-    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-slate-700 text-slate-300" title={name}>
-      <span>{icon}</span>
+    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-slate-700/50" title={name}>
+      <ChannelIcon channelType={channelType} size={14} />
     </span>
   );
 }
@@ -96,7 +96,7 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete }: C
                 onClick={() => setChannelFilter(ct === channelFilter ? 'all' : ct)}
                 className={`px-2 py-0.5 rounded text-xs transition-colors flex items-center gap-1 ${channelFilter === ct ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
               >
-                <span>{CHANNEL_ICONS[ct as keyof typeof CHANNEL_ICONS] ?? '📡'}</span>
+                <ChannelIcon channelType={ct} size={14} />
                 <span>{CHANNEL_DISPLAY_NAMES[ct as keyof typeof CHANNEL_DISPLAY_NAMES] ?? ct}</span>
               </button>
             ))}

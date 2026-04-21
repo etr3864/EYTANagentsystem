@@ -4,7 +4,8 @@ import { useState } from 'react';
 import type { AgentTableRow } from '@/lib/types';
 import { AgentAccordionDetail } from './AgentAccordionDetail';
 import { exportConversations } from '@/lib/api';
-import { CHANNEL_ICONS, CHANNEL_DISPLAY_NAMES } from '@/lib/channels';
+import { CHANNEL_DISPLAY_NAMES } from '@/lib/channels';
+import { ChannelIcon } from '@/components/ui/Icons';
 
 interface Props {
   rows: AgentTableRow[];
@@ -109,12 +110,7 @@ export function AgentsTable({ rows, loading, fromDate, toDate }: Props) {
                           <span className="text-slate-500 text-xs">—</span>
                         ) : (
                           (row.active_channels ?? []).map((ct) => (
-                            <span
-                              key={ct}
-                              title={CHANNEL_DISPLAY_NAMES[ct as keyof typeof CHANNEL_DISPLAY_NAMES] ?? ct}
-                            >
-                              {CHANNEL_ICONS[ct as keyof typeof CHANNEL_ICONS] ?? '📡'}
-                            </span>
+                            <ChannelIcon key={ct} channelType={ct} size={20} />
                           ))
                         )}
                       </div>

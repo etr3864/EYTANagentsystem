@@ -3,12 +3,12 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Agent, getAgents, deleteAgent, updateAgent } from '@/lib/api';
-import { Button, Card, PlusIcon, ArrowLeftIcon, TrashIcon, MetaSmallIcon, WaSenderSmallIcon } from '@/components/ui';
+import { Button, Card, PlusIcon, ArrowLeftIcon, TrashIcon, ChannelIcon } from '@/components/ui';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useAuth } from '@/contexts/AuthContext';
 import { isSuperAdmin } from '@/lib/auth';
 import { LegalFooter } from '@/components/ui/LegalModals';
-import { CHANNEL_ICONS, CHANNEL_DISPLAY_NAMES, type ChannelType } from '@/lib/channels';
+import { CHANNEL_DISPLAY_NAMES, type ChannelType } from '@/lib/channels';
 
 function HomePage() {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -157,10 +157,10 @@ function HomePage() {
                             <span
                               key={ct}
                               title={CHANNEL_DISPLAY_NAMES[ct as ChannelType] ?? ct}
-                              className="text-xs px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300"
+                              className="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300"
                             >
-                              {CHANNEL_ICONS[ct as ChannelType] ?? '📡'}{' '}
-                              {CHANNEL_DISPLAY_NAMES[ct as ChannelType]?.split(' ')[0] ?? ct}
+                              <ChannelIcon channelType={ct} size={14} />
+                              {CHANNEL_DISPLAY_NAMES[ct as ChannelType] ?? ct}
                             </span>
                           ))
                         ) : (

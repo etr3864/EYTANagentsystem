@@ -24,8 +24,8 @@ export interface ChannelCapabilities {
 export const CHANNEL_CAPABILITIES = capabilities as Record<ChannelType, ChannelCapabilities>;
 
 export const CHANNEL_DISPLAY_NAMES: Record<ChannelType, string> = {
-  whatsapp_wasender: 'WhatsApp (WaSender)',
-  whatsapp_meta: 'WhatsApp (Meta)',
+  whatsapp_wasender: 'WhatsApp',
+  whatsapp_meta: 'WhatsApp',
   instagram: 'Instagram',
   messenger: 'Messenger',
 };

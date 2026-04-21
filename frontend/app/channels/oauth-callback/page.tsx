@@ -2,7 +2,8 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { CHANNEL_ICONS, CHANNEL_DISPLAY_NAMES } from '@/lib/channels';
+import { CHANNEL_DISPLAY_NAMES } from '@/lib/channels';
+import { ChannelIcon } from '@/components/ui/Icons';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -136,9 +137,7 @@ function OAuthCallbackInner() {
   const channelName = session
     ? (CHANNEL_DISPLAY_NAMES[session.channel_type as keyof typeof CHANNEL_DISPLAY_NAMES] ?? session.channel_type)
     : '';
-  const channelIcon = session
-    ? (CHANNEL_ICONS[session.channel_type as keyof typeof CHANNEL_ICONS] ?? '📡')
-    : '';
+  const channelType = session?.channel_type ?? '';
 
   return (
     <div className="min-h-screen bg-[#0e0b1a] flex items-center justify-center p-4" dir="rtl">
@@ -168,7 +167,7 @@ function OAuthCallbackInner() {
         {!loading && !error && session && (
           <>
             <div className="flex items-center gap-3 mb-6">
-              <span className="text-3xl">{channelIcon}</span>
+              {channelType && <ChannelIcon channelType={channelType} size={32} />}
               <div>
                 <h1 className="text-lg font-semibold text-white">בחר חשבון {channelName}</h1>
                 <p className="text-xs text-slate-400">

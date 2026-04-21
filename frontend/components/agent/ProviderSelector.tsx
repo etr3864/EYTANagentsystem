@@ -1,6 +1,6 @@
 'use client';
 
-import { Card, CardHeader, MetaSmallIcon, WaSenderSmallIcon } from '@/components/ui';
+import { Card, CardHeader, ChannelIcon } from '@/components/ui';
 import { Input, Textarea } from '@/components/ui/Input';
 import type { Provider, WaSenderConfig } from '@/lib/types';
 
@@ -53,7 +53,7 @@ export function ProviderSelector({
             }
           `}
         >
-          <MetaSmallIcon className="w-5 h-5" />
+          <ChannelIcon channelType="whatsapp_meta" size={20} />
           <span className="font-medium">Meta (רשמי)</span>
         </button>
         <button
@@ -68,7 +68,7 @@ export function ProviderSelector({
             }
           `}
         >
-          <WaSenderSmallIcon className="w-5 h-5" />
+          <ChannelIcon channelType="whatsapp_wasender" size={20} />
           <span className="font-medium">WA Sender</span>
         </button>
       </div>

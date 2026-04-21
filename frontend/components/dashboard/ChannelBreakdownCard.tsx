@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CHANNEL_DISPLAY_NAMES, CHANNEL_ICONS } from '@/lib/channels';
+import { CHANNEL_DISPLAY_NAMES } from '@/lib/channels';
+import { ChannelIcon } from '@/components/ui/Icons';
 
 interface ChannelStat {
   channel_type: string;
@@ -53,13 +54,12 @@ export function ChannelBreakdownCard({ fromDate, toDate }: ChannelBreakdownCardP
         <div className="space-y-3">
           {stats.map(stat => {
             const pct = total > 0 ? Math.round((stat.conversations / total) * 100) : 0;
-            const icon = CHANNEL_ICONS[stat.channel_type as keyof typeof CHANNEL_ICONS] ?? '📡';
             const name = CHANNEL_DISPLAY_NAMES[stat.channel_type as keyof typeof CHANNEL_DISPLAY_NAMES] ?? stat.channel_type;
             return (
               <div key={stat.channel_type}>
                 <div className="flex items-center justify-between text-sm mb-1">
                   <span className="text-slate-300 flex items-center gap-1.5">
-                    <span>{icon}</span>
+                    <ChannelIcon channelType={stat.channel_type} size={16} />
                     {name}
                   </span>
                   <span className="text-slate-400 text-xs">

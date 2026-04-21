@@ -91,6 +91,15 @@ def _run_migration_statements(conn):
 
     conn.execute(text("""
         DO $$ BEGIN
+            ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_user_id_fkey;
+            ALTER TABLE appointments ADD CONSTRAINT appointments_user_id_fkey
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
+        EXCEPTION WHEN OTHERS THEN NULL;
+        END $$;
+    """))
+
+    conn.execute(text("""
+        DO $$ BEGIN
             ALTER TABLE conversations ADD COLUMN last_customer_message_at TIMESTAMP;
         EXCEPTION WHEN duplicate_column THEN null;
         END $$;

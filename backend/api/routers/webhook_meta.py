@@ -123,27 +123,33 @@ async def _handle_single_message(msg: ParsedIncomingMessage) -> None:
             log("webhook_meta_skip", msg=f"agent inactive for {msg.channel_type}/{msg.external_account_id}")
             return
 
-        # For Instagram: fetch profile from API on first contact
+        # For Instagram: fetch profile if we don't have it yet
         display_name = msg.display_name
         profile_pic = None
         profile_metadata = None
-        if not display_name and msg.channel_type == "instagram":
-            try:
-                from backend.services.channels.credential_store import decrypt_credentials
-                creds = decrypt_credentials(channel.credentials_encrypted)
-                token = creds.get("access_token", "")
-                from backend.services.channels.instagram import get_user_profile
-                profile = await get_user_profile(token, msg.external_user_id)
-                if profile:
-                    display_name = profile.get("username") or profile.get("name")
-                    profile_pic = profile.get("profile_picture_url")
-                    profile_metadata = {
-                        k: profile.get(k)
-                        for k in ("follower_count", "is_verified_user", "is_user_follow_business")
-                        if profile.get(k) is not None
-                    }
-            except Exception:
-                pass
+        if msg.channel_type == "instagram":
+            from backend.services.channels.channel_users import get_by_external_id
+            existing_cu = get_by_external_id(db, channel.id, msg.external_user_id)
+            if existing_cu and existing_cu.display_name:
+                display_name = existing_cu.display_name
+                profile_pic = existing_cu.profile_pic_url
+            else:
+                try:
+                    from backend.services.channels.credential_store import decrypt_credentials
+                    creds = decrypt_credentials(channel.credentials_encrypted)
+                    token = creds.get("access_token", "")
+                    from backend.services.channels.instagram import get_user_profile
+                    profile = await get_user_profile(token, msg.external_user_id)
+                    if profile:
+                        display_name = profile.get("username") or profile.get("name")
+                        profile_pic = profile.get("profile_picture_url")
+                        profile_metadata = {
+                            k: profile.get(k)
+                            for k in ("follower_count", "is_verified_user", "is_user_follow_business")
+                            if profile.get(k) is not None
+                        }
+                except Exception:
+                    pass
 
         channel_user_id = get_or_create_for_incoming(
             db,

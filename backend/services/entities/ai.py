@@ -106,6 +106,17 @@ def build_system_prompt(
     if user_info.get("gender") and user_info["gender"] != "unknown":
         gender_text = "זכר" if user_info["gender"] == "male" else "נקבה"
         info_parts.append(f"מגדר: {gender_text}")
+    if user_info.get("channel"):
+        channel_names = {
+            "instagram": "Instagram",
+            "messenger": "Facebook Messenger",
+            "whatsapp_meta": "WhatsApp",
+            "whatsapp_wasender": "WhatsApp",
+            "meta": "WhatsApp",
+            "wasender": "WhatsApp",
+        }
+        ch = user_info["channel"]
+        info_parts.append(f"ערוץ תקשורת: {channel_names.get(ch, ch)}")
     if user_info.get("metadata"):
         meta = user_info["metadata"]
         if meta.get("business_type"):

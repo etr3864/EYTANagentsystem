@@ -1,6 +1,7 @@
 'use client';
 
-import { type AgentChannel, CHANNEL_DISPLAY_NAMES, CHANNEL_ICONS, getCapabilities, toggleChannel, deleteChannel } from '@/lib/channels';
+import { type AgentChannel, CHANNEL_DISPLAY_NAMES, getCapabilities, toggleChannel, deleteChannel } from '@/lib/channels';
+import { ChannelIcon } from '@/components/ui/Icons';
 import { useState } from 'react';
 
 interface ChannelCardProps {
@@ -30,7 +31,6 @@ const STATUS_LABELS: Record<string, string> = {
 export function ChannelCard({ channel, canEdit, onChanged }: ChannelCardProps) {
   const [loading, setLoading] = useState(false);
   const caps = getCapabilities(channel.channel_type);
-  const icon = CHANNEL_ICONS[channel.channel_type] ?? '📡';
   const displayName = CHANNEL_DISPLAY_NAMES[channel.channel_type] ?? channel.channel_type;
 
   async function handleToggle() {
@@ -87,7 +87,7 @@ export function ChannelCard({ channel, canEdit, onChanged }: ChannelCardProps) {
       {/* Header */}
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex items-center gap-2">
-          <span className="text-2xl">{icon}</span>
+          <ChannelIcon channelType={channel.channel_type} size={28} />
           <div>
             <div className="font-semibold text-white text-sm">{displayName}</div>
             {channel.account_name && (

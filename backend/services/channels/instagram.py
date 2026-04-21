@@ -27,8 +27,10 @@ async def get_user_profile(access_token: str, user_id: str) -> Optional[dict]:
             )
         if resp.status_code == 200:
             return resp.json()
+        log_error("instagram", f"profile fetch failed: {resp.status_code} {resp.text[:100]}")
         return None
-    except Exception:
+    except Exception as e:
+        log_error("instagram", f"profile fetch error: {e}")
         return None
 
 
