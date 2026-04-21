@@ -402,9 +402,9 @@ async def channel_health(
         creds = get_credentials(channel)
         import httpx
         if channel.channel_type == "instagram":
-            url = "https://graph.instagram.com/v20.0/me"
+            url = "https://graph.instagram.com/v22.0/me"
         else:
-            url = "https://graph.facebook.com/v20.0/me"
+            url = "https://graph.facebook.com/v22.0/me"
         async with httpx.AsyncClient(timeout=5) as client:
             resp = await client.get(url, params={"access_token": creds.get("access_token", "")})
         status_val = "healthy" if resp.status_code == 200 else "degraded"

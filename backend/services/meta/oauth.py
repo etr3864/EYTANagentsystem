@@ -30,8 +30,8 @@ from backend.core.logger import log_error
 
 # ── Facebook Login (Messenger, WhatsApp) ─────────────────────────────────────
 
-META_GRAPH_URL = "https://graph.facebook.com/v20.0"
-META_AUTH_URL = "https://www.facebook.com/v20.0/dialog/oauth"
+META_GRAPH_URL = "https://graph.facebook.com/v22.0"
+META_AUTH_URL = "https://www.facebook.com/v22.0/dialog/oauth"
 META_TOKEN_URL = f"{META_GRAPH_URL}/oauth/access_token"
 
 META_SCOPES = [
@@ -234,7 +234,7 @@ async def subscribe_page_to_app(page_id: str, page_access_token: str) -> bool:
 INSTAGRAM_AUTH_URL = "https://www.instagram.com/oauth/authorize"
 INSTAGRAM_TOKEN_URL = "https://api.instagram.com/oauth/access_token"
 INSTAGRAM_LONG_LIVED_URL = "https://graph.instagram.com/access_token"
-INSTAGRAM_GRAPH_URL = "https://graph.instagram.com/v20.0"
+INSTAGRAM_GRAPH_URL = "https://graph.instagram.com/v22.0"
 
 INSTAGRAM_SCOPES = [
     "instagram_business_basic",

@@ -9,7 +9,7 @@ from typing import Optional
 
 from backend.core.logger import log_error
 
-META_GRAPH_URL = "https://graph.instagram.com/v20.0"
+META_GRAPH_URL = "https://graph.instagram.com/v22.0"
 
 
 async def get_user_profile(access_token: str, user_id: str) -> Optional[dict]:

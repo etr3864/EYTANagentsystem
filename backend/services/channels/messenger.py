@@ -4,7 +4,7 @@ from typing import Optional
 
 from backend.core.logger import log_error
 
-META_GRAPH_URL = "https://graph.facebook.com/v20.0"
+META_GRAPH_URL = "https://graph.facebook.com/v22.0"
 
 
 async def send_message(access_token: str, page_id: str, psid: str, text: str) -> bool:
