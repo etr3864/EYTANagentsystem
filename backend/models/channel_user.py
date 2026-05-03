@@ -15,6 +15,7 @@ from typing import Optional, TYPE_CHECKING
 from sqlalchemy import String, Text, DateTime, ForeignKey, Index, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.sql import func
 
 from backend.core.database import Base
 
@@ -40,8 +41,12 @@ class ChannelUser(Base):
     profile_pic_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     metadata_: Mapped[Optional[dict]] = mapped_column("metadata", JSONB, nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     channel: Mapped["AgentChannel"] = relationship("AgentChannel", back_populates="channel_users")
 

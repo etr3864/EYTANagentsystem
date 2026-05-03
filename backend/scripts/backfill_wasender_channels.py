@@ -42,13 +42,11 @@ def run_backfill(dry_run: bool = True):
         created_channels = 0
         for agent in wasender_agents:
             config = agent.provider_config or {}
-            api_key = config.get("api_key", "")
             session = config.get("session", "default")
-            webhook_secret = config.get("webhook_secret", "")
-            # Use session as external_account_id (unique per agent)
-            external_account_id = session or f"agent_{agent.id}"
+            # external_account_id must be globally unique per channel_type;
+            # multiple agents may share the same session label, so use agent id.
+            external_account_id = f"agent_{agent.id}"
 
-            # Check if already exists
             exists = db.execute(text("""
                 SELECT id FROM agent_channels
                 WHERE agent_id = :agent_id AND channel_type = 'whatsapp_wasender'
@@ -59,20 +57,22 @@ def run_backfill(dry_run: bool = True):
                 continue
 
             if not dry_run:
-                credentials = {
-                    "api_key": api_key,
+                encrypted = encrypt_credentials({
+                    "api_key": config.get("api_key", ""),
                     "session": session,
-                    "webhook_secret": webhook_secret,
-                }
-                encrypted = encrypt_credentials(credentials)
+                    "webhook_secret": config.get("webhook_secret", ""),
+                })
                 db.execute(text("""
                     INSERT INTO agent_channels
-                        (agent_id, channel_type, external_account_id, credentials_encrypted, is_active, health_status)
+                        (agent_id, channel_type, external_account_id, account_name,
+                         credentials_encrypted, is_active, health_status)
                     VALUES
-                        (:agent_id, 'whatsapp_wasender', :ext_id, :creds, :is_active, 'unknown')
+                        (:agent_id, 'whatsapp_wasender', :ext_id, :name,
+                         :creds, :is_active, 'unknown')
                 """), {
                     "agent_id": agent.id,
                     "ext_id": external_account_id,
+                    "name": session,
                     "creds": encrypted,
                     "is_active": agent.is_active,
                 })

@@ -8,6 +8,7 @@ from typing import Optional, TYPE_CHECKING
 
 from sqlalchemy import String, Boolean, DateTime, ForeignKey, LargeBinary, Index, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.sql import func
 
 from backend.core.database import Base
 
@@ -49,8 +50,12 @@ class AgentChannel(Base):
     last_health_check_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     health_status: Mapped[str] = mapped_column(String(20), default="unknown")
 
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now(), default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
     # Relationships
     agent: Mapped["Agent"] = relationship("Agent", back_populates="channels")

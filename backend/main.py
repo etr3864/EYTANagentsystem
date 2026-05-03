@@ -5,9 +5,8 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
-from sqlalchemy.exc import ProgrammingError
 
-from backend.core.database import engine, Base, init_extensions, run_migrations, SessionLocal
+from backend.core.database import run_migrations, SessionLocal
 from backend.core.logger import log, log_error
 from backend.api.routers import agents_router, users_router, conversations_router, database_router, webhook_router, knowledge_router, webhook_wasender_router, calendar_router, summaries_router, media_router, templates_router, followups_router
 from backend.api.routers.dashboard import router as dashboard_router
@@ -19,33 +18,21 @@ from backend.auth import auth_router
 from backend.services.scheduling import scheduler
 
 
-_DUPLICATE_TABLE_PGCODE = "42P07"
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_extensions()
-    try:
-        Base.metadata.create_all(bind=engine)
-    except ProgrammingError as e:
-        pgcode = getattr(e.orig, "pgcode", None) if e.orig else None
-        if pgcode != _DUPLICATE_TABLE_PGCODE:
-            raise
     run_migrations()
-    
-    # Start the reminder scheduler as a background task
+
     scheduler_task = asyncio.create_task(scheduler.start_scheduler())
-    
     log("SERVER_UP", port=8000)
     yield
-    
-    # Stop the scheduler gracefully
+
     await scheduler.stop_scheduler()
     scheduler_task.cancel()
     try:
         await scheduler_task
     except asyncio.CancelledError:
         pass
-    
+
     log("SERVER_DOWN")
 
 

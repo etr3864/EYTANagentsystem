@@ -22,36 +22,37 @@ class Base(DeclarativeBase):
     pass
 
 
-def init_extensions():
-    """Initialize required PostgreSQL extensions and types."""
-    with engine.connect() as conn:
-        conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
-        
-        conn.execute(text("""
-            DO $$ 
-            BEGIN
-                IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'userrole') THEN
-                    CREATE TYPE userrole AS ENUM ('super_admin', 'admin', 'employee');
-                END IF;
-            END $$;
-        """))
-        
-        conn.commit()
+def _init_extensions(conn):
+    conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+    conn.execute(text("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'userrole') THEN
+                CREATE TYPE userrole AS ENUM ('super_admin', 'admin', 'employee');
+            END IF;
+        END $$;
+    """))
 
 
 def run_migrations():
-    """Run any pending schema migrations.
+    """Run all schema setup atomically: extensions, ORM tables, raw SQL migrations.
 
-    Uses a PostgreSQL advisory lock so only one worker runs migrations
-    when multiple processes start simultaneously (e.g. Render multi-worker deploy).
+    A PostgreSQL advisory lock serializes DDL across workers so only one
+    process performs schema changes during multi-worker startup. Other
+    workers wait for the lock-holder to finish, ensuring the schema is
+    fully ready before any worker proceeds.
     """
     with engine.connect() as conn:
-        acquired = conn.execute(text("SELECT pg_try_advisory_lock(1)")).scalar()
-        if not acquired:
+        if not conn.execute(text("SELECT pg_try_advisory_lock(1)")).scalar():
+            conn.execute(text("SELECT pg_advisory_lock(1)"))
+            conn.execute(text("SELECT pg_advisory_unlock(1)"))
             conn.commit()
             return
 
         try:
+            _init_extensions(conn)
+            conn.commit()
+            Base.metadata.create_all(bind=engine)
             _run_migration_statements(conn)
         except Exception as e:
             logger.error("Migration failed: %s", e)
@@ -63,7 +64,6 @@ def run_migrations():
                 conn.commit()
             except Exception:
                 conn.rollback()
-
 
 
 def get_db():

@@ -285,6 +285,16 @@ def _multichannel(conn):
         END $$;
     """))
 
+    # Ensure timestamp defaults exist on tables possibly created via
+    # Base.metadata.create_all before server_default was set on the model.
+    for tbl in ("agent_channels", "channel_users"):
+        conn.execute(text(
+            f"ALTER TABLE {tbl} ALTER COLUMN created_at SET DEFAULT NOW()"
+        ))
+        conn.execute(text(
+            f"ALTER TABLE {tbl} ALTER COLUMN updated_at SET DEFAULT NOW()"
+        ))
+
 
 def _structural_improvements(conn):
     conn.execute(text("""
