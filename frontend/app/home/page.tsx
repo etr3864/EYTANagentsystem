@@ -46,6 +46,13 @@ const content = {
         desc: 'העלאת מסמכים, תמונות וקבצים — הסוכן משתמש בהם בשיחות עם חיפוש סמנטי חכם.',
       },
     ],
+    channelsTitle: 'תקשורת רב-ערוצית',
+    channelsDesc: 'הפלטפורמה תומכת בערוצי המסרים המובילים של Meta, כך שהסוכן שלך זמין ללקוחות שלו בכל מקום שהם נמצאים.',
+    channels: [
+      { icon: '🟢', name: 'WhatsApp Business', desc: 'באמצעות WhatsApp Business Platform הרשמי או דרך Wasender' },
+      { icon: '🟣', name: 'Instagram Direct', desc: 'תגובה אוטומטית להודעות פרטיות בחשבון Instagram עסקי' },
+      { icon: '🔵', name: 'Facebook Messenger', desc: 'מענה אוטומטי להודעות בדפי Facebook עסקיים' },
+    ],
     calendarTitle: 'אינטגרציה עם Google Calendar',
     calendarDesc: 'הפלטפורמה שלנו מתחברת ליומן Google שלך כדי לאפשר לסוכן ה-AI לנהל פגישות בשמך. הנתונים משמשים אך ורק לבדיקת זמינות ותיאום פגישות — ללא שימוש לשיווק, פרסום, או כל מטרה אחרת.',
     calendarPoints: [
@@ -54,11 +61,21 @@ const content = {
       'שליחת תזכורות אוטומטיות ללקוחות',
       'ניתן לנתק את הגישה ליומן בכל עת',
     ],
+    complianceTitle: 'אמון, פרטיות וציות',
+    complianceDesc: 'אנו פועלים בהתאם לדרישות הרגולטוריות והפלטפורמתיות, ומאחסנים נתונים בתשתית EU מאובטחת.',
+    compliancePoints: [
+      'עמידה ב-Meta Platform Terms ו-WhatsApp Business Solution Terms',
+      'הצפנה במנוחה ובתעבורה לכל הנתונים',
+      'תאימות GDPR — Render Frankfurt, EU',
+      'מחיקת נתונים תוך 30 יום מבקשה מאומתת',
+      'אנו לא משתמשים בנתוני משתמשים לאימון מודלי AI',
+    ],
     companyTitle: 'מי אנחנו',
-    companyDesc: 'Optive Ltd. היא חברת טכנולוגיה ישראלית המתמחה בפיתוח פתרונות בינה מלאכותית לעסקים. אנחנו בונים סוכני AI אוטונומיים שפועלים 24/7 ומייצרים ערך עסקי אמיתי — שיחות טבעיות, תיאום פגישות, מעקב לקוחות ועוד.',
+    companyDesc: 'Optive Artificial Intelligence Ltd. (ח.פ. 517895165) היא חברת טכנולוגיה ישראלית המתמחה בפיתוח פתרונות בינה מלאכותית לעסקים. אנחנו בונים סוכני AI אוטונומיים שפועלים 24/7 ומייצרים ערך עסקי אמיתי — שיחות טבעיות, תיאום פגישות, מעקב לקוחות ועוד.',
     privacy: 'מדיניות פרטיות',
     terms: 'תנאי שימוש',
-    rights: '© 2026 Optive Ltd. כל הזכויות שמורות.',
+    dataDeletion: 'מחיקת נתונים',
+    rights: '© 2026 Optive Artificial Intelligence Ltd. כל הזכויות שמורות.',
     contact: 'צרו קשר',
   },
   en: {
@@ -99,6 +116,13 @@ const content = {
         desc: 'Upload documents, images, and files — the agent uses them in conversations with smart semantic search.',
       },
     ],
+    channelsTitle: 'Multi-Channel Messaging',
+    channelsDesc: 'The platform supports the leading Meta messaging channels, so your agent is available wherever your customers are.',
+    channels: [
+      { icon: '🟢', name: 'WhatsApp Business', desc: 'Via the official WhatsApp Business Platform or through Wasender' },
+      { icon: '🟣', name: 'Instagram Direct', desc: 'Automated replies to Direct Messages on a Business Instagram account' },
+      { icon: '🔵', name: 'Facebook Messenger', desc: 'Automated responses on connected Facebook Business Pages' },
+    ],
     calendarTitle: 'Google Calendar Integration',
     calendarDesc: 'Our platform connects to your Google Calendar to allow the AI agent to manage appointments on your behalf. Data is used solely for availability checks and appointment scheduling — never for marketing, advertising, or any other purpose.',
     calendarPoints: [
@@ -107,11 +131,21 @@ const content = {
       'Send automated reminders to customers',
       'Calendar access can be revoked at any time',
     ],
+    complianceTitle: 'Trust, Privacy & Compliance',
+    complianceDesc: 'We operate in line with regulatory and platform requirements, and store data on secure EU infrastructure.',
+    compliancePoints: [
+      'Compliant with Meta Platform Terms and WhatsApp Business Solution Terms',
+      'Encryption at rest and in transit for all data',
+      'GDPR-aligned hosting — Render Frankfurt, EU',
+      'Verified deletion requests honored within 30 days',
+      'We do not use user data to train AI models',
+    ],
     companyTitle: 'About Us',
-    companyDesc: 'Optive Ltd. is an Israeli technology company specializing in AI solutions for businesses. We build autonomous AI agents that operate 24/7 and deliver real business value — natural conversations, appointment scheduling, customer follow-ups, and more.',
+    companyDesc: 'Optive Artificial Intelligence Ltd. (Company No. 517895165) is an Israeli technology company specializing in AI solutions for businesses. We build autonomous AI agents that operate 24/7 and deliver real business value — natural conversations, appointment scheduling, customer follow-ups, and more.',
     privacy: 'Privacy Policy',
     terms: 'Terms of Service',
-    rights: '© 2026 Optive Ltd. All rights reserved.',
+    dataDeletion: 'Data Deletion',
+    rights: '© 2026 Optive Artificial Intelligence Ltd. All rights reserved.',
     contact: 'Contact Us',
   },
 } as const;
@@ -206,6 +240,24 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* ───── Multi-Channel Section ───── */}
+        <section className="max-w-6xl mx-auto px-5 py-20">
+          <h2 className="text-3xl sm:text-4xl font-bold text-center mb-4">{t.channelsTitle}</h2>
+          <p className="text-slate-400 text-center max-w-2xl mx-auto mb-12">{t.channelsDesc}</p>
+          <div className="grid sm:grid-cols-3 gap-5">
+            {t.channels.map((c, i) => (
+              <div
+                key={i}
+                className="p-6 rounded-2xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/10 transition-all duration-300"
+              >
+                <div className="text-3xl mb-3">{c.icon}</div>
+                <h3 className="text-lg font-semibold text-white mb-2">{c.name}</h3>
+                <p className="text-sm text-slate-400 leading-relaxed">{c.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
         {/* ───── Google Calendar Section ───── */}
         <section className="max-w-5xl mx-auto px-5 py-20">
           <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-8 sm:p-12">
@@ -235,6 +287,31 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* ───── Compliance Section ───── */}
+        <section className="max-w-5xl mx-auto px-5 py-20">
+          <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-8 sm:p-12">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
+                <svg className="w-6 h-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-bold">{t.complianceTitle}</h2>
+            </div>
+            <p className="text-slate-400 leading-relaxed mb-6 max-w-3xl">{t.complianceDesc}</p>
+            <ul className="space-y-3">
+              {t.compliancePoints.map((point, i) => (
+                <li key={i} className="flex items-start gap-3">
+                  <svg className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-slate-300 text-sm">{point}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
         {/* ───── About ───── */}
         <section className="max-w-5xl mx-auto px-5 py-20 text-center">
           <h2 className="text-3xl sm:text-4xl font-bold mb-6">{t.companyTitle}</h2>
@@ -252,13 +329,17 @@ export default function HomePage() {
                 <span className="text-sm text-slate-500">{t.rights}</span>
               </div>
 
-              <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-4 text-sm flex-wrap justify-center">
                 <Link href="/privacy" className="text-slate-400 hover:text-white transition">
                   {t.privacy}
                 </Link>
                 <span className="text-slate-700">|</span>
                 <Link href="/terms" className="text-slate-400 hover:text-white transition">
                   {t.terms}
+                </Link>
+                <span className="text-slate-700">|</span>
+                <Link href="/data-deletion" className="text-slate-400 hover:text-white transition">
+                  {t.dataDeletion}
                 </Link>
                 <span className="text-slate-700">|</span>
                 <a href="mailto:support@0ptive.com" className="text-slate-400 hover:text-white transition">

@@ -344,17 +344,54 @@ async def meta_data_deletion(request: Request):
 
 
 async def _delete_user_data(external_user_id: str) -> None:
-    """Delete all channel_users records for this Meta user."""
+    """Cascade-delete all data tied to a Meta end-user identifier.
+
+    Removes (in order):
+    - messages → conversations → channel_users for this identifier
+    - legacy `users` row (matched by phone) if no conversations remain
+    """
     db = SessionLocal()
     try:
         from sqlalchemy import text
+
+        params = {"uid": external_user_id}
+
+        target_conv_ids = [
+            row[0] for row in db.execute(text("""
+                SELECT c.id FROM conversations c
+                LEFT JOIN channel_users cu ON cu.id = c.channel_user_id
+                LEFT JOIN users u ON u.id = c.user_id
+                WHERE cu.external_id = :uid
+                   OR cu.bsuid = :uid
+                   OR u.phone = :uid
+            """), params).fetchall()
+        ]
+
+        if target_conv_ids:
+            db.execute(
+                text("DELETE FROM messages WHERE conversation_id = ANY(:ids)"),
+                {"ids": target_conv_ids},
+            )
+            db.execute(
+                text("DELETE FROM conversations WHERE id = ANY(:ids)"),
+                {"ids": target_conv_ids},
+            )
+
         db.execute(text("""
             DELETE FROM channel_users
-            WHERE external_id = :uid
-               OR bsuid = :uid
-        """), {"uid": external_user_id})
+            WHERE external_id = :uid OR bsuid = :uid
+        """), params)
+
+        db.execute(text("""
+            DELETE FROM users
+            WHERE phone = :uid
+              AND NOT EXISTS (
+                  SELECT 1 FROM conversations c WHERE c.user_id = users.id
+              )
+        """), params)
+
         db.commit()
-        log("gdpr", msg=f"deleted data for {external_user_id[:10]}***")
+        log("gdpr", msg=f"deleted data for {external_user_id[:10]}*** convs={len(target_conv_ids)}")
     except Exception as e:
         log_error("gdpr", f"data deletion failed: {e}")
         db.rollback()
