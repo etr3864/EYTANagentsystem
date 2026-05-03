@@ -9,9 +9,9 @@ type Lang = 'he' | 'en';
 
 const content = {
   he: {
-    heroTitle: 'סוכני WhatsApp חכמים',
+    heroTitle: 'סוכני הודעות חכמים',
     heroTitleAccent: 'מבוססי בינה מלאכותית',
-    heroSub: 'פלטפורמה מתקדמת ליצירה, ניהול ותפעול של סוכני AI אוטונומיים ב-WhatsApp — שיחות טבעיות, תיאום פגישות ומעקב לקוחות, 24/7.',
+    heroSub: 'פלטפורמה מתקדמת ליצירה, ניהול ותפעול של סוכני AI אוטונומיים ב-WhatsApp, Instagram ו-Messenger — שיחות טבעיות, תיאום פגישות ומעקב לקוחות, 24/7.',
     login: 'כניסה למערכת',
     featuresTitle: 'יכולות הפלטפורמה',
     features: [
@@ -49,7 +49,7 @@ const content = {
     channelsTitle: 'תקשורת רב-ערוצית',
     channelsDesc: 'הפלטפורמה תומכת בערוצי המסרים המובילים של Meta, כך שהסוכן שלך זמין ללקוחות שלו בכל מקום שהם נמצאים.',
     channels: [
-      { icon: '🟢', name: 'WhatsApp Business', desc: 'באמצעות WhatsApp Business Platform הרשמי או דרך Wasender' },
+      { icon: '🟢', name: 'WhatsApp Business', desc: 'מענה אוטומטי להודעות WhatsApp דרך WhatsApp Business Platform הרשמי' },
       { icon: '🟣', name: 'Instagram Direct', desc: 'תגובה אוטומטית להודעות פרטיות בחשבון Instagram עסקי' },
       { icon: '🔵', name: 'Facebook Messenger', desc: 'מענה אוטומטי להודעות בדפי Facebook עסקיים' },
     ],
@@ -79,9 +79,9 @@ const content = {
     contact: 'צרו קשר',
   },
   en: {
-    heroTitle: 'Smart WhatsApp Agents',
+    heroTitle: 'Smart Messaging Agents',
     heroTitleAccent: 'Powered by AI',
-    heroSub: 'An advanced platform for creating, managing, and operating autonomous AI agents on WhatsApp — natural conversations, appointment scheduling, and customer follow-ups, 24/7.',
+    heroSub: 'An advanced platform for creating, managing, and operating autonomous AI agents across WhatsApp, Instagram, and Messenger — natural conversations, appointment scheduling, and customer follow-ups, 24/7.',
     login: 'Sign In',
     featuresTitle: 'Platform Capabilities',
     features: [
@@ -119,7 +119,7 @@ const content = {
     channelsTitle: 'Multi-Channel Messaging',
     channelsDesc: 'The platform supports the leading Meta messaging channels, so your agent is available wherever your customers are.',
     channels: [
-      { icon: '🟢', name: 'WhatsApp Business', desc: 'Via the official WhatsApp Business Platform or through Wasender' },
+      { icon: '🟢', name: 'WhatsApp Business', desc: 'Automated replies via the official WhatsApp Business Platform' },
       { icon: '🟣', name: 'Instagram Direct', desc: 'Automated replies to Direct Messages on a Business Instagram account' },
       { icon: '🔵', name: 'Facebook Messenger', desc: 'Automated responses on connected Facebook Business Pages' },
     ],
