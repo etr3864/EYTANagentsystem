@@ -251,6 +251,9 @@ async def _handle_single_message(msg: ParsedIncomingMessage) -> None:
         )
         db.commit()
 
+        if profile_pic and not _is_r2_url(profile_pic):
+            asyncio.create_task(_cache_profile_pic_bg(channel_user_id, profile_pic))
+
         batching_config = (
             channel.agent.get_batching_config()
             if hasattr(channel.agent, "get_batching_config")
@@ -313,6 +316,35 @@ async def _handle_single_message(msg: ParsedIncomingMessage) -> None:
         db.close()
 
 
+# ── Profile picture caching ───────────────────────────────────────────────────
+
+def _is_r2_url(url: str) -> bool:
+    r2_base = settings.r2_public_url or ""
+    return bool(r2_base) and url.startswith(r2_base)
+
+
+async def _cache_profile_pic_bg(channel_user_id: int, source_url: str) -> None:
+    """Background task: download Meta CDN pic → upload to R2 → update DB."""
+    try:
+        from backend.services.media.storage import cache_profile_pic
+        r2_url = await cache_profile_pic(source_url, channel_user_id)
+        if not r2_url:
+            return
+
+        db = SessionLocal()
+        try:
+            from sqlalchemy import text as sa_text
+            db.execute(
+                sa_text("UPDATE channel_users SET profile_pic_url = :url, updated_at = NOW() WHERE id = :id"),
+                {"url": r2_url, "id": channel_user_id},
+            )
+            db.commit()
+        finally:
+            db.close()
+    except Exception as e:
+        log_error("profile_pic_cache", f"cu={channel_user_id}: {e}")
+
+
 # ── GDPR / Platform policy endpoints ─────────────────────────────────────────
 
 @router.post("/api/meta/data-deletion")
@@ -355,6 +387,17 @@ async def _delete_user_data(external_user_id: str) -> None:
         from sqlalchemy import text
 
         params = {"uid": external_user_id}
+
+        cu_ids = [
+            row[0] for row in db.execute(text("""
+                SELECT id FROM channel_users
+                WHERE external_id = :uid OR bsuid = :uid
+            """), params).fetchall()
+        ]
+
+        from backend.services.media.storage import delete_profile_pic
+        for cu_id in cu_ids:
+            delete_profile_pic(cu_id)
 
         target_conv_ids = [
             row[0] for row in db.execute(text("""

@@ -3,11 +3,13 @@
 Handles file uploads/downloads to R2 (S3-compatible).
 Files are organized by: agents/{agent_id}/{media_type}s/{filename}
 """
+import io
 import logging
-from typing import BinaryIO
+from typing import BinaryIO, Optional
 from uuid import uuid4
 
 import boto3
+import httpx
 from botocore.config import Config
 from botocore.exceptions import ClientError
 
@@ -188,3 +190,54 @@ def generate_presigned_upload_url(file_key: str, content_type: str, expires_in: 
         ExpiresIn=expires_in
     )
     return url
+
+
+_PROFILE_PIC_MAX_BYTES = 500_000  # 500KB safety limit
+
+
+async def cache_profile_pic(source_url: str, channel_user_id: int) -> Optional[str]:
+    """Download a Meta CDN profile picture and re-upload to R2.
+
+    Returns the permanent R2 public URL, or None on any failure.
+    Designed to be called via asyncio.create_task (fire-and-forget).
+    """
+    if not settings.r2_configured:
+        return None
+
+    try:
+        async with httpx.AsyncClient(timeout=5, follow_redirects=True) as client:
+            resp = await client.get(source_url)
+            if resp.status_code != 200:
+                return None
+
+        data = resp.content
+        if len(data) > _PROFILE_PIC_MAX_BYTES:
+            return None
+
+        content_type = resp.headers.get("content-type", "image/jpeg").split(";")[0]
+        ext = "png" if "png" in content_type else "jpg"
+        file_key = f"profile_pics/{channel_user_id}.{ext}"
+
+        s3 = _get_client()
+        s3.upload_fileobj(
+            io.BytesIO(data),
+            settings.r2_bucket_name,
+            file_key,
+            ExtraArgs={
+                "ContentType": content_type,
+                "CacheControl": "public, max-age=604800",
+            },
+        )
+        url = get_public_url(file_key)
+        logger.info(f"storage profile_pic_cached cu={channel_user_id}")
+        return url
+
+    except Exception as e:
+        logger.warning(f"storage profile_pic_cache_failed cu={channel_user_id}: {e}")
+        return None
+
+
+def delete_profile_pic(channel_user_id: int) -> None:
+    """Delete cached profile pictures for a channel user (GDPR)."""
+    for ext in ("jpg", "png"):
+        delete_file(f"profile_pics/{channel_user_id}.{ext}")

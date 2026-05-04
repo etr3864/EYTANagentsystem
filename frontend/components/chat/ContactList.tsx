@@ -154,16 +154,20 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete, onL
                     src={conv.channel_profile_pic}
                     alt=""
                     className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    onError={(e) => {
+                      const el = e.target as HTMLImageElement;
+                      el.style.display = 'none';
+                      el.nextElementSibling?.classList.remove('hidden');
+                    }}
                   />
-                ) : (
-                  <div className={`
-                    w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0
-                    ${selectedId === conv.id ? 'bg-blue-500/20' : 'bg-slate-700/50'}
-                  `}>
-                    {getGenderIcon(conv.user_gender)}
-                  </div>
-                )}
+                ) : null}
+                <div className={`
+                  w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0
+                  ${conv.channel_profile_pic ? 'hidden' : ''}
+                  ${selectedId === conv.id ? 'bg-blue-500/20' : 'bg-slate-700/50'}
+                `}>
+                  {getGenderIcon(conv.user_gender)}
+                </div>
                 <div>
                   <div className="font-medium text-white text-sm flex items-center gap-1.5">
                     {conv.channel_username && conv.channel_type === 'instagram' ? (
