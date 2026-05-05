@@ -216,26 +216,19 @@ async def get_profile_pic(api_key: str, phone: str) -> Optional[str]:
         try:
             async with httpx.AsyncClient(timeout=10) as client:
                 resp = await client.get(url, headers=headers)
-        except Exception as e:
-            log_error("wasender_pic", f"phone={phone} exception={type(e).__name__}: {str(e)[:80]}")
+        except Exception:
             return None
 
         if resp.status_code == 200:
             data = resp.json()
-            if not data.get("success"):
-                log_error("wasender_pic", f"phone={phone} success=false body={str(data)[:120]}")
-                return None
-            img_url = data.get("data", {}).get("imgUrl")
-            if not img_url:
-                log_error("wasender_pic", f"phone={phone} empty imgUrl body={str(data)[:120]}")
-                return None
-            return img_url
+            if data.get("success"):
+                return data.get("data", {}).get("imgUrl")
+            return None
 
         if resp.status_code == 408 and attempt < len(_PIC_RETRY_DELAYS):
             await asyncio.sleep(_PIC_RETRY_DELAYS[attempt])
             continue
 
-        log_error("wasender_pic", f"phone={phone} status={resp.status_code} body={resp.text[:120]}")
         return None
 
     return None

@@ -202,19 +202,16 @@ async def cache_profile_pic(source_url: str, channel_user_id: int) -> Optional[s
     Designed to be called via asyncio.create_task (fire-and-forget).
     """
     if not settings.r2_configured:
-        logger.warning(f"profile_pic_cache_skip cu={channel_user_id} reason=r2_not_configured")
         return None
 
     try:
         async with httpx.AsyncClient(timeout=5, follow_redirects=True) as client:
             resp = await client.get(source_url)
             if resp.status_code != 200:
-                logger.warning(f"profile_pic_download_failed cu={channel_user_id} status={resp.status_code}")
                 return None
 
         data = resp.content
         if len(data) > _PROFILE_PIC_MAX_BYTES:
-            logger.warning(f"profile_pic_too_large cu={channel_user_id} size={len(data)}")
             return None
 
         content_type = resp.headers.get("content-type", "image/jpeg").split(";")[0]
@@ -231,12 +228,10 @@ async def cache_profile_pic(source_url: str, channel_user_id: int) -> Optional[s
                 "CacheControl": "public, max-age=604800",
             },
         )
-        url = get_public_url(file_key)
-        logger.info(f"profile_pic_cached cu={channel_user_id} size={len(data)}")
-        return url
+        return get_public_url(file_key)
 
     except Exception as e:
-        logger.warning(f"profile_pic_cache_failed cu={channel_user_id} error={type(e).__name__}: {str(e)[:100]}")
+        logger.warning(f"profile_pic_cache_failed cu={channel_user_id}: {e}")
         return None
 
 

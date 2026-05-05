@@ -125,20 +125,36 @@ async def _resolve_channel_user(
         return channel.id, None
 
 
+_PIC_THROTTLE_SECONDS = 600  # 10 min between failed attempts per user
+
+
+async def _should_attempt_pic(channel_user_id: int) -> bool:
+    """Throttle pic fetches to once per 10 min (Redis-backed; fail-open)."""
+    try:
+        from backend.services.meta.rate_limiter import _get_redis
+        r = await _get_redis()
+        if not r:
+            return True
+        key = f"wa:pic_attempt:{channel_user_id}"
+        if await r.set(key, "1", ex=_PIC_THROTTLE_SECONDS, nx=True) is None:
+            return False
+        return True
+    except Exception:
+        return True
+
+
 async def _cache_profile_pic(api_key: str, phone: str, channel_user_id: int) -> None:
-    """Fetch WA pic URL and immediately cache to R2 before it expires."""
+    """Fetch WA pic URL and cache to R2. Throttled per user to prevent spam."""
+    if not await _should_attempt_pic(channel_user_id):
+        return
     try:
         from backend.services.media.storage import cache_profile_pic
 
-        log("PIC_FETCH", phone=phone, cu=channel_user_id)
         pic_url = await wasender.get_profile_pic(api_key, phone)
         if not pic_url:
-            log("PIC_NONE", cu=channel_user_id, reason="get_profile_pic returned None")
             return
-
         r2_url = await cache_profile_pic(pic_url, channel_user_id)
         if not r2_url:
-            log("PIC_NONE", cu=channel_user_id, reason="cache_profile_pic failed")
             return
 
         db = SessionLocal()
@@ -149,7 +165,6 @@ async def _cache_profile_pic(api_key: str, phone: str, channel_user_id: int) -> 
                 {"url": r2_url, "id": channel_user_id},
             )
             db.commit()
-            log("PIC_OK", cu=channel_user_id)
         finally:
             db.close()
     except Exception as e:
