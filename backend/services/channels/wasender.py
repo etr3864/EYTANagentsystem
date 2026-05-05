@@ -4,7 +4,7 @@ import httpx
 from typing import Optional
 from backend.core.logger import log_error
 
-_BASE_URL = "https://wasenderapi.com/api"
+_BASE_URL = "https://www.wasenderapi.com/api"
 
 
 def verify_signature(signature: str | None, webhook_secret: str) -> bool:
@@ -204,29 +204,41 @@ async def _send_with_retry(
     return False
 
 
+_PIC_RETRY_DELAYS = (1.0, 2.0)  # WaSender often returns 408 — retry per their hint
+
+
 async def get_profile_pic(api_key: str, phone: str) -> Optional[str]:
-    """Fetch WhatsApp profile picture URL for a contact."""
-    try:
-        async with httpx.AsyncClient(timeout=5) as client:
-            resp = await client.get(
-                f"{_BASE_URL}/contacts/{phone}/picture",
-                headers={"Authorization": f"Bearer {api_key}"},
-            )
-        if resp.status_code != 200:
-            log_error("wasender_pic", f"phone={phone} status={resp.status_code} body={resp.text[:120]}")
+    """Fetch WhatsApp profile picture URL for a contact, retrying on transient timeouts."""
+    url = f"{_BASE_URL}/contacts/{phone}/picture"
+    headers = {"Authorization": f"Bearer {api_key}"}
+
+    for attempt in range(len(_PIC_RETRY_DELAYS) + 1):
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(url, headers=headers)
+        except Exception as e:
+            log_error("wasender_pic", f"phone={phone} exception={type(e).__name__}: {str(e)[:80]}")
             return None
-        data = resp.json()
-        if not data.get("success"):
-            log_error("wasender_pic", f"phone={phone} success=false body={str(data)[:120]}")
-            return None
-        img_url = data.get("data", {}).get("imgUrl")
-        if not img_url:
-            log_error("wasender_pic", f"phone={phone} empty imgUrl body={str(data)[:120]}")
-            return None
-        return img_url
-    except Exception as e:
-        log_error("wasender_pic", f"phone={phone} exception={type(e).__name__}: {str(e)[:80]}")
+
+        if resp.status_code == 200:
+            data = resp.json()
+            if not data.get("success"):
+                log_error("wasender_pic", f"phone={phone} success=false body={str(data)[:120]}")
+                return None
+            img_url = data.get("data", {}).get("imgUrl")
+            if not img_url:
+                log_error("wasender_pic", f"phone={phone} empty imgUrl body={str(data)[:120]}")
+                return None
+            return img_url
+
+        if resp.status_code == 408 and attempt < len(_PIC_RETRY_DELAYS):
+            await asyncio.sleep(_PIC_RETRY_DELAYS[attempt])
+            continue
+
+        log_error("wasender_pic", f"phone={phone} status={resp.status_code} body={resp.text[:120]}")
         return None
+
+    return None
 
 
 async def decrypt_media(api_key: str, message_key: dict, message_data: dict) -> Optional[str]:
