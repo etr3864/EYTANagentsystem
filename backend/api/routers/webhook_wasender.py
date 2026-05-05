@@ -7,7 +7,7 @@ from fastapi import APIRouter, Request, HTTPException, Header
 from sqlalchemy.orm import Session
 
 from backend.core.database import SessionLocal
-from backend.core.logger import log_error, log_audio, log_image
+from backend.core.logger import log_error, log_audio, log_image, log
 from backend.models.agent import Agent
 from backend.services import media
 from backend.services.entities import agents
@@ -79,6 +79,26 @@ async def _process_image(api_key: str, msg_data: dict, agent_name: str) -> tuple
     return "[תמונה]", "image", image_base64, mime
 
 
+async def _process_video(api_key: str, msg_data: dict, agent_name: str) -> tuple[str, str, Optional[str], Optional[str]]:
+    """Process incoming video → decrypt, extract first frame, return as image for AI."""
+    from backend.services.media.video import extract_first_frame
+
+    log("VIDEO", agent=agent_name, provider="wasender")
+    public_url = await wasender.decrypt_media(api_key, msg_data["message_key"], msg_data["message_data"])
+    if not public_url:
+        return "[וידאו]", "video", None, None
+
+    video_bytes = await media.download_from_url(public_url)
+    if not video_bytes:
+        log_error("video", "download failed")
+        return "[וידאו]", "video", None, None
+
+    frame_base64 = extract_first_frame(video_bytes)
+    caption = msg_data.get("text", "")
+    text = f"[וידאו]: {caption}" if caption else "[וידאו]"
+    return text, "video", frame_base64, "image/jpeg"
+
+
 async def _resolve_channel_user(
     db: Session, agent_id: int, phone: str, name: Optional[str], api_key: str,
 ) -> tuple[Optional[int], Optional[int]]:
@@ -126,6 +146,11 @@ async def handle_wasender_message(agent_id: int, msg_data: dict):
             text, msg_type = await _process_audio(creds.api_key, msg_data, agent.name)
         elif msg_type == "image":
             text, msg_type, image_base64, mime_type = await _process_image(creds.api_key, msg_data, agent.name)
+        elif msg_type == "video":
+            text, msg_type, image_base64, mime_type = await _process_video(creds.api_key, msg_data, agent.name)
+        elif msg_type == "document":
+            filename = msg_data.get("filename", "")
+            text = f"[קובץ: {filename}]" if filename else "[קובץ]"
 
         channel_id, channel_user_id = await _resolve_channel_user(db, agent.id, phone, name, creds.api_key)
 

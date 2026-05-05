@@ -318,6 +318,16 @@ def extract_message_data(payload: dict) -> Optional[dict]:
             result["msg_type"] = "audio"
             result["text"] = ""
             result["mime_type"] = message.get("audioMessage", {}).get("mimetype", "audio/ogg")
+        elif message.get("videoMessage"):
+            result["msg_type"] = "video"
+            result["text"] = message.get("videoMessage", {}).get("caption", "")
+            result["mime_type"] = message.get("videoMessage", {}).get("mimetype", "video/mp4")
+        elif message.get("documentMessage"):
+            doc = message["documentMessage"]
+            result["msg_type"] = "document"
+            result["text"] = ""
+            result["mime_type"] = doc.get("mimetype", "")
+            result["filename"] = doc.get("fileName", "")
         elif message.get("conversation"):
             result["msg_type"] = "text"
             result["text"] = message.get("conversation", "")
@@ -325,7 +335,6 @@ def extract_message_data(payload: dict) -> Optional[dict]:
             result["msg_type"] = "text"
             result["text"] = messages_data.get("messageBody", "")
         else:
-            # Unknown message type
             return None
         
         return result

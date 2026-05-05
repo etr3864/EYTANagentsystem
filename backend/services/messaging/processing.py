@@ -185,14 +185,15 @@ async def process_batched_messages(
         for msg in pending_msgs:
             content_to_save = msg.text
 
-            if msg.msg_type == "image" and msg.image_base64:
+            if msg.msg_type in ("image", "video") and msg.image_base64:
                 has_images = True
                 description, desc_usage = await ai.describe_image(
                     msg.image_base64, msg.media_type or "image/jpeg", agent=agent,
                 )
                 describe_usage_total["input_tokens"] += desc_usage.get("input_tokens", 0)
                 describe_usage_total["output_tokens"] += desc_usage.get("output_tokens", 0)
-                content_to_save = f"[תמונה]: {description}"
+                prefix = "[תמונה]" if msg.msg_type == "image" else "[וידאו]"
+                content_to_save = f"{prefix}: {description}"
                 msg.text = content_to_save
 
             messages.add_no_commit(db, conv.id, "user", content_to_save, message_type=msg.msg_type)

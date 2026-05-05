@@ -196,6 +196,24 @@ async def _process_media(
             text = text or "[תמונה - לא הצלחתי להוריד]"
             log_error("webhook_meta", f"image download failed for {msg.channel_type}")
 
+    elif msg.msg_type == "video" and (has_wa_media or has_url_media):
+        from backend.services.media.video import extract_first_frame
+
+        if has_wa_media:
+            video_bytes = await media.download_whatsapp_media(msg.media_id, access_token)
+        else:
+            video_bytes = await download_from_url(msg.media_url)
+
+        if video_bytes:
+            image_base64 = extract_first_frame(video_bytes)
+            text = text or "[וידאו]"
+        else:
+            log_error("webhook_meta", f"video download failed for {msg.channel_type}")
+            text = text or "[וידאו]"
+
+    elif msg.msg_type == "document":
+        text = text or "[קובץ]"
+
     elif msg.msg_type == "audio" and (has_wa_media or has_url_media):
         if has_wa_media:
             audio_bytes = await media.download_whatsapp_media(msg.media_id, access_token)
