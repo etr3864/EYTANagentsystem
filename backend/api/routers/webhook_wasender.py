@@ -130,12 +130,15 @@ async def _cache_profile_pic(api_key: str, phone: str, channel_user_id: int) -> 
     try:
         from backend.services.media.storage import cache_profile_pic
 
+        log("PIC_FETCH", phone=phone, cu=channel_user_id)
         pic_url = await wasender.get_profile_pic(api_key, phone)
         if not pic_url:
+            log("PIC_NONE", cu=channel_user_id, reason="get_profile_pic returned None")
             return
 
         r2_url = await cache_profile_pic(pic_url, channel_user_id)
         if not r2_url:
+            log("PIC_NONE", cu=channel_user_id, reason="cache_profile_pic failed")
             return
 
         db = SessionLocal()
@@ -146,6 +149,7 @@ async def _cache_profile_pic(api_key: str, phone: str, channel_user_id: int) -> 
                 {"url": r2_url, "id": channel_user_id},
             )
             db.commit()
+            log("PIC_OK", cu=channel_user_id)
         finally:
             db.close()
     except Exception as e:
