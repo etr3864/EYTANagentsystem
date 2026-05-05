@@ -118,10 +118,35 @@ async def _resolve_channel_user(
             IncomingUserInfo(external_id=phone, display_name=name, profile_pic_url=profile_pic),
         )
         db.commit()
+
+        if profile_pic:
+            asyncio.create_task(_cache_profile_pic_bg(cu_id, profile_pic))
+
         return channel.id, cu_id
     except Exception as e:
         log_error("wasender", f"channel_user upsert failed: {e}")
         return channel.id, None
+
+
+async def _cache_profile_pic_bg(channel_user_id: int, source_url: str) -> None:
+    """Background: download WA profile pic → upload to R2 → update DB."""
+    try:
+        from backend.services.media.storage import cache_profile_pic
+        r2_url = await cache_profile_pic(source_url, channel_user_id)
+        if not r2_url:
+            return
+        db = SessionLocal()
+        try:
+            from sqlalchemy import text as sa_text
+            db.execute(
+                sa_text("UPDATE channel_users SET profile_pic_url = :url, updated_at = NOW() WHERE id = :id"),
+                {"url": r2_url, "id": channel_user_id},
+            )
+            db.commit()
+        finally:
+            db.close()
+    except Exception as e:
+        log_error("profile_pic_cache", f"wasender cu={channel_user_id}: {e}")
 
 
 async def handle_wasender_message(agent_id: int, msg_data: dict):
