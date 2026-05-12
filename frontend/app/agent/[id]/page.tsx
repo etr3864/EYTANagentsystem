@@ -155,7 +155,7 @@ function AgentPage() {
       setSystemPrompt(data.system_prompt || '');
       setAppointmentPrompt(data.appointment_prompt || '');
       setName(data.name);
-      setPhoneNumberId(data.phone_number_id);
+      setPhoneNumberId(data.phone_number_id || '');
       setAccessToken(data.access_token);
       setVerifyToken(data.verify_token);
       setModel(data.model);

@@ -102,25 +102,22 @@ async def _process_video(api_key: str, msg_data: dict, agent_name: str) -> tuple
 async def _resolve_channel_user(
     db: Session, agent_id: int, phone: str, name: Optional[str], api_key: str,
 ) -> tuple[Optional[int], Optional[int]]:
-    """Resolve channel_id and channel_user_id, fetching profile pic on first contact."""
+    """Resolve channel_id and channel_user_id, caching profile pic to R2."""
     channel = get_channel_by_type(db, agent_id, "whatsapp_wasender")
     if not channel:
         return None, None
     try:
         existing = get_by_external_id(db, channel.id, phone)
-        profile_pic = None
-        if not existing or not existing.profile_pic_url:
-            pic_url = await wasender.get_profile_pic(api_key, phone)
-            if pic_url:
-                profile_pic = pic_url
+        needs_pic = not existing or not existing.profile_pic_url or not _is_r2_url(existing.profile_pic_url)
+
         cu_id = get_or_create_for_incoming(
             db, channel,
-            IncomingUserInfo(external_id=phone, display_name=name, profile_pic_url=profile_pic),
+            IncomingUserInfo(external_id=phone, display_name=name),
         )
         db.commit()
 
-        if profile_pic:
-            asyncio.create_task(_cache_profile_pic_bg(cu_id, profile_pic))
+        if needs_pic:
+            asyncio.create_task(_cache_profile_pic(api_key, phone, cu_id))
 
         return channel.id, cu_id
     except Exception as e:
@@ -128,13 +125,38 @@ async def _resolve_channel_user(
         return channel.id, None
 
 
-async def _cache_profile_pic_bg(channel_user_id: int, source_url: str) -> None:
-    """Background: download WA profile pic → upload to R2 → update DB."""
+_PIC_THROTTLE_SECONDS = 600  # 10 min between failed attempts per user
+
+
+async def _should_attempt_pic(channel_user_id: int) -> bool:
+    """Throttle pic fetches to once per 10 min (Redis-backed; fail-open)."""
+    try:
+        from backend.services.meta.rate_limiter import _get_redis
+        r = await _get_redis()
+        if not r:
+            return True
+        key = f"wa:pic_attempt:{channel_user_id}"
+        if await r.set(key, "1", ex=_PIC_THROTTLE_SECONDS, nx=True) is None:
+            return False
+        return True
+    except Exception:
+        return True
+
+
+async def _cache_profile_pic(api_key: str, phone: str, channel_user_id: int) -> None:
+    """Fetch WA pic URL and cache to R2. Throttled per user to prevent spam."""
+    if not await _should_attempt_pic(channel_user_id):
+        return
     try:
         from backend.services.media.storage import cache_profile_pic
-        r2_url = await cache_profile_pic(source_url, channel_user_id)
+
+        pic_url = await wasender.get_profile_pic(api_key, phone)
+        if not pic_url:
+            return
+        r2_url = await cache_profile_pic(pic_url, channel_user_id)
         if not r2_url:
             return
+
         db = SessionLocal()
         try:
             from sqlalchemy import text as sa_text
@@ -147,6 +169,12 @@ async def _cache_profile_pic_bg(channel_user_id: int, source_url: str) -> None:
             db.close()
     except Exception as e:
         log_error("profile_pic_cache", f"wasender cu={channel_user_id}: {e}")
+
+
+def _is_r2_url(url: str) -> bool:
+    from backend.core.config import settings
+    r2_base = settings.r2_public_url or ""
+    return bool(r2_base) and url.startswith(r2_base)
 
 
 async def handle_wasender_message(agent_id: int, msg_data: dict):

@@ -24,7 +24,11 @@ class Agent(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(100))
-    phone_number_id: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    # Nullable: NULL is allowed (multiple NULLs are not duplicates under UNIQUE
+    # in PostgreSQL). Required only for Meta WhatsApp; WaSender agents leave it empty.
+    phone_number_id: Mapped[Optional[str]] = mapped_column(
+        String(50), unique=True, index=True, nullable=True
+    )
     
     # Owner (admin) - NULL means unassigned (only super admin can access)
     owner_id: Mapped[Optional[int]] = mapped_column(

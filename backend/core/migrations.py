@@ -304,6 +304,11 @@ def _structural_improvements(conn):
         END $$;
     """))
 
+    # phone_number_id: allow NULL so non-Meta agents (e.g. WaSender) can be
+    # created without colliding on the UNIQUE index when multiple have ''.
+    conn.execute(text("ALTER TABLE agents ALTER COLUMN phone_number_id DROP NOT NULL"))
+    conn.execute(text("UPDATE agents SET phone_number_id = NULL WHERE phone_number_id = ''"))
+
     conn.execute(text("""
         CREATE INDEX IF NOT EXISTS ix_document_chunks_document
         ON document_chunks(document_id);

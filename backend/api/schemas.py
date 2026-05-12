@@ -120,7 +120,7 @@ class AgentUpdate(BaseModel):
 class AgentResponse(BaseModel):
     id: int
     name: str
-    phone_number_id: str
+    phone_number_id: Optional[str] = None
     access_token: str
     verify_token: str
     system_prompt: str

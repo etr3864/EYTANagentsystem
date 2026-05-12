@@ -228,12 +228,10 @@ async def cache_profile_pic(source_url: str, channel_user_id: int) -> Optional[s
                 "CacheControl": "public, max-age=604800",
             },
         )
-        url = get_public_url(file_key)
-        logger.info(f"storage profile_pic_cached cu={channel_user_id}")
-        return url
+        return get_public_url(file_key)
 
     except Exception as e:
-        logger.warning(f"storage profile_pic_cache_failed cu={channel_user_id}: {e}")
+        logger.warning(f"profile_pic_cache_failed cu={channel_user_id}: {e}")
         return None
 
 

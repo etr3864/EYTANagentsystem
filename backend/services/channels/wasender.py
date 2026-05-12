@@ -4,7 +4,7 @@ import httpx
 from typing import Optional
 from backend.core.logger import log_error
 
-_BASE_URL = "https://wasenderapi.com/api"
+_BASE_URL = "https://www.wasenderapi.com/api"
 
 
 def verify_signature(signature: str | None, webhook_secret: str) -> bool:
@@ -204,21 +204,34 @@ async def _send_with_retry(
     return False
 
 
+_PIC_RETRY_DELAYS = (1.0, 2.0)  # WaSender often returns 408 — retry per their hint
+
+
 async def get_profile_pic(api_key: str, phone: str) -> Optional[str]:
-    """Fetch WhatsApp profile picture URL for a contact."""
-    try:
-        async with httpx.AsyncClient(timeout=5) as client:
-            resp = await client.get(
-                f"{_BASE_URL}/contacts/{phone}/picture",
-                headers={"Authorization": f"Bearer {api_key}"},
-            )
+    """Fetch WhatsApp profile picture URL for a contact, retrying on transient timeouts."""
+    url = f"{_BASE_URL}/contacts/{phone}/picture"
+    headers = {"Authorization": f"Bearer {api_key}"}
+
+    for attempt in range(len(_PIC_RETRY_DELAYS) + 1):
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(url, headers=headers)
+        except Exception:
+            return None
+
         if resp.status_code == 200:
             data = resp.json()
             if data.get("success"):
                 return data.get("data", {}).get("imgUrl")
+            return None
+
+        if resp.status_code == 408 and attempt < len(_PIC_RETRY_DELAYS):
+            await asyncio.sleep(_PIC_RETRY_DELAYS[attempt])
+            continue
+
         return None
-    except Exception:
-        return None
+
+    return None
 
 
 async def decrypt_media(api_key: str, message_key: dict, message_data: dict) -> Optional[str]:
