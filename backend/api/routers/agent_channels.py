@@ -289,6 +289,18 @@ async def create_channel(
             waba_id=body.waba_id,
             account_name=body.account_name,
         )
+
+        # Sync legacy provider fields so the WaSender webhook guard
+        # (agent.provider == "wasender") and any legacy reads of
+        # provider_config keep working for newly-created agents.
+        if body.channel_type == "whatsapp_wasender":
+            agent.provider = "wasender"
+            agent.provider_config = {
+                "api_key": body.access_token,
+                "session": body.external_account_id or "default",
+                "webhook_secret": body.wasender_secret or "",
+            }
+
         db.commit()
     except ChannelConflictError as e:
         raise HTTPException(status_code=409, detail=str(e))

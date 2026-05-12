@@ -6,7 +6,17 @@ _JSON_FIELDS = {"provider_config", "batching_config", "usage_stats", "calendar_c
                 "summary_config", "followup_config", "media_config", "custom_api_keys"}
 
 
+def _normalize_phone_id(value: str | None) -> str | None:
+    """Empty/whitespace → None so the UNIQUE index treats them as distinct nulls."""
+    if value is None:
+        return None
+    cleaned = value.strip()
+    return cleaned or None
+
+
 def get_by_phone_number_id(db: Session, phone_number_id: str) -> Agent | None:
+    if not phone_number_id:
+        return None
     return db.query(Agent).filter(
         Agent.phone_number_id == phone_number_id,
         Agent.is_active == True
@@ -35,7 +45,7 @@ def create(
 ) -> Agent:
     agent = Agent(
         name=name,
-        phone_number_id=phone_number_id,
+        phone_number_id=_normalize_phone_id(phone_number_id),
         access_token=access_token,
         verify_token=verify_token,
         system_prompt=system_prompt,
@@ -54,6 +64,8 @@ def update(db: Session, agent_id: int, **kwargs) -> Agent | None:
     agent = get_by_id(db, agent_id)
     if not agent:
         return None
+    if "phone_number_id" in kwargs and kwargs["phone_number_id"] is not None:
+        kwargs["phone_number_id"] = _normalize_phone_id(kwargs["phone_number_id"])
     for key, value in kwargs.items():
         if hasattr(agent, key) and value is not None:
             setattr(agent, key, value)

@@ -40,7 +40,7 @@ export interface CustomApiKeys {
 export interface Agent {
   id: number;
   name: string;
-  phone_number_id: string;
+  phone_number_id: string | null;
   access_token: string;
   verify_token: string;
   system_prompt: string;
