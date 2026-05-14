@@ -239,7 +239,7 @@ def _multichannel(conn):
     """))
 
     for col_def in [
-        "channel_id INT REFERENCES agent_channels(id) ON DELETE RESTRICT",
+        "channel_id INT REFERENCES agent_channels(id) ON DELETE SET NULL",
         "channel_user_id INT REFERENCES channel_users(id) ON DELETE SET NULL",
         "channel_type_snapshot VARCHAR(30)",
     ]:
@@ -250,6 +250,29 @@ def _multichannel(conn):
             EXCEPTION WHEN duplicate_column THEN null;
             END $$;
         """))
+
+    # Upgrade legacy RESTRICT constraint to SET NULL (allow channel deletion)
+    conn.execute(text("""
+        DO $$
+        DECLARE
+            constraint_name TEXT;
+        BEGIN
+            SELECT conname INTO constraint_name
+            FROM pg_constraint
+            WHERE conrelid = 'conversations'::regclass
+              AND contype = 'f'
+              AND confdeltype = 'r'
+              AND confrelid = 'agent_channels'::regclass
+            LIMIT 1;
+
+            IF constraint_name IS NOT NULL THEN
+                EXECUTE format('ALTER TABLE conversations DROP CONSTRAINT %I', constraint_name);
+                ALTER TABLE conversations
+                    ADD CONSTRAINT conversations_channel_id_fkey
+                    FOREIGN KEY (channel_id) REFERENCES agent_channels(id) ON DELETE SET NULL;
+            END IF;
+        END $$;
+    """))
 
     conn.execute(text("""
         CREATE INDEX IF NOT EXISTS ix_conv_channel
