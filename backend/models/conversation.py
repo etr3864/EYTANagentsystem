@@ -11,7 +11,7 @@ class Conversation(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     agent_id: Mapped[int] = mapped_column(ForeignKey("agents.id", ondelete="CASCADE"))
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    channel_id: Mapped[Optional[int]] = mapped_column(ForeignKey("agent_channels.id", ondelete="RESTRICT"), nullable=True)
+    channel_id: Mapped[Optional[int]] = mapped_column(ForeignKey("agent_channels.id", ondelete="SET NULL"), nullable=True)
     channel_user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("channel_users.id", ondelete="SET NULL"), nullable=True)
     channel_type_snapshot: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
     is_paused: Mapped[bool] = mapped_column(Boolean, default=False)

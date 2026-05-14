@@ -378,7 +378,9 @@ async def delete_channel(
 ):
     """Remove a channel (super-admin only).
 
-    Raises 409 if the channel has active conversations (ON DELETE RESTRICT).
+    Cascades:
+    - channel_users → deleted (ON DELETE CASCADE)
+    - conversations.channel_id → set to NULL (history preserved via channel_type_snapshot)
     """
     channel = get_channel(db, channel_id)
     if not channel:
@@ -390,10 +392,7 @@ async def delete_channel(
         return {"status": "deleted", "channel_id": channel_id}
     except Exception as e:
         db.rollback()
-        raise HTTPException(
-            status_code=409,
-            detail="Cannot delete channel with existing conversations. Disable it instead."
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to delete channel: {str(e)[:120]}")
 
 
 @router.get("/channels/{channel_id}/health")

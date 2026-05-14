@@ -185,6 +185,8 @@ async def handle_wasender_message(agent_id: int, msg_data: dict):
         if not agent or agent.provider != "wasender":
             log_error("wasender", f"agent_id={agent_id} invalid or not wasender")
             return
+        if not agent.is_active:
+            return
 
         phone = msg_data["phone"]
         name = msg_data.get("name")
@@ -258,6 +260,8 @@ async def receive_wasender_webhook(
             raise HTTPException(status_code=404, detail="Agent not found")
         if agent.provider != "wasender":
             raise HTTPException(status_code=400, detail="Agent is not configured for WA Sender")
+        if not agent.is_active:
+            return {"status": "ok", "skipped": "agent_inactive"}
 
         config = agent.provider_config or {}
         webhook_secret = config.get("webhook_secret", "")
