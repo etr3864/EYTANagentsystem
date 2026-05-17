@@ -73,7 +73,7 @@ function AgentPage() {
   const [verifyToken, setVerifyToken] = useState('');
   const [model, setModel] = useState('claude-sonnet-4-20250514');
   const [isActive, setIsActive] = useState(true);
-  const [provider, setProvider] = useState<Provider>('meta');
+  const [provider, setProvider] = useState<Provider>('wasender');
   const [providerConfig, setProviderConfig] = useState<WaSenderConfig | Record<string, never>>({});
   
   // Filter tabs based on user role + saved agent data (not form state, to avoid re-renders)
@@ -83,7 +83,7 @@ function AgentPage() {
       if (!t.roles.includes(user.role)) return false;
       if (t.id === 'templates') {
         if (agent?.has_whatsapp_meta_channel) return true;
-        const savedProvider = agent?.provider || 'meta';
+        const savedProvider = agent?.provider || 'wasender';
         const savedWabaId = (agent?.provider_config as Record<string, string>)?.waba_id;
         return savedProvider === 'meta' && !!savedWabaId;
       }
@@ -160,7 +160,7 @@ function AgentPage() {
       setVerifyToken(data.verify_token);
       setModel(data.model);
       setIsActive(data.is_active);
-      setProvider(data.provider || 'meta');
+      setProvider(data.provider || 'wasender');
       setProviderConfig(data.provider_config || {});
       setBatchingConfig(data.batching_config || { 
         debounce_seconds: 3, 
