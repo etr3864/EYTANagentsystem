@@ -29,16 +29,12 @@ PRICING_DEFAULTS: dict[str, float] = {
     "model.gpt-4.1.input": 2.00,
     "model.gpt-4.1.output": 8.00,
     # Google
-    "model.gemini-2.5-flash.input": 0.15,
-    "model.gemini-2.5-flash.output": 0.60,
+    "model.gemini-3.5-flash.input": 1.50,
+    "model.gemini-3.5-flash.output": 9.00,
+    "model.gemini-3.1-pro-preview.input": 1.25,
+    "model.gemini-3.1-pro-preview.output": 10.00,
     "model.gemini-2.5-pro.input": 1.25,
     "model.gemini-2.5-pro.output": 10.00,
-    "model.gemini-2.0-flash.input": 0.10,
-    "model.gemini-2.0-flash.output": 0.40,
-    "model.gemini-3-flash-preview.input": 0.15,
-    "model.gemini-3-flash-preview.output": 0.60,
-    "model.gemini-3-pro-preview.input": 1.25,
-    "model.gemini-3-pro-preview.output": 10.00,
     "usd_to_ils": 3.65,
 }
 

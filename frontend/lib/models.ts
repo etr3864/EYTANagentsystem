@@ -19,9 +19,7 @@ export const ALL_MODELS: ModelDef[] = [
   { key: 'gpt-5.2-chat-latest', label: 'GPT-5.2', description: 'הכי חזק, הבנה עמוקה', provider: 'OpenAI' },
   { key: 'gpt-4o', label: 'GPT-4o', description: 'יציב ואיכותי', provider: 'OpenAI' },
   { key: 'gpt-4.1', label: 'GPT-4.1', description: 'חסכוני, volume גבוה', provider: 'OpenAI' },
-  { key: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', description: 'מהיר וחסכוני, חשיבה מובנית', provider: 'Google' },
-  { key: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', description: 'חכם, reasoning מתקדם', provider: 'Google' },
-  { key: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', description: 'מהיר מאוד, זול', provider: 'Google' },
-  { key: 'gemini-3-flash-preview', label: 'Gemini 3 Flash', description: 'חדש - מאוזן ומהיר (preview)', provider: 'Google' },
-  { key: 'gemini-3-pro-preview', label: 'Gemini 3 Pro', description: 'חדש - הכי חכם (preview)', provider: 'Google' },
+  { key: 'gemini-3.5-flash', label: 'Gemini 3.5 Flash', description: 'מהיר במיוחד, אופטימלי לסוכנים וכלים', provider: 'Google' },
+  { key: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro', description: 'הכי חכם, reasoning מתקדם (preview)', provider: 'Google' },
+  { key: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', description: 'יציב ומאוזן', provider: 'Google' },
 ];
