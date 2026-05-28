@@ -127,7 +127,7 @@ function ExternalApiSection({ agentId }: { agentId: number }) {
 
           <div className="text-xs text-slate-500 space-y-1">
             <p><strong>message_type</strong>: system_note | reminder | confirmation</p>
-            <p><strong>phone</strong>: מספר הלקוח כפי שמופיע במערכת (פורמט בינלאומי)</p>
+            <p><strong>phone</strong>: ספרות בלבד, ללא + (לדוגמה: 972501234567)</p>
           </div>
         </div>
       )}
