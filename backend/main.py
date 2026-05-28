@@ -14,6 +14,7 @@ from backend.api.routers.super_admin_dashboard import router as super_admin_dash
 from backend.api.routers.export import router as export_router
 from backend.api.routers.webhook_meta import router as webhook_meta_router
 from backend.api.routers.agent_channels import router as agent_channels_router
+from backend.api.routers.external import router as external_router
 from backend.auth import auth_router
 from backend.services.scheduling import scheduler
 
@@ -84,6 +85,7 @@ app.include_router(super_admin_dashboard_router, prefix="/api")
 app.include_router(export_router, prefix="/api")
 app.include_router(webhook_meta_router)
 app.include_router(agent_channels_router, prefix="/api")
+app.include_router(external_router, prefix="/api/external")
 
 
 @app.get("/health")

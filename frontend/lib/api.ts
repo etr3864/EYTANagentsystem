@@ -767,5 +767,13 @@ export async function exportConversations(
   URL.revokeObjectURL(url);
 }
 
+// ============ External Integration ============
+export async function getExternalApiKey(): Promise<string> {
+  const res = await authFetch(`${API_URL}/api/external/api-key`);
+  if (!res.ok) throw new Error('Failed to fetch API key');
+  const data = await res.json();
+  return data.api_key;
+}
+
 // Re-export types
 export type { Agent, AgentCreate, AgentUpdate, AgentBatchingConfig, ContextSummaryConfig, Provider, WaSenderConfig, CustomApiKeys, User, Gender, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DataTable, DbMedia, AgentMedia, MediaConfig, MediaType, WhatsAppTemplate, TemplateCategory, TemplateStatus, DbTemplate, FollowupConfig, FollowupStep, FollowupStats, DbFollowup, DbChannel, DbChannelUser, DashboardStats, SystemSummary, AgentTableRow, AgentDetail, PricingConfig } from './types';

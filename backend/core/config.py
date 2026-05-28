@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     # Alert channel for delivery failures / disconnected channels
     alert_webhook_url: Optional[str] = None  # Slack/Discord/custom webhook URL
 
+    # External API key for n8n / third-party integrations (log-message endpoint)
+    external_api_key: Optional[str] = None
+
     model_config = {"env_file": ".env", "extra": "ignore"}
     
     @property
