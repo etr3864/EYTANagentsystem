@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button, Card, CardHeader } from '@/components/ui';
 import {
   createAgentFunction,
@@ -23,6 +23,8 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
   const [attention, setAttention] = useState<FunctionAttention[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const saveErrorRef = useRef<HTMLParagraphElement>(null);
   const [editing, setEditing] = useState<AgentFunction | null>(null);
   const [draft, setDraft] = useState<FunctionUpsert>(EMPTY_FUNCTION);
   const [creating, setCreating] = useState(false);
@@ -49,11 +51,18 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
 
   useEffect(() => { reload(); }, [reload]);
 
+  useEffect(() => {
+    if (saveError) {
+      saveErrorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [saveError]);
+
   const openNew = () => {
     setCreating(true);
     setEditing(null);
     setDraft({ ...EMPTY_FUNCTION });
     setTestResult(null);
+    setSaveError(null);
   };
 
   const openEdit = (item: AgentFunction) => {
@@ -61,17 +70,19 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
     setEditing(item);
     setDraft(toUpsert(item));
     setTestResult(null);
+    setSaveError(null);
   };
 
   const close = () => {
     setCreating(false);
     setEditing(null);
     setTestResult(null);
+    setSaveError(null);
   };
 
-  const save = async () => {
+  const save = async (): Promise<boolean> => {
     setBusy(true);
-    setError(null);
+    setSaveError(null);
     try {
       const payload = { ...draft, body_template: ['POST', 'PUT', 'PATCH'].includes(draft.method) ? draft.body_template : null };
       if (creating) {
@@ -85,8 +96,10 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
         setDraft(toUpsert(updated));
       }
       await reload();
+      return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'שגיאה בשמירה');
+      setSaveError(err instanceof Error ? err.message : 'שגיאה בשמירה');
+      return false;
     } finally {
       setBusy(false);
     }
@@ -119,24 +132,26 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
 
   const runTest = async (live: boolean) => {
     if (!editing) {
-      setError('שמור קודם ואז בדוק');
+      setSaveError('שמור קודם ואז בדוק');
       return;
     }
     let values: Record<string, string> = {};
     try {
       values = JSON.parse(sampleValues || '{}');
     } catch {
-      setError('ערכי בדיקה חייבים JSON');
+      setSaveError('ערכי בדיקה חייבים JSON תקין, למשל {"phone":"97250..."}');
       return;
     }
     setBusy(true);
+    setSaveError(null);
     try {
-      await save();
+      const ok = await save();
+      if (!ok) return;
       const result = await testAgentFunction(agentId, editing.id, live, values);
       setTestResult(result);
       await reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'הבדיקה נכשלה');
+      setSaveError(err instanceof Error ? err.message : 'הבדיקה נכשלה');
     } finally {
       setBusy(false);
     }
@@ -180,7 +195,14 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
       {showEditor && (
         <Card>
           <CardHeader>{creating ? 'פונקציה חדשה' : editing?.name}</CardHeader>
-          <FunctionEditor value={draft} onChange={setDraft} error={null} />
+          <FunctionEditor
+            value={draft}
+            onChange={(next) => {
+              setDraft(next);
+              if (saveError) setSaveError(null);
+            }}
+            error={null}
+          />
           <div className="mt-4 space-y-3">
             <p className="text-sm text-slate-400">
               ערכי בדיקה לפרמטרים שהבוט היה שואל. JSON באנגלית, למשל {`{"phone":"97250..."}`}. יבש = בלי לשלוח. שלח באמת = ל-API החי.
@@ -200,6 +222,11 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
                 if (confirm('יישלח ל-API האמיתי. ממשיכים?')) runTest(true);
               }}
             />
+            {saveError && (
+              <p ref={saveErrorRef} role="alert" className="text-sm text-red-400 whitespace-pre-wrap">
+                {saveError}
+              </p>
+            )}
             <div className="flex gap-2">
               <Button onClick={save} disabled={busy}>שמור</Button>
               <Button variant="secondary" onClick={close}>סגור</Button>

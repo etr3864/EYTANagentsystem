@@ -3,9 +3,90 @@ import type { AgentFunction, FunctionTestResult, FunctionUpsert } from './agentF
 
 const base = (agentId: number) => `${API_URL}/api/agents/${agentId}/functions`;
 
+const FIELD_HE: Record<string, string> = {
+  name: 'שם הפונקציה',
+  when_to_use: 'מתי להשתמש',
+  when_not_to_use: 'מתי לא להשתמש',
+  response_instructions: 'איך להציג ללקוח',
+  url: 'כתובת HTTPS',
+  method: 'שיטת HTTP',
+  headers: 'Headers',
+  body_template: 'גוף הבקשה',
+  params: 'פרמטר',
+  outputs: 'שמירת תשובה',
+  json_path: 'שדה ב-JSON',
+  save_as: 'לשמור בשם',
+  source: 'מאיפה הערך',
+  source_key: 'שם הערך השמור',
+  description: 'תיאור לבוט',
+  event_type: 'סוג אירוע',
+  trigger: 'מתי זה רץ',
+  side_effect: 'סוג פעולה',
+};
+
+function fieldFromLoc(loc: unknown): string {
+  if (!Array.isArray(loc)) return '';
+  const labels: string[] = [];
+  for (const part of loc) {
+    if (part === 'body' || part === 'query' || part === 'path') continue;
+    if (typeof part === 'number') {
+      const last = labels.length - 1;
+      if (last >= 0) labels[last] = `${labels[last]} ${part + 1}`;
+      else labels.push(String(part + 1));
+      continue;
+    }
+    const key = String(part);
+    if (key === 'name' && labels.length > 0) {
+      labels.push('שם');
+      continue;
+    }
+    labels.push(FIELD_HE[key] || key);
+  }
+  return labels.join(' → ');
+}
+
+function translateIssue(item: {
+  type?: string;
+  msg?: string;
+  ctx?: { min_length?: number; max_length?: number };
+}): string {
+  const type = item.type || '';
+  const msg = (item.msg || '').replace(/^Value error,?\s*/i, '');
+  if (type === 'string_too_short' || type === 'too_short') {
+    const n = item.ctx?.min_length;
+    return n ? `לפחות ${n} תווים` : 'קצר מדי';
+  }
+  if (type === 'string_too_long' || type === 'too_long') {
+    return 'ארוך מדי';
+  }
+  if (type === 'missing') return 'חובה';
+  return msg || 'לא תקין';
+}
+
+function formatDetail(detail: unknown): string {
+  if (!detail) return 'שגיאה בשמירה';
+  if (typeof detail === 'string') return detail;
+  const items = Array.isArray(detail) ? detail : [detail];
+  const lines = items.map((item) => {
+    if (typeof item === 'string') return item;
+    if (!item || typeof item !== 'object') return null;
+    const rec = item as {
+      loc?: unknown;
+      msg?: string;
+      type?: string;
+      ctx?: { min_length?: number; max_length?: number };
+    };
+    if (!rec.msg && !rec.type && !rec.loc) return null;
+    const field = fieldFromLoc(rec.loc);
+    const text = translateIssue(rec);
+    return field ? `${field}: ${text}` : text;
+  }).filter((line): line is string => Boolean(line));
+  return lines.join('\n') || 'שגיאה בשמירה';
+}
+
 async function readError(res: Response): Promise<string> {
   const body = await res.json().catch(() => null);
-  return body?.detail || 'שגיאה';
+  return formatDetail(body?.detail);
 }
 
 export async function listAgentFunctions(agentId: number): Promise<AgentFunction[]> {
