@@ -12,6 +12,7 @@ import {
   getSuperAdmins, createSuperAdmin, resetSuperAdminPassword, deleteSuperAdmin,
   AuthUserResponse, AuthUserWithAgents,
 } from '@/lib/api';
+import { sortActiveRecent, toggleActiveInList } from '@/lib/listOrder';
 
 type TabType = 'admins' | 'employees';
 
@@ -44,10 +45,10 @@ function UsersPage() {
     try {
       if (activeTab === 'admins' && isSuperAdmin(user)) {
         const data = await getAdmins();
-        setAdmins(data.admins);
+        setAdmins(sortActiveRecent(data.admins));
       } else {
         const data = await getEmployees();
-        setEmployees(data.employees);
+        setEmployees(sortActiveRecent(data.employees));
       }
     } catch (e) {
       console.error(e);
@@ -59,7 +60,7 @@ function UsersPage() {
   async function loadSuperAdmins() {
     try {
       const data = await getSuperAdmins();
-      setSuperAdmins(data);
+      setSuperAdmins(sortActiveRecent(data));
     } catch (e) {
       console.error(e);
     }
@@ -125,13 +126,13 @@ function UsersPage() {
     try {
       if (activeTab === 'admins') {
         await updateAdmin(userItem.id, { is_active: !userItem.is_active });
-        setAdmins(admins.map(a => a.id === userItem.id ? { ...a, is_active: !a.is_active } : a));
+        setAdmins((prev) => toggleActiveInList(prev, userItem.id));
       } else {
         await updateEmployee(userItem.id, { is_active: !userItem.is_active });
-        setEmployees(employees.map(e => e.id === userItem.id ? { ...e, is_active: !e.is_active } : e));
+        setEmployees((prev) => toggleActiveInList(prev, userItem.id));
       }
     } catch (e) {
-      console.error(e);
+      alert(e instanceof Error ? e.message : 'לא ניתן לעדכן את הסטטוס');
     }
   }
 
@@ -356,7 +357,11 @@ function UsersPage() {
                     <div className="flex items-center gap-2 md:gap-3 self-end sm:self-center shrink-0">
                       {/* Toggle Active */}
                       <button
-                        onClick={() => handleToggleActive(adminItem)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleToggleActive(adminItem);
+                        }}
                         className={`
                           relative w-12 h-6 rounded-full transition-colors duration-200
                           ${adminItem.is_active ? 'bg-emerald-500' : 'bg-slate-600'}
@@ -437,7 +442,11 @@ function UsersPage() {
                     <div className="flex items-center gap-2 md:gap-3 self-end sm:self-center shrink-0">
                       {/* Toggle Active */}
                       <button
-                        onClick={() => handleToggleActive(empItem)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleToggleActive(empItem);
+                        }}
                         className={`
                           relative w-12 h-6 rounded-full transition-colors duration-200
                           ${empItem.is_active ? 'bg-emerald-500' : 'bg-slate-600'}

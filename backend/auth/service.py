@@ -3,11 +3,19 @@ Auth service - business logic for user management.
 """
 from typing import Optional
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
+from sqlalchemy import desc, func, nulls_last
 
 from .models import AuthUser, UserRole
 from .security import hash_password, verify_password
 from backend.models.agent import Agent
+
+
+def _order_active_recent(model):
+    return (
+        desc(model.is_active),
+        nulls_last(desc(model.updated_at)),
+        desc(model.id),
+    )
 
 
 # ============================================================
@@ -158,14 +166,14 @@ def list_admins(db: Session) -> list[AuthUser]:
     """List all admins."""
     return db.query(AuthUser).filter(
         AuthUser.role == UserRole.ADMIN
-    ).order_by(AuthUser.created_at.desc()).all()
+    ).order_by(*_order_active_recent(AuthUser)).all()
 
 
 def list_super_admins(db: Session) -> list[AuthUser]:
     """List all super admins."""
     return db.query(AuthUser).filter(
         AuthUser.role == UserRole.SUPER_ADMIN
-    ).order_by(AuthUser.created_at.desc()).all()
+    ).order_by(*_order_active_recent(AuthUser)).all()
 
 
 def list_employees(db: Session, admin_id: int) -> list[AuthUser]:
@@ -173,7 +181,7 @@ def list_employees(db: Session, admin_id: int) -> list[AuthUser]:
     return db.query(AuthUser).filter(
         AuthUser.role == UserRole.EMPLOYEE,
         AuthUser.parent_id == admin_id
-    ).order_by(AuthUser.created_at.desc()).all()
+    ).order_by(*_order_active_recent(AuthUser)).all()
 
 
 def count_employees(db: Session, admin_id: int) -> int:
@@ -220,12 +228,12 @@ def unassign_agent(db: Session, agent_id: int) -> Optional[Agent]:
 
 def get_admin_agents(db: Session, admin_id: int) -> list[Agent]:
     """Get all agents owned by an admin."""
-    return db.query(Agent).filter(Agent.owner_id == admin_id).all()
+    return db.query(Agent).filter(Agent.owner_id == admin_id).order_by(*_order_active_recent(Agent)).all()
 
 
 def get_unassigned_agents(db: Session) -> list[Agent]:
     """Get all agents without an owner."""
-    return db.query(Agent).filter(Agent.owner_id == None).all()
+    return db.query(Agent).filter(Agent.owner_id == None).order_by(*_order_active_recent(Agent)).all()
 
 
 # ============================================================
@@ -272,7 +280,7 @@ def get_accessible_agents(db: Session, user: AuthUser) -> list[Agent]:
     - Admin: owned agents
     - Employee: agents owned by their admin
     """
-    base = db.query(Agent).options(joinedload(Agent.channels))
+    base = db.query(Agent).options(joinedload(Agent.channels)).order_by(*_order_active_recent(Agent))
 
     if user.role == UserRole.SUPER_ADMIN:
         return base.all()

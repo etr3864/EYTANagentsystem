@@ -3,7 +3,7 @@ Auth API endpoints.
 """
 import time
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from backend.core.database import get_db
 from backend.core.logger import log
@@ -408,8 +408,12 @@ def list_employees(
     """List employees (admin sees their own, super admin sees all)."""
     if current_user.role == UserRole.SUPER_ADMIN:
         # Super admin sees all employees with parent name
-        employees = db.query(AuthUser).filter(
+        employees = db.query(AuthUser).options(joinedload(AuthUser.parent)).filter(
             AuthUser.role == UserRole.EMPLOYEE
+        ).order_by(
+            AuthUser.is_active.desc(),
+            AuthUser.updated_at.desc(),
+            AuthUser.id.desc(),
         ).all()
         
         employee_responses = []

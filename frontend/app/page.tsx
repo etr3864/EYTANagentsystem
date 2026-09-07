@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Agent, getAgents, deleteAgent, updateAgent } from '@/lib/api';
+import { sortActiveRecent, toggleActiveInList } from '@/lib/listOrder';
 import { Button, Card, PlusIcon, ArrowLeftIcon, TrashIcon, ChannelIcon } from '@/components/ui';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,7 +24,7 @@ function HomePage() {
   async function loadAgents() {
     try {
       const data = await getAgents();
-      setAgents(data);
+      setAgents(sortActiveRecent(data));
     } catch (e) {
       console.error(e);
     } finally {
@@ -44,11 +45,9 @@ function HomePage() {
   async function handleToggleActive(id: number, currentStatus: boolean) {
     try {
       await updateAgent(id, { is_active: !currentStatus });
-      setAgents(agents.map(a => 
-        a.id === id ? { ...a, is_active: !currentStatus } : a
-      ));
+      setAgents((prev) => toggleActiveInList(prev, id));
     } catch (e) {
-      console.error(e);
+      alert(e instanceof Error ? e.message : 'לא ניתן לעדכן את הסטטוס');
     }
   }
 
@@ -181,6 +180,7 @@ function HomePage() {
                     {isSuperAdmin(user) && (
                       <button
                         onClick={(e) => {
+                          e.preventDefault();
                           e.stopPropagation();
                           handleToggleActive(agent.id, agent.is_active);
                         }}

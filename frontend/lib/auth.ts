@@ -11,6 +11,7 @@ export interface AuthUser {
   role: UserRole;
   is_active: boolean;
   created_at: string;
+  updated_at?: string | null;
   parent_id?: number;
 }
 

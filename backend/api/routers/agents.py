@@ -56,7 +56,8 @@ def agent_to_response(a) -> dict:
         "active_channel_types": [
             ch.channel_type for ch in (getattr(a, "channels", None) or []) if ch.is_active
         ],
-        "created_at": a.created_at.isoformat() if a.created_at else None
+        "created_at": a.created_at.isoformat() if a.created_at else None,
+        "updated_at": a.updated_at.isoformat() if a.updated_at else None,
     }
 
 

@@ -65,6 +65,7 @@ class UserResponse(BaseModel):
     role: UserRole
     is_active: bool
     created_at: datetime
+    updated_at: Optional[datetime] = None
     parent_id: Optional[int] = None
     
     class Config:

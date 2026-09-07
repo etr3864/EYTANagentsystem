@@ -61,6 +61,7 @@ export interface Agent {
   has_whatsapp_meta_channel?: boolean;
   active_channel_types?: string[];
   created_at: string | null;
+  updated_at?: string | null;
 }
 
 export interface AgentCreate {
