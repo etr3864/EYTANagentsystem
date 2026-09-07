@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Agent, getAgents, deleteAgent, updateAgent } from '@/lib/api';
 import { sortActiveRecent, toggleActiveInList } from '@/lib/listOrder';
 import { paginate } from '@/lib/pagination';
-import { Button, Card, PlusIcon, ArrowLeftIcon, TrashIcon, ChannelIcon, ListPager } from '@/components/ui';
+import { Button, Card, PlusIcon, ArrowLeftIcon, TrashIcon, ChannelIcon, ListPager, ListViewport, BELOW_NAV_CLASS } from '@/components/ui';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useAuth } from '@/contexts/AuthContext';
 import { isSuperAdmin } from '@/lib/auth';
@@ -66,8 +66,8 @@ function HomePage() {
   const paged = paginate(filtered, page);
 
   return (
-    <div className="min-h-screen">
-      <main className="max-w-6xl mx-auto px-3 md:px-6 py-4 md:py-8">
+    <div className={`flex flex-col ${BELOW_NAV_CLASS}`}>
+      <main className="max-w-6xl mx-auto px-3 md:px-6 py-4 md:py-6 w-full flex-1 min-h-0 flex flex-col">
         {loading ? (
           <div className="grid gap-4">
             {[1, 2, 3].map(i => (
@@ -86,9 +86,9 @@ function HomePage() {
             </Link>
           </Card>
         ) : (
-          <div className="space-y-4">
+          <div className="flex flex-col min-h-0 flex-1 gap-4">
             {/* Search */}
-            <div className="relative">
+            <div className="relative shrink-0">
               <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
@@ -112,7 +112,7 @@ function HomePage() {
             </div>
 
             {/* Stats Bar */}
-            <div className="grid grid-cols-3 gap-2 md:gap-4 mb-6">
+            <div className="grid grid-cols-3 gap-2 md:gap-4 shrink-0">
               <Card padding="sm" className="text-center">
                 <div className="text-2xl font-bold text-white">{agents.length}</div>
                 <div className="text-xs text-slate-400">סוכנים</div>
@@ -131,13 +131,24 @@ function HomePage() {
               </Card>
             </div>
 
-            {/* Agent Cards */}
             {filtered.length === 0 && search ? (
               <div className="text-center py-8 text-slate-500 text-sm">
                 לא נמצאו סוכנים עבור &quot;{search}&quot;
               </div>
             ) : (
-              <>
+              <ListViewport
+                footer={
+                  <ListPager
+                    page={paged.page}
+                    totalPages={paged.totalPages}
+                    from={paged.from}
+                    to={paged.to}
+                    total={paged.total}
+                    onPage={setPage}
+                  />
+                }
+              >
+                <div className="space-y-4">
                 {paged.items.map((agent) => (
               <Card 
                 key={agent.id} 
@@ -227,22 +238,14 @@ function HomePage() {
                 </div>
               </Card>
                 ))}
-                <ListPager
-                  page={paged.page}
-                  totalPages={paged.totalPages}
-                  from={paged.from}
-                  to={paged.to}
-                  total={paged.total}
-                  onPage={setPage}
-                />
-              </>
+                </div>
+              </ListViewport>
             )}
           </div>
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="py-6 border-t border-slate-800 mt-8">
+      <footer className="shrink-0 py-4 border-t border-slate-800">
         <LegalFooter />
       </footer>
     </div>

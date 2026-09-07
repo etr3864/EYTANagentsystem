@@ -8,10 +8,11 @@ from backend.core.ai_config import USER_TOOLS
 from backend.services.llm.catalog import (
     CHEAP_ANTHROPIC,
     anthropic_extra,
+    apply_anthropic_thinking,
     conversation_max_tokens,
     resolve_model,
-    sanitize_thinking,
 )
+from backend.services.llm.capacity import ThinkingDowngrade, is_capacity_error
 from backend.core.logger import log_error
 
 if TYPE_CHECKING:
@@ -36,16 +37,29 @@ class AnthropicProvider:
         self._client = anthropic.AsyncAnthropic(api_key=new_key)
         self._api_key = new_key
 
-    async def _call_with_retry(self, **kwargs):
+    async def _call_with_retry(self, rebuild_thinking=None, **kwargs):
         """Execute API call with retry logic, key rotation on 429, and auth fallback."""
         from . import key_manager
         last_error = None
+
+        def take_lighter():
+            nonlocal rebuild_thinking, kwargs
+            if not rebuild_thinking:
+                return False
+            rebuilt = rebuild_thinking(kwargs)
+            if rebuilt is None:
+                return False
+            kwargs = rebuilt
+            rebuild_thinking = None
+            return True
         
         for attempt in range(MAX_RETRIES):
             try:
                 return await self._client.messages.create(**kwargs)
             except anthropic.RateLimitError as e:
                 last_error = e
+                if take_lighter():
+                    continue
                 override = key_manager.is_override_key(self._provider_name, self._api_key, self._agent)
                 if override:
                     delay = RETRY_DELAY * (2 ** attempt)
@@ -73,6 +87,8 @@ class AnthropicProvider:
                 continue
             except Exception as e:
                 last_error = e
+                if is_capacity_error(e) and take_lighter():
+                    continue
                 if attempt < MAX_RETRIES - 1:
                     delay = RETRY_DELAY * (2 ** attempt)
                     log_error("anthropic_retry", f"Attempt {attempt+1} failed: {str(e)[:50]}")
@@ -136,9 +152,16 @@ class AnthropicProvider:
         active_tools = tools if tools is not None else USER_TOOLS
         rounds_left = max(1, min(8, max_tool_rounds or 5))
         model_id = resolve_model(model)
-        level = sanitize_thinking(model_id, thinking_level)
-        extra = anthropic_extra(model_id, level)
-        max_tokens = conversation_max_tokens(level)
+        downgrade = ThinkingDowngrade(model_id, thinking_level)
+
+        def rebuild_thinking(kw):
+            return downgrade.once(
+                kw,
+                lambda k, lv: apply_anthropic_thinking(k, model_id, lv),
+            )
+
+        extra = anthropic_extra(model_id, downgrade.level)
+        max_tokens = conversation_max_tokens(downgrade.level)
         
         response = await self._call_with_retry(
             model=model_id,
@@ -147,6 +170,7 @@ class AnthropicProvider:
             messages=messages,
             tools=active_tools,
             extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"},
+            rebuild_thinking=rebuild_thinking,
             **extra,
         )
         
@@ -213,12 +237,13 @@ class AnthropicProvider:
             
             current_response = await self._call_with_retry(
                 model=model_id,
-                max_tokens=max_tokens,
+                max_tokens=conversation_max_tokens(downgrade.level),
                 system=system_blocks,
                 messages=messages,
                 tools=active_tools,
                 extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"},
-                **extra,
+                rebuild_thinking=rebuild_thinking,
+                **anthropic_extra(model_id, downgrade.level),
             )
             
             usage_data["input_tokens"] += current_response.usage.input_tokens

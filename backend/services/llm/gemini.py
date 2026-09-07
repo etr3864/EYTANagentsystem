@@ -18,8 +18,8 @@ from backend.services.llm.catalog import (
     conversation_max_tokens,
     gemini_thinking_level,
     resolve_model,
-    sanitize_thinking,
 )
+from backend.services.llm.capacity import ThinkingDowngrade, is_capacity_error
 
 if TYPE_CHECKING:
     from backend.models.agent import Agent
@@ -37,7 +37,7 @@ GEMINI_TOOL_SUFFIX = """
 class GeminiProvider:
     """Google Gemini API provider with tool support and retry logic."""
     
-    MAX_RETRIES = 3
+    MAX_RETRIES = 4
     RETRY_DELAY = 1.0
     
     def __init__(self, api_key: str, provider_name: str = "google", agent: "Agent | None" = None):
@@ -50,7 +50,7 @@ class GeminiProvider:
         self._client = genai.Client(api_key=new_key)
         self._api_key = new_key
 
-    async def _call_with_retry(self, method_name: str, *args, **kwargs):
+    async def _call_with_retry(self, method_name: str, *args, rebuild_thinking=None, **kwargs):
         """Execute function with retry logic, key rotation on rate limit/auth errors.
 
         Uses method_name (e.g. 'generate_content') to always resolve from the
@@ -67,17 +67,28 @@ class GeminiProvider:
                 last_error = e
                 error_str = str(e)
 
-                if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
+                if is_capacity_error(e):
+                    if rebuild_thinking:
+                        rebuilt = rebuild_thinking(kwargs)
+                        if rebuilt is not None:
+                            kwargs = rebuilt
+                            rebuild_thinking = None
+                            continue
                     override = key_manager.is_override_key(self._provider_name, self._api_key, self._agent)
+                    has_more = attempt < self.MAX_RETRIES - 1
+                    delay = 3.0 * (2 ** attempt)
                     if override:
-                        await asyncio.sleep(self.RETRY_DELAY * (2 ** attempt))
+                        if has_more:
+                            await asyncio.sleep(delay)
                         continue
-                    key_manager.mark_rate_limited(self._provider_name, self._api_key)
+                    if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
+                        key_manager.mark_rate_limited(self._provider_name, self._api_key)
                     new_key = key_manager.get_key(self._provider_name, self._agent)
                     if new_key != self._api_key:
                         self._rebuild_client(new_key)
                         continue
-                    await asyncio.sleep(self.RETRY_DELAY * (2 ** attempt))
+                    if has_more:
+                        await asyncio.sleep(delay)
                     continue
 
                 if "API key" in error_str or "PERMISSION_DENIED" in error_str:
@@ -170,24 +181,28 @@ class GeminiProvider:
         gemini_tools = anthropic_tools_to_gemini(tools if tools is not None else USER_TOOLS)
         rounds_left = max(1, min(8, max_tool_rounds or 5))
         model_id = resolve_model(model)
-        sanitized = sanitize_thinking(model_id, thinking_level)
-        level = gemini_thinking_level(model_id, sanitized)
-        config_kwargs = dict(
-            system_instruction=system_text,
-            tools=[gemini_tools],
-            max_output_tokens=conversation_max_tokens(sanitized),
-        )
-        if level:
-            config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_level=level)
-        
-        # Configure generation
-        config = types.GenerateContentConfig(**config_kwargs)
-        
+        downgrade = ThinkingDowngrade(model_id, thinking_level)
+
+        def make_config():
+            glevel = gemini_thinking_level(model_id, downgrade.level)
+            config_kwargs = dict(
+                system_instruction=system_text,
+                tools=[gemini_tools],
+                max_output_tokens=conversation_max_tokens(downgrade.level),
+            )
+            if glevel:
+                config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_level=glevel)
+            return types.GenerateContentConfig(**config_kwargs)
+
+        def rebuild_thinking(kw):
+            return downgrade.once(kw, lambda k, _lv: {**k, "config": make_config()})
+
         response = await self._call_with_retry(
             "generate_content",
             model=model_id,
             contents=gemini_contents,
-            config=config
+            config=make_config(),
+            rebuild_thinking=rebuild_thinking,
         )
         
         # Track token usage (handle None values)
@@ -248,7 +263,8 @@ class GeminiProvider:
                 "generate_content",
                 model=model_id,
                 contents=gemini_contents,
-                config=config
+                config=make_config(),
+                rebuild_thinking=rebuild_thinking,
             )
             
             # Update usage (handle None values)

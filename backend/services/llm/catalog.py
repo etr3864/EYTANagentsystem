@@ -22,12 +22,12 @@ ALIASES = {
 CATALOG: dict[str, dict] = {
     "claude-sonnet-5": {
         "thinking": "adaptive",
-        "options": ("off", "low", "medium", "high"),
+        "options": ("off", "low", "medium"),
         "default": "off",
     },
     "claude-sonnet-4-6": {
         "thinking": "budget",
-        "options": ("off", "low", "medium", "high"),
+        "options": ("off", "low", "medium"),
         "default": "off",
     },
     "claude-haiku-4-5": {
@@ -37,7 +37,7 @@ CATALOG: dict[str, dict] = {
     },
     "claude-opus-5": {
         "thinking": "adaptive",
-        "options": ("off", "low", "medium", "high"),
+        "options": ("off", "low", "medium"),
         "default": "off",
     },
     "gpt-5.6-luna": {
@@ -52,17 +52,17 @@ CATALOG: dict[str, dict] = {
     },
     "gemini-3.6-flash": {
         "thinking": "gemini",
-        "options": ("minimal", "low", "medium", "high"),
+        "options": ("minimal", "low", "medium"),
         "default": "low",
     },
     "gemini-3.7-flash": {
         "thinking": "gemini",
-        "options": ("low", "medium", "high"),
+        "options": ("low", "medium"),
         "default": "low",
     },
     "gemini-3.8-flash": {
         "thinking": "gemini",
-        "options": ("low", "medium", "high"),
+        "options": ("low", "medium"),
         "default": "low",
     },
 }
@@ -88,13 +88,43 @@ def spec_for(model: str) -> dict:
     return CATALOG.get(resolve_model(model), _UNKNOWN)
 
 
+_THINKING_WEIGHT = {
+    "off": 0,
+    "minimal": 1,
+    "low": 2,
+    "medium": 3,
+    "high": 4,
+    "max": 5,
+    "xhigh": 5,
+}
+
+
 def sanitize_thinking(model: str, level: str | None) -> str:
     spec = spec_for(model)
     if spec["thinking"] == "none":
         return "off"
     if level in spec["options"]:
         return level
+    if level in ("high", "max", "xhigh") and "medium" in spec["options"]:
+        return "medium"
     return spec["default"]
+
+
+def lightest_thinking(model: str) -> str:
+    spec = spec_for(model)
+    options = spec["options"]
+    if spec["thinking"] == "none" or not options:
+        return "off"
+    return min(options, key=lambda option: _THINKING_WEIGHT.get(option, 99))
+
+
+def degrade_thinking(model: str, current: str) -> str | None:
+    """Lightest valid level if current is heavier; None if already lightest."""
+    current = sanitize_thinking(model, current)
+    lightest = lightest_thinking(model)
+    if _THINKING_WEIGHT.get(current, 0) <= _THINKING_WEIGHT.get(lightest, 0):
+        return None
+    return lightest
 
 
 def conversation_max_tokens(thinking_level: str) -> int:
@@ -119,6 +149,15 @@ def anthropic_extra(model: str, thinking_level: str) -> dict:
         }
     budgets = {"low": 1024, "medium": 4096, "high": 8000}
     return {"thinking": {"type": "enabled", "budget_tokens": budgets.get(thinking_level, 1024)}}
+
+
+def apply_anthropic_thinking(kwargs: dict, model: str, level: str) -> dict:
+    out = dict(kwargs)
+    out.pop("thinking", None)
+    out.pop("output_config", None)
+    out.update(anthropic_extra(model, level))
+    out["max_tokens"] = conversation_max_tokens(level)
+    return out
 
 
 def gemini_thinking_level(model: str, thinking_level: str) -> str | None:

@@ -63,9 +63,8 @@ export function AgentsTable({ rows, loading, fromDate, toDate }: Props) {
   }
 
   return (
-    <div className="bg-white/[0.03] border border-purple-500/10 rounded-xl overflow-hidden">
-      {/* Search */}
-      <div className="p-4 border-b border-purple-500/10">
+    <div className="bg-white/[0.03] border border-purple-500/10 rounded-xl overflow-hidden flex flex-col max-h-[min(32rem,70vh)]">
+      <div className="p-4 border-b border-purple-500/10 shrink-0">
         <input
           type="text"
           placeholder="חיפוש סוכן או לקוח..."
@@ -76,10 +75,9 @@ export function AgentsTable({ rows, loading, fromDate, toDate }: Props) {
         />
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto">
+      <div className="min-h-0 flex-1 overflow-auto">
         <table className="w-full text-sm text-right">
-          <thead>
+          <thead className="sticky top-0 z-10 bg-[#120e1c]">
             <tr className="text-slate-400 border-b border-purple-500/10 text-xs uppercase">
               <th className="px-4 py-3">סוכן</th>
               <th className="px-4 py-3">לקוח</th>
@@ -160,7 +158,7 @@ export function AgentsTable({ rows, loading, fromDate, toDate }: Props) {
           </tbody>
         </table>
       </div>
-      <div className="px-4 py-3 border-t border-purple-500/10">
+      <div className="px-4 py-3 border-t border-purple-500/10 shrink-0">
         <ListPager
           page={paged.page}
           totalPages={paged.totalPages}

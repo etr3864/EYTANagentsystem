@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Button, Card, PlusIcon, UserIcon, EditIcon, TrashIcon, KeyIcon, ListPager } from '@/components/ui';
+import { Button, Card, PlusIcon, UserIcon, EditIcon, TrashIcon, KeyIcon, ListPager, ListViewport, BELOW_NAV_CLASS } from '@/components/ui';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { CreateUserModal, EditUserModal, ResetPasswordModal, AgentAssignmentModal } from '@/components/users/UserModals';
 import { useAuth } from '@/contexts/AuthContext';
@@ -159,9 +159,8 @@ function UsersPage() {
   const pagedSA = paginate(superAdmins, saPage);
 
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <header className="border-b border-purple-500/10 bg-[#0B0914]/80 backdrop-blur-sm sticky top-16 z-40">
+    <div className={`flex flex-col ${BELOW_NAV_CLASS}`}>
+      <header className="shrink-0 border-b border-purple-500/10 bg-[#0B0914]/80 backdrop-blur-sm">
         <div className="max-w-6xl mx-auto px-3 md:px-6 py-3 md:py-4">
           <div className="flex justify-between items-center">
             <div>
@@ -178,11 +177,11 @@ function UsersPage() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-3 md:px-6 py-4 md:py-8">
+      <main className="max-w-6xl mx-auto px-3 md:px-6 py-4 md:py-6 w-full flex-1 min-h-0 flex flex-col">
         {/* Super Admin Management Section */}
         {isSuperAdmin(user) && (
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
+          <div className="mb-4 flex max-h-[32%] min-h-0 shrink-0 flex-col">
+            <div className="flex items-center justify-between mb-3 shrink-0">
               <h2 className="text-lg font-bold text-white">מנהלי מערכת</h2>
               <Button variant="secondary" size="sm" icon={<PlusIcon />} onClick={() => setShowCreateSA(true)}>
                 מנהל מערכת חדש
@@ -194,7 +193,19 @@ function UsersPage() {
                 <p className="text-slate-400 text-sm">אין מנהלי מערכת נוספים</p>
               </Card>
             ) : (
-              <div className="grid gap-3">
+              <ListViewport
+                footer={
+                  <ListPager
+                    page={pagedSA.page}
+                    totalPages={pagedSA.totalPages}
+                    from={pagedSA.from}
+                    to={pagedSA.to}
+                    total={pagedSA.total}
+                    onPage={setSaPage}
+                  />
+                }
+              >
+                <div className="grid gap-3">
                 {pagedSA.items.map((sa) => (
                   <Card key={sa.id} padding="none">
                     <div className="p-3 md:p-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-3">
@@ -233,15 +244,8 @@ function UsersPage() {
                     </div>
                   </Card>
                 ))}
-                <ListPager
-                  page={pagedSA.page}
-                  totalPages={pagedSA.totalPages}
-                  from={pagedSA.from}
-                  to={pagedSA.to}
-                  total={pagedSA.total}
-                  onPage={setSaPage}
-                />
-              </div>
+                </div>
+              </ListViewport>
             )}
 
             {/* Create Super Admin Modal */}
@@ -316,13 +320,12 @@ function UsersPage() {
               </div>
             )}
 
-            <hr className="border-slate-700/50 mt-6" />
+            <hr className="border-slate-700/50 mt-3 shrink-0" />
           </div>
         )}
 
-        {/* Tabs - only for super admin */}
         {isSuperAdmin(user) && (
-          <div className="flex gap-2 mb-6">
+          <div className="flex gap-2 mb-3 shrink-0">
             <button
               onClick={() => setActiveTab('admins')}
               className={`px-4 py-2 rounded-lg font-medium transition ${
@@ -346,20 +349,19 @@ function UsersPage() {
           </div>
         )}
 
-        {/* Users List */}
         {loading ? (
           <div className="space-y-4">
             {[1, 2, 3].map(i => <div key={i} className="h-20 rounded-xl skeleton" />)}
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="flex flex-col min-h-0 flex-1 gap-3">
             {(activeTab === 'admins' ? admins : employees).length > 0 && (
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={activeTab === 'admins' ? 'חיפוש לקוח...' : 'חיפוש עובד...'}
-                className="w-full bg-white/[0.03] border border-purple-500/10 rounded-xl py-2.5 px-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/40 transition"
+                className="w-full shrink-0 bg-white/[0.03] border border-purple-500/10 rounded-xl py-2.5 px-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/40 transition"
               />
             )}
             {(activeTab === 'admins' ? admins : employees).length === 0 ? (
@@ -372,10 +374,23 @@ function UsersPage() {
                 </Button>
               </Card>
             ) : activeTab === 'admins' ? (
-              <>
-              {pagedAdmins.total === 0 ? (
+              pagedAdmins.total === 0 ? (
                 <p className="text-center py-8 text-slate-500 text-sm">לא נמצאו לקוחות עבור החיפוש</p>
-              ) : pagedAdmins.items.map((adminItem) => (
+              ) : (
+              <ListViewport
+                footer={
+                  <ListPager
+                    page={pagedAdmins.page}
+                    totalPages={pagedAdmins.totalPages}
+                    from={pagedAdmins.from}
+                    to={pagedAdmins.to}
+                    total={pagedAdmins.total}
+                    onPage={setPage}
+                  />
+                }
+              >
+                <div className="space-y-4">
+              {pagedAdmins.items.map((adminItem) => (
                 <Card key={adminItem.id} hover padding="none">
                   <div className="p-3 md:p-5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                     <div className="flex items-center gap-3 md:gap-4 min-w-0">
@@ -457,22 +472,26 @@ function UsersPage() {
                   </div>
                 </Card>
               ))}
-              {pagedAdmins.total > 0 && (
-                <ListPager
-                  page={pagedAdmins.page}
-                  totalPages={pagedAdmins.totalPages}
-                  from={pagedAdmins.from}
-                  to={pagedAdmins.to}
-                  total={pagedAdmins.total}
-                  onPage={setPage}
-                />
-              )}
-              </>
-            ) : (
-              <>
-              {pagedEmployees.total === 0 ? (
+                </div>
+              </ListViewport>
+              )
+            ) : pagedEmployees.total === 0 ? (
                 <p className="text-center py-8 text-slate-500 text-sm">לא נמצאו עובדים עבור החיפוש</p>
-              ) : pagedEmployees.items.map((empItem) => (
+              ) : (
+              <ListViewport
+                footer={
+                  <ListPager
+                    page={pagedEmployees.page}
+                    totalPages={pagedEmployees.totalPages}
+                    from={pagedEmployees.from}
+                    to={pagedEmployees.to}
+                    total={pagedEmployees.total}
+                    onPage={setPage}
+                  />
+                }
+              >
+                <div className="space-y-4">
+              {pagedEmployees.items.map((empItem) => (
                 <Card key={empItem.id} hover padding="none">
                   <div className="p-3 md:p-5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                     <div className="flex items-center gap-3 md:gap-4 min-w-0">
@@ -547,17 +566,9 @@ function UsersPage() {
                   </div>
                 </Card>
               ))}
-              {pagedEmployees.total > 0 && (
-                <ListPager
-                  page={pagedEmployees.page}
-                  totalPages={pagedEmployees.totalPages}
-                  from={pagedEmployees.from}
-                  to={pagedEmployees.to}
-                  total={pagedEmployees.total}
-                  onPage={setPage}
-                />
-              )}
-              </>
+                </div>
+              </ListViewport>
+              )
             )}
           </div>
         )}

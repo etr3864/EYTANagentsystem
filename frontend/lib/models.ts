@@ -41,15 +41,15 @@ export const THINKING_LABELS: Record<string, string> = {
 };
 
 export const ALL_MODELS: ModelDef[] = [
-  { key: 'claude-sonnet-5', label: 'Claude Sonnet 5', description: 'מומלץ — הדור החדש', provider: 'Anthropic', inputPrice: 2, outputPrice: 10, thinkingOptions: ['off', 'low', 'medium', 'high'], defaultThinking: 'off' },
-  { key: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', description: 'מאוזן וחכם', provider: 'Anthropic', inputPrice: 3, outputPrice: 15, thinkingOptions: ['off', 'low', 'medium', 'high'], defaultThinking: 'off' },
+  { key: 'claude-sonnet-5', label: 'Claude Sonnet 5', description: 'מומלץ — הדור החדש', provider: 'Anthropic', inputPrice: 2, outputPrice: 10, thinkingOptions: ['off', 'low', 'medium'], defaultThinking: 'off' },
+  { key: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6', description: 'מאוזן וחכם', provider: 'Anthropic', inputPrice: 3, outputPrice: 15, thinkingOptions: ['off', 'low', 'medium'], defaultThinking: 'off' },
   { key: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', description: 'מהיר וחסכוני', provider: 'Anthropic', inputPrice: 1, outputPrice: 5, thinkingOptions: [], defaultThinking: 'off' },
-  { key: 'claude-opus-5', label: 'Claude Opus 5', description: 'הכי חזק — יקר', provider: 'Anthropic', inputPrice: 5, outputPrice: 25, thinkingOptions: ['off', 'low', 'medium', 'high'], defaultThinking: 'off' },
+  { key: 'claude-opus-5', label: 'Claude Opus 5', description: 'הכי חזק — יקר', provider: 'Anthropic', inputPrice: 5, outputPrice: 25, thinkingOptions: ['off', 'low', 'medium'], defaultThinking: 'off' },
   { key: 'gpt-5.6-luna', label: 'GPT-5.6 Luna', description: 'מהיר וזול (Chat)', provider: 'OpenAI', inputPrice: 0.2, outputPrice: 1.2, thinkingOptions: [], defaultThinking: 'off' },
   { key: 'gpt-5.6-terra', label: 'GPT-5.6 Terra', description: 'מאוזן, לכלים', provider: 'OpenAI', inputPrice: 2, outputPrice: 12, thinkingOptions: [], defaultThinking: 'off' },
-  { key: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash', description: 'הכי חדש — מחיר השקה', provider: 'Google', inputPrice: 0.75, outputPrice: 3.75, thinkingOptions: ['low', 'medium', 'high'], defaultThinking: 'low' },
-  { key: 'gemini-3.7-flash', label: 'Gemini 3.7 Flash', description: 'יציב, סוכנים וכלים', provider: 'Google', inputPrice: 0.75, outputPrice: 3.75, thinkingOptions: ['low', 'medium', 'high'], defaultThinking: 'low' },
-  { key: 'gemini-3.6-flash', label: 'Gemini 3.6 Flash', description: 'תומך גם בחשיבה מינימלית', provider: 'Google', inputPrice: 0.75, outputPrice: 3.75, thinkingOptions: ['minimal', 'low', 'medium', 'high'], defaultThinking: 'low' },
+  { key: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash', description: 'הכי חדש — מחיר השקה', provider: 'Google', inputPrice: 0.75, outputPrice: 3.75, thinkingOptions: ['low', 'medium'], defaultThinking: 'low' },
+  { key: 'gemini-3.7-flash', label: 'Gemini 3.7 Flash', description: 'יציב, סוכנים וכלים', provider: 'Google', inputPrice: 0.75, outputPrice: 3.75, thinkingOptions: ['low', 'medium'], defaultThinking: 'low' },
+  { key: 'gemini-3.6-flash', label: 'Gemini 3.6 Flash', description: 'תומך גם בחשיבה מינימלית', provider: 'Google', inputPrice: 0.75, outputPrice: 3.75, thinkingOptions: ['minimal', 'low', 'medium'], defaultThinking: 'low' },
 ];
 
 export function resolveModel(key: string | undefined | null): string {

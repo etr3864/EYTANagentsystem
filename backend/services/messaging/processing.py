@@ -250,22 +250,31 @@ async def process_batched_messages(
             )
 
         # Get AI response
-        response_text, tool_calls, usage_data, media_actions = await ai.get_response(
-            model=agent.model, 
-            system_prompt=prompt, 
-            history=history, 
-            user_message=combined_text,
-            user_info=user_info,
-            pending_messages=pending_msgs,
-            knowledge_context=knowledge_context,
-            media_context=media_context,
-            tool_handler=tool_handler,
-            appointment_prompt=agent.appointment_prompt,
-            calendar_config=agent.calendar_config,
-            user_appointments=user_appointments,
-            agent=agent,
-            extra_tools=extra_tools,
-        )
+        try:
+            response_text, tool_calls, usage_data, media_actions = await ai.get_response(
+                model=agent.model,
+                system_prompt=prompt,
+                history=history,
+                user_message=combined_text,
+                user_info=user_info,
+                pending_messages=pending_msgs,
+                knowledge_context=knowledge_context,
+                media_context=media_context,
+                tool_handler=tool_handler,
+                appointment_prompt=agent.appointment_prompt,
+                calendar_config=agent.calendar_config,
+                user_appointments=user_appointments,
+                agent=agent,
+                extra_tools=extra_tools,
+            )
+        except Exception as e:
+            log_error(provider, f"ai failed: {str(e)[:120]}")
+            await send_message(
+                user_phone,
+                "לא הצלחנו לענות עכשיו. אפשר לשלוח שוב בעוד רגע?",
+            )
+            db.commit()
+            return
         
         # Update usage (cumulative JSON + daily table)
         used_model = conversation_model(agent.model, has_images)

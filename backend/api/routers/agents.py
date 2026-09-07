@@ -37,7 +37,9 @@ def agent_to_response(a) -> dict:
         "system_prompt": a.system_prompt,
         "appointment_prompt": a.appointment_prompt,
         "model": a.model,
-        "thinking_level": getattr(a, "thinking_level", None) or "off",
+        "thinking_level": sanitize_thinking(
+            a.model, getattr(a, "thinking_level", None) or "off"
+        ),
         "is_active": a.is_active,
         "provider": a.provider or "meta",
         "provider_config": a.provider_config or {},
