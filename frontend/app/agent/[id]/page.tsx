@@ -6,6 +6,7 @@ import Link from 'next/link';
 
 import { Button, Card, ArrowRightIcon } from '@/components/ui';
 import { FunctionsTab } from '@/components/agent/functions/FunctionsTab';
+import { PromptTab, SettingsTab, ConversationsTab, KnowledgeTab, CalendarTab, SummaryTab, MediaTab } from '@/components/agent';
 import { TemplatesTab } from '@/components/agent/TemplatesTab';
 import FollowUpTab from '@/components/agent/FollowUpTab';
 import { ChannelsTab } from '@/components/agent/channels/ChannelsTab';
@@ -22,6 +23,7 @@ import {
   type MediaUploadData, type ConversationCursor,
 } from '@/lib/api';
 import type { Agent, AgentBatchingConfig, ContextSummaryConfig, Conversation, Message, Document, DataTable, Provider, WaSenderConfig, AgentMedia, MediaConfig, CustomApiKeys } from '@/lib/types';
+import { DEFAULT_MODEL, getModel, resolveModel } from '@/lib/models';
 
 type Tab = 'prompt' | 'conversations' | 'knowledge' | 'media' | 'templates' | 'calendar' | 'followups' | 'summaries' | 'settings' | 'channels' | 'functions';
 
@@ -72,7 +74,8 @@ function AgentPage() {
   const [phoneNumberId, setPhoneNumberId] = useState('');
   const [accessToken, setAccessToken] = useState('');
   const [verifyToken, setVerifyToken] = useState('');
-  const [model, setModel] = useState('claude-sonnet-4-20250514');
+  const [model, setModel] = useState(DEFAULT_MODEL);
+  const [thinkingLevel, setThinkingLevel] = useState('off');
   const [isActive, setIsActive] = useState(true);
   const [provider, setProvider] = useState<Provider>('wasender');
   const [providerConfig, setProviderConfig] = useState<WaSenderConfig | Record<string, never>>({});
@@ -160,7 +163,8 @@ function AgentPage() {
       setPhoneNumberId(data.phone_number_id || '');
       setAccessToken(data.access_token);
       setVerifyToken(data.verify_token);
-      setModel(data.model);
+      setModel(resolveModel(data.model));
+      setThinkingLevel(data.thinking_level || getModel(data.model).defaultThinking);
       setIsActive(data.is_active);
       setProvider(data.provider || 'wasender');
       setProviderConfig(data.provider_config || {});
@@ -274,6 +278,7 @@ function AgentPage() {
       await updateAgent(agentId, {
         name,
         model,
+        thinking_level: thinkingLevel,
         is_active: isActive,
         batching_config: batchingConfig,
         custom_api_keys: customApiKeys,
@@ -282,6 +287,8 @@ function AgentPage() {
       });
       const fresh = await getAgent(agentId);
       setAgent(fresh);
+      setModel(resolveModel(fresh.model));
+      setThinkingLevel(fresh.thinking_level || getModel(fresh.model).defaultThinking);
       setFeedback({ type: 'success', text: 'נשמר בהצלחה!' });
       setTimeout(() => setFeedback(null), 3000);
     } catch (err) {
@@ -623,12 +630,17 @@ function AgentPage() {
               agentId={agentId}
               name={name}
               model={model}
+              thinkingLevel={thinkingLevel}
               batchingConfig={batchingConfig}
               maxToolRounds={maxToolRounds}
               customApiKeys={customApiKeys}
               contextSummaryConfig={contextSummaryConfig}
               onNameChange={setName}
-              onModelChange={setModel}
+              onModelChange={(v: string) => {
+                setModel(v);
+                setThinkingLevel(getModel(v).defaultThinking);
+              }}
+              onThinkingLevelChange={setThinkingLevel}
               onBatchingConfigChange={setBatchingConfig}
               onMaxToolRoundsChange={setMaxToolRounds}
               onCustomApiKeysChange={setCustomApiKeys}

@@ -13,6 +13,13 @@ from .converters import (
 )
 from backend.core.ai_config import USER_TOOLS
 from backend.core.logger import log_error
+from backend.services.llm.catalog import (
+    CHEAP_GEMINI,
+    conversation_max_tokens,
+    gemini_thinking_level,
+    resolve_model,
+    sanitize_thinking,
+)
 
 if TYPE_CHECKING:
     from backend.models.agent import Agent
@@ -103,6 +110,7 @@ class GeminiProvider:
         tool_handler: ToolHandler = None,
         tools: list | None = None,
         max_tool_rounds: int = 5,
+        thinking_level: str = "off",
     ) -> LLMResponse:
         """Get response from Gemini with tool support.
         
@@ -161,18 +169,23 @@ class GeminiProvider:
         
         gemini_tools = anthropic_tools_to_gemini(tools if tools is not None else USER_TOOLS)
         rounds_left = max(1, min(8, max_tool_rounds or 5))
-        
-        # Configure generation
-        config = types.GenerateContentConfig(
+        model_id = resolve_model(model)
+        sanitized = sanitize_thinking(model_id, thinking_level)
+        level = gemini_thinking_level(model_id, sanitized)
+        config_kwargs = dict(
             system_instruction=system_text,
             tools=[gemini_tools],
-            max_output_tokens=4096,
-            temperature=0.7
+            max_output_tokens=conversation_max_tokens(sanitized),
         )
+        if level:
+            config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_level=level)
+        
+        # Configure generation
+        config = types.GenerateContentConfig(**config_kwargs)
         
         response = await self._call_with_retry(
             "generate_content",
-            model=model,
+            model=model_id,
             contents=gemini_contents,
             config=config
         )
@@ -233,7 +246,7 @@ class GeminiProvider:
             
             response = await self._call_with_retry(
                 "generate_content",
-                model=model,
+                model=model_id,
                 contents=gemini_contents,
                 config=config
             )
@@ -259,19 +272,23 @@ class GeminiProvider:
             media_actions=media_actions
         )
 
+    def _cheap_config(self, max_tokens: int, model: str):
+        kwargs = dict(max_output_tokens=max_tokens)
+        level = gemini_thinking_level(model, "minimal")
+        if level:
+            kwargs["thinking_config"] = types.ThinkingConfig(thinking_level=level)
+        return types.GenerateContentConfig(**kwargs)
+
     async def generate_simple_response(
-        self, prompt: str, model: str = "gemini-2.0-flash", max_tokens: int = 300
+        self, prompt: str, model: str = CHEAP_GEMINI, max_tokens: int = 300
     ) -> str:
         """Generate a simple text response without tools (for follow-ups, reminders)."""
-        config = types.GenerateContentConfig(
-            max_output_tokens=max_tokens,
-            temperature=0.7,
-        )
+        model_id = resolve_model(model)
         response = await self._call_with_retry(
             "generate_content",
-            model=model,
+            model=model_id,
             contents=[types.Content(role="user", parts=[types.Part(text=prompt)])],
-            config=config,
+            config=self._cheap_config(max_tokens, model_id),
         )
         if response.candidates and response.candidates[0].content and response.candidates[0].content.parts:
             for part in response.candidates[0].content.parts:
@@ -280,18 +297,15 @@ class GeminiProvider:
         return ""
 
     async def generate_tracked_response(
-        self, prompt: str, model: str = "gemini-2.0-flash", max_tokens: int = 300
+        self, prompt: str, model: str = CHEAP_GEMINI, max_tokens: int = 300
     ) -> tuple[str, dict]:
         """Like generate_simple_response but also returns token usage."""
-        config = types.GenerateContentConfig(
-            max_output_tokens=max_tokens,
-            temperature=0.7,
-        )
+        model_id = resolve_model(model)
         response = await self._call_with_retry(
             "generate_content",
-            model=model,
+            model=model_id,
             contents=[types.Content(role="user", parts=[types.Part(text=prompt)])],
-            config=config,
+            config=self._cheap_config(max_tokens, model_id),
         )
 
         usage = {

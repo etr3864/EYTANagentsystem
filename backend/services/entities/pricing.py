@@ -28,8 +28,14 @@ def calc_cost_ils(
 
     If the model has no pricing entry, cost is 0 and a warning is logged.
     """
+    from backend.services.llm.catalog import resolve_model
+
     input_price = pricing.get(f"model.{model}.input")
     output_price = pricing.get(f"model.{model}.output")
+    if input_price is None:
+        lookup = resolve_model(model)
+        input_price = pricing.get(f"model.{lookup}.input")
+        output_price = pricing.get(f"model.{lookup}.output")
 
     if input_price is None or output_price is None:
         log_error("PRICING", f"no price for model '{model}' — cost counted as 0")

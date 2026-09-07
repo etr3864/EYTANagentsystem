@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from backend.core.logger import log_error
 from backend.core.ai_config import SYSTEM_SUFFIX, USER_TOOLS
 from backend.services.llm import get_provider
+from backend.services.llm.catalog import conversation_model, resolve_model, sanitize_thinking
 from backend.services.llm.types import LLMResponse
 
 if TYPE_CHECKING:
@@ -261,10 +262,8 @@ async def get_response(
         tuple: (response_text, tool_calls, usage_data, media_actions)
         - media_actions: List of dicts with action='send_media' for media to send
     """
-    # Force Claude if input contains images
-    actual_model = model
-    if _contains_images(pending_messages) and model.startswith("gemini"):
-        actual_model = "claude-sonnet-4-6"  # Fallback to Claude for images
+    has_images = _contains_images(pending_messages)
+    actual_model = conversation_model(model, has_images)
     
     # Build user content
     if pending_messages:
@@ -320,6 +319,12 @@ async def get_response(
     except (TypeError, ValueError):
         rounds = 5
     
+    thinking_level = "off"
+    if agent is not None and not (
+        has_images and resolve_model(model).startswith("gemini")
+    ):
+        thinking_level = sanitize_thinking(actual_model, getattr(agent, "thinking_level", None))
+    
     # Get response from provider
     response: LLMResponse = await provider.get_response(
         model=actual_model,
@@ -329,6 +334,7 @@ async def get_response(
         tool_handler=tool_handler,
         tools=tools,
         max_tool_rounds=rounds,
+        thinking_level=thinking_level,
     )
     
     text = response.text

@@ -2,6 +2,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 from backend.models.agent import Agent
 
+from backend.services.llm.catalog import resolve_model, sanitize_thinking
+
 _JSON_FIELDS = {"provider_config", "batching_config", "usage_stats", "calendar_config",
                 "summary_config", "followup_config", "media_config", "custom_api_keys"}
 
@@ -38,11 +40,14 @@ def create(
     access_token: str,
     verify_token: str,
     system_prompt: str,
-    model: str = "claude-sonnet-4-20250514",
+    model: str = "claude-sonnet-5",
+    thinking_level: str = "off",
     provider: str = "meta",
     provider_config: dict | None = None,
     batching_config: dict | None = None
 ) -> Agent:
+    model = resolve_model(model)
+    thinking_level = sanitize_thinking(model, thinking_level)
     agent = Agent(
         name=name,
         phone_number_id=_normalize_phone_id(phone_number_id),
@@ -50,6 +55,7 @@ def create(
         verify_token=verify_token,
         system_prompt=system_prompt,
         model=model,
+        thinking_level=thinking_level,
         provider=provider,
         provider_config=provider_config or {},
         batching_config=batching_config,

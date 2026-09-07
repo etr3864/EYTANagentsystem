@@ -9,6 +9,7 @@ from openai import AsyncOpenAI
 from .types import LLMResponse, ToolHandler
 from backend.core.ai_config import USER_TOOLS
 from backend.core.logger import log_error
+from backend.services.llm.catalog import CHEAP_OPENAI, resolve_model
 
 if TYPE_CHECKING:
     from backend.models.agent import Agent
@@ -110,6 +111,7 @@ class OpenAIProvider:
         tool_handler: ToolHandler = None,
         tools: list | None = None,
         max_tool_rounds: int = 5,
+        thinking_level: str = "off",
     ) -> LLMResponse:
         """Get response from OpenAI with tool support."""
         
@@ -117,6 +119,7 @@ class OpenAIProvider:
         messages = [{"role": "system", "content": _build_system_text(system_blocks)}]
         openai_tools = _convert_tools_to_openai(tools if tools is not None else USER_TOOLS)
         rounds_left = max(1, min(8, max_tool_rounds or 5))
+        model_id = resolve_model(model)
         
         # Add history
         for msg in history:
@@ -149,10 +152,11 @@ class OpenAIProvider:
         
         # Call API
         response = await self._call_with_retry(
-            model=model,
+            model=model_id,
             messages=messages,
             tools=openai_tools,
-            max_completion_tokens=4096
+            max_completion_tokens=4096,
+            reasoning_effort="none",
         )
         
         # Track usage
@@ -214,10 +218,11 @@ class OpenAIProvider:
             
             # Get next response
             response = await self._call_with_retry(
-                model=model,
+                model=model_id,
                 messages=messages,
                 tools=openai_tools,
-                max_completion_tokens=4096
+                max_completion_tokens=4096,
+                reasoning_effort="none",
             )
             
             # Update usage
@@ -246,24 +251,26 @@ class OpenAIProvider:
         )
 
     async def generate_simple_response(
-        self, prompt: str, model: str = "gpt-4o-mini", max_tokens: int = 300
+        self, prompt: str, model: str = CHEAP_OPENAI, max_tokens: int = 300
     ) -> str:
         """Generate a simple text response without tools (for follow-ups, reminders)."""
         response = await self._call_with_retry(
-            model=model,
+            model=resolve_model(model),
             messages=[{"role": "user", "content": prompt}],
             max_completion_tokens=max_tokens,
+            reasoning_effort="none",
         )
         return (response.choices[0].message.content or "").strip()
 
     async def generate_tracked_response(
-        self, prompt: str, model: str = "gpt-4o-mini", max_tokens: int = 300
+        self, prompt: str, model: str = CHEAP_OPENAI, max_tokens: int = 300
     ) -> tuple[str, dict]:
         """Like generate_simple_response but also returns token usage."""
         response = await self._call_with_retry(
-            model=model,
+            model=resolve_model(model),
             messages=[{"role": "user", "content": prompt}],
             max_completion_tokens=max_tokens,
+            reasoning_effort="none",
         )
         usage = {
             "input_tokens": response.usage.prompt_tokens or 0 if response.usage else 0,

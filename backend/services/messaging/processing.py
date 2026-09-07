@@ -16,6 +16,7 @@ from backend.services.entities.tools import handle_tool_calls
 from backend.services.messaging.buffer import PendingMessage, is_stale
 from backend.models.user import User
 from backend.models.processed_message import ProcessedMessage
+from backend.services.llm.catalog import conversation_model
 
 
 # Type for media send callback: (phone, media_url, media_type, caption, filename) -> bool
@@ -267,8 +268,9 @@ async def process_batched_messages(
         )
         
         # Update usage (cumulative JSON + daily table)
+        used_model = conversation_model(agent.model, has_images)
         agent.add_usage(
-            model=agent.model,
+            model=used_model,
             input_tokens=usage_data["input_tokens"],
             output_tokens=usage_data["output_tokens"],
             cache_read=usage_data["cache_read_tokens"],
@@ -276,7 +278,7 @@ async def process_batched_messages(
         )
         from backend.services.entities.usage_tracking import record_usage
         record_usage(
-            db, agent.id, agent.model, "conversation",
+            db, agent.id, used_model, "conversation",
             usage_data["input_tokens"], usage_data["output_tokens"],
             usage_data["cache_read_tokens"], usage_data["cache_creation_tokens"],
         )

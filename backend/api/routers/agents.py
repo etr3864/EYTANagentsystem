@@ -9,6 +9,7 @@ from backend.models.agent import Agent, DEFAULT_BATCHING_CONFIG
 from backend.auth.models import AuthUser, UserRole
 from backend.auth.dependencies import get_current_user, require_role, AgentAccessChecker
 from backend.auth import service as auth_service
+from backend.services.llm.catalog import resolve_model, sanitize_thinking
 
 router = APIRouter(tags=["agents"])
 
@@ -36,6 +37,7 @@ def agent_to_response(a) -> dict:
         "system_prompt": a.system_prompt,
         "appointment_prompt": a.appointment_prompt,
         "model": a.model,
+        "thinking_level": getattr(a, "thinking_level", None) or "off",
         "is_active": a.is_active,
         "provider": a.provider or "meta",
         "provider_config": a.provider_config or {},
@@ -96,6 +98,7 @@ def create_agent(
         verify_token=data.verify_token,
         system_prompt=data.system_prompt,
         model=data.model,
+        thinking_level=data.thinking_level,
         provider=data.provider,
         provider_config=data.provider_config,
         batching_config=data.batching_config.model_dump()
@@ -116,7 +119,7 @@ def update_agent(
         raise HTTPException(status_code=404, detail="Agent not found")
 
     update_data = {}
-    for field in ['name', 'phone_number_id', 'access_token', 'verify_token', 'system_prompt', 'appointment_prompt', 'model', 'is_active', 'provider', 'provider_config', 'media_config', 'max_tool_rounds']:
+    for field in ['name', 'phone_number_id', 'access_token', 'verify_token', 'system_prompt', 'appointment_prompt', 'model', 'thinking_level', 'is_active', 'provider', 'provider_config', 'media_config', 'max_tool_rounds']:
         value = getattr(data, field)
         if value is None:
             continue
@@ -144,6 +147,13 @@ def update_agent(
             elif not value:
                 current.pop(provider_key, None)
         update_data['custom_api_keys'] = current or None
+
+    if "model" in update_data:
+        update_data["model"] = resolve_model(update_data["model"])
+    if "model" in update_data or "thinking_level" in update_data:
+        next_model = update_data.get("model", existing.model)
+        next_thinking = update_data.get("thinking_level", getattr(existing, "thinking_level", None))
+        update_data["thinking_level"] = sanitize_thinking(next_model, next_thinking)
     
     agent = agents.update(db, agent_id, **update_data)
     return {"id": agent.id, "name": agent.name}

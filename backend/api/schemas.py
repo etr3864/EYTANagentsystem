@@ -93,7 +93,8 @@ class AgentCreate(BaseModel):
     access_token: str = ""     # Required for meta, optional for wasender
     verify_token: str = ""     # Required for meta, optional for wasender
     system_prompt: str
-    model: str = "claude-sonnet-4-20250514"
+    model: str = "claude-sonnet-5"
+    thinking_level: str = "off"
     provider: str = "meta"     # "meta" or "wasender"
     provider_config: Optional[dict] = None  # WaSenderConfig for wasender
     batching_config: AgentBatchingConfig = AgentBatchingConfig()
@@ -107,6 +108,7 @@ class AgentUpdate(BaseModel):
     system_prompt: Optional[str] = None
     appointment_prompt: Optional[str] = None
     model: Optional[str] = None
+    thinking_level: Optional[str] = None
     is_active: Optional[bool] = None
     provider: Optional[str] = None
     provider_config: Optional[dict] = None

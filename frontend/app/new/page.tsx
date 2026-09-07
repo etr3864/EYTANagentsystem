@@ -8,6 +8,7 @@ import { Button, Card, CardHeader } from '@/components/ui';
 import { Input, Textarea, NumberInput } from '@/components/ui/Input';
 import { ModelSelect } from '@/components/ui/ModelSelect';
 import type { AgentBatchingConfig } from '@/lib/types';
+import { DEFAULT_MODEL, getModel, THINKING_LABELS } from '@/lib/models';
 
 export default function NewAgentPage() {
   const router = useRouter();
@@ -16,7 +17,8 @@ export default function NewAgentPage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const [name, setName] = useState('');
-  const [model, setModel] = useState('claude-sonnet-4-20250514');
+  const [model, setModel] = useState(DEFAULT_MODEL);
+  const [thinkingLevel, setThinkingLevel] = useState(getModel(DEFAULT_MODEL).defaultThinking);
   const [systemPrompt, setSystemPrompt] = useState('');
   
   const [batchingConfig, setBatchingConfig] = useState<AgentBatchingConfig>({ 
@@ -43,6 +45,7 @@ export default function NewAgentPage() {
         verify_token: '',
         system_prompt: systemPrompt,
         model,
+        thinking_level: thinkingLevel,
         batching_config: batchingConfig,
       });
       router.push('/');
@@ -87,9 +90,29 @@ export default function NewAgentPage() {
                 <ModelSelect
                   label="מודל AI"
                   value={model}
-                  onChange={e => setModel(e.target.value)}
+                  onChange={e => {
+                    const next = e.target.value;
+                    setModel(next);
+                    setThinkingLevel(getModel(next).defaultThinking);
+                  }}
                 />
               </div>
+              {getModel(model).thinkingOptions.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">רמת חשיבה</label>
+                  <select
+                    value={getModel(model).thinkingOptions.includes(thinkingLevel) ? thinkingLevel : getModel(model).defaultThinking}
+                    onChange={e => setThinkingLevel(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white appearance-none cursor-pointer focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                  >
+                    {getModel(model).thinkingOptions.map((opt) => (
+                      <option key={opt} value={opt} className="bg-slate-800">
+                        {THINKING_LABELS[opt] || opt}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           </Card>
 

@@ -46,6 +46,7 @@ export interface Agent {
   system_prompt: string;
   appointment_prompt: string | null;
   model: string;
+  thinking_level?: string;
   is_active: boolean;
   provider: Provider;
   provider_config: WaSenderConfig | Record<string, never>;
@@ -69,6 +70,7 @@ export interface AgentCreate {
   verify_token: string;
   system_prompt: string;
   model: string;
+  thinking_level?: string;
   provider?: Provider;
   provider_config?: WaSenderConfig | Record<string, never>;
   batching_config?: AgentBatchingConfig;
@@ -82,6 +84,7 @@ export interface AgentUpdate {
   system_prompt?: string;
   appointment_prompt?: string;
   model?: string;
+  thinking_level?: string;
   is_active?: boolean;
   provider?: Provider;
   provider_config?: WaSenderConfig | Record<string, never>;

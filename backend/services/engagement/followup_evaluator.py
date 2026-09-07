@@ -47,8 +47,10 @@ async def evaluate(
 
     model = config.get("model", "claude-sonnet-4-6")
     try:
+        from backend.services.llm.catalog import resolve_model
+        model = resolve_model(model)
         provider = get_provider(model, agent=agent)
-        response, usage = await provider.generate_tracked_response(prompt)
+        response, usage = await provider.generate_tracked_response(prompt, model=model)
         from backend.services.entities.usage_tracking import record_usage
         record_usage(
             db, agent.id, model, "followup",

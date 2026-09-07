@@ -1,7 +1,7 @@
 'use client';
 
 import { SelectHTMLAttributes, forwardRef } from 'react';
-import { ALL_MODELS, MODEL_PROVIDERS } from '@/lib/models';
+import { ALL_MODELS, MODEL_PROVIDERS, formatModelPrice, resolveModel } from '@/lib/models';
 
 interface ModelSelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'options'> {
   label?: string;
@@ -21,7 +21,11 @@ const inputBaseStyles = `
 `;
 
 export const ModelSelect = forwardRef<HTMLSelectElement, ModelSelectProps>(
-  ({ label, error, className = '', ...props }, ref) => {
+  ({ label, error, className = '', value, ...props }, ref) => {
+    const known = ALL_MODELS.some((m) => m.key === value);
+    const displayValue = known ? value : resolveModel(String(value || ''));
+    const leftover = !ALL_MODELS.some((m) => m.key === displayValue) && displayValue;
+
     return (
       <div className="space-y-1.5">
         {label && (
@@ -32,6 +36,7 @@ export const ModelSelect = forwardRef<HTMLSelectElement, ModelSelectProps>(
         <div className="relative">
           <select 
             ref={ref}
+            value={displayValue}
             className={`
               ${inputBaseStyles}
               appearance-none cursor-pointer pr-10
@@ -40,6 +45,11 @@ export const ModelSelect = forwardRef<HTMLSelectElement, ModelSelectProps>(
             `} 
             {...props}
           >
+            {leftover && (
+              <option value={displayValue} className="bg-slate-800 text-white">
+                {String(displayValue)}
+              </option>
+            )}
             {MODEL_PROVIDERS.map(({ provider, icon }) => {
               const models = ALL_MODELS.filter((m) => m.provider === provider);
               return (
@@ -54,7 +64,7 @@ export const ModelSelect = forwardRef<HTMLSelectElement, ModelSelectProps>(
                       value={model.key}
                       className="bg-slate-800 text-white"
                     >
-                      {model.label} - {model.description}
+                      {model.label} · {formatModelPrice(model)} — {model.description}
                     </option>
                   ))}
                 </optgroup>

@@ -7,18 +7,21 @@ import { ModelSelect } from '@/components/ui/ModelSelect';
 import { useAuth } from '@/contexts/AuthContext';
 import { isSuperAdmin } from '@/lib/auth';
 import { getExternalApiKey, API_URL } from '@/lib/api';
+import { getModel, THINKING_LABELS } from '@/lib/models';
 import type { AgentBatchingConfig, ContextSummaryConfig, CustomApiKeys } from '@/lib/types';
 
 interface SettingsTabProps {
   agentId: number;
   name: string;
   model: string;
+  thinkingLevel: string;
   batchingConfig: AgentBatchingConfig;
   maxToolRounds: number;
   customApiKeys: CustomApiKeys;
   contextSummaryConfig: ContextSummaryConfig;
   onNameChange: (v: string) => void;
   onModelChange: (v: string) => void;
+  onThinkingLevelChange: (v: string) => void;
   onBatchingConfigChange: (config: AgentBatchingConfig) => void;
   onMaxToolRoundsChange: (value: number) => void;
   onCustomApiKeysChange: (keys: CustomApiKeys) => void;
@@ -139,13 +142,16 @@ function ExternalApiSection({ agentId }: { agentId: number }) {
 
 
 export function SettingsTab({
-  agentId, name, model, batchingConfig, maxToolRounds,
+  agentId, name, model, thinkingLevel, batchingConfig, maxToolRounds,
   customApiKeys, contextSummaryConfig, onNameChange,
-  onModelChange, onBatchingConfigChange, onMaxToolRoundsChange,
+  onModelChange, onThinkingLevelChange, onBatchingConfigChange, onMaxToolRoundsChange,
   onCustomApiKeysChange, onContextSummaryConfigChange, onSave, saving,
   onNavigateToChannels,
 }: SettingsTabProps) {
   const { user } = useAuth();
+  const modelDef = getModel(model);
+  const thinkingOptions = modelDef.thinkingOptions;
+  const isOpenAI = modelDef.provider === 'OpenAI';
 
   return (
     <div className="space-y-6">
@@ -165,6 +171,30 @@ export function SettingsTab({
               onChange={e => onModelChange(e.target.value)} 
             />
           </div>
+          {thinkingOptions.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1.5">רמת חשיבה</label>
+              <select
+                value={thinkingOptions.includes(thinkingLevel) ? thinkingLevel : modelDef.defaultThinking}
+                onChange={e => onThinkingLevelChange(e.target.value)}
+                className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white appearance-none cursor-pointer focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              >
+                {thinkingOptions.map((opt) => (
+                  <option key={opt} value={opt} className="bg-slate-800">
+                    {THINKING_LABELS[opt] || opt}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-500 mt-1">
+                חשיבה גבוהה משפרת תשובות מורכבות ומעלה עלות. ברירת מחדל כבויה / נמוכה.
+              </p>
+            </div>
+          )}
+          {isOpenAI && (
+            <p className="text-xs text-slate-500">
+              חשיבה מורחבת לא זמינה במסלול הכלים של WhatsApp למודלי OpenAI.
+            </p>
+          )}
         </div>
       </Card>
 

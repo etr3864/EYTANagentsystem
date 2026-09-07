@@ -5,6 +5,13 @@ from typing import TYPE_CHECKING
 
 from .types import LLMResponse, ToolHandler
 from backend.core.ai_config import USER_TOOLS
+from backend.services.llm.catalog import (
+    CHEAP_ANTHROPIC,
+    anthropic_extra,
+    conversation_max_tokens,
+    resolve_model,
+    sanitize_thinking,
+)
 from backend.core.logger import log_error
 
 if TYPE_CHECKING:
@@ -110,6 +117,7 @@ class AnthropicProvider:
         tool_handler: ToolHandler = None,
         tools: list | None = None,
         max_tool_rounds: int = 5,
+        thinking_level: str = "off",
     ) -> LLMResponse:
         """Get response from Claude with tool support.
         
@@ -127,14 +135,19 @@ class AnthropicProvider:
         messages = clean_history + [{"role": "user", "content": user_content}]
         active_tools = tools if tools is not None else USER_TOOLS
         rounds_left = max(1, min(8, max_tool_rounds or 5))
+        model_id = resolve_model(model)
+        level = sanitize_thinking(model_id, thinking_level)
+        extra = anthropic_extra(model_id, level)
+        max_tokens = conversation_max_tokens(level)
         
         response = await self._call_with_retry(
-            model=model,
-            max_tokens=4096,
+            model=model_id,
+            max_tokens=max_tokens,
             system=system_blocks,
             messages=messages,
             tools=active_tools,
-            extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
+            extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"},
+            **extra,
         )
         
         cache_read = getattr(response.usage, 'cache_read_input_tokens', 0)
@@ -199,12 +212,13 @@ class AnthropicProvider:
             messages.append({"role": "user", "content": tool_results})
             
             current_response = await self._call_with_retry(
-                model=model,
-                max_tokens=4096,
+                model=model_id,
+                max_tokens=max_tokens,
                 system=system_blocks,
                 messages=messages,
                 tools=active_tools,
-                extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
+                extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"},
+                **extra,
             )
             
             usage_data["input_tokens"] += current_response.usage.input_tokens
@@ -228,7 +242,7 @@ class AnthropicProvider:
     async def describe_image(self, image_base64: str, media_type: str = "image/jpeg") -> tuple[str, dict]:
         """Get short Hebrew description of image. Returns (description, usage_data)."""
         response = await self._client.messages.create(
-            model="claude-haiku-4-5",
+            model=CHEAP_ANTHROPIC,
             max_tokens=150,
             messages=[{
                 "role": "user",
@@ -280,7 +294,7 @@ class AnthropicProvider:
 
         try:
             response = await self._client.messages.create(
-                model="claude-haiku-4-5",
+                model=CHEAP_ANTHROPIC,
                 max_tokens=500,
                 messages=[{
                     "role": "user",
@@ -339,7 +353,7 @@ class AnthropicProvider:
 
         try:
             response = await self._client.messages.create(
-                model="claude-haiku-4-5",
+                model=CHEAP_ANTHROPIC,
                 max_tokens=500,
                 messages=[{"role": "user", "content": prompt}]
             )
@@ -360,13 +374,16 @@ class AnthropicProvider:
             return {"name": "קובץ", "description": "", "caption": ""}
     
     async def generate_simple_response(
-        self, prompt: str, model: str = "claude-haiku-4-5", max_tokens: int = 300
+        self, prompt: str, model: str = CHEAP_ANTHROPIC, max_tokens: int = 300
     ) -> str:
         """Generate a simple text response. Defaults to Haiku/300 for cheap calls."""
+        model_id = resolve_model(model)
+        extra = anthropic_extra(model_id, "off")
         response = await self._call_with_retry(
-            model=model,
+            model=model_id,
             max_tokens=max_tokens,
-            messages=[{"role": "user", "content": prompt}]
+            messages=[{"role": "user", "content": prompt}],
+            **extra,
         )
         
         for block in response.content:
@@ -376,13 +393,16 @@ class AnthropicProvider:
         return ""
 
     async def generate_tracked_response(
-        self, prompt: str, model: str = "claude-haiku-4-5", max_tokens: int = 300
+        self, prompt: str, model: str = CHEAP_ANTHROPIC, max_tokens: int = 300
     ) -> tuple[str, dict]:
         """Like generate_simple_response but also returns token usage."""
+        model_id = resolve_model(model)
+        extra = anthropic_extra(model_id, "off")
         response = await self._call_with_retry(
-            model=model,
+            model=model_id,
             max_tokens=max_tokens,
-            messages=[{"role": "user", "content": prompt}]
+            messages=[{"role": "user", "content": prompt}],
+            **extra,
         )
 
         usage = {

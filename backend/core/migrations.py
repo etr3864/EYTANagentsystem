@@ -13,6 +13,7 @@ def run_all(conn):
     _cascade_and_jsonb(conn)
     _vector_indexes(conn)
     _agent_functions(conn)
+    _llm_models(conn)
     conn.commit()
 
 
@@ -473,5 +474,25 @@ def _agent_functions(conn):
     conn.execute(text("""
         CREATE INDEX IF NOT EXISTS ix_agent_function_idempotency_attention
         ON agent_function_idempotency(agent_id, status, created_at DESC);
+    """))
+
+
+def _llm_models(conn):
+    conn.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE agents ADD COLUMN thinking_level VARCHAR(16) NOT NULL DEFAULT 'off';
+        EXCEPTION WHEN duplicate_column THEN null;
+        END $$;
+    """))
+    from backend.services.llm.catalog import ALIASES
+    for old, new in ALIASES.items():
+        conn.execute(
+            text("UPDATE agents SET model = :new WHERE model = :old"),
+            {"old": old, "new": new},
+        )
+    conn.execute(text("""
+        UPDATE agents SET thinking_level = 'low'
+        WHERE model LIKE 'gemini%'
+          AND thinking_level NOT IN ('minimal', 'low', 'medium', 'high')
     """))
 

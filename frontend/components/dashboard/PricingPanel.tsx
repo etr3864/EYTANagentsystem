@@ -65,9 +65,12 @@ export function PricingPanel() {
                     <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                       <span>{icon}</span> {provider}
                     </h4>
-                    {models.map(({ key, label }) => (
+                    {models.map(({ key, label, inputPrice, outputPrice }) => (
                       <div key={key} className="grid grid-cols-3 gap-3 items-center">
-                        <span className="text-sm text-slate-300 col-span-1">{label}</span>
+                        <span className="text-sm text-slate-300 col-span-1">
+                          {label}
+                          <span className="block text-[11px] text-slate-500">${inputPrice} / ${outputPrice} ל־1M</span>
+                        </span>
                         <label className="flex flex-col gap-1">
                           <span className="text-xs text-slate-400">Input $/1M</span>
                           <input

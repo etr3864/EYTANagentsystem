@@ -29,6 +29,8 @@ def record_usage(
         return
 
     try:
+        from backend.services.llm.catalog import resolve_model
+        model = resolve_model(model)
         db.execute(
             text("""
                 INSERT INTO agent_usage_daily

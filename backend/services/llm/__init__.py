@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from backend.core.logger import log
 from . import key_manager
+from .catalog import resolve_model
 
 if TYPE_CHECKING:
     from backend.models.agent import Agent
@@ -29,7 +30,7 @@ def get_provider(model: str, agent: "Agent | None" = None):
     Selects API key via key_manager (agent override or system pool).
     Caches provider instances per key to reuse HTTP connections.
     """
-    provider_name = _resolve_provider_name(model)
+    provider_name = _resolve_provider_name(resolve_model(model))
     api_key = key_manager.get_key(provider_name, agent)
     cache_key = f"{provider_name}:{api_key[:12]}"
 
