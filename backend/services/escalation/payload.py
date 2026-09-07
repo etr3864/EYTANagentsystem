@@ -5,16 +5,23 @@ from backend.models.user import User
 from backend.services.escalation.constants import MAX_FIELD_VALUE
 
 
-def collect_values(row: AgentEscalationReason, data: dict) -> tuple[dict, list[str]]:
+def collect_values(
+    row: AgentEscalationReason,
+    data: dict,
+    facts: dict[str, str] | None = None,
+) -> tuple[dict, list[str]]:
     values = {}
     missing = []
     incoming = data if isinstance(data, dict) else {}
+    known = facts or {}
     for spec in row.fields or []:
         key = spec.get("key")
         if not key:
             continue
         raw = incoming.get(key)
         text = str(raw).strip() if raw is not None else ""
+        if not text:
+            text = known.get(key, "")
         if len(text) > MAX_FIELD_VALUE:
             text = text[:MAX_FIELD_VALUE]
         if spec.get("required", True) and not text:
@@ -29,7 +36,7 @@ def missing_message(labels: list[str]) -> str:
     joined = ", ".join(labels)
     return (
         f"חסרים שדות חובה: {joined}. "
-        "שאל את הלקוח או שלוף מהשיחה, ואז קרא לכלי שוב. "
+        "שאל את הלקוח או שלוף מכרטיס הלקוח / השיחה, ואז קרא לכלי שוב. "
         "אל תגיד שאתה מעביר או מתריע."
     )
 

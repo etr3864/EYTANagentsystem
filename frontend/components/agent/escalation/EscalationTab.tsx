@@ -17,6 +17,7 @@ export function EscalationTab({ agentId }: { agentId: number }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [openId, setOpenId] = useState<number | null>(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -37,7 +38,8 @@ export function EscalationTab({ agentId }: { agentId: number }) {
     setError(null);
     try {
       const row = await createEscalation(agentId, `סיבה ${items.length + 1}`);
-      setItems((prev) => [...prev, row]);
+      setItems((prev) => [row, ...prev]);
+      setOpenId(row.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'שגיאה ביצירה');
     } finally {
@@ -47,44 +49,56 @@ export function EscalationTab({ agentId }: { agentId: number }) {
 
   const remove = async (item: EscalationReason) => {
     if (!confirm(`למחוק את "${item.name}"? הכלי ייעלם מהסוכן.`)) return;
-    await deleteEscalation(agentId, item.id);
-    setItems((prev) => prev.filter((row) => row.id !== item.id));
+    try {
+      await deleteEscalation(agentId, item.id);
+      setItems((prev) => prev.filter((row) => row.id !== item.id));
+      if (openId === item.id) setOpenId(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'לא ניתן למחוק');
+    }
   };
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-medium text-white">אסקלציה</h2>
-        <p className="text-sm text-slate-400 mt-1">
-          כשהסוכן מזהה מקרה — שולחים לצוות ו/או ל-webhook. הלקוח לא רואה שזה קרה.
-        </p>
-      </div>
-      <div className="flex justify-end">
+    <div className="space-y-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-medium text-white">אסקלציה</h2>
+          <p className="text-sm text-slate-400 mt-1">
+            כשהסוכן מזהה מקרה — שולחים לצוות ו/או ל-webhook. הלקוח לא רואה שזה קרה.
+            טלפון, שם, פגישות ומידע שמור על הלקוח מתמלאים גם אם לא נכתבו בשיחה.
+          </p>
+        </div>
         <Button
           variant="secondary"
           disabled={creating || items.length >= MAX_REASONS}
           onClick={create}
         >
-          סיבה חדשה
+          {creating ? 'יוצר…' : 'סיבה חדשה'}
         </Button>
       </div>
-      {error && <p className="text-sm text-red-400">{error}</p>}
+
       {loading && <p className="text-slate-400 text-sm">טוען…</p>}
       {!loading && items.length === 0 && (
-        <p className="text-slate-400 text-sm">אין סיבות. יוצרים אחת, מגדירים שדות ויעד, ומדליקים.</p>
+        <div className="rounded-lg border border-white/10 bg-white/[0.02] px-4 py-8 text-center">
+          <p className="text-slate-300 text-sm">אין סיבות עדיין.</p>
+          <p className="text-slate-500 text-xs mt-1">יוצרים אחת, ממלאים שדות ויעד, ואז מדליקים.</p>
+        </div>
       )}
+
       <div className="space-y-3">
         {items.map((item) => (
           <ReasonCard
             key={item.id}
             agentId={agentId}
             item={item}
+            defaultOpen={item.id === openId}
             onChanged={(row) => setItems((prev) => prev.map((it) => (it.id === row.id ? row : it)))}
             onDeleted={() => remove(item)}
-            onError={setError}
           />
         ))}
       </div>
+
+      {error && <p className="text-sm text-red-400">{error}</p>}
     </div>
   );
 }

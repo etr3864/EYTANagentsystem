@@ -1,9 +1,10 @@
 from sqlalchemy.orm import Session
 
 from backend.models.agent import Agent
+from backend.core.logger import log_error
 from backend.services.channels import providers
 from backend.services.channels.agent_channels import get_active_channels
-from backend.core.logger import log_error
+from backend.services.escalation.validate import to_wasender_phone
 
 
 def _whatsapp_channel(db: Session, agent: Agent):
@@ -20,14 +21,19 @@ async def send_staff(
     results = []
     channel = _whatsapp_channel(db, agent)
     for phone in phones:
+        try:
+            dest = to_wasender_phone(phone)
+        except ValueError:
+            results.append({"phone": phone, "ok": False})
+            continue
         ok = False
         try:
             if channel:
-                ok = await providers.send_channel_message(channel, phone, text, db)
+                ok = await providers.send_channel_message(channel, dest, text, db)
             if not ok:
-                ok = await providers.send_message(agent, phone, text)
+                ok = await providers.send_message(agent, dest, text)
         except Exception as exc:
-            log_error("escalation_staff", f"{phone[:6]} {str(exc)[:80]}")
+            log_error("escalation_staff", f"{dest[:6]} {str(exc)[:80]}")
             ok = False
-        results.append({"phone": phone, "ok": ok})
+        results.append({"phone": dest, "ok": ok})
     return results

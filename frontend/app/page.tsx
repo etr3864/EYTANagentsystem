@@ -6,7 +6,6 @@ import { Agent, getAgents, deleteAgent, updateAgent } from '@/lib/api';
 import { sortActiveRecent, toggleActiveInList } from '@/lib/listOrder';
 import { paginate } from '@/lib/pagination';
 import { Button, Card, PlusIcon, ArrowLeftIcon, TrashIcon, ChannelIcon, ListPager, ListViewport, BELOW_NAV_CLASS } from '@/components/ui';
-import { AgentAvatar } from '@/components/agent';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useAuth } from '@/contexts/AuthContext';
 import { isSuperAdmin } from '@/lib/auth';
@@ -157,9 +156,7 @@ function HomePage() {
                 className="animate-fade-in"
               >
                 <div className="p-3 md:p-5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-                  <div className="flex items-center gap-3 md:gap-4 min-w-0">
-                    <AgentAvatar name={agent.name} active={agent.is_active} />
-                    <div className="min-w-0">
+                  <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className={`status-dot ${agent.is_active ? 'active' : 'inactive'}`} />
                         <span className="text-base md:text-lg font-semibold text-white truncate">{agent.name}</span>
@@ -186,7 +183,6 @@ function HomePage() {
                           {agent.model.split('-').slice(0, 2).join(' ')}
                         </span>
                       </div>
-                    </div>
                   </div>
                   <div className="flex items-center gap-2 md:gap-3 self-end sm:self-center shrink-0">
                     {/* Toggle Switch - Super Admin only */}

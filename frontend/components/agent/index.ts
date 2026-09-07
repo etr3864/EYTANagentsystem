@@ -1,4 +1,3 @@
-export { AgentAvatar } from './AgentAvatar';
 export { AgentTabs } from './AgentTabs';
 export { PromptTab } from './PromptTab';
 export { SettingsTab } from './SettingsTab';

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Button, Card } from '@/components/ui';
-import { Textarea } from '@/components/ui/Input';
+import { Input, Textarea } from '@/components/ui/Input';
 import {
   generateEscalationFields,
   patchEscalation,
@@ -15,13 +15,13 @@ import { FieldList } from './FieldList';
 interface ReasonCardProps {
   agentId: number;
   item: EscalationReason;
+  defaultOpen?: boolean;
   onChanged: (row: EscalationReason) => void;
   onDeleted: () => void;
-  onError: (message: string) => void;
 }
 
-export function ReasonCard({ agentId, item, onChanged, onDeleted, onError }: ReasonCardProps) {
-  const [open, setOpen] = useState(false);
+export function ReasonCard({ agentId, item, defaultOpen, onChanged, onDeleted }: ReasonCardProps) {
+  const [open, setOpen] = useState(Boolean(defaultOpen));
   const [name, setName] = useState(item.name);
   const [whenToUse, setWhenToUse] = useState(item.when_to_use);
   const [hint, setHint] = useState(item.payload_hint);
@@ -29,9 +29,22 @@ export function ReasonCard({ agentId, item, onChanged, onDeleted, onError }: Rea
   const [phones, setPhones] = useState<string[]>(item.phones);
   const [webhookUrl, setWebhookUrl] = useState(item.webhook_url || '');
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  const markSaved = (row: EscalationReason) => {
+    setFields(row.fields);
+    setPhones(row.phones);
+    setWebhookUrl(row.webhook_url || '');
+    setError(null);
+    setSaved(true);
+    onChanged(row);
+  };
 
   const save = async (extra: { enabled?: boolean; name?: string } = {}) => {
     setBusy(true);
+    setSaved(false);
+    setError(null);
     try {
       const row = await patchEscalation(agentId, item.id, {
         name: extra.name ?? name,
@@ -42,10 +55,9 @@ export function ReasonCard({ agentId, item, onChanged, onDeleted, onError }: Rea
         webhook_url: webhookUrl,
         ...extra,
       });
-      setFields(row.fields);
-      onChanged(row);
+      markSaved(row);
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'שגיאה בשמירה');
+      setError(err instanceof Error ? err.message : 'שגיאה בשמירה');
     } finally {
       setBusy(false);
     }
@@ -53,63 +65,75 @@ export function ReasonCard({ agentId, item, onChanged, onDeleted, onError }: Rea
 
   const generate = async () => {
     setBusy(true);
+    setSaved(false);
+    setError(null);
     try {
       await patchEscalation(agentId, item.id, { payload_hint: hint });
-      const row = await generateEscalationFields(agentId, item.id);
-      setFields(row.fields);
-      onChanged(row);
+      markSaved(await generateEscalationFields(agentId, item.id));
     } catch (err) {
-      onError(err instanceof Error ? err.message : 'הפקת שדות נכשלה');
+      setError(err instanceof Error ? err.message : 'הפקת שדות נכשלה');
     } finally {
       setBusy(false);
     }
   };
 
+  const destCount = (item.phones?.length || 0) + (item.webhook_url ? 1 : 0);
+
   return (
     <Card>
       <div className="flex items-center justify-between gap-3">
-        <div className="flex-1 min-w-0 text-right">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onBlur={() => {
-              if (name.trim() && name.trim() !== item.name) save({ name: name.trim() });
-            }}
-            className="w-full bg-transparent text-white font-medium text-base border-b border-transparent hover:border-slate-600 focus:border-blue-500 focus:outline-none py-0.5"
-          />
-          <button type="button" className="text-xs text-slate-400 mt-0.5" onClick={() => setOpen(!open)}>
-            {item.enabled ? 'פעיל' : 'כבוי'} · {open ? 'הסתר' : 'ערוך'}
-          </button>
+        <div className="min-w-0 text-right">
+          <p className="text-white font-medium truncate">{item.name}</p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {item.enabled ? 'פעיל' : 'כבוי'}
+            {' · '}
+            {item.fields.length} שדות
+            {' · '}
+            {destCount === 0 ? 'אין יעד' : `${destCount} יעדים`}
+          </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={() => save({ enabled: !item.enabled })}
             className={`w-11 h-6 rounded-full relative ${item.enabled ? 'bg-emerald-500' : 'bg-slate-600'}`}
+            aria-label={item.enabled ? 'כבה' : 'הפעל'}
           >
             <span className={`w-5 h-5 bg-white rounded-full absolute top-0.5 ${item.enabled ? 'left-[22px]' : 'left-0.5'}`} />
           </button>
-          <button type="button" className="text-xs text-red-400" onClick={onDeleted}>מחק</button>
+          <Button type="button" variant="secondary" size="sm" onClick={() => setOpen((v) => !v)}>
+            {open ? 'סגור' : 'עריכה'}
+          </Button>
+          <Button type="button" variant="ghost" size="sm" className="text-red-400" onClick={onDeleted}>
+            מחק
+          </Button>
         </div>
       </div>
 
       {open && (
-        <div className="mt-4 space-y-4 border-t border-slate-700/60 pt-4">
+        <div className="mt-4 space-y-4 border-t border-white/10 pt-4">
+          <Input
+            label="שם הסיבה"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
           <Textarea
             label="מתי להפעיל"
             value={whenToUse}
             onChange={(e) => setWhenToUse(e.target.value)}
             rows={3}
+            hint="הנחיה לסוכן. למשל: כשלקוח מבקש סיור בתל אביב."
           />
           <Textarea
-            label="מה לשלוח (בעברית) — משמש להפקת שדות"
+            label="מה לשלוח"
             value={hint}
             onChange={(e) => setHint(e.target.value)}
             rows={3}
+            hint="בעברית, חופשי. אחר כך לוחצים הפק שדות."
           />
           <div className="flex justify-end">
             <Button variant="secondary" size="sm" disabled={busy || !hint.trim()} onClick={generate}>
-              {busy ? '...' : 'הפק שדות'}
+              {busy ? 'מפיק…' : 'הפק שדות'}
             </Button>
           </div>
           <FieldList fields={fields} onChange={setFields} />
@@ -119,9 +143,12 @@ export function ReasonCard({ agentId, item, onChanged, onDeleted, onError }: Rea
             onPhonesChange={setPhones}
             onWebhookChange={setWebhookUrl}
           />
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <p className={`text-sm min-h-[1.25rem] ${error ? 'text-red-400' : saved ? 'text-emerald-400' : 'text-transparent'}`}>
+              {error || (saved ? 'נשמר' : '—')}
+            </p>
             <Button variant="success" disabled={busy} onClick={() => save()}>
-              שמור
+              {busy ? 'שומר…' : 'שמור'}
             </Button>
           </div>
         </div>

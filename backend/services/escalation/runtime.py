@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 
 from backend.models.agent import Agent
 from backend.services.entities import conversations, users
-from backend.services.escalation import cooldown, note, payload, repo
+from backend.services.escalation import cooldown, facts, note, payload, repo
 from backend.services.escalation.constants import TOOL_OK, TOOL_COOLDOWN
 from backend.services.escalation.present import parse_tool_name
 from backend.services.escalation.staff_notify import send_staff
@@ -23,16 +23,16 @@ async def execute(
     row = repo.get(db, agent.id, reason_id)
     if not row or not row.enabled:
         return "הכלי לא זמין"
-    values, missing = payload.collect_values(row, data)
-    if missing:
-        return payload.missing_message(missing)
-    if cooldown.is_cooling(db, conversation_id, row.id):
-        return TOOL_COOLDOWN
-
     user = users.get_by_id(db, user_id)
     conv = conversations.get_by_id(db, conversation_id)
     if not user or not conv:
         return "הכלי לא זמין"
+    known = facts.build(db, agent, user, conv)
+    values, missing = payload.collect_values(row, data, known)
+    if missing:
+        return payload.missing_message(missing)
+    if cooldown.is_cooling(db, conversation_id, row.id):
+        return TOOL_COOLDOWN
 
     cooldown.mark_fired(db, conversation_id, row.id)
     staff = []

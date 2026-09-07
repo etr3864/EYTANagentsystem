@@ -40,7 +40,10 @@ def to_llm_tool(row: AgentEscalationReason) -> dict:
             continue
         properties[key] = {
             "type": "string",
-            "description": spec.get("description") or spec.get("label") or key,
+            "description": (
+                f"{spec.get('description') or spec.get('label') or key}. "
+                "אם כבר ידוע בכרטיס הלקוח אפשר להשאיר ריק."
+            ),
         }
         if spec.get("required", True):
             required.append(key)
@@ -49,6 +52,9 @@ def to_llm_tool(row: AgentEscalationReason) -> dict:
         schema["required"] = required
     return {
         "name": tool_name(row.id),
-        "description": (row.when_to_use or row.name).strip(),
+        "description": (
+            f"{(row.when_to_use or row.name).strip()} "
+            "ערכים ידועים במערכת (טלפון, שם, פגישות, מידע שמור) יישלפו אוטומטית אם לא הועברו."
+        ),
         "input_schema": schema,
     }

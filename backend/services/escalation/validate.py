@@ -1,10 +1,24 @@
 from backend.services.agent_functions.egress import EgressDenied, assert_public_https
+from backend.services.channels.wasender import normalize_phone as wasender_phone
 from backend.services.escalation.constants import MAX_FIELDS, MAX_PHONES
 from backend.services.escalation.keys import sanitize_key, unique_key
-from backend.services.messaging.triggers import normalize_phone
 
 _MAX_LABEL = 80
 _MAX_DESC = 240
+
+
+def to_wasender_phone(raw: str) -> str:
+    phone = wasender_phone(raw)
+    if not phone:
+        phone = wasender_phone("".join(c for c in raw if c.isdigit()))
+    if phone.startswith("0") and 9 <= len(phone) <= 11:
+        phone = "972" + phone[1:]
+    if phone.startswith("9720") and len(phone) >= 13:
+        phone = "972" + phone[4:]
+    phone = wasender_phone(phone)
+    if not phone:
+        raise ValueError("מספר טלפון לא תקין. אפשר 05x, +972 או 972…")
+    return phone
 
 
 def normalize_phones(raw) -> list[str]:
@@ -15,8 +29,11 @@ def normalize_phones(raw) -> list[str]:
     phones = []
     seen = set()
     for item in raw:
-        phone = normalize_phone(str(item or ""))
-        if not phone or phone in seen:
+        text = str(item or "").strip()
+        if not text:
+            continue
+        phone = to_wasender_phone(text)
+        if phone in seen:
             continue
         seen.add(phone)
         phones.append(phone)

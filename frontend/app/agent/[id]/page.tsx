@@ -6,7 +6,8 @@ import Link from 'next/link';
 
 import { Button, Card, ArrowRightIcon } from '@/components/ui';
 import { FunctionsTab } from '@/components/agent/functions/FunctionsTab';
-import { AgentAvatar, AgentTabs, PromptTab, SettingsTab, ConversationsTab, KnowledgeTab, CalendarTab, SummaryTab, MediaTab, TriggersTab, EscalationTab } from '@/components/agent';
+import { AgentTabs, PromptTab, SettingsTab, ConversationsTab, KnowledgeTab, CalendarTab, SummaryTab, MediaTab, TriggersTab, EscalationTab } from '@/components/agent';
+import type { AgentTabGroup } from '@/components/agent/AgentTabs';
 import { TemplatesTab } from '@/components/agent/TemplatesTab';
 import FollowUpTab from '@/components/agent/FollowUpTab';
 import { ChannelsTab } from '@/components/agent/channels/ChannelsTab';
@@ -30,23 +31,24 @@ type Tab = 'prompt' | 'conversations' | 'knowledge' | 'media' | 'templates' | 'c
 interface TabConfig {
   id: Tab;
   label: string;
+  group: AgentTabGroup;
   roles: ('super_admin' | 'admin' | 'employee')[];
 }
 
 const allTabs: TabConfig[] = [
-  { id: 'prompt', label: 'Prompt', roles: ['super_admin'] },
-  { id: 'conversations', label: 'שיחות', roles: ['super_admin', 'admin', 'employee'] },
-  { id: 'knowledge', label: 'מאגר', roles: ['super_admin', 'admin'] },
-  { id: 'media', label: 'מדיה', roles: ['super_admin', 'admin'] },
-  { id: 'templates', label: 'תבניות', roles: ['super_admin'] },
-  { id: 'functions', label: 'פונקציות', roles: ['super_admin'] },
-  { id: 'triggers', label: 'טריגרים', roles: ['super_admin'] },
-  { id: 'escalation', label: 'אסקלציה', roles: ['super_admin'] },
-  { id: 'calendar', label: 'יומן', roles: ['super_admin', 'admin'] },
-  { id: 'followups', label: 'פולו-אפ', roles: ['super_admin'] },
-  { id: 'summaries', label: 'סיכומים', roles: ['super_admin'] },
-  { id: 'channels', label: 'ערוצים', roles: ['super_admin'] },
-  { id: 'settings', label: 'הגדרות', roles: ['super_admin'] },
+  { id: 'conversations', label: 'שיחות', group: 'ops', roles: ['super_admin', 'admin', 'employee'] },
+  { id: 'prompt', label: 'Prompt', group: 'content', roles: ['super_admin'] },
+  { id: 'knowledge', label: 'מאגר', group: 'content', roles: ['super_admin', 'admin'] },
+  { id: 'media', label: 'מדיה', group: 'content', roles: ['super_admin', 'admin'] },
+  { id: 'templates', label: 'תבניות', group: 'content', roles: ['super_admin'] },
+  { id: 'functions', label: 'פונקציות', group: 'auto', roles: ['super_admin'] },
+  { id: 'triggers', label: 'טריגרים', group: 'auto', roles: ['super_admin'] },
+  { id: 'escalation', label: 'אסקלציה', group: 'auto', roles: ['super_admin'] },
+  { id: 'followups', label: 'פולו-אפ', group: 'auto', roles: ['super_admin'] },
+  { id: 'summaries', label: 'סיכומים', group: 'auto', roles: ['super_admin'] },
+  { id: 'calendar', label: 'יומן', group: 'system', roles: ['super_admin', 'admin'] },
+  { id: 'channels', label: 'ערוצים', group: 'system', roles: ['super_admin'] },
+  { id: 'settings', label: 'הגדרות', group: 'system', roles: ['super_admin'] },
 ];
 
 function AgentPage() {
@@ -473,17 +475,15 @@ function AgentPage() {
     <div className="min-h-screen">
       {/* Agent Context Header */}
       <header className="border-b border-purple-500/10 bg-[#0B0914]/80 backdrop-blur-sm sticky top-16 z-40">
-        <div className="max-w-5xl mx-auto px-3 md:px-6 py-3 md:py-4">
-          <div className="flex items-center gap-2 md:gap-3">
-            <AgentAvatar name={agent.name} active={agent.is_active} size="sm" />
-            <div>
-              <h1 className="font-semibold text-white text-sm md:text-base">{agent.name}</h1>
-              <div className="flex items-center gap-2 text-xs text-slate-400">
-                <span className={`status-dot ${agent.is_active ? 'active' : 'inactive'}`} />
-                <span>{agent.is_active ? 'פעיל' : 'מושבת'}</span>
-              </div>
+        <div className="max-w-5xl mx-auto px-3 md:px-6 py-3 md:py-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <h1 className="font-semibold text-white text-sm md:text-base truncate">{agent.name}</h1>
+            <div className="flex items-center gap-2 text-xs text-slate-400 shrink-0">
+              <span className={`status-dot ${agent.is_active ? 'active' : 'inactive'}`} />
+              <span>{agent.is_active ? 'פעיל' : 'מושבת'}</span>
             </div>
           </div>
+          <AgentTabs tabs={visibleTabs} current={tab} onChange={handleTabChange} />
         </div>
       </header>
 
@@ -503,12 +503,6 @@ function AgentPage() {
           <span>{feedback.text}</span>
         </div>
       )}
-
-      <div className="border-b border-slate-800">
-        <div className="max-w-5xl mx-auto px-3 md:px-6">
-          <AgentTabs tabs={visibleTabs} current={tab} onChange={handleTabChange} />
-        </div>
-      </div>
 
       {/* Content */}
       <main className="max-w-5xl mx-auto px-3 md:px-6 py-4 md:py-6">
