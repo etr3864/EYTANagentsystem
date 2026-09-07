@@ -13,6 +13,12 @@ import redis.asyncio as redis
 
 from backend.core.config import settings
 
+BUFFER_TTL_SECONDS = 600
+LOCK_TTL_SECONDS = 180
+MAX_DRAIN_DEPTH = 3
+STALE_AFTER_SECONDS = 600
+HEARTBEAT_SECONDS = 60
+
 
 @dataclass
 class PendingMessage:
@@ -141,7 +147,7 @@ async def _add_message_redis(
         media_type=media_type
     )
     await r.rpush(key, json.dumps(msg.to_dict()))
-    await r.expire(key, debounce_seconds + 60)  # Auto-cleanup
+    await r.expire(key, BUFFER_TTL_SECONDS)
     
     # Check message count
     count = await r.llen(key)
@@ -179,42 +185,61 @@ async def _delayed_redis_process(
     await _process_redis_buffer(r, agent_id, user_phone, callback)
 
 
+def is_stale(msg: PendingMessage) -> bool:
+    age = (datetime.utcnow() - msg.timestamp).total_seconds()
+    return age > STALE_AFTER_SECONDS
+
+
+async def _refresh_lock(r: redis.Redis, lock_key: str, stop: asyncio.Event) -> None:
+    while not stop.is_set():
+        await asyncio.sleep(HEARTBEAT_SECONDS)
+        if stop.is_set():
+            break
+        try:
+            await r.expire(lock_key, LOCK_TTL_SECONDS)
+        except Exception:
+            break
+
+
 async def _process_redis_buffer(
     r: redis.Redis,
     agent_id: int,
     user_phone: str,
-    callback: Callable[[list[PendingMessage]], Awaitable[None]]
+    callback: Callable[[list[PendingMessage]], Awaitable[None]],
+    drain_depth: int = 0,
 ) -> None:
-    """Process all messages in Redis buffer with distributed lock."""
     key = _buffer_key(agent_id, user_phone)
     lock_key = _lock_key(agent_id, user_phone)
     task_key = f"{agent_id}:{user_phone}"
-    
-    # Try to acquire lock (prevent duplicate processing across instances)
-    lock_acquired = await r.set(lock_key, "1", nx=True, ex=30)
+
+    lock_acquired = await r.set(lock_key, "1", nx=True, ex=LOCK_TTL_SECONDS)
     if not lock_acquired:
-        return  # Another instance is processing
-    
+        return
+
+    stop = asyncio.Event()
+    heartbeat = asyncio.create_task(_refresh_lock(r, lock_key, stop))
     try:
-        # Get all messages atomically
         messages_json = await r.lrange(key, 0, -1)
         if not messages_json:
             return
-        
-        # Clear the buffer
+
         await r.delete(key)
-        
-        # Parse messages
         messages = [PendingMessage.from_dict(json.loads(m)) for m in messages_json]
-        
-        # Cleanup task reference
         if task_key in _processing_tasks:
             del _processing_tasks[task_key]
-        
-        # Process
         await callback(messages)
     finally:
+        stop.set()
+        heartbeat.cancel()
         await r.delete(lock_key)
+
+    leftover = await r.llen(key)
+    if leftover and drain_depth < MAX_DRAIN_DEPTH:
+        await _process_redis_buffer(r, agent_id, user_phone, callback, drain_depth + 1)
+    elif leftover:
+        _processing_tasks[task_key] = asyncio.create_task(
+            _delayed_redis_process(r, agent_id, user_phone, 1, callback)
+        )
 
 
 # === In-Memory Fallback (original implementation) ===

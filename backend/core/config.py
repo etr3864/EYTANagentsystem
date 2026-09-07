@@ -56,6 +56,12 @@ class Settings(BaseSettings):
     # External API key for n8n / third-party integrations (log-message endpoint)
     external_api_key: Optional[str] = None
 
+    agent_functions_enabled: bool = True
+    agent_functions_max_per_agent: int = 15
+    agent_functions_http_timeout_ms: int = 8000
+    agent_functions_global_concurrency: int = 20
+    agent_functions_per_agent_concurrency: int = 3
+
     model_config = {"env_file": ".env", "extra": "ignore"}
     
     @property

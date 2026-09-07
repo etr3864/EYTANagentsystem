@@ -354,7 +354,8 @@ async def handle_tool_calls(
     agent: Agent, 
     user_id: int, 
     tool_calls: list[dict[str, Any]],
-    conversation_id: int = None
+    conversation_id: int = None,
+    function_runtime=None,
 ) -> list[dict[str, Any]]:
     """Handle all AI tool calls (knowledge, appointments, user info, media).
     
@@ -416,8 +417,14 @@ async def handle_tool_calls(
         
         elif name == "search_media":
             result = _handle_search_media(db, agent_id, data)
-        
-        if result is not None:
-            results.append({"name": name, "result": result})
+
+        elif function_runtime is not None:
+            result = await function_runtime.execute(name, data)
+            from backend.services.agent_functions.state import expire_loaded
+            expire_loaded(db, user_id, conversation_id)
+
+        if result is None:
+            result = "הכלי לא זמין"
+        results.append({"name": name, "result": result})
     
     return results

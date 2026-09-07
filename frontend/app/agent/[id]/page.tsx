@@ -5,7 +5,7 @@ import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 import { Button, Card, ArrowRightIcon } from '@/components/ui';
-import { PromptTab, SettingsTab, ConversationsTab, KnowledgeTab, CalendarTab, SummaryTab, MediaTab } from '@/components/agent';
+import { FunctionsTab } from '@/components/agent/functions/FunctionsTab';
 import { TemplatesTab } from '@/components/agent/TemplatesTab';
 import FollowUpTab from '@/components/agent/FollowUpTab';
 import { ChannelsTab } from '@/components/agent/channels/ChannelsTab';
@@ -23,7 +23,7 @@ import {
 } from '@/lib/api';
 import type { Agent, AgentBatchingConfig, ContextSummaryConfig, Conversation, Message, Document, DataTable, Provider, WaSenderConfig, AgentMedia, MediaConfig, CustomApiKeys } from '@/lib/types';
 
-type Tab = 'prompt' | 'conversations' | 'knowledge' | 'media' | 'templates' | 'calendar' | 'followups' | 'summaries' | 'settings' | 'channels';
+type Tab = 'prompt' | 'conversations' | 'knowledge' | 'media' | 'templates' | 'calendar' | 'followups' | 'summaries' | 'settings' | 'channels' | 'functions';
 
 interface TabConfig {
   id: Tab;
@@ -38,6 +38,7 @@ const allTabs: TabConfig[] = [
   { id: 'knowledge', label: 'מאגר מידע', icon: '📚', roles: ['super_admin', 'admin'] },
   { id: 'media', label: 'מדיה', icon: '📸', roles: ['super_admin', 'admin'] },
   { id: 'templates', label: 'Templates', icon: '📋', roles: ['super_admin'] },
+  { id: 'functions', label: 'פונקציות', icon: '🔌', roles: ['super_admin'] },
   { id: 'calendar', label: 'יומן', icon: '📅', roles: ['super_admin', 'admin'] },
   { id: 'followups', label: 'Follow-Up', icon: '🔄', roles: ['super_admin'] },
   { id: 'summaries', label: 'סיכומים', icon: '📝', roles: ['super_admin'] },
@@ -90,11 +91,12 @@ function AgentPage() {
       return true;
     });
   }, [user, agent]);
-  const [batchingConfig, setBatchingConfig] = useState<AgentBatchingConfig>({ 
-    debounce_seconds: 3, 
-    max_batch_messages: 10, 
-    max_history_messages: 20 
+  const [batchingConfig, setBatchingConfig] = useState<AgentBatchingConfig>({
+    debounce_seconds: 3,
+    max_batch_messages: 10,
+    max_history_messages: 20,
   });
+  const [maxToolRounds, setMaxToolRounds] = useState(5);
   const [customApiKeys, setCustomApiKeys] = useState<CustomApiKeys>({});
   const [contextSummaryConfig, setContextSummaryConfig] = useState<ContextSummaryConfig>({
     enabled: false, message_threshold: 20, messages_after_summary: 20, full_summary_every: 5,
@@ -172,6 +174,7 @@ function AgentPage() {
       setContextSummaryConfig(data.context_summary_config || {
         enabled: false, message_threshold: 20, messages_after_summary: 20, full_summary_every: 5,
       });
+      setMaxToolRounds(data.max_tool_rounds || 5);
     } catch (e) {
       console.error(e);
     } finally {
@@ -275,6 +278,7 @@ function AgentPage() {
         batching_config: batchingConfig,
         custom_api_keys: customApiKeys,
         context_summary_config: contextSummaryConfig,
+        max_tool_rounds: maxToolRounds,
       });
       const fresh = await getAgent(agentId);
       setAgent(fresh);
@@ -586,6 +590,10 @@ function AgentPage() {
             <TemplatesTab agentId={agentId} />
           )}
 
+          {tab === 'functions' && (
+            <FunctionsTab agentId={agentId} />
+          )}
+
           {tab === 'calendar' && (
             <CalendarTab
               agentId={agentId}
@@ -616,11 +624,13 @@ function AgentPage() {
               name={name}
               model={model}
               batchingConfig={batchingConfig}
+              maxToolRounds={maxToolRounds}
               customApiKeys={customApiKeys}
               contextSummaryConfig={contextSummaryConfig}
               onNameChange={setName}
               onModelChange={setModel}
               onBatchingConfigChange={setBatchingConfig}
+              onMaxToolRoundsChange={setMaxToolRounds}
               onCustomApiKeysChange={setCustomApiKeys}
               onContextSummaryConfigChange={setContextSummaryConfig}
               onSave={handleSaveSettings}

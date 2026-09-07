@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Optional
 from sqlalchemy import String, DateTime, ForeignKey, Index, Boolean
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.core.database import Base
 
@@ -16,6 +17,7 @@ class Conversation(Base):
     channel_type_snapshot: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
     is_paused: Mapped[bool] = mapped_column(Boolean, default=False)
     opted_out: Mapped[bool] = mapped_column(Boolean, default=False)
+    function_state: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     last_customer_message_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

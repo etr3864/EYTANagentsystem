@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
-from sqlalchemy import String, Text, Boolean, DateTime, ForeignKey, func
+from sqlalchemy import String, Text, Boolean, DateTime, ForeignKey, Integer, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.orm.attributes import flag_modified
@@ -109,6 +109,8 @@ class Agent(Base):
     custom_api_keys: Mapped[Optional[dict]] = mapped_column(JSONB, default=None)
 
     context_summary_config: Mapped[Optional[dict]] = mapped_column(JSONB, default=None)
+
+    max_tool_rounds: Mapped[int] = mapped_column(Integer, default=5)
 
     updated_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()

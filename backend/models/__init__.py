@@ -13,6 +13,7 @@ from backend.models.conversation_context_summary import ConversationContextSumma
 from backend.models.agent_channel import AgentChannel
 from backend.models.channel_user import ChannelUser
 from backend.models.whatsapp_template import WhatsAppTemplate
+from backend.models.agent_function import AgentFunction, AgentFunctionRun, AgentFunctionIdempotency
 
 # Auth models (imported last to avoid circular imports)
 from backend.auth.models import AuthUser, UserRole

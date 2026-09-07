@@ -52,7 +52,6 @@ class OpenAIProvider:
         self._api_key = api_key
         self._provider_name = provider_name
         self._agent = agent
-        self._tools = _convert_tools_to_openai(USER_TOOLS)
 
     def _rebuild_client(self, new_key: str):
         self._client = AsyncOpenAI(api_key=new_key)
@@ -108,12 +107,16 @@ class OpenAIProvider:
         system_blocks: list,
         history: list[dict],
         user_content: str | list,
-        tool_handler: ToolHandler = None
+        tool_handler: ToolHandler = None,
+        tools: list | None = None,
+        max_tool_rounds: int = 5,
     ) -> LLMResponse:
         """Get response from OpenAI with tool support."""
         
         # Build messages
         messages = [{"role": "system", "content": _build_system_text(system_blocks)}]
+        openai_tools = _convert_tools_to_openai(tools if tools is not None else USER_TOOLS)
+        rounds_left = max(1, min(8, max_tool_rounds or 5))
         
         # Add history
         for msg in history:
@@ -148,7 +151,7 @@ class OpenAIProvider:
         response = await self._call_with_retry(
             model=model,
             messages=messages,
-            tools=self._tools,
+            tools=openai_tools,
             max_completion_tokens=4096
         )
         
@@ -176,9 +179,8 @@ class OpenAIProvider:
                 })
         
         # Tool execution loop
-        max_rounds = 5
-        while tool_calls and tool_handler and max_rounds > 0:
-            max_rounds -= 1
+        while tool_calls and tool_handler and rounds_left > 0:
+            rounds_left -= 1
             
             # Add assistant message with tool calls
             messages.append({
@@ -214,7 +216,7 @@ class OpenAIProvider:
             response = await self._call_with_retry(
                 model=model,
                 messages=messages,
-                tools=self._tools,
+                tools=openai_tools,
                 max_completion_tokens=4096
             )
             

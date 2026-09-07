@@ -56,6 +56,7 @@ export interface Agent {
   custom_api_keys: CustomApiKeys | null;
   context_summary_config: ContextSummaryConfig | null;
   business_assistant_mode: boolean;
+  max_tool_rounds?: number;
   has_whatsapp_meta_channel?: boolean;
   active_channel_types?: string[];
   created_at: string | null;
@@ -89,6 +90,7 @@ export interface AgentUpdate {
   custom_api_keys?: CustomApiKeys | null;
   context_summary_config?: ContextSummaryConfig | null;
   business_assistant_mode?: boolean;
+  max_tool_rounds?: number;
 }
 
 // ============ User ============

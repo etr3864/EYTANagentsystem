@@ -14,11 +14,13 @@ interface SettingsTabProps {
   name: string;
   model: string;
   batchingConfig: AgentBatchingConfig;
+  maxToolRounds: number;
   customApiKeys: CustomApiKeys;
   contextSummaryConfig: ContextSummaryConfig;
   onNameChange: (v: string) => void;
   onModelChange: (v: string) => void;
   onBatchingConfigChange: (config: AgentBatchingConfig) => void;
+  onMaxToolRoundsChange: (value: number) => void;
   onCustomApiKeysChange: (keys: CustomApiKeys) => void;
   onContextSummaryConfigChange: (config: ContextSummaryConfig) => void;
   onSave: () => void;
@@ -137,9 +139,9 @@ function ExternalApiSection({ agentId }: { agentId: number }) {
 
 
 export function SettingsTab({
-  agentId, name, model, batchingConfig,
+  agentId, name, model, batchingConfig, maxToolRounds,
   customApiKeys, contextSummaryConfig, onNameChange,
-  onModelChange, onBatchingConfigChange,
+  onModelChange, onBatchingConfigChange, onMaxToolRoundsChange,
   onCustomApiKeysChange, onContextSummaryConfigChange, onSave, saving,
   onNavigateToChannels,
 }: SettingsTabProps) {
@@ -235,6 +237,22 @@ export function SettingsTab({
               max_history_messages: parseInt(e.target.value) || 20 
             })}
             hint="מומלץ: 15-30 הודעות"
+          />
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader>שרשור כלים</CardHeader>
+        <p className="text-sm text-slate-400 mb-4">
+          כמה קריאות כלים ברצף להודעה אחת — כולל יומן ופונקציות API
+        </p>
+        <div className="max-w-xs">
+          <NumberInput
+            label="מקסימום סיבובים"
+            min={1}
+            max={8}
+            value={maxToolRounds}
+            onChange={(e) => onMaxToolRoundsChange(Math.max(1, Math.min(8, parseInt(e.target.value) || 5)))}
           />
         </div>
       </Card>

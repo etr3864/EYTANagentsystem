@@ -12,6 +12,7 @@ def run_all(conn):
     _structural_improvements(conn)
     _cascade_and_jsonb(conn)
     _vector_indexes(conn)
+    _agent_functions(conn)
     conn.commit()
 
 
@@ -384,3 +385,93 @@ def _vector_indexes(conn):
         CREATE INDEX IF NOT EXISTS ix_agent_media_embedding_hnsw
         ON agent_media USING hnsw (embedding vector_cosine_ops);
     """))
+
+
+def _agent_functions(conn):
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS agent_functions (
+            id SERIAL PRIMARY KEY,
+            agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+            name VARCHAR(64) NOT NULL,
+            when_to_use TEXT NOT NULL,
+            when_not_to_use TEXT NOT NULL DEFAULT '',
+            response_instructions TEXT NOT NULL DEFAULT '',
+            side_effect VARCHAR(16) NOT NULL DEFAULT 'read',
+            trigger VARCHAR(24) NOT NULL DEFAULT 'conversation',
+            event_type VARCHAR(64),
+            method VARCHAR(8) NOT NULL DEFAULT 'GET',
+            url TEXT NOT NULL,
+            allowed_host VARCHAR(255) NOT NULL,
+            headers_encrypted BYTEA,
+            body_template TEXT,
+            params JSONB NOT NULL DEFAULT '[]'::jsonb,
+            outputs JSONB NOT NULL DEFAULT '[]'::jsonb,
+            timeout_ms INTEGER NOT NULL DEFAULT 8000,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            enabled BOOLEAN NOT NULL DEFAULT FALSE,
+            test_passed_at TIMESTAMP,
+            test_was_live BOOLEAN NOT NULL DEFAULT FALSE,
+            created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+        );
+    """))
+    conn.execute(text("""
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_agent_functions_agent_name
+        ON agent_functions(agent_id, name);
+    """))
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_agent_functions_agent_enabled
+        ON agent_functions(agent_id, enabled);
+    """))
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS agent_function_runs (
+            id SERIAL PRIMARY KEY,
+            function_id INTEGER NOT NULL REFERENCES agent_functions(id) ON DELETE CASCADE,
+            agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+            status VARCHAR(24) NOT NULL,
+            latency_ms INTEGER NOT NULL DEFAULT 0,
+            request_preview JSONB,
+            response_preview JSONB,
+            error VARCHAR(500),
+            created_at TIMESTAMP NOT NULL DEFAULT NOW()
+        );
+    """))
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_agent_function_runs_function
+        ON agent_function_runs(function_id, created_at DESC);
+    """))
+    conn.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE agents ADD COLUMN max_tool_rounds INTEGER NOT NULL DEFAULT 5;
+        EXCEPTION WHEN duplicate_column THEN null;
+        END $$;
+    """))
+    conn.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE conversations ADD COLUMN function_state JSONB;
+        EXCEPTION WHEN duplicate_column THEN null;
+        END $$;
+    """))
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS agent_function_idempotency (
+            id SERIAL PRIMARY KEY,
+            key VARCHAR(128) NOT NULL,
+            function_id INTEGER NOT NULL REFERENCES agent_functions(id) ON DELETE CASCADE,
+            agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+            conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+            status VARCHAR(24) NOT NULL,
+            outputs JSONB,
+            error VARCHAR(500),
+            created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+        );
+    """))
+    conn.execute(text("""
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_agent_function_idempotency_key
+        ON agent_function_idempotency(key);
+    """))
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_agent_function_idempotency_attention
+        ON agent_function_idempotency(agent_id, status, created_at DESC);
+    """))
+

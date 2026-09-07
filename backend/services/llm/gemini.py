@@ -38,7 +38,6 @@ class GeminiProvider:
         self._api_key = api_key
         self._provider_name = provider_name
         self._agent = agent
-        self._gemini_tools = anthropic_tools_to_gemini(USER_TOOLS)
 
     def _rebuild_client(self, new_key: str):
         self._client = genai.Client(api_key=new_key)
@@ -101,7 +100,9 @@ class GeminiProvider:
         system_blocks: list,
         history: list[dict],
         user_content: str | list,
-        tool_handler: ToolHandler = None
+        tool_handler: ToolHandler = None,
+        tools: list | None = None,
+        max_tool_rounds: int = 5,
     ) -> LLMResponse:
         """Get response from Gemini with tool support.
         
@@ -158,10 +159,13 @@ class GeminiProvider:
             if parts:
                 gemini_contents.append(types.Content(role="user", parts=parts))
         
+        gemini_tools = anthropic_tools_to_gemini(tools if tools is not None else USER_TOOLS)
+        rounds_left = max(1, min(8, max_tool_rounds or 5))
+        
         # Configure generation
         config = types.GenerateContentConfig(
             system_instruction=system_text,
-            tools=[self._gemini_tools],
+            tools=[gemini_tools],
             max_output_tokens=4096,
             temperature=0.7
         )
@@ -194,10 +198,8 @@ class GeminiProvider:
                     tool_calls.append(gemini_function_call_to_standard(part.function_call))
         
         # Tool execution loop
-        max_tool_rounds = 5
-        
-        while tool_calls and tool_handler and max_tool_rounds > 0:
-            max_tool_rounds -= 1
+        while tool_calls and tool_handler and rounds_left > 0:
+            rounds_left -= 1
             
             # Add assistant response to history
             gemini_contents.append(response.candidates[0].content)

@@ -45,6 +45,7 @@ def agent_to_response(a) -> dict:
         "followup_config": a.followup_config,
         "custom_api_keys": masked_keys,
         "context_summary_config": a.context_summary_config,
+        "max_tool_rounds": getattr(a, "max_tool_rounds", 5) or 5,
         "business_assistant_mode": getattr(a, "business_assistant_mode", False),
         "has_whatsapp_meta_channel": any(
             ch.channel_type == "whatsapp_meta" and ch.is_active
@@ -115,13 +116,16 @@ def update_agent(
         raise HTTPException(status_code=404, detail="Agent not found")
 
     update_data = {}
-    for field in ['name', 'phone_number_id', 'access_token', 'verify_token', 'system_prompt', 'appointment_prompt', 'model', 'is_active', 'provider', 'provider_config', 'media_config']:
+    for field in ['name', 'phone_number_id', 'access_token', 'verify_token', 'system_prompt', 'appointment_prompt', 'model', 'is_active', 'provider', 'provider_config', 'media_config', 'max_tool_rounds']:
         value = getattr(data, field)
         if value is None:
             continue
         if field in ('access_token', 'verify_token') and isinstance(value, str) and value.startswith("..."):
             continue
         update_data[field] = value
+
+    if "max_tool_rounds" in update_data:
+        update_data["max_tool_rounds"] = max(1, min(8, int(update_data["max_tool_rounds"])))
     
     if data.batching_config is not None:
         update_data['batching_config'] = data.batching_config.model_dump()

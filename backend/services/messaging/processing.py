@@ -7,12 +7,13 @@ from sqlalchemy.orm import Session
 from backend.core.database import SessionLocal
 from backend.core.logger import log, log_message, log_response, log_error
 from backend.core.channel_types import get_capabilities
+from backend.core.config import settings
 from backend.services import knowledge
 from backend.services.entities import agents, users, conversations, ai
 from backend.services.messaging import messages
 from backend.services.scheduling import appointments
 from backend.services.entities.tools import handle_tool_calls
-from backend.services.messaging.buffer import PendingMessage
+from backend.services.messaging.buffer import PendingMessage, is_stale
 from backend.models.user import User
 from backend.models.processed_message import ProcessedMessage
 
@@ -113,6 +114,15 @@ async def process_batched_messages(
         if not agent:
             log_error("process", f"agent_id={agent_id} not found")
             return
+
+        fresh = [m for m in pending_msgs if not is_stale(m)]
+        if not fresh:
+            await send_message(
+                user_phone,
+                "לא הצלחנו לטפל בהודעה בזמן. אפשר לשלוח שוב?",
+            )
+            return
+        pending_msgs = fresh
 
         user = users.get_or_create(db, user_phone, user_name)
         user_info = get_user_info(user)
@@ -224,8 +234,19 @@ async def process_batched_messages(
             user_appointments = appointments.get_user_appointments(db, agent.id, user.id)
 
         # Create tool handler with conversation_id for media
+        function_runtime = None
+        extra_tools = []
+        if settings.agent_functions_enabled:
+            from backend.services.agent_functions.runtime import ConversationRuntime
+            function_runtime = ConversationRuntime(agent.id, user.id, conv.id)
+            extra_tools = function_runtime.llm_tools(db)
+
         async def tool_handler(calls):
-            return await handle_tool_calls(db, agent, user.id, calls, conversation_id=conv.id)
+            return await handle_tool_calls(
+                db, agent, user.id, calls,
+                conversation_id=conv.id,
+                function_runtime=function_runtime,
+            )
 
         # Get AI response
         response_text, tool_calls, usage_data, media_actions = await ai.get_response(
@@ -242,6 +263,7 @@ async def process_batched_messages(
             calendar_config=agent.calendar_config,
             user_appointments=user_appointments,
             agent=agent,
+            extra_tools=extra_tools,
         )
         
         # Update usage (cumulative JSON + daily table)

@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy.orm import Session
 
 from backend.core.logger import log_error
-from backend.core.ai_config import SYSTEM_SUFFIX
+from backend.core.ai_config import SYSTEM_SUFFIX, USER_TOOLS
 from backend.services.llm import get_provider
 from backend.services.llm.types import LLMResponse
 
@@ -249,6 +249,8 @@ async def get_response(
     calendar_config: dict | None = None,
     user_appointments: list = None,
     agent=None,
+    extra_tools: list | None = None,
+    max_tool_rounds: int | None = None,
 ) -> tuple[str, list[dict], dict, list[dict]]:
     """Get AI response with tool support.
     
@@ -307,6 +309,16 @@ async def get_response(
     system_blocks = build_system_prompt(full_prompt, user_info or {}, knowledge_context, media_context)
     
     provider = get_provider(actual_model, agent=agent)
+    tools = list(USER_TOOLS)
+    if extra_tools:
+        tools.extend(extra_tools)
+    rounds = getattr(agent, "max_tool_rounds", 5) if agent is not None else 5
+    if max_tool_rounds is not None:
+        rounds = max_tool_rounds
+    try:
+        rounds = max(1, min(8, int(rounds or 5)))
+    except (TypeError, ValueError):
+        rounds = 5
     
     # Get response from provider
     response: LLMResponse = await provider.get_response(
@@ -314,7 +326,9 @@ async def get_response(
         system_blocks=system_blocks,
         history=history,
         user_content=user_content,
-        tool_handler=tool_handler
+        tool_handler=tool_handler,
+        tools=tools,
+        max_tool_rounds=rounds,
     )
     
     text = response.text

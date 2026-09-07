@@ -107,7 +107,9 @@ class AnthropicProvider:
         system_blocks: list,
         history: list[dict],
         user_content: str | list,
-        tool_handler: ToolHandler = None
+        tool_handler: ToolHandler = None,
+        tools: list | None = None,
+        max_tool_rounds: int = 5,
     ) -> LLMResponse:
         """Get response from Claude with tool support.
         
@@ -123,13 +125,15 @@ class AnthropicProvider:
         """
         clean_history = [{"role": m["role"], "content": m["content"]} for m in history]
         messages = clean_history + [{"role": "user", "content": user_content}]
+        active_tools = tools if tools is not None else USER_TOOLS
+        rounds_left = max(1, min(8, max_tool_rounds or 5))
         
         response = await self._call_with_retry(
             model=model,
             max_tokens=4096,
             system=system_blocks,
             messages=messages,
-            tools=USER_TOOLS,
+            tools=active_tools,
             extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
         )
         
@@ -154,11 +158,10 @@ class AnthropicProvider:
                 tool_calls.append({"id": block.id, "name": block.name, "input": block.input})
         
         # Tool execution loop
-        max_tool_rounds = 5
         current_response = response
         
-        while current_response.stop_reason == "tool_use" and tool_handler and max_tool_rounds > 0:
-            max_tool_rounds -= 1
+        while current_response.stop_reason == "tool_use" and tool_handler and rounds_left > 0:
+            rounds_left -= 1
             
             current_tool_calls = []
             for block in current_response.content:
@@ -200,7 +203,7 @@ class AnthropicProvider:
                 max_tokens=4096,
                 system=system_blocks,
                 messages=messages,
-                tools=USER_TOOLS,
+                tools=active_tools,
                 extra_headers={"anthropic-beta": "prompt-caching-2024-07-31"}
             )
             

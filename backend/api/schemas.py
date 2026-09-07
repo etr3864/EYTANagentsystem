@@ -115,6 +115,7 @@ class AgentUpdate(BaseModel):
     custom_api_keys: Optional[dict] = None
     context_summary_config: Optional[dict] = None
     business_assistant_mode: Optional[bool] = None
+    max_tool_rounds: Optional[int] = None
 
 
 class AgentResponse(BaseModel):
