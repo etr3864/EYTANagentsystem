@@ -89,3 +89,105 @@ def get_external_api_key(
     if not settings.external_api_key:
         raise HTTPException(status_code=404, detail="External API key not configured")
     return {"api_key": settings.external_api_key}
+
+
+class TriggerPushRequest(BaseModel):
+    phone: str
+    persist: bool
+    data: dict
+    message: str | None = None
+
+
+class TriggerSendRequest(BaseModel):
+    phone: str
+    message: str
+
+
+def _load_trigger(db: Session, x_api_key: str, kind: str):
+    from backend.services.messaging.triggers import resolve_enabled
+    from backend.services.entities import agents as agents_svc
+
+    row = resolve_enabled(db, x_api_key, kind)
+    if not row:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+    agent = agents_svc.get_by_id(db, row.agent_id)
+    if not agent or not agent.is_active:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+    return row, agent
+
+
+@router.post("/triggers/push")
+async def invoke_push_trigger(
+    req: TriggerPushRequest,
+    db: Session = Depends(get_db),
+    x_api_key: str = Header(...),
+):
+    from backend.services.messaging.triggers import (
+        apply_memory,
+        deliver_wasender_message,
+        normalize_phone,
+        validate_data,
+    )
+
+    _, agent = _load_trigger(db, x_api_key, "push")
+    phone = normalize_phone(req.phone)
+    if not phone:
+        raise HTTPException(status_code=400, detail="phone is required")
+    try:
+        data = validate_data(req.data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    user, conv = apply_memory(db, agent, phone, req.persist, data)
+    result = {
+        "status": "ok",
+        "conversation_id": conv.id,
+        "persist": req.persist,
+        "keys": list(data.keys()),
+        "message_sent": False,
+    }
+
+    text = (req.message or "").strip()
+    if not text:
+        log("TRIGGER_PUSH", agent=agent.name, phone=phone[:6], persist=req.persist)
+        return result
+
+    sent, msg_id = await deliver_wasender_message(db, agent, user, conv, text)
+    result["message_sent"] = sent
+    result["message_id"] = msg_id
+    if not sent:
+        result["status"] = "partial"
+        result["error"] = "המידע נשמר. שליחת ההודעה נכשלה — זמין רק ב-WhatsApp לא רשמי"
+    log("TRIGGER_PUSH", agent=agent.name, phone=phone[:6], persist=req.persist, sent=sent)
+    return result
+
+
+@router.post("/triggers/send")
+async def invoke_send_trigger(
+    req: TriggerSendRequest,
+    db: Session = Depends(get_db),
+    x_api_key: str = Header(...),
+):
+    from backend.services.messaging.triggers import (
+        deliver_wasender_message,
+        normalize_phone,
+        resolve_user_and_conversation,
+    )
+
+    _, agent = _load_trigger(db, x_api_key, "send")
+    phone = normalize_phone(req.phone)
+    text = (req.message or "").strip()
+    if not phone:
+        raise HTTPException(status_code=400, detail="phone is required")
+    if not text:
+        raise HTTPException(status_code=400, detail="message is required")
+
+    user, conv = resolve_user_and_conversation(db, agent, phone)
+    sent, msg_id = await deliver_wasender_message(db, agent, user, conv, text)
+    if not sent:
+        raise HTTPException(
+            status_code=502,
+            detail="שליחה נכשלה. הטריגר הזה עובד רק עם WhatsApp לא רשמי (WaSender)",
+        )
+    log("TRIGGER_SEND", agent=agent.name, phone=phone[:6])
+    return {"status": "ok", "conversation_id": conv.id, "message_id": msg_id, "message_sent": True}

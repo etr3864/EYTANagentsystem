@@ -116,6 +116,8 @@ export function ChatView({ messages, conversationId, isPaused, onSend, onToggleP
         const isImage = msg.message_type === 'image';
         const isVideo = msg.message_type === 'video';
         const isManual = msg.message_type === 'manual';
+        const isExternal = msg.message_type === 'external';
+        const isTriggerData = msg.message_type === 'trigger_data';
         const hasMediaUrl = !!msg.media_url;
         
         // Clean content for voice messages (remove prefix)
@@ -133,6 +135,8 @@ export function ChatView({ messages, conversationId, isPaused, onSend, onToggleP
         // Determine bubble style
         const getBubbleStyle = () => {
           if (!isUser) {
+            if (isTriggerData) return 'bg-amber-600/10 text-amber-50 rounded-tl-sm border border-amber-500/30';
+            if (isExternal) return 'bg-orange-600/15 text-orange-50 rounded-tl-sm border border-orange-500/30';
             if (hasMediaUrl) return 'bg-indigo-600/20 text-indigo-50 rounded-tl-sm border border-indigo-500/30';
             return 'bg-slate-700/50 text-slate-100 rounded-tl-sm';
           }
@@ -157,9 +161,18 @@ export function ChatView({ messages, conversationId, isPaused, onSend, onToggleP
             )}
             
             {/* Message Bubble */}
-            <div className={`flex ${isUser ? 'justify-start' : 'justify-end'}`}>
-              <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl ${getBubbleStyle()}`}>
-                {/* Voice indicator */}
+            <div className={`flex ${isTriggerData ? 'justify-center' : isUser ? 'justify-start' : 'justify-end'}`}>
+              <div className={`${isTriggerData ? 'max-w-[90%]' : 'max-w-[75%]'} px-4 py-2.5 rounded-2xl ${getBubbleStyle()}`}>
+                {isTriggerData && (
+                  <div className="flex items-center gap-2 text-amber-300 text-xs mb-2 pb-2 border-b border-amber-500/20">
+                    <span>מידע שנכנס לסוכן · לא נשלח ללקוח</span>
+                  </div>
+                )}
+                {isExternal && (
+                  <div className="flex items-center gap-2 text-orange-300 text-xs mb-2 pb-2 border-b border-orange-500/20">
+                    <span>נשלח ללקוח מאוטומציה</span>
+                  </div>
+                )}
                 {isVoice && (
                   <div className="flex items-center gap-2 text-purple-400 text-xs mb-2 pb-2 border-b border-purple-500/20">
                     <VoiceIcon />
@@ -228,13 +241,19 @@ export function ChatView({ messages, conversationId, isPaused, onSend, onToggleP
                       hour: '2-digit', 
                       minute: '2-digit' 
                     })}
-                    {!isUser && (
+                    {!isUser && !isTriggerData && (
                       <>
                         <span className="mr-1">✓✓</span>
                         {isManual && (
                           <span className="text-amber-400/60 text-[9px]">• ידני</span>
                         )}
+                        {isExternal && (
+                          <span className="text-orange-400/70 text-[9px]">• אוטומציה</span>
+                        )}
                       </>
+                    )}
+                    {isTriggerData && (
+                      <span className="text-amber-400/70 text-[9px]">רק לסוכן</span>
                     )}
                   </div>
                 )}

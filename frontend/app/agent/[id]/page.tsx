@@ -6,7 +6,7 @@ import Link from 'next/link';
 
 import { Button, Card, ArrowRightIcon } from '@/components/ui';
 import { FunctionsTab } from '@/components/agent/functions/FunctionsTab';
-import { PromptTab, SettingsTab, ConversationsTab, KnowledgeTab, CalendarTab, SummaryTab, MediaTab } from '@/components/agent';
+import { PromptTab, SettingsTab, ConversationsTab, KnowledgeTab, CalendarTab, SummaryTab, MediaTab, TriggersTab } from '@/components/agent';
 import { TemplatesTab } from '@/components/agent/TemplatesTab';
 import FollowUpTab from '@/components/agent/FollowUpTab';
 import { ChannelsTab } from '@/components/agent/channels/ChannelsTab';
@@ -25,7 +25,7 @@ import {
 import type { Agent, AgentBatchingConfig, ContextSummaryConfig, Conversation, Message, Document, DataTable, Provider, WaSenderConfig, AgentMedia, MediaConfig, CustomApiKeys } from '@/lib/types';
 import { DEFAULT_MODEL, getModel, resolveModel } from '@/lib/models';
 
-type Tab = 'prompt' | 'conversations' | 'knowledge' | 'media' | 'templates' | 'calendar' | 'followups' | 'summaries' | 'settings' | 'channels' | 'functions';
+type Tab = 'prompt' | 'conversations' | 'knowledge' | 'media' | 'templates' | 'calendar' | 'followups' | 'summaries' | 'settings' | 'channels' | 'functions' | 'triggers';
 
 interface TabConfig {
   id: Tab;
@@ -41,6 +41,7 @@ const allTabs: TabConfig[] = [
   { id: 'media', label: 'מדיה', icon: '📸', roles: ['super_admin', 'admin'] },
   { id: 'templates', label: 'Templates', icon: '📋', roles: ['super_admin'] },
   { id: 'functions', label: 'פונקציות', icon: '🔌', roles: ['super_admin'] },
+  { id: 'triggers', label: 'טריגרים', icon: '⚡', roles: ['super_admin'] },
   { id: 'calendar', label: 'יומן', icon: '📅', roles: ['super_admin', 'admin'] },
   { id: 'followups', label: 'Follow-Up', icon: '🔄', roles: ['super_admin'] },
   { id: 'summaries', label: 'סיכומים', icon: '📝', roles: ['super_admin'] },
@@ -599,6 +600,16 @@ function AgentPage() {
 
           {tab === 'functions' && (
             <FunctionsTab agentId={agentId} />
+          )}
+
+          {tab === 'triggers' && (
+            <TriggersTab
+              agentId={agentId}
+              canSendMessage={
+                provider === 'wasender'
+                || (agent.active_channel_types || []).includes('whatsapp_wasender')
+              }
+            />
           )}
 
           {tab === 'calendar' && (

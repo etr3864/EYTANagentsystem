@@ -776,5 +776,68 @@ export async function getExternalApiKey(): Promise<string> {
   return data.api_key;
 }
 
+export type TriggerKind = 'push' | 'send';
+
+export interface AgentTrigger {
+  id: number;
+  agent_id: number;
+  name: string;
+  kind: TriggerKind;
+  token: string;
+  enabled: boolean;
+  created_at: string | null;
+}
+
+async function parseTriggerError(res: Response): Promise<string> {
+  try {
+    const body = await res.json();
+    if (typeof body?.detail === 'string') return body.detail;
+  } catch {
+    /* ignore */
+  }
+  return 'שגיאה בטריגר';
+}
+
+export async function listAgentTriggers(agentId: number): Promise<AgentTrigger[]> {
+  const res = await authFetch(`${API_URL}/api/agents/${agentId}/triggers`);
+  if (!res.ok) throw new Error(await parseTriggerError(res));
+  return res.json();
+}
+
+export async function createAgentTrigger(
+  agentId: number,
+  name: string,
+  kind: TriggerKind,
+): Promise<AgentTrigger> {
+  const res = await authFetch(`${API_URL}/api/agents/${agentId}/triggers`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, kind }),
+  });
+  if (!res.ok) throw new Error(await parseTriggerError(res));
+  return res.json();
+}
+
+export async function patchAgentTrigger(
+  agentId: number,
+  triggerId: number,
+  enabled: boolean,
+): Promise<AgentTrigger> {
+  const res = await authFetch(`${API_URL}/api/agents/${agentId}/triggers/${triggerId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled }),
+  });
+  if (!res.ok) throw new Error(await parseTriggerError(res));
+  return res.json();
+}
+
+export async function deleteAgentTrigger(agentId: number, triggerId: number): Promise<void> {
+  const res = await authFetch(`${API_URL}/api/agents/${agentId}/triggers/${triggerId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error(await parseTriggerError(res));
+}
+
 // Re-export types
 export type { Agent, AgentCreate, AgentUpdate, AgentBatchingConfig, ContextSummaryConfig, Provider, WaSenderConfig, CustomApiKeys, User, Gender, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DataTable, DbMedia, AgentMedia, MediaConfig, MediaType, WhatsAppTemplate, TemplateCategory, TemplateStatus, DbTemplate, FollowupConfig, FollowupStep, FollowupStats, DbFollowup, DbChannel, DbChannelUser, DashboardStats, SystemSummary, AgentTableRow, AgentDetail, PricingConfig } from './types';

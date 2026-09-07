@@ -5,3 +5,4 @@ export { KnowledgeTab } from './KnowledgeTab';
 export { CalendarTab } from './CalendarTab';
 export { SummaryTab } from './SummaryTab';
 export { MediaTab } from './MediaTab';
+export { TriggersTab } from './TriggersTab';

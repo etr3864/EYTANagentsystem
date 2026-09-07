@@ -4,6 +4,7 @@ Supports:
 - Anthropic Claude (default, includes image understanding)
 - Google Gemini (text only, no image input)
 """
+import json
 from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
@@ -65,6 +66,17 @@ def build_media_context(db: Session, agent_id: int, media_config: dict | None) -
         context += f"\n\nהנחיות שימוש במדיה:\n{custom_instructions}"
     
     return context
+
+
+def _render_facts(data: dict) -> list[str]:
+    lines = []
+    for key, value in data.items():
+        if isinstance(value, (dict, list)):
+            rendered = json.dumps(value, ensure_ascii=False)
+        else:
+            rendered = str(value)
+        lines.append(f"  {key}: {rendered}")
+    return lines
 
 
 def build_system_prompt(
@@ -137,6 +149,12 @@ def build_system_prompt(
             info_parts.append(f"תחום עסק: {meta['business_type']}")
         if meta.get("notes"):
             info_parts.append(f"הערות: {meta['notes']}")
+    if user_info.get("external_data"):
+        info_parts.append("מידע קבוע על הלקוח (מערכות חיצוניות):")
+        info_parts.extend(_render_facts(user_info["external_data"]))
+    if user_info.get("session_data"):
+        info_parts.append("מידע לשיחה הנוכחית (מערכות חיצוניות):")
+        info_parts.extend(_render_facts(user_info["session_data"]))
     
     if info_parts:
         blocks.append({

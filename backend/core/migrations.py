@@ -14,6 +14,7 @@ def run_all(conn):
     _vector_indexes(conn)
     _agent_functions(conn)
     _llm_models(conn)
+    _internal_triggers(conn)
     conn.commit()
 
 
@@ -494,5 +495,34 @@ def _llm_models(conn):
         UPDATE agents SET thinking_level = 'low'
         WHERE model LIKE 'gemini%'
           AND thinking_level NOT IN ('minimal', 'low', 'medium', 'high')
+    """))
+
+
+def _internal_triggers(conn):
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS agent_triggers (
+            id SERIAL PRIMARY KEY,
+            agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+            name VARCHAR(80) NOT NULL,
+            kind VARCHAR(16) NOT NULL,
+            token VARCHAR(64) NOT NULL,
+            enabled BOOLEAN NOT NULL DEFAULT TRUE,
+            created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+        );
+    """))
+    conn.execute(text("""
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_agent_triggers_token
+        ON agent_triggers(token);
+    """))
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_agent_triggers_agent
+        ON agent_triggers(agent_id);
+    """))
+    conn.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE conversations ADD COLUMN injected_context JSONB;
+        EXCEPTION WHEN duplicate_column THEN null;
+        END $$;
     """))
 

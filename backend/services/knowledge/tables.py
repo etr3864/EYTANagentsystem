@@ -2,10 +2,15 @@
 import io
 import pandas as pd
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, cast, Text
 
 from backend.models.knowledge import DataTable, DataRow
-from backend.services.knowledge import embeddings
+from . import embeddings
+from .retrieval import (
+    CANDIDATE_MULTIPLIER,
+    MAX_COSINE_DISTANCE,
+    like_contains,
+)
 from backend.core.logger import log_upload
 
 
@@ -89,17 +94,43 @@ def get_by_agent(db: Session, agent_id: int) -> list[DataTable]:
     ))
 
 
-def search_rows(db: Session, table_id: int, query: str, limit: int = 10) -> list[dict]:
-    """Semantic search in table rows."""
-    query_embedding = embeddings.get_embedding(query)
-    
-    results = db.scalars(
-        select(DataRow)
-        .where(DataRow.table_id == table_id)
-        .order_by(DataRow.embedding.cosine_distance(query_embedding))
-        .limit(limit)
+def _search_rows_lexical(db: Session, table_id: int, query: str, limit: int) -> list[dict]:
+    if len(query.strip()) < 2:
+        return []
+    rows = db.scalars(
+        select(DataRow).where(
+            DataRow.table_id == table_id,
+            cast(DataRow.data, Text).ilike(like_contains(query), escape="\\"),
+        ).limit(limit)
     )
-    return [row.data for row in results]
+    return [row.data for row in rows]
+
+
+def _search_rows_semantic(db: Session, table_id: int, query: str, limit: int) -> list[dict]:
+    if not query.strip():
+        return []
+    query_embedding = embeddings.get_embedding(query)
+    distance = DataRow.embedding.cosine_distance(query_embedding)
+    fetch = max(limit * CANDIDATE_MULTIPLIER, 15)
+    rows = db.execute(
+        select(DataRow, distance.label("distance"))
+        .where(DataRow.table_id == table_id, DataRow.embedding.isnot(None))
+        .order_by(distance)
+        .limit(fetch)
+    ).all()
+    return [
+        row.data
+        for row, dist in rows
+        if dist is not None and dist <= MAX_COSINE_DISTANCE
+    ][:limit]
+
+
+def search_rows(db: Session, table_id: int, query: str, limit: int = 10) -> list[dict]:
+    """Literal cell match first; semantic only if nothing contains the text."""
+    found = _search_rows_lexical(db, table_id, query, limit)
+    if found:
+        return found
+    return _search_rows_semantic(db, table_id, query, limit)
 
 
 def query_table(db: Session, table_id: int, filters: dict | None = None) -> list[dict]:

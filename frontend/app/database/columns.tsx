@@ -154,6 +154,8 @@ const MSG_TYPE_STYLES: Record<string, string> = {
   media: 'bg-pink-500/10 text-pink-400',
   text: 'bg-slate-500/10 text-slate-400',
   manual: 'bg-orange-500/10 text-orange-400',
+  external: 'bg-orange-500/15 text-orange-300',
+  trigger_data: 'bg-amber-500/15 text-amber-300',
 };
 
 const MSG_TYPE_LABELS: Record<string, string> = {
@@ -162,6 +164,8 @@ const MSG_TYPE_LABELS: Record<string, string> = {
   media: '📸 מדיה',
   text: '💬 טקסט',
   manual: '✋ ידני',
+  external: '⚡ אוטומציה',
+  trigger_data: '🧠 מידע לסוכן',
 };
 
 export const messageColumns = [

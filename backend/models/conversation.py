@@ -18,6 +18,7 @@ class Conversation(Base):
     is_paused: Mapped[bool] = mapped_column(Boolean, default=False)
     opted_out: Mapped[bool] = mapped_column(Boolean, default=False)
     function_state: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    injected_context: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     last_customer_message_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

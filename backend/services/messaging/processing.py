@@ -156,6 +156,13 @@ async def process_batched_messages(
 
         conv = conversations.get_or_create(db, agent.id, user.id)
 
+        from backend.services.messaging.triggers import persistent_for_agent
+        external_data = persistent_for_agent(user, agent.id)
+        if external_data:
+            user_info["external_data"] = external_data
+        if conv.injected_context:
+            user_info["session_data"] = conv.injected_context
+
         # Backfill channel columns if available but not yet set on this conversation
         if channel_id and conv.channel_id is None:
             conv.channel_id = channel_id

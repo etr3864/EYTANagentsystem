@@ -32,13 +32,25 @@ def _handle_update_user_info(db: Session, user_id: int, data: dict) -> str:
 def _handle_search_knowledge(db: Session, agent_id: int, data: dict) -> str:
     """Search documents knowledge base."""
     query = data.get("query", "")
-    doc_results = documents.search(db, agent_id, query, limit=5)
-    
-    content = []
-    for doc in doc_results:
-        content.append(f"[מסמך: {doc['document']}] {doc['content'][:500]}")
-    
-    result = "\n\n".join(content) if content else "לא נמצא מידע רלוונטי"
+    document = (data.get("document") or "").strip()
+    doc_results = documents.search(db, agent_id, query, limit=5, document=document or None)
+
+    content = [
+        f"[מסמך: {doc['document']}] {doc['content'][:1000]}"
+        for doc in doc_results
+    ]
+    if content:
+        result = "\n\n".join(content)
+    elif document:
+        available = ", ".join(d.filename for d in documents.get_by_agent(db, agent_id))
+        result = (
+            f"לא נמצא מידע רלוונטי במסמך '{document}'. "
+            f"מסמכים זמינים: {available or 'אין'}. "
+            "חפש שוב עם document מדויק או בלי document."
+        )
+    else:
+        result = "לא נמצא מידע רלוונטי"
+
     log_tool("search_knowledge", len(result))
     return result
 
