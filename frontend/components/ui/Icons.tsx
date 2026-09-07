@@ -73,6 +73,14 @@ export function UserIcon({ className = 'w-6 h-6' }: IconProps) {
   );
 }
 
+export function AgentsIcon({ className = 'w-4 h-4' }: IconProps) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke={defaultStroke} strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.26-.94L3 20l1.16-3.48A7.3 7.3 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+    </svg>
+  );
+}
+
 export function UsersIcon({ className = 'w-4 h-4' }: IconProps) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke={defaultStroke} strokeWidth={2}>

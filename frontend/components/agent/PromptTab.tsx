@@ -21,7 +21,7 @@ export function PromptTab({ value, onChange, onSave, saving }: PromptTabProps) {
           {charCount} תווים • {wordCount} מילים
         </div>
       }>
-        🎯 System Prompt
+        System Prompt
       </CardHeader>
       
       <div className="space-y-4">

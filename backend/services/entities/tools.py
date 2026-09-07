@@ -430,6 +430,12 @@ async def handle_tool_calls(
         elif name == "search_media":
             result = _handle_search_media(db, agent_id, data)
 
+        elif name.startswith("esc_"):
+            from backend.services.escalation.runtime import execute as execute_escalation
+            result = await execute_escalation(
+                db, agent, user_id, conversation_id, name, data,
+            )
+
         elif function_runtime is not None:
             result = await function_runtime.execute(name, data)
             from backend.services.agent_functions.state import expire_loaded

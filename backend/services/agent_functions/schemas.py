@@ -4,8 +4,11 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from backend.services.agent_functions.constants import (
     ALLOWED_METHODS,
+    DEFAULT_HTTP_TIMEOUT_MS,
     EVENT_TYPE_ALIASES,
     EVENT_TYPES,
+    MAX_HTTP_TIMEOUT_MS,
+    MIN_HTTP_MS,
     OUTPUT_SCOPES,
     PARAM_SOURCES,
     SIDE_EFFECTS,
@@ -64,7 +67,11 @@ class FunctionUpsert(BaseModel):
     body_template: Optional[str] = Field(default=None, max_length=32000)
     params: list[FunctionParam] = Field(default_factory=list)
     outputs: list[FunctionOutput] = Field(default_factory=list)
-    timeout_ms: int = Field(default=8000, ge=1000, le=8000)
+    timeout_ms: int = Field(
+        default=DEFAULT_HTTP_TIMEOUT_MS,
+        ge=MIN_HTTP_MS,
+        le=MAX_HTTP_TIMEOUT_MS,
+    )
     sort_order: int = Field(default=0, ge=0, le=100)
 
     @field_validator("side_effect")

@@ -73,6 +73,8 @@ def _get_messages_after(
     if limit:
         query = query.limit(limit)
 
+    from backend.services.messaging.visibility import visible_to_llm
+
     return [
         {
             "role": m.role,
@@ -81,4 +83,5 @@ def _get_messages_after(
             "created_at": m.created_at.isoformat() if m.created_at else None,
         }
         for m in query.all()
+        if visible_to_llm(m.message_type)
     ]

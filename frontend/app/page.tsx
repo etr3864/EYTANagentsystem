@@ -6,6 +6,7 @@ import { Agent, getAgents, deleteAgent, updateAgent } from '@/lib/api';
 import { sortActiveRecent, toggleActiveInList } from '@/lib/listOrder';
 import { paginate } from '@/lib/pagination';
 import { Button, Card, PlusIcon, ArrowLeftIcon, TrashIcon, ChannelIcon, ListPager, ListViewport, BELOW_NAV_CLASS } from '@/components/ui';
+import { AgentAvatar } from '@/components/agent';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useAuth } from '@/contexts/AuthContext';
 import { isSuperAdmin } from '@/lib/auth';
@@ -76,7 +77,6 @@ function HomePage() {
           </div>
         ) : agents.length === 0 ? (
           <Card className="text-center py-16">
-            <div className="text-6xl mb-4">🤖</div>
             <h2 className="text-xl font-semibold text-white mb-2">אין סוכנים עדיין</h2>
             <p className="text-slate-400 mb-6">צור את הסוכן הראשון שלך כדי להתחיל</p>
             <Link href="/new">
@@ -158,15 +158,7 @@ function HomePage() {
               >
                 <div className="p-3 md:p-5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                   <div className="flex items-center gap-3 md:gap-4 min-w-0">
-                    <div className={`
-                      w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center text-lg md:text-xl shrink-0
-                      ${agent.is_active 
-                        ? 'bg-emerald-500/10 text-emerald-400' 
-                        : 'bg-slate-700/50 text-slate-400'
-                      }
-                    `}>
-                      🤖
-                    </div>
+                    <AgentAvatar name={agent.name} active={agent.is_active} />
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className={`status-dot ${agent.is_active ? 'active' : 'inactive'}`} />

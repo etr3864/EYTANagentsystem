@@ -6,7 +6,7 @@ import Link from 'next/link';
 
 import { Button, Card, ArrowRightIcon } from '@/components/ui';
 import { FunctionsTab } from '@/components/agent/functions/FunctionsTab';
-import { PromptTab, SettingsTab, ConversationsTab, KnowledgeTab, CalendarTab, SummaryTab, MediaTab, TriggersTab } from '@/components/agent';
+import { AgentAvatar, AgentTabs, PromptTab, SettingsTab, ConversationsTab, KnowledgeTab, CalendarTab, SummaryTab, MediaTab, TriggersTab, EscalationTab } from '@/components/agent';
 import { TemplatesTab } from '@/components/agent/TemplatesTab';
 import FollowUpTab from '@/components/agent/FollowUpTab';
 import { ChannelsTab } from '@/components/agent/channels/ChannelsTab';
@@ -25,28 +25,28 @@ import {
 import type { Agent, AgentBatchingConfig, ContextSummaryConfig, Conversation, Message, Document, DataTable, Provider, WaSenderConfig, AgentMedia, MediaConfig, CustomApiKeys } from '@/lib/types';
 import { DEFAULT_MODEL, getModel, resolveModel } from '@/lib/models';
 
-type Tab = 'prompt' | 'conversations' | 'knowledge' | 'media' | 'templates' | 'calendar' | 'followups' | 'summaries' | 'settings' | 'channels' | 'functions' | 'triggers';
+type Tab = 'prompt' | 'conversations' | 'knowledge' | 'media' | 'templates' | 'calendar' | 'followups' | 'summaries' | 'settings' | 'channels' | 'functions' | 'triggers' | 'escalation';
 
 interface TabConfig {
   id: Tab;
   label: string;
-  icon: string;
   roles: ('super_admin' | 'admin' | 'employee')[];
 }
 
 const allTabs: TabConfig[] = [
-  { id: 'prompt', label: 'System Prompt', icon: '🎯', roles: ['super_admin'] },
-  { id: 'conversations', label: 'שיחות', icon: '💬', roles: ['super_admin', 'admin', 'employee'] },
-  { id: 'knowledge', label: 'מאגר מידע', icon: '📚', roles: ['super_admin', 'admin'] },
-  { id: 'media', label: 'מדיה', icon: '📸', roles: ['super_admin', 'admin'] },
-  { id: 'templates', label: 'Templates', icon: '📋', roles: ['super_admin'] },
-  { id: 'functions', label: 'פונקציות', icon: '🔌', roles: ['super_admin'] },
-  { id: 'triggers', label: 'טריגרים', icon: '⚡', roles: ['super_admin'] },
-  { id: 'calendar', label: 'יומן', icon: '📅', roles: ['super_admin', 'admin'] },
-  { id: 'followups', label: 'Follow-Up', icon: '🔄', roles: ['super_admin'] },
-  { id: 'summaries', label: 'סיכומים', icon: '📝', roles: ['super_admin'] },
-  { id: 'channels', label: 'ערוצים', icon: '📡', roles: ['super_admin'] },
-  { id: 'settings', label: 'הגדרות', icon: '⚙️', roles: ['super_admin'] },
+  { id: 'prompt', label: 'Prompt', roles: ['super_admin'] },
+  { id: 'conversations', label: 'שיחות', roles: ['super_admin', 'admin', 'employee'] },
+  { id: 'knowledge', label: 'מאגר', roles: ['super_admin', 'admin'] },
+  { id: 'media', label: 'מדיה', roles: ['super_admin', 'admin'] },
+  { id: 'templates', label: 'תבניות', roles: ['super_admin'] },
+  { id: 'functions', label: 'פונקציות', roles: ['super_admin'] },
+  { id: 'triggers', label: 'טריגרים', roles: ['super_admin'] },
+  { id: 'escalation', label: 'אסקלציה', roles: ['super_admin'] },
+  { id: 'calendar', label: 'יומן', roles: ['super_admin', 'admin'] },
+  { id: 'followups', label: 'פולו-אפ', roles: ['super_admin'] },
+  { id: 'summaries', label: 'סיכומים', roles: ['super_admin'] },
+  { id: 'channels', label: 'ערוצים', roles: ['super_admin'] },
+  { id: 'settings', label: 'הגדרות', roles: ['super_admin'] },
 ];
 
 function AgentPage() {
@@ -459,7 +459,6 @@ function AgentPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card className="text-center py-12 px-8">
-          <div className="text-5xl mb-4">❌</div>
           <h2 className="text-xl font-semibold text-white mb-2">סוכן לא נמצא</h2>
           <p className="text-slate-400 mb-6">הסוכן שחיפשת לא קיים במערכת</p>
           <Link href="/">
@@ -476,15 +475,7 @@ function AgentPage() {
       <header className="border-b border-purple-500/10 bg-[#0B0914]/80 backdrop-blur-sm sticky top-16 z-40">
         <div className="max-w-5xl mx-auto px-3 md:px-6 py-3 md:py-4">
           <div className="flex items-center gap-2 md:gap-3">
-            <div className={`
-              w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center text-base md:text-lg shrink-0
-              ${agent.is_active 
-                ? 'bg-emerald-500/10 text-emerald-400' 
-                : 'bg-slate-700/50 text-slate-400'
-              }
-            `}>
-              🤖
-            </div>
+            <AgentAvatar name={agent.name} active={agent.is_active} size="sm" />
             <div>
               <h1 className="font-semibold text-white text-sm md:text-base">{agent.name}</h1>
               <div className="flex items-center gap-2 text-xs text-slate-400">
@@ -513,28 +504,9 @@ function AgentPage() {
         </div>
       )}
 
-      {/* Tabs */}
       <div className="border-b border-slate-800">
         <div className="max-w-5xl mx-auto px-3 md:px-6">
-          <nav className="flex gap-1 overflow-x-auto scrollbar-hide">
-            {visibleTabs.map(t => (
-              <button
-                key={t.id}
-                onClick={() => handleTabChange(t.id)}
-                className={`
-                  px-2.5 md:px-3 py-3 text-xs md:text-sm font-medium whitespace-nowrap
-                  border-b-2 transition-all duration-200
-                  ${tab === t.id 
-                    ? 'border-blue-500 text-blue-400' 
-                    : 'border-transparent text-slate-400 hover:text-white hover:border-slate-600'
-                  }
-                `}
-              >
-                <span className="ml-1 md:ml-1.5">{t.icon}</span>
-                {t.label}
-              </button>
-            ))}
-          </nav>
+          <AgentTabs tabs={visibleTabs} current={tab} onChange={handleTabChange} />
         </div>
       </div>
 
@@ -610,6 +582,10 @@ function AgentPage() {
                 || (agent.active_channel_types || []).includes('whatsapp_wasender')
               }
             />
+          )}
+
+          {tab === 'escalation' && (
+            <EscalationTab agentId={agentId} />
           )}
 
           {tab === 'calendar' && (

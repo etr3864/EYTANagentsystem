@@ -64,6 +64,7 @@ export function TriggersTab({ agentId, canSendMessage }: TriggersTabProps) {
   const [busyKind, setBusyKind] = useState<TriggerKind | null>(null);
   const [openId, setOpenId] = useState<number | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [draftNames, setDraftNames] = useState<Record<number, string>>({});
 
   const reload = useCallback(async (): Promise<AgentTrigger[]> => {
     setLoading(true);
@@ -99,10 +100,33 @@ export function TriggersTab({ agentId, canSendMessage }: TriggersTabProps) {
 
   const toggle = async (item: AgentTrigger) => {
     try {
-      await patchAgentTrigger(agentId, item.id, !item.enabled);
+      await patchAgentTrigger(agentId, item.id, { enabled: !item.enabled });
       await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'לא ניתן לעדכן');
+    }
+  };
+
+  const rename = async (item: AgentTrigger) => {
+    const next = (draftNames[item.id] ?? item.name).trim();
+    if (!next || next === item.name) {
+      setDraftNames((prev) => {
+        const copy = { ...prev };
+        delete copy[item.id];
+        return copy;
+      });
+      return;
+    }
+    try {
+      await patchAgentTrigger(agentId, item.id, { name: next });
+      setDraftNames((prev) => {
+        const copy = { ...prev };
+        delete copy[item.id];
+        return copy;
+      });
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'לא ניתן לשנות שם');
     }
   };
 
@@ -154,14 +178,24 @@ export function TriggersTab({ agentId, canSendMessage }: TriggersTabProps) {
         {items.map((item) => (
           <Card key={item.id}>
             <div className="flex items-center justify-between gap-3">
-              <button
-                type="button"
-                className="text-right flex-1 min-w-0"
-                onClick={() => setOpenId(openId === item.id ? null : item.id)}
-              >
-                <CardHeader>{item.name}</CardHeader>
-                <p className="text-xs text-slate-400">{KIND_META[item.kind].title}</p>
-              </button>
+              <div className="flex-1 min-w-0 text-right">
+                <input
+                  value={draftNames[item.id] ?? item.name}
+                  onChange={(e) => setDraftNames((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                  onBlur={() => rename(item)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                  }}
+                  className="w-full bg-transparent text-white font-medium text-base border-b border-transparent hover:border-slate-600 focus:border-blue-500 focus:outline-none py-0.5"
+                />
+                <button
+                  type="button"
+                  className="text-xs text-slate-400 mt-0.5"
+                  onClick={() => setOpenId(openId === item.id ? null : item.id)}
+                >
+                  {KIND_META[item.kind].title} · {openId === item.id ? 'הסתר חיבור' : 'הצג חיבור'}
+                </button>
+              </div>
               <EnableSwitch enabled={item.enabled} onToggle={() => toggle(item)} />
               <Button variant="secondary" size="sm" onClick={() => remove(item)}>מחק</Button>
             </div>

@@ -251,7 +251,16 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
           {editing?.can_enable && !editing.enabled && (
             <p className="text-sm text-emerald-300 mb-4">הבדיקה עברה. אפשר להדליק את המתג.</p>
           )}
-          <div className="space-y-3 mb-6 p-3 rounded-lg border border-purple-500/15 bg-white/[0.03]">
+          <FunctionEditor
+            key={editing?.id ?? 'new'}
+            value={draft}
+            onChange={(next) => {
+              setDraft(next);
+              if (saveError) setSaveError(null);
+            }}
+            error={null}
+          />
+          <div className="space-y-3 mt-6 p-3 rounded-lg border border-purple-500/15 bg-white/[0.03]">
             <p className="text-sm text-slate-300">בדיקה — בלי זה הסוכן לא יריץ את הפונקציה בשיחה</p>
             <p className="text-xs text-slate-500">
               ערכי בדיקה לפרמטרים. JSON, למשל {`{"phone":"97250..."}`}. יבש = בלי רשת. שלח באמת = לכתובת למעלה.
@@ -281,15 +290,6 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
               <Button variant="secondary" onClick={close}>סגור</Button>
             </div>
           </div>
-          <FunctionEditor
-            key={editing?.id ?? 'new'}
-            value={draft}
-            onChange={(next) => {
-              setDraft(next);
-              if (saveError) setSaveError(null);
-            }}
-            error={null}
-          />
         </Card>
       )}
     </div>

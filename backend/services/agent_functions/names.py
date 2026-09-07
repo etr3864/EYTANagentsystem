@@ -16,4 +16,6 @@ def validate_name(name: str) -> str:
         raise FunctionNameError("שם חייב להיות באנגלית: אות קטנה ואז אותיות, ספרות או _")
     if cleaned in RESERVED_NAMES:
         raise FunctionNameError(f"השם {cleaned} שמור לכלי מערכת")
+    if cleaned.startswith("esc_"):
+        raise FunctionNameError("הקידומת esc_ שמורה לאסקלציה")
     return cleaned

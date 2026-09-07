@@ -1,12 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import { Button, Card, CardHeader } from '@/components/ui';
 import { Input, NumberInput } from '@/components/ui/Input';
 import { ModelSelect } from '@/components/ui/ModelSelect';
-import { useAuth } from '@/contexts/AuthContext';
-import { isSuperAdmin } from '@/lib/auth';
-import { getExternalApiKey, API_URL } from '@/lib/api';
 import { getModel, THINKING_LABELS } from '@/lib/models';
 import type { AgentBatchingConfig, ContextSummaryConfig, CustomApiKeys } from '@/lib/types';
 
@@ -31,124 +27,13 @@ interface SettingsTabProps {
   onNavigateToChannels?: () => void;
 }
 
-function ExternalApiSection({ agentId }: { agentId: number }) {
-  const [open, setOpen] = useState(false);
-  const [apiKey, setApiKey] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState<string | null>(null);
-
-  const handleReveal = async () => {
-    if (apiKey) {
-      setOpen(v => !v);
-      return;
-    }
-    setLoading(true);
-    try {
-      const key = await getExternalApiKey();
-      setApiKey(key);
-      setOpen(true);
-    } catch {
-      setApiKey(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(label);
-    setTimeout(() => setCopied(null), 2000);
-  };
-
-  const endpoint = `${API_URL}/api/external/agents/${agentId}/log-message`;
-
-  const curlExample = `curl -X POST "${endpoint}" \\
-  -H "Content-Type: application/json" \\
-  -H "X-API-Key: ${apiKey || '<API_KEY>'}" \\
-  -d '{
-    "phone": "972501234567",
-    "text": "נקבעה פגישה: 10/12/2025 בשעה 15:50",
-    "message_type": "system_note"
-  }'`;
-
-  return (
-    <Card>
-      <div className="flex items-center justify-between">
-        <CardHeader>🔌 API חיצוני (n8n)</CardHeader>
-        <Button variant="secondary" size="sm" onClick={handleReveal} disabled={loading}>
-          {loading ? '...' : open ? 'הסתר' : 'הצג'}
-        </Button>
-      </div>
-      <p className="text-sm text-slate-400 mb-2">
-        דחיפת הודעות להיסטוריית שיחה מ-n8n או מערכות חיצוניות
-      </p>
-
-      {open && apiKey && (
-        <div className="mt-4 space-y-4">
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">API Key</label>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 bg-slate-800 text-green-400 text-xs px-3 py-2 rounded font-mono break-all">
-                {apiKey}
-              </code>
-              <Button
-                variant="secondary" size="sm"
-                onClick={() => copyToClipboard(apiKey, 'key')}
-              >
-                {copied === 'key' ? '✓' : 'העתק'}
-              </Button>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">Endpoint</label>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 bg-slate-800 text-blue-400 text-xs px-3 py-2 rounded font-mono break-all">
-                POST {endpoint}
-              </code>
-              <Button
-                variant="secondary" size="sm"
-                onClick={() => copyToClipboard(endpoint, 'url')}
-              >
-                {copied === 'url' ? '✓' : 'העתק'}
-              </Button>
-            </div>
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-xs text-slate-400">דוגמת קריאה (curl)</label>
-              <Button
-                variant="secondary" size="sm"
-                onClick={() => copyToClipboard(curlExample, 'curl')}
-              >
-                {copied === 'curl' ? '✓' : 'העתק'}
-              </Button>
-            </div>
-            <pre className="bg-slate-800 text-slate-300 text-xs px-3 py-2 rounded font-mono overflow-x-auto whitespace-pre-wrap">
-              {curlExample}
-            </pre>
-          </div>
-
-          <div className="text-xs text-slate-500 space-y-1">
-            <p><strong>message_type</strong>: system_note | reminder | confirmation</p>
-            <p><strong>phone</strong>: ספרות בלבד, ללא + (לדוגמה: 972501234567)</p>
-          </div>
-        </div>
-      )}
-    </Card>
-  );
-}
-
-
 export function SettingsTab({
-  agentId, name, model, thinkingLevel, batchingConfig, maxToolRounds,
+  name, model, thinkingLevel, batchingConfig, maxToolRounds,
   customApiKeys, contextSummaryConfig, onNameChange,
   onModelChange, onThinkingLevelChange, onBatchingConfigChange, onMaxToolRoundsChange,
   onCustomApiKeysChange, onContextSummaryConfigChange, onSave, saving,
   onNavigateToChannels,
 }: SettingsTabProps) {
-  const { user } = useAuth();
   const modelDef = getModel(model);
   const thinkingOptions = modelDef.thinkingOptions;
   const isOpenAI = modelDef.provider === 'OpenAI';
@@ -157,7 +42,7 @@ export function SettingsTab({
     <div className="space-y-6">
       {/* Agent Details */}
       <Card>
-        <CardHeader>🤖 פרטי סוכן</CardHeader>
+        <CardHeader>פרטי סוכן</CardHeader>
         <div className="grid gap-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input 
@@ -374,9 +259,6 @@ export function SettingsTab({
           />
         </div>
       </Card>
-
-      {/* External API - super_admin only */}
-      {isSuperAdmin(user) && <ExternalApiSection agentId={agentId} />}
 
       {/* Save Button */}
       <div className="flex justify-end pt-2">

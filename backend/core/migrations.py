@@ -15,6 +15,7 @@ def run_all(conn):
     _agent_functions(conn)
     _llm_models(conn)
     _internal_triggers(conn)
+    _escalation_reasons(conn)
     conn.commit()
 
 
@@ -524,5 +525,45 @@ def _internal_triggers(conn):
             ALTER TABLE conversations ADD COLUMN injected_context JSONB;
         EXCEPTION WHEN duplicate_column THEN null;
         END $$;
+    """))
+
+
+def _escalation_reasons(conn):
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS agent_escalation_reasons (
+            id SERIAL PRIMARY KEY,
+            agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+            name VARCHAR(80) NOT NULL,
+            slug VARCHAR(64) NOT NULL,
+            enabled BOOLEAN NOT NULL DEFAULT FALSE,
+            when_to_use TEXT NOT NULL DEFAULT '',
+            payload_hint TEXT NOT NULL DEFAULT '',
+            fields JSONB NOT NULL DEFAULT '[]'::jsonb,
+            phones JSONB NOT NULL DEFAULT '[]'::jsonb,
+            webhook_url TEXT,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+        );
+    """))
+    conn.execute(text("""
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_escalation_agent_slug
+        ON agent_escalation_reasons(agent_id, slug);
+    """))
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_escalation_reasons_agent
+        ON agent_escalation_reasons(agent_id);
+    """))
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS escalation_cooldowns (
+            id SERIAL PRIMARY KEY,
+            conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+            reason_id INTEGER NOT NULL REFERENCES agent_escalation_reasons(id) ON DELETE CASCADE,
+            fired_at TIMESTAMP NOT NULL DEFAULT NOW()
+        );
+    """))
+    conn.execute(text("""
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_escalation_cooldown
+        ON escalation_cooldowns(conversation_id, reason_id);
     """))
 

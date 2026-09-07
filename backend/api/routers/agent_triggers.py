@@ -31,7 +31,8 @@ class TriggerCreate(BaseModel):
 
 
 class TriggerPatch(BaseModel):
-    enabled: bool
+    enabled: bool | None = None
+    name: str | None = None
 
 
 @router.get("")
@@ -71,7 +72,14 @@ def patch_trigger(
     row = triggers.get_for_agent(db, agent_id, trigger_id)
     if not row:
         raise HTTPException(status_code=404, detail="טריגר לא נמצא")
-    return triggers.to_public(triggers.set_enabled(db, row, data.enabled))
+    if data.enabled is None and data.name is None:
+        raise HTTPException(status_code=400, detail="אין מה לעדכן")
+    try:
+        return triggers.to_public(
+            triggers.update_trigger(db, row, enabled=data.enabled, name=data.name)
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.delete("/{trigger_id}")

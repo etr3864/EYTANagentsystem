@@ -229,6 +229,8 @@ async def process_batched_messages(
             history = history[:-len(pending_msgs)]
             if len(history) > max_history:
                 history = history[-max_history:]
+        from backend.services.messaging.visibility import filter_history_for_llm
+        history = filter_history_for_llm(history)
 
         # Load knowledge context
         knowledge_context = knowledge.get_context(db, agent_id)
@@ -248,6 +250,8 @@ async def process_batched_messages(
             from backend.services.agent_functions.runtime import ConversationRuntime
             function_runtime = ConversationRuntime(agent.id, user.id, conv.id)
             extra_tools = function_runtime.llm_tools(db)
+        from backend.services.escalation.tools import llm_tools as escalation_tools
+        extra_tools = extra_tools + escalation_tools(db, agent.id)
 
         async def tool_handler(calls):
             return await handle_tool_calls(

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Message } from '@/lib/types';
 import { parseUTCDate } from '@/lib/dates';
 import { VoiceIcon, ImageIcon, VideoIcon, SendIcon, PauseIcon, PlayIcon } from '@/components/ui/Icons';
+import { EscalationNote } from './EscalationNote';
 
 interface ChatViewProps {
   messages: Message[];
@@ -118,6 +119,8 @@ export function ChatView({ messages, conversationId, isPaused, onSend, onToggleP
         const isManual = msg.message_type === 'manual';
         const isExternal = msg.message_type === 'external';
         const isTriggerData = msg.message_type === 'trigger_data';
+        const isEscalation = msg.message_type === 'escalation';
+        const isCenteredNote = isTriggerData || isEscalation;
         const hasMediaUrl = !!msg.media_url;
         
         // Clean content for voice messages (remove prefix)
@@ -135,6 +138,7 @@ export function ChatView({ messages, conversationId, isPaused, onSend, onToggleP
         // Determine bubble style
         const getBubbleStyle = () => {
           if (!isUser) {
+            if (isEscalation) return 'bg-rose-600/10 text-rose-50 rounded-tl-sm border border-rose-500/30';
             if (isTriggerData) return 'bg-amber-600/10 text-amber-50 rounded-tl-sm border border-amber-500/30';
             if (isExternal) return 'bg-orange-600/15 text-orange-50 rounded-tl-sm border border-orange-500/30';
             if (hasMediaUrl) return 'bg-indigo-600/20 text-indigo-50 rounded-tl-sm border border-indigo-500/30';
@@ -161,8 +165,9 @@ export function ChatView({ messages, conversationId, isPaused, onSend, onToggleP
             )}
             
             {/* Message Bubble */}
-            <div className={`flex ${isTriggerData ? 'justify-center' : isUser ? 'justify-start' : 'justify-end'}`}>
-              <div className={`${isTriggerData ? 'max-w-[90%]' : 'max-w-[75%]'} px-4 py-2.5 rounded-2xl ${getBubbleStyle()}`}>
+            <div className={`flex ${isCenteredNote ? 'justify-center' : isUser ? 'justify-start' : 'justify-end'}`}>
+              <div className={`${isCenteredNote ? 'max-w-[90%]' : 'max-w-[75%]'} px-4 py-2.5 rounded-2xl ${getBubbleStyle()}`}>
+                {isEscalation && <EscalationNote content={displayContent} />}
                 {isTriggerData && (
                   <div className="flex items-center gap-2 text-amber-300 text-xs mb-2 pb-2 border-b border-amber-500/20">
                     <span>מידע שנכנס לסוכן · לא נשלח ללקוח</span>
@@ -219,7 +224,7 @@ export function ChatView({ messages, conversationId, isPaused, onSend, onToggleP
                   </div>
                 )}
                 
-                {displayContent && (
+                {displayContent && !isEscalation && (
                   <div className="text-sm whitespace-pre-wrap leading-relaxed">
                     {displayContent}
                   </div>
@@ -241,7 +246,7 @@ export function ChatView({ messages, conversationId, isPaused, onSend, onToggleP
                       hour: '2-digit', 
                       minute: '2-digit' 
                     })}
-                    {!isUser && !isTriggerData && (
+                    {!isUser && !isCenteredNote && (
                       <>
                         <span className="mr-1">✓✓</span>
                         {isManual && (
@@ -254,6 +259,9 @@ export function ChatView({ messages, conversationId, isPaused, onSend, onToggleP
                     )}
                     {isTriggerData && (
                       <span className="text-amber-400/70 text-[9px]">רק לסוכן</span>
+                    )}
+                    {isEscalation && (
+                      <span className="text-rose-400/70 text-[9px]">פנימי</span>
                     )}
                   </div>
                 )}

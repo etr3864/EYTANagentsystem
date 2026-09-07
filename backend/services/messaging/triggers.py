@@ -86,6 +86,21 @@ def set_enabled(db: Session, row: AgentTrigger, enabled: bool) -> AgentTrigger:
     return row
 
 
+def update_trigger(
+    db: Session, row: AgentTrigger, *, enabled: bool | None = None, name: str | None = None
+) -> AgentTrigger:
+    if enabled is not None:
+        row.enabled = enabled
+    if name is not None:
+        label = name.strip()
+        if not label:
+            raise ValueError("השם לא יכול להיות ריק")
+        row.name = label[:80]
+    db.commit()
+    db.refresh(row)
+    return row
+
+
 def delete_trigger(db: Session, row: AgentTrigger) -> None:
     db.delete(row)
     db.commit()

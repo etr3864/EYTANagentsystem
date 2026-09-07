@@ -78,7 +78,7 @@ export default function NewAgentPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Basic Info */}
           <Card>
-            <CardHeader>🤖 פרטי סוכן</CardHeader>
+            <CardHeader>פרטי סוכן</CardHeader>
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
@@ -118,7 +118,7 @@ export default function NewAgentPage() {
 
           {/* System Prompt */}
           <Card>
-            <CardHeader>🎯 System Prompt</CardHeader>
+            <CardHeader>System Prompt</CardHeader>
             <Textarea
               value={systemPrompt}
               onChange={e => setSystemPrompt(e.target.value)}

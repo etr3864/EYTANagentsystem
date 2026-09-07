@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { isSuperAdmin } from '@/lib/auth';
-import { ChartIcon, UsersIcon, DatabaseIcon, PlusIcon, LogoutIcon } from '@/components/ui';
+import { AgentsIcon, ChartIcon, UsersIcon, DatabaseIcon, PlusIcon, LogoutIcon } from '@/components/ui';
 
 const LOGO_ICON = 'https://res.cloudinary.com/daowx6msw/image/upload/v1761607495/white_logogg_uf3usn.png';
 
@@ -19,7 +19,7 @@ interface NavLink {
 }
 
 const NAV_LINKS: NavLink[] = [
-  { href: '/', label: 'סוכנים', icon: <span className="text-base">🤖</span>, roles: ['super_admin', 'admin', 'employee'] },
+  { href: '/', label: 'סוכנים', icon: <AgentsIcon />, roles: ['super_admin', 'admin', 'employee'] },
   { href: '/dashboard', label: 'דאשבורד', icon: <ChartIcon />, roles: ['super_admin', 'admin'] },
   { href: '/users', label: 'משתמשים', icon: <UsersIcon />, roles: ['super_admin', 'admin'] },
   { href: '/database', label: 'Database', icon: <DatabaseIcon />, roles: ['super_admin'] },

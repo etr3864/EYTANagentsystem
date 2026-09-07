@@ -821,12 +821,12 @@ export async function createAgentTrigger(
 export async function patchAgentTrigger(
   agentId: number,
   triggerId: number,
-  enabled: boolean,
+  patch: { enabled?: boolean; name?: string },
 ): Promise<AgentTrigger> {
   const res = await authFetch(`${API_URL}/api/agents/${agentId}/triggers/${triggerId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ enabled }),
+    body: JSON.stringify(patch),
   });
   if (!res.ok) throw new Error(await parseTriggerError(res));
   return res.json();

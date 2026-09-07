@@ -24,6 +24,12 @@ def assert_url_allowed(url: str, allowed_host: str) -> None:
     _assert_public_host(host, parsed_port(url))
 
 
+def assert_public_https(url: str) -> str:
+    host = host_from_url(url)
+    _assert_public_host(host, parsed_port(url))
+    return host
+
+
 def parsed_port(url: str) -> int:
     parsed = urlparse(url)
     if parsed.port:

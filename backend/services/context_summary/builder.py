@@ -97,8 +97,12 @@ def get_last_message_id(
 
 
 def _format_messages(msgs: list[Message]) -> str:
+    from backend.services.messaging.visibility import visible_to_llm
+
     lines = []
     for m in msgs:
+        if not visible_to_llm(m.message_type):
+            continue
         role = "לקוח" if m.role == "user" else "סוכן"
         mtype = m.message_type or "text"
         prefix = f"[{mtype}] " if mtype != "text" else ""

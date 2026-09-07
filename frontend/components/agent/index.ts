@@ -1,3 +1,5 @@
+export { AgentAvatar } from './AgentAvatar';
+export { AgentTabs } from './AgentTabs';
 export { PromptTab } from './PromptTab';
 export { SettingsTab } from './SettingsTab';
 export { ConversationsTab } from './ConversationsTab';
@@ -6,3 +8,4 @@ export { CalendarTab } from './CalendarTab';
 export { SummaryTab } from './SummaryTab';
 export { MediaTab } from './MediaTab';
 export { TriggersTab } from './TriggersTab';
+export { EscalationTab } from './escalation/EscalationTab';

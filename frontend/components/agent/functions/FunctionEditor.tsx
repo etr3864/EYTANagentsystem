@@ -2,12 +2,15 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui';
-import { Input, Select, Textarea } from '@/components/ui/Input';
+import { Input, NumberInput, Select, Textarea } from '@/components/ui/Input';
 import type { AgentFunctionParam, AgentFunctionOutput, FunctionUpsert, ParamSource } from '@/lib/agentFunctionTypes';
 import { EVENT_TYPE_OPTIONS } from '@/lib/agentFunctionTypes';
 import { extractTemplateVars, mergeParamsFromVars, prettyJsonPreservingVars } from '@/lib/agentFunctions';
 
 const LTR = 'text-left font-mono text-sm';
+const DEFAULT_TIMEOUT_SEC = 8;
+const MIN_TIMEOUT_SEC = 1;
+const MAX_TIMEOUT_SEC = 30;
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH']);
 const SOURCES: { id: ParamSource; label: string }[] = [
@@ -46,7 +49,8 @@ function hasAdvanced(value: FunctionUpsert): boolean {
     || value.outputs.length > 0
     || Object.keys(extras).length > 0
     || value.params.some((param) => param.source !== 'ask' || param.description || param.source_key || param.required === false)
-    || value.side_effect !== sideEffectForMethod(value.method),
+    || value.side_effect !== sideEffectForMethod(value.method)
+    || value.timeout_ms !== DEFAULT_TIMEOUT_SEC * 1000,
   );
 }
 
@@ -190,7 +194,7 @@ export function FunctionEditor({
         {advancedOpen && (
           <>
         <p className="text-xs text-slate-500 mt-1 mb-4">
-          מתי לא להשתמש, מקורות פרמטר, שמירת פלט, headers נוספים, טריגר אירוע.
+          מתי לא להשתמש, מקורות פרמטר, שמירת פלט, headers, timeout, טריגר אירוע.
         </p>
         <div className="space-y-5">
           <Select
@@ -246,6 +250,10 @@ export function FunctionEditor({
             onChange={(extra) => set({ headers: joinHeaders(token, extra) })}
           />
           <OutputsEditor outputs={value.outputs} onChange={(outputs) => set({ outputs })} />
+          <TimeoutField
+            timeoutMs={value.timeout_ms}
+            onChange={(timeout_ms) => set({ timeout_ms })}
+          />
         </div>
           </>
         )}
@@ -515,5 +523,30 @@ function OutputsEditor({
         + הוסף שמירה
       </Button>
     </div>
+  );
+}
+
+function TimeoutField({
+  timeoutMs,
+  onChange,
+}: {
+  timeoutMs: number;
+  onChange: (timeoutMs: number) => void;
+}) {
+  const seconds = Math.round((timeoutMs || DEFAULT_TIMEOUT_SEC * 1000) / 1000);
+  return (
+    <NumberInput
+      label="Timeout (שניות)"
+      min={MIN_TIMEOUT_SEC}
+      max={MAX_TIMEOUT_SEC}
+      value={seconds}
+      onChange={(e) => {
+        const next = Number(e.target.value);
+        if (!Number.isFinite(next)) return;
+        const clamped = Math.min(MAX_TIMEOUT_SEC, Math.max(MIN_TIMEOUT_SEC, Math.round(next)));
+        onChange(clamped * 1000);
+      }}
+      hint="כמה לחכות לתשובת ה-API לפני שנכשלים. ברירת מחדל 8. מקסימום 30. הלקוח מחכה בזמן הזה."
+    />
   );
 }
