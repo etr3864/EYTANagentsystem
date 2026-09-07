@@ -38,7 +38,7 @@ const allTabs: TabConfig[] = [
   { id: 'knowledge', label: 'מאגר מידע', icon: '📚', roles: ['super_admin', 'admin'] },
   { id: 'media', label: 'מדיה', icon: '📸', roles: ['super_admin', 'admin'] },
   { id: 'templates', label: 'Templates', icon: '📋', roles: ['super_admin'] },
-  { id: 'calendar', label: 'יומן', icon: '📅', roles: ['super_admin'] },
+  { id: 'calendar', label: 'יומן', icon: '📅', roles: ['super_admin', 'admin'] },
   { id: 'followups', label: 'Follow-Up', icon: '🔄', roles: ['super_admin'] },
   { id: 'summaries', label: 'סיכומים', icon: '📝', roles: ['super_admin'] },
   { id: 'channels', label: 'ערוצים', icon: '📡', roles: ['super_admin'] },
@@ -594,6 +594,7 @@ function AgentPage() {
               onAppointmentPromptChange={setAppointmentPrompt}
               onSave={handleSaveCalendar}
               saving={saving}
+              canShowAdvanced={isSuperAdmin(user)}
             />
           )}
 

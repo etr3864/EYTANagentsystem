@@ -54,6 +54,7 @@ interface CalendarTabProps {
   onAppointmentPromptChange: (v: string) => void;
   onSave: () => void;
   saving: boolean;
+  canShowAdvanced?: boolean;
 }
 
 const DAYS = [
@@ -389,7 +390,8 @@ export function CalendarTab({
   appointmentPrompt, 
   onAppointmentPromptChange,
   onSave, 
-  saving 
+  saving,
+  canShowAdvanced = false,
 }: CalendarTabProps) {
   const [config, setConfig] = useState<CalendarConfig>({});
   const [calendars, setCalendars] = useState<GoogleCalendar[]>([]);
@@ -402,9 +404,11 @@ export function CalendarTab({
 
   useEffect(() => {
     loadConfig();
-    loadSummaryStatus();
-    if (isMeta) loadApprovedTemplates();
-  }, [agentId, isMeta]);
+    if (canShowAdvanced) {
+      loadSummaryStatus();
+      if (isMeta) loadApprovedTemplates();
+    }
+  }, [agentId, isMeta, canShowAdvanced]);
 
   async function loadConfig() {
     try {
@@ -665,7 +669,7 @@ export function CalendarTab({
       )}
 
       {/* Double Booking */}
-      {isConnected && (
+      {canShowAdvanced && isConnected && (
         <Card>
           <CardHeader>פגישות מרובות</CardHeader>
           <p className="text-sm text-slate-400 mb-4">
@@ -697,7 +701,7 @@ export function CalendarTab({
       )}
 
       {/* Webhook URL */}
-      {isConnected && (
+      {canShowAdvanced && isConnected && (
         <Card>
           <CardHeader>Webhook לאירועי פגישות</CardHeader>
           <p className="text-sm text-slate-400 mb-4">
@@ -729,7 +733,7 @@ export function CalendarTab({
       )}
 
       {/* Appointment Reminders */}
-      {isConnected && (
+      {canShowAdvanced && isConnected && (
         <Card>
           <CardHeader>תזכורות לפגישות</CardHeader>
           <p className="text-sm text-slate-400 mb-4">
@@ -817,38 +821,40 @@ export function CalendarTab({
         </Card>
       )}
 
-      {/* Appointment Prompt */}
-      <Card>
-        <CardHeader>הנחיות לתיאום פגישות</CardHeader>
-        <p className="text-sm text-slate-400 mb-4">
-          הנחיות נוספות לסוכן בנוגע לתיאום פגישות (סוג פגישה, משך, מיקום וכו')
-        </p>
-        
-        <Textarea
-          value={appointmentPrompt}
-          onChange={(e) => onAppointmentPromptChange(e.target.value)}
-          rows={8}
-          placeholder={`דוגמה:
+      {canShowAdvanced && (
+        <>
+          <Card>
+            <CardHeader>הנחיות לתיאום פגישות</CardHeader>
+            <p className="text-sm text-slate-400 mb-4">
+              הנחיות נוספות לסוכן בנוגע לתיאום פגישות (סוג פגישה, משך, מיקום וכו')
+            </p>
+            
+            <Textarea
+              value={appointmentPrompt}
+              onChange={(e) => onAppointmentPromptChange(e.target.value)}
+              rows={8}
+              placeholder={`דוגמה:
 - סוג הפגישות: פגישת ייעוץ פרונטלית
 - משך פגישה ברירת מחדל: 60 דקות
 - מיקום: רח' הרצל 10, תל אביב
 - תזכיר ללקוח להביא תעודת זהות`}
-          className="font-mono text-sm"
-        />
-      </Card>
+              className="font-mono text-sm"
+            />
+          </Card>
 
-      {/* Save Button */}
-      <div className="flex justify-end pt-2">
-        <Button 
-          onClick={onSave} 
-          disabled={saving} 
-          loading={saving}
-          variant="success"
-          size="lg"
-        >
-          שמור הגדרות
-        </Button>
-      </div>
+          <div className="flex justify-end pt-2">
+            <Button 
+              onClick={onSave} 
+              disabled={saving} 
+              loading={saving}
+              variant="success"
+              size="lg"
+            >
+              שמור הגדרות
+            </Button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
