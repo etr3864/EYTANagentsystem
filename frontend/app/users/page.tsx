@@ -374,7 +374,8 @@ function UsersPage() {
                 </Button>
               </Card>
             ) : activeTab === 'admins' ? (
-              pagedAdmins.total === 0 ? (
+              <>
+              {pagedAdmins.total === 0 ? (
                 <p className="text-center py-8 text-slate-500 text-sm">לא נמצאו לקוחות עבור החיפוש</p>
               ) : (
               <ListViewport
@@ -474,8 +475,11 @@ function UsersPage() {
               ))}
                 </div>
               </ListViewport>
-              )
-            ) : pagedEmployees.total === 0 ? (
+              )}
+              </>
+            ) : (
+              <>
+              {pagedEmployees.total === 0 ? (
                 <p className="text-center py-8 text-slate-500 text-sm">לא נמצאו עובדים עבור החיפוש</p>
               ) : (
               <ListViewport
@@ -568,7 +572,8 @@ function UsersPage() {
               ))}
                 </div>
               </ListViewport>
-              )
+              )}
+              </>
             )}
           </div>
         )}
