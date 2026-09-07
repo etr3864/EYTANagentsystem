@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Agent, getAgents, deleteAgent, updateAgent } from '@/lib/api';
 import { sortActiveRecent, toggleActiveInList } from '@/lib/listOrder';
-import { Button, Card, PlusIcon, ArrowLeftIcon, TrashIcon, ChannelIcon } from '@/components/ui';
+import { paginate } from '@/lib/pagination';
+import { Button, Card, PlusIcon, ArrowLeftIcon, TrashIcon, ChannelIcon, ListPager } from '@/components/ui';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useAuth } from '@/contexts/AuthContext';
 import { isSuperAdmin } from '@/lib/auth';
@@ -15,6 +16,7 @@ function HomePage() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const { user, logout } = useAuth();
 
   useEffect(() => {
@@ -50,6 +52,18 @@ function HomePage() {
       alert(e instanceof Error ? e.message : 'לא ניתן לעדכן את הסטטוס');
     }
   }
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return agents;
+    return agents.filter((a) => a.name.toLowerCase().includes(q));
+  }, [agents, search]);
+
+  const paged = paginate(filtered, page);
 
   return (
     <div className="min-h-screen">
@@ -118,22 +132,18 @@ function HomePage() {
             </div>
 
             {/* Agent Cards */}
-            {(() => {
-              const filtered = agents.filter(a => a.name.toLowerCase().includes(search.toLowerCase()));
-              if (filtered.length === 0 && search) {
-                return (
-                  <div className="text-center py-8 text-slate-500 text-sm">
-                    לא נמצאו סוכנים עבור &quot;{search}&quot;
-                  </div>
-                );
-              }
-              return filtered.map((agent, index) => (
+            {filtered.length === 0 && search ? (
+              <div className="text-center py-8 text-slate-500 text-sm">
+                לא נמצאו סוכנים עבור &quot;{search}&quot;
+              </div>
+            ) : (
+              <>
+                {paged.items.map((agent) => (
               <Card 
                 key={agent.id} 
                 hover 
                 padding="none"
                 className="animate-fade-in"
-                style={{ animationDelay: `${index * 50}ms` } as React.CSSProperties}
               >
                 <div className="p-3 md:p-5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                   <div className="flex items-center gap-3 md:gap-4 min-w-0">
@@ -216,8 +226,17 @@ function HomePage() {
                   </div>
                 </div>
               </Card>
-            ));
-            })()}
+                ))}
+                <ListPager
+                  page={paged.page}
+                  totalPages={paged.totalPages}
+                  from={paged.from}
+                  to={paged.to}
+                  total={paged.total}
+                  onPage={setPage}
+                />
+              </>
+            )}
           </div>
         )}
       </main>

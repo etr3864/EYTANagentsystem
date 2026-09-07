@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, Card, CardHeader } from '@/components/ui';
+import { Button, Card, CardHeader, ListPager } from '@/components/ui';
 import {
   createAgentFunction,
   deleteAgentFunction,
@@ -14,6 +14,7 @@ import {
   type FunctionAttention,
 } from '@/lib/agentFunctions';
 import { EMPTY_FUNCTION, toUpsert, type AgentFunction, type FunctionTestResult, type FunctionUpsert } from '@/lib/agentFunctionTypes';
+import { paginate } from '@/lib/pagination';
 import { FunctionEditor } from './FunctionEditor';
 import { FunctionTestPanel } from './FunctionTestPanel';
 import { FunctionAttentionList } from './FunctionAttentionList';
@@ -31,6 +32,7 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
   const [sampleValues, setSampleValues] = useState('{}');
   const [testResult, setTestResult] = useState<FunctionTestResult | null>(null);
   const [busy, setBusy] = useState(false);
+  const [page, setPage] = useState(1);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -158,6 +160,7 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
   };
 
   const showEditor = creating || editing;
+  const paged = paginate(items, page);
 
   return (
     <div className="space-y-4">
@@ -176,7 +179,7 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
         <p className="text-slate-400 text-sm">אין פונקציות. פונקציה פעילה עם טריגר שיחה רצה בשיחות אחרי טסט.</p>
       )}
       <div className="space-y-2">
-        {items.map((item) => (
+        {paged.items.map((item) => (
           <Card key={item.id}>
             <div className="flex items-center justify-between gap-3">
               <button type="button" className="text-right flex-1" onClick={() => openEdit(item)}>
@@ -191,6 +194,16 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
             </div>
           </Card>
         ))}
+        {items.length > 0 && (
+          <ListPager
+            page={paged.page}
+            totalPages={paged.totalPages}
+            from={paged.from}
+            to={paged.to}
+            total={paged.total}
+            onPage={setPage}
+          />
+        )}
       </div>
       {showEditor && (
         <Card>

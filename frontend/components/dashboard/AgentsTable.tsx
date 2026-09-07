@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { AgentTableRow } from '@/lib/types';
 import { AgentAccordionDetail } from './AgentAccordionDetail';
 import { exportConversations } from '@/lib/api';
-import { CHANNEL_DISPLAY_NAMES } from '@/lib/channels';
 import { ChannelIcon } from '@/components/ui/Icons';
+import { ListPager } from '@/components/ui';
+import { paginate } from '@/lib/pagination';
 
 interface Props {
   rows: AgentTableRow[];
@@ -16,6 +17,7 @@ interface Props {
 
 export function AgentsTable({ rows, loading, fromDate, toDate }: Props) {
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [exportingId, setExportingId] = useState<number | null>(null);
 
@@ -39,6 +41,11 @@ export function AgentsTable({ rows, loading, fromDate, toDate }: Props) {
       r.agent_name.toLowerCase().includes(search.toLowerCase()) ||
       r.client_name.toLowerCase().includes(search.toLowerCase()),
   );
+  const paged = paginate(filtered, page);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
 
   const toggleExpand = (id: number) => {
     setExpandedId((prev) => (prev === id ? null : id));
@@ -93,7 +100,7 @@ export function AgentsTable({ rows, loading, fromDate, toDate }: Props) {
                 </td>
               </tr>
             )}
-            {filtered.map((row) => {
+            {paged.items.map((row) => {
               const isExpanded = expandedId === row.agent_id;
               return (
                 <>
@@ -152,6 +159,16 @@ export function AgentsTable({ rows, loading, fromDate, toDate }: Props) {
             })}
           </tbody>
         </table>
+      </div>
+      <div className="px-4 py-3 border-t border-purple-500/10">
+        <ListPager
+          page={paged.page}
+          totalPages={paged.totalPages}
+          from={paged.from}
+          to={paged.to}
+          total={paged.total}
+          onPage={setPage}
+        />
       </div>
     </div>
   );

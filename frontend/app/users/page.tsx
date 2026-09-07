@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Button, Card, PlusIcon, UserIcon, EditIcon, TrashIcon, KeyIcon } from '@/components/ui';
+import { useState, useEffect, useMemo } from 'react';
+import { Button, Card, PlusIcon, UserIcon, EditIcon, TrashIcon, KeyIcon, ListPager } from '@/components/ui';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { CreateUserModal, EditUserModal, ResetPasswordModal, AgentAssignmentModal } from '@/components/users/UserModals';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,6 +13,7 @@ import {
   AuthUserResponse, AuthUserWithAgents,
 } from '@/lib/api';
 import { sortActiveRecent, toggleActiveInList } from '@/lib/listOrder';
+import { paginate } from '@/lib/pagination';
 
 type TabType = 'admins' | 'employees';
 
@@ -34,6 +35,9 @@ function UsersPage() {
   const [saForm, setSaForm] = useState({ email: '', password: '', name: '' });
   const [saNewPassword, setSaNewPassword] = useState('');
   const [saLoading, setSaLoading] = useState(false);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [saPage, setSaPage] = useState(1);
 
   useEffect(() => {
     loadData();
@@ -136,6 +140,24 @@ function UsersPage() {
     }
   }
 
+  useEffect(() => {
+    setPage(1);
+  }, [search, activeTab]);
+
+  const filteredAdmins = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return admins;
+    return admins.filter((item) => item.name.toLowerCase().includes(query) || item.email.toLowerCase().includes(query));
+  }, [admins, search]);
+  const filteredEmployees = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return employees;
+    return employees.filter((item) => item.name.toLowerCase().includes(query) || item.email.toLowerCase().includes(query));
+  }, [employees, search]);
+  const pagedAdmins = paginate(filteredAdmins, page);
+  const pagedEmployees = paginate(filteredEmployees, page);
+  const pagedSA = paginate(superAdmins, saPage);
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -173,7 +195,7 @@ function UsersPage() {
               </Card>
             ) : (
               <div className="grid gap-3">
-                {superAdmins.map((sa) => (
+                {pagedSA.items.map((sa) => (
                   <Card key={sa.id} padding="none">
                     <div className="p-3 md:p-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-3">
                       <div className="flex items-center gap-3">
@@ -211,6 +233,14 @@ function UsersPage() {
                     </div>
                   </Card>
                 ))}
+                <ListPager
+                  page={pagedSA.page}
+                  totalPages={pagedSA.totalPages}
+                  from={pagedSA.from}
+                  to={pagedSA.to}
+                  total={pagedSA.total}
+                  onPage={setSaPage}
+                />
               </div>
             )}
 
@@ -323,6 +353,15 @@ function UsersPage() {
           </div>
         ) : (
           <div className="space-y-4">
+            {(activeTab === 'admins' ? admins : employees).length > 0 && (
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={activeTab === 'admins' ? 'חיפוש לקוח...' : 'חיפוש עובד...'}
+                className="w-full bg-white/[0.03] border border-purple-500/10 rounded-xl py-2.5 px-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/40 transition"
+              />
+            )}
             {(activeTab === 'admins' ? admins : employees).length === 0 ? (
               <Card className="text-center py-12">
                 <p className="text-slate-400 mb-4">
@@ -333,7 +372,10 @@ function UsersPage() {
                 </Button>
               </Card>
             ) : activeTab === 'admins' ? (
-              admins.map((adminItem) => (
+              <>
+              {pagedAdmins.total === 0 ? (
+                <p className="text-center py-8 text-slate-500 text-sm">לא נמצאו לקוחות עבור החיפוש</p>
+              ) : pagedAdmins.items.map((adminItem) => (
                 <Card key={adminItem.id} hover padding="none">
                   <div className="p-3 md:p-5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                     <div className="flex items-center gap-3 md:gap-4 min-w-0">
@@ -414,9 +456,23 @@ function UsersPage() {
                     </div>
                   </div>
                 </Card>
-              ))
+              ))}
+              {pagedAdmins.total > 0 && (
+                <ListPager
+                  page={pagedAdmins.page}
+                  totalPages={pagedAdmins.totalPages}
+                  from={pagedAdmins.from}
+                  to={pagedAdmins.to}
+                  total={pagedAdmins.total}
+                  onPage={setPage}
+                />
+              )}
+              </>
             ) : (
-              employees.map((empItem) => (
+              <>
+              {pagedEmployees.total === 0 ? (
+                <p className="text-center py-8 text-slate-500 text-sm">לא נמצאו עובדים עבור החיפוש</p>
+              ) : pagedEmployees.items.map((empItem) => (
                 <Card key={empItem.id} hover padding="none">
                   <div className="p-3 md:p-5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                     <div className="flex items-center gap-3 md:gap-4 min-w-0">
@@ -490,7 +546,18 @@ function UsersPage() {
                     </div>
                   </div>
                 </Card>
-              ))
+              ))}
+              {pagedEmployees.total > 0 && (
+                <ListPager
+                  page={pagedEmployees.page}
+                  totalPages={pagedEmployees.totalPages}
+                  from={pagedEmployees.from}
+                  to={pagedEmployees.to}
+                  total={pagedEmployees.total}
+                  onPage={setPage}
+                />
+              )}
+              </>
             )}
           </div>
         )}
