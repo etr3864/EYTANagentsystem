@@ -64,7 +64,7 @@ export const ModelSelect = forwardRef<HTMLSelectElement, ModelSelectProps>(
                       value={model.key}
                       className="bg-slate-800 text-white"
                     >
-                      {model.label} · {formatModelPrice(model)} — {model.description}
+                      {model.label} — {model.description} · {formatModelPrice(model)}
                     </option>
                   ))}
                 </optgroup>

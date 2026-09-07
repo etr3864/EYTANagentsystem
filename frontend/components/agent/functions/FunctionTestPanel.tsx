@@ -59,7 +59,7 @@ function ResultView({ result }: { result: FunctionTestResult }) {
       {result.request && (
         <div>
           <p className="text-slate-400 mb-1">בקשה</p>
-          <pre className="text-xs text-slate-300 overflow-auto max-h-32 whitespace-pre-wrap">
+          <pre className="text-xs text-slate-300 overflow-auto max-h-32 whitespace-pre-wrap text-left" dir="ltr">
             {result.request.method} {result.request.url}
             {result.request.body ? `\n${result.request.body}` : ''}
           </pre>
@@ -86,7 +86,7 @@ function JsonTree({ data }: { data: unknown }) {
     ? data.map((v, i) => [String(i), v] as const)
     : Object.entries(data as Record<string, unknown>);
   return (
-    <div className="text-xs text-slate-300 space-y-0.5 max-h-64 overflow-auto pr-1">
+    <div className="text-xs text-slate-300 space-y-0.5 max-h-64 overflow-auto pr-1 text-left" dir="ltr">
       {entries.slice(0, 80).map(([key, value]) => (
         <div key={key} className="flex gap-2">
           <span className="text-slate-500 shrink-0">{key}</span>

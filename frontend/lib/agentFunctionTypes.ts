@@ -21,6 +21,12 @@ export interface AgentFunctionOutput {
   scope: 'conversation' | 'user';
 }
 
+export const EVENT_TYPE_OPTIONS = [
+  { value: 'appointment.created', label: 'פגישה נקבעה' },
+  { value: 'appointment.updated', label: 'פגישה עודכנה' },
+  { value: 'appointment.cancelled', label: 'פגישה בוטלה' },
+] as const;
+
 export interface AgentFunction {
   id: number;
   agent_id: number;

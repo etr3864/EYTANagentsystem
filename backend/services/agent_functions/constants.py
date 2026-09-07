@@ -16,6 +16,14 @@ PARAM_SOURCES = frozenset({
     "conversation.summary",
 })
 OUTPUT_SCOPES = frozenset({"conversation", "user"})
+EVENT_TYPES = frozenset({
+    "appointment.created",
+    "appointment.updated",
+    "appointment.cancelled",
+})
+EVENT_TYPE_ALIASES = {
+    "appointment.booked": "appointment.created",
+}
 TURN_BUDGET_SECONDS = 20
 IN_FLIGHT_STALE_SECONDS = 45
 BREAKER_FAILURE_THRESHOLD = 5

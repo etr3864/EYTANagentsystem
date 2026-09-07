@@ -184,7 +184,8 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
           <div className="mt-4 space-y-3">
             <p className="text-sm text-slate-400">ערכי בדיקה (JSON) — למשל {`{"phone":"97250..."}`}</p>
             <textarea
-              className="w-full bg-white/[0.04] border border-purple-500/10 rounded-lg p-2 text-sm text-white font-mono"
+              className="w-full bg-white/[0.04] border border-purple-500/10 rounded-lg p-2 text-sm text-white font-mono text-left"
+              dir="ltr"
               rows={3}
               value={sampleValues}
               onChange={(e) => setSampleValues(e.target.value)}

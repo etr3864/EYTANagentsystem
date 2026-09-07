@@ -1,17 +1,20 @@
 'use client';
 
+import { useState } from 'react';
 import { Button } from '@/components/ui';
 import { Input, Select, Textarea } from '@/components/ui/Input';
 import type { AgentFunctionParam, AgentFunctionOutput, FunctionUpsert, ParamSource } from '@/lib/agentFunctionTypes';
+import { EVENT_TYPE_OPTIONS } from '@/lib/agentFunctionTypes';
 import { prettyJsonPreservingVars } from '@/lib/agentFunctions';
 
+const LTR = 'text-left font-mono text-sm';
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 const SOURCES: { id: ParamSource; label: string }[] = [
-  { id: 'ask', label: 'מהלקוח' },
-  { id: 'user.phone', label: 'טלפון משתמש' },
-  { id: 'user.name', label: 'שם משתמש' },
-  { id: 'saved', label: 'שמור מפונקציה' },
-  { id: 'event', label: 'מאירוע' },
+  { id: 'ask', label: 'לשאול את הלקוח' },
+  { id: 'user.phone', label: 'טלפון הלקוח' },
+  { id: 'user.name', label: 'שם הלקוח' },
+  { id: 'saved', label: 'ערך שנשמר מפונקציה' },
+  { id: 'event', label: 'מהאירוע' },
   { id: 'conversation.summary', label: 'סיכום שיחה' },
 ];
 
@@ -25,66 +28,141 @@ export function FunctionEditor({
   error: string | null;
 }) {
   const hasBody = ['POST', 'PUT', 'PATCH'].includes(value.method);
+  const [jsonError, setJsonError] = useState<string | null>(null);
   const set = (patch: Partial<FunctionUpsert>) => onChange({ ...value, ...patch });
 
   const formatBody = () => {
     if (!value.body_template) return;
     try {
       set({ body_template: prettyJsonPreservingVars(value.body_template) });
+      setJsonError(null);
     } catch {
-      set({ body_template: value.body_template });
+      setJsonError('JSON לא תקין — תקן ואז לחץ שוב');
     }
   };
 
+  const eventOptions = [
+    { value: '', label: 'בחר אירוע' },
+    ...EVENT_TYPE_OPTIONS.map((item) => ({ value: item.value, label: `${item.label} (${item.value})` })),
+  ];
+  if (value.event_type && !EVENT_TYPE_OPTIONS.some((item) => item.value === value.event_type)) {
+    eventOptions.push({ value: value.event_type, label: value.event_type });
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5 min-w-0">
       {error && <p className="text-sm text-red-400">{error}</p>}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Input label="שם באנגלית" value={value.name} onChange={(e) => set({ name: e.target.value })} />
+        <Input
+          label="שם הפונקציה (אנגלית)"
+          value={value.name}
+          onChange={(e) => set({ name: e.target.value })}
+          dir="ltr"
+          className={LTR}
+          hint="למשל create_lead"
+        />
         <Select
-          label="שיטה"
+          label="שיטת HTTP"
           value={value.method}
           onChange={(e) => set({ method: e.target.value })}
           options={METHODS.map((m) => ({ value: m, label: m }))}
+          dir="ltr"
         />
         <Select
-          label="סוג"
+          label="סוג פעולה"
           value={value.side_effect}
           onChange={(e) => set({ side_effect: e.target.value as 'read' | 'write' })}
           options={[
-            { value: 'read', label: 'קריאה' },
-            { value: 'write', label: 'כתיבה' },
+            { value: 'read', label: 'קריאה — לא משנה כלום אצל הלקוח' },
+            { value: 'write', label: 'כתיבה — יוצר/מעדכן משהו' },
           ]}
         />
         <Select
-          label="טריגר"
+          label="מתי זה רץ"
           value={value.trigger}
-          onChange={(e) => set({ trigger: e.target.value as 'conversation' | 'event' })}
+          onChange={(e) => {
+            const trigger = e.target.value as 'conversation' | 'event';
+            set({
+              trigger,
+              event_type: trigger === 'event' ? (value.event_type || 'appointment.created') : null,
+            });
+          }}
           options={[
-            { value: 'conversation', label: 'בשיחה' },
-            { value: 'event', label: 'אחרי אירוע' },
+            { value: 'conversation', label: 'בשיחה — הבוט קורא כשצריך' },
+            { value: 'event', label: 'אחרי אירוע במערכת' },
           ]}
         />
       </div>
+
       {value.trigger === 'event' && (
-        <Input label="סוג אירוע" value={value.event_type || ''} onChange={(e) => set({ event_type: e.target.value || null })} placeholder="appointment.booked" />
+        <Select
+          label="איזה אירוע"
+          value={value.event_type || ''}
+          onChange={(e) => set({ event_type: e.target.value || null })}
+          options={eventOptions}
+          hint="האירועים האלה קורים ביומן. ההרצה האוטומטית אחרי אירוע עדיין לא מחוברת — בשיחה הפונקציה כן רצה."
+        />
       )}
-      <Textarea label="מתי להשתמש" value={value.when_to_use} onChange={(e) => set({ when_to_use: e.target.value })} rows={3} />
-      <Textarea label="מתי לא להשתמש" value={value.when_not_to_use} onChange={(e) => set({ when_not_to_use: e.target.value })} rows={2} />
-      <Input label="כתובת HTTPS" value={value.url} onChange={(e) => set({ url: e.target.value })} />
+
+      <Textarea
+        label="מתי להשתמש"
+        value={value.when_to_use}
+        onChange={(e) => set({ when_to_use: e.target.value })}
+        rows={3}
+        hint="הבוט קורא את זה כדי לדעת מתי לקרוא לפונקציה"
+      />
+      <Textarea
+        label="מתי לא להשתמש"
+        value={value.when_not_to_use}
+        onChange={(e) => set({ when_not_to_use: e.target.value })}
+        rows={2}
+      />
+      <Input
+        label="כתובת HTTPS"
+        value={value.url}
+        onChange={(e) => set({ url: e.target.value })}
+        dir="ltr"
+        className={LTR}
+        placeholder="https://example.com/api/leads"
+      />
+
       <ParamsEditor params={value.params} onChange={(params) => set({ params })} />
       <HeadersEditor headers={value.headers} onChange={(headers) => set({ headers })} />
+
       {hasBody && (
-        <div>
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-sm text-slate-300">Body JSON</span>
-            <button type="button" className="text-xs text-purple-300" onClick={formatBody}>סדר JSON</button>
+        <div className="space-y-2 rounded-lg border border-purple-500/10 p-3">
+          <div>
+            <p className="text-sm font-medium text-white">גוף הבקשה (JSON)</p>
+            <p className="text-xs text-slate-500 mt-1">
+              אפשר להכניס פרמטר עם {'{{name}}'}. לדוגמה {'{ "phone": "{{phone}}" }'}
+            </p>
           </div>
-          <Textarea value={value.body_template || '{}'} onChange={(e) => set({ body_template: e.target.value })} rows={6} className="font-mono text-sm" />
+          <Textarea
+            value={value.body_template || '{}'}
+            onChange={(e) => {
+              setJsonError(null);
+              set({ body_template: e.target.value });
+            }}
+            rows={8}
+            dir="ltr"
+            className={`${LTR} min-h-[160px]`}
+          />
+          <Button type="button" variant="secondary" size="sm" onClick={formatBody}>
+            סדר JSON
+          </Button>
+          {jsonError && <p className="text-sm text-red-400">{jsonError}</p>}
         </div>
       )}
+
       <OutputsEditor outputs={value.outputs} onChange={(outputs) => set({ outputs })} />
-      <Textarea label="איך להציג ללקוח" value={value.response_instructions} onChange={(e) => set({ response_instructions: e.target.value })} rows={2} />
+      <Textarea
+        label="איך להציג ללקוח"
+        value={value.response_instructions}
+        onChange={(e) => set({ response_instructions: e.target.value })}
+        rows={2}
+        hint="מה הבוט אומר אחרי שהקריאה הצליחה"
+      />
     </div>
   );
 }
@@ -100,31 +178,70 @@ function ParamsEditor({
   const update = (index: number, patch: Partial<AgentFunctionParam>) => {
     onChange(params.map((item, i) => (i === index ? { ...item, ...patch } : item)));
   };
+
   return (
-    <div className="space-y-2">
-      <div className="flex justify-between">
-        <span className="text-sm text-slate-300">פרמטרים</span>
-        <button type="button" className="text-xs text-purple-300" onClick={add}>+ הוסף</button>
+    <div className="space-y-3 rounded-lg border border-purple-500/10 p-3">
+      <div>
+        <p className="text-sm font-medium text-white">פרמטרים</p>
+        <p className="text-xs text-slate-500 mt-1">
+          ערכים שנכנסים לכתובת או ל-JSON. &quot;לשאול את הלקוח&quot; = הבוט שואל ומעביר.
+        </p>
       </div>
+      {params.length === 0 && (
+        <p className="text-xs text-slate-500">אין פרמטרים עדיין.</p>
+      )}
       {params.map((param, index) => (
-        <div key={index} className="grid grid-cols-2 sm:grid-cols-6 gap-2 items-end">
-          <Input placeholder="name" value={param.name} onChange={(e) => update(index, { name: e.target.value })} />
-          <Select
-            value={param.source}
-            onChange={(e) => update(index, { source: e.target.value as ParamSource })}
-            options={SOURCES.map((s) => ({ value: s.id, label: s.label }))}
-          />
+        <div key={index} className="rounded-lg bg-white/[0.03] border border-purple-500/10 p-3 space-y-3 min-w-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="שם באנגלית"
+              placeholder="phone"
+              value={param.name}
+              onChange={(e) => update(index, { name: e.target.value })}
+              dir="ltr"
+              className={LTR}
+            />
+            <Select
+              label="מאיפה הערך"
+              value={param.source}
+              onChange={(e) => update(index, { source: e.target.value as ParamSource })}
+              options={SOURCES.map((s) => ({ value: s.id, label: s.label }))}
+            />
+          </div>
           {param.source === 'saved' && (
-            <Input placeholder="crm_id" value={param.source_key || ''} onChange={(e) => update(index, { source_key: e.target.value })} />
+            <Input
+              label="שם הערך השמור"
+              placeholder="crm_id"
+              value={param.source_key || ''}
+              onChange={(e) => update(index, { source_key: e.target.value })}
+              dir="ltr"
+              className={LTR}
+            />
           )}
-          <Input placeholder="תיאור לבוט" value={param.description} onChange={(e) => update(index, { description: e.target.value })} />
-          <label className="text-xs text-slate-400 flex items-center gap-1">
-            <input type="checkbox" checked={param.required} onChange={(e) => update(index, { required: e.target.checked })} />
-            חובה
-          </label>
-          <Button variant="ghost" size="sm" onClick={() => onChange(params.filter((_, i) => i !== index))}>הסר</Button>
+          <Input
+            label="תיאור לבוט"
+            placeholder="מספר הטלפון של הלקוח"
+            value={param.description}
+            onChange={(e) => update(index, { description: e.target.value })}
+          />
+          <div className="flex items-center justify-between gap-3">
+            <label className="text-sm text-slate-300 flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={param.required}
+                onChange={(e) => update(index, { required: e.target.checked })}
+              />
+              חובה
+            </label>
+            <Button variant="ghost" size="sm" type="button" onClick={() => onChange(params.filter((_, i) => i !== index))}>
+              הסר
+            </Button>
+          </div>
         </div>
       ))}
+      <Button type="button" variant="secondary" size="sm" onClick={add}>
+        + הוסף פרמטר
+      </Button>
     </div>
   );
 }
@@ -137,25 +254,70 @@ function HeadersEditor({
   onChange: (headers: Record<string, string>) => void;
 }) {
   const rows = Object.entries(headers);
+  const nextKey = () => {
+    if (!('Authorization' in headers)) return 'Authorization';
+    let n = 1;
+    while (`X-Header-${n}` in headers) n += 1;
+    return `X-Header-${n}`;
+  };
   const setRow = (index: number, key: string, value: string) => {
-    const next = { ...headers };
-    const oldKey = rows[index]?.[0];
-    if (oldKey) delete next[oldKey];
-    if (key) next[key] = value;
+    const next: Record<string, string> = {};
+    rows.forEach(([existingKey, existingValue], i) => {
+      if (i === index) {
+        if (key) next[key] = value;
+        return;
+      }
+      next[existingKey] = existingValue;
+    });
     onChange(next);
   };
+
   return (
-    <div className="space-y-2">
-      <div className="flex justify-between">
-        <span className="text-sm text-slate-300">Headers / טוקן</span>
-        <button type="button" className="text-xs text-purple-300" onClick={() => onChange({ ...headers, Authorization: headers.Authorization || '' })}>+ הוסף</button>
+    <div className="space-y-3 rounded-lg border border-purple-500/10 p-3">
+      <div>
+        <p className="text-sm font-medium text-white">Headers / טוקן</p>
+        <p className="text-xs text-slate-500 mt-1">אפשר כמה שורות. Authorization לטוקן, ואחר כך כל header נוסף.</p>
       </div>
+      {rows.length === 0 && (
+        <p className="text-xs text-slate-500">אין headers עדיין.</p>
+      )}
       {rows.map(([key, value], index) => (
-        <div key={`${key}-${index}`} className="grid grid-cols-2 gap-2">
-          <Input placeholder="Key" value={key} onChange={(e) => setRow(index, e.target.value, value)} />
-          <Input placeholder="Bearer …" value={value} onChange={(e) => setRow(index, key, e.target.value)} />
+        <div key={`${key}-${index}`} className="space-y-2 rounded-lg bg-white/[0.03] border border-purple-500/10 p-3">
+          <Input
+            label="שם ה-header"
+            placeholder="Authorization"
+            value={key}
+            onChange={(e) => setRow(index, e.target.value, value)}
+            dir="ltr"
+            className={LTR}
+          />
+          <Input
+            label="ערך"
+            placeholder="Bearer …"
+            value={value}
+            onChange={(e) => setRow(index, key, e.target.value)}
+            dir="ltr"
+            className={LTR}
+          />
+          <div className="flex justify-start">
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              onClick={() => {
+                const next = { ...headers };
+                delete next[key];
+                onChange(next);
+              }}
+            >
+              הסר
+            </Button>
+          </div>
         </div>
       ))}
+      <Button type="button" variant="secondary" size="sm" onClick={() => onChange({ ...headers, [nextKey()]: '' })}>
+        + הוסף header
+      </Button>
     </div>
   );
 }
@@ -167,27 +329,58 @@ function OutputsEditor({
   outputs: AgentFunctionOutput[];
   onChange: (outputs: AgentFunctionOutput[]) => void;
 }) {
-  const add = () => onChange([...outputs, { json_path: 'id', save_as: '', scope: 'user' }]);
+  const add = () => onChange([...outputs, { json_path: '', save_as: '', scope: 'user' }]);
+  const update = (index: number, patch: Partial<AgentFunctionOutput>) => {
+    onChange(outputs.map((item, i) => (i === index ? { ...item, ...patch } : item)));
+  };
+
   return (
-    <div className="space-y-2">
-      <div className="flex justify-between">
-        <span className="text-sm text-slate-300">פלטים לשמירה</span>
-        <button type="button" className="text-xs text-purple-300" onClick={add}>+ הוסף</button>
+    <div className="space-y-3 rounded-lg border border-purple-500/10 p-3">
+      <div>
+        <p className="text-sm font-medium text-white">שמירת תשובה מה-API</p>
+        <p className="text-xs text-slate-500 mt-1">
+          אם ה-API מחזיר למשל {`{ "id": "123" }`} אפשר לשמור את id בשם crm_id, ואז פונקציה אחרת תשתמש בו דרך &quot;ערך שנשמר מפונקציה&quot;. לא חובה.
+        </p>
       </div>
+      {outputs.length === 0 && (
+        <p className="text-xs text-slate-500">לא שומרים כלום מהתשובה.</p>
+      )}
       {outputs.map((item, index) => (
-        <div key={index} className="grid grid-cols-3 gap-2">
-          <Input placeholder="json path" value={item.json_path} onChange={(e) => onChange(outputs.map((o, i) => i === index ? { ...o, json_path: e.target.value } : o))} />
-          <Input placeholder="save as" value={item.save_as} onChange={(e) => onChange(outputs.map((o, i) => i === index ? { ...o, save_as: e.target.value } : o))} />
+        <div key={index} className="space-y-3 rounded-lg bg-white/[0.03] border border-purple-500/10 p-3">
+          <Input
+            label="שדה ב-JSON של התשובה"
+            placeholder="id או data.crm_id"
+            value={item.json_path}
+            onChange={(e) => update(index, { json_path: e.target.value })}
+            dir="ltr"
+            className={LTR}
+            hint="בלי $. בהתחלה. נקודה לירידה פנימה."
+          />
+          <Input
+            label="לשמור בשם"
+            placeholder="crm_id"
+            value={item.save_as}
+            onChange={(e) => update(index, { save_as: e.target.value })}
+            dir="ltr"
+            className={LTR}
+          />
           <Select
+            label="לשמור אצל"
             value={item.scope}
-            onChange={(e) => onChange(outputs.map((o, i) => i === index ? { ...o, scope: e.target.value as 'user' | 'conversation' } : o))}
+            onChange={(e) => update(index, { scope: e.target.value as 'user' | 'conversation' })}
             options={[
-              { value: 'user', label: 'לקוח' },
-              { value: 'conversation', label: 'שיחה' },
+              { value: 'user', label: 'הלקוח — זמין בכל השיחות איתו' },
+              { value: 'conversation', label: 'השיחה הזו בלבד' },
             ]}
           />
+          <Button variant="ghost" size="sm" type="button" onClick={() => onChange(outputs.filter((_, i) => i !== index))}>
+            הסר
+          </Button>
         </div>
       ))}
+      <Button type="button" variant="secondary" size="sm" onClick={add}>
+        + הוסף שמירה
+      </Button>
     </div>
   );
 }

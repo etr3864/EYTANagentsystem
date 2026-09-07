@@ -43,7 +43,7 @@ def _apply(row: AgentFunction, data: FunctionUpsert, headers_provided: bool) -> 
     row.response_instructions = data.response_instructions.strip()
     row.side_effect = data.side_effect
     row.trigger = data.trigger
-    row.event_type = data.event_type
+    row.event_type = data.event_type if data.trigger == "event" else None
     row.method = data.method
     row.url = data.url.strip()
     row.allowed_host = host_from_url(row.url)

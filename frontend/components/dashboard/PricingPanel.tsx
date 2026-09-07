@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { getPricingConfig, updatePricingConfig } from '@/lib/api';
-import { ALL_MODELS, MODEL_PROVIDERS } from '@/lib/models';
+import { ALL_MODELS, MODEL_PROVIDERS, formatUsdPerMillion } from '@/lib/models';
 
 export function PricingPanel() {
   const [open, setOpen] = useState(false);
@@ -69,7 +69,7 @@ export function PricingPanel() {
                       <div key={key} className="grid grid-cols-3 gap-3 items-center">
                         <span className="text-sm text-slate-300 col-span-1">
                           {label}
-                          <span className="block text-[11px] text-slate-500">${inputPrice} / ${outputPrice} ל־1M</span>
+                          <span className="block text-[11px] text-slate-500">{formatUsdPerMillion(inputPrice, outputPrice)}</span>
                         </span>
                         <label className="flex flex-col gap-1">
                           <span className="text-xs text-slate-400">Input $/1M</span>

@@ -16,8 +16,6 @@ ALIASES = {
     "gemini-2.5-pro": "gemini-3.8-flash",
     "gemini-2.0-flash": "gemini-3.8-flash",
     "gemini-3.5-flash": "gemini-3.8-flash",
-    "gemini-3.6-flash": "gemini-3.8-flash",
-    "gemini-3.7-flash": "gemini-3.8-flash",
 }
 
 # thinking: none | adaptive | budget | gemini
@@ -51,6 +49,16 @@ CATALOG: dict[str, dict] = {
         "thinking": "none",
         "options": (),
         "default": "off",
+    },
+    "gemini-3.6-flash": {
+        "thinking": "gemini",
+        "options": ("minimal", "low", "medium", "high"),
+        "default": "low",
+    },
+    "gemini-3.7-flash": {
+        "thinking": "gemini",
+        "options": ("low", "medium", "high"),
+        "default": "low",
     },
     "gemini-3.8-flash": {
         "thinking": "gemini",

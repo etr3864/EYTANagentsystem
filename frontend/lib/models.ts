@@ -30,8 +30,6 @@ export const MODEL_ALIASES: Record<string, string> = {
   'gemini-2.5-pro': 'gemini-3.8-flash',
   'gemini-2.0-flash': 'gemini-3.8-flash',
   'gemini-3.5-flash': 'gemini-3.8-flash',
-  'gemini-3.6-flash': 'gemini-3.8-flash',
-  'gemini-3.7-flash': 'gemini-3.8-flash',
 };
 
 export const THINKING_LABELS: Record<string, string> = {
@@ -49,7 +47,9 @@ export const ALL_MODELS: ModelDef[] = [
   { key: 'claude-opus-5', label: 'Claude Opus 5', description: 'הכי חזק — יקר', provider: 'Anthropic', inputPrice: 5, outputPrice: 25, thinkingOptions: ['off', 'low', 'medium', 'high'], defaultThinking: 'off' },
   { key: 'gpt-5.6-luna', label: 'GPT-5.6 Luna', description: 'מהיר וזול (Chat)', provider: 'OpenAI', inputPrice: 0.2, outputPrice: 1.2, thinkingOptions: [], defaultThinking: 'off' },
   { key: 'gpt-5.6-terra', label: 'GPT-5.6 Terra', description: 'מאוזן, לכלים', provider: 'OpenAI', inputPrice: 2, outputPrice: 12, thinkingOptions: [], defaultThinking: 'off' },
-  { key: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash', description: 'מומלץ לסוכנים — מחיר השקה', provider: 'Google', inputPrice: 0.75, outputPrice: 3.75, thinkingOptions: ['low', 'medium', 'high'], defaultThinking: 'low' },
+  { key: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash', description: 'הכי חדש — מחיר השקה', provider: 'Google', inputPrice: 0.75, outputPrice: 3.75, thinkingOptions: ['low', 'medium', 'high'], defaultThinking: 'low' },
+  { key: 'gemini-3.7-flash', label: 'Gemini 3.7 Flash', description: 'יציב, סוכנים וכלים', provider: 'Google', inputPrice: 0.75, outputPrice: 3.75, thinkingOptions: ['low', 'medium', 'high'], defaultThinking: 'low' },
+  { key: 'gemini-3.6-flash', label: 'Gemini 3.6 Flash', description: 'תומך גם בחשיבה מינימלית', provider: 'Google', inputPrice: 0.75, outputPrice: 3.75, thinkingOptions: ['minimal', 'low', 'medium', 'high'], defaultThinking: 'low' },
 ];
 
 export function resolveModel(key: string | undefined | null): string {
@@ -62,6 +62,14 @@ export function getModel(key: string | undefined | null): ModelDef {
   return ALL_MODELS.find((m) => m.key === resolved) ?? ALL_MODELS[0];
 }
 
+function usd(amount: number): string {
+  return `\u2066$${amount}\u2069`;
+}
+
+export function formatUsdPerMillion(inputPrice: number, outputPrice: number): string {
+  return `קלט ${usd(inputPrice)} / פלט ${usd(outputPrice)} לכל מיליון`;
+}
+
 export function formatModelPrice(m: ModelDef): string {
-  return `$${m.inputPrice} / $${m.outputPrice} ל־1M`;
+  return formatUsdPerMillion(m.inputPrice, m.outputPrice);
 }

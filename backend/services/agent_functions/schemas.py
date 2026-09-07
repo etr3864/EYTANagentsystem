@@ -1,9 +1,11 @@
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from backend.services.agent_functions.constants import (
     ALLOWED_METHODS,
+    EVENT_TYPE_ALIASES,
+    EVENT_TYPES,
     OUTPUT_SCOPES,
     PARAM_SOURCES,
     SIDE_EFFECTS,
@@ -79,6 +81,16 @@ class FunctionUpsert(BaseModel):
             raise ValueError("trigger לא חוקי")
         return value
 
+    @field_validator("event_type")
+    @classmethod
+    def check_event_type(cls, value: Optional[str]) -> Optional[str]:
+        if not value:
+            return None
+        cleaned = EVENT_TYPE_ALIASES.get(value.strip(), value.strip())
+        if cleaned not in EVENT_TYPES:
+            raise ValueError("סוג אירוע לא נתמך")
+        return cleaned
+
     @field_validator("method")
     @classmethod
     def check_method(cls, value: str) -> str:
@@ -86,6 +98,12 @@ class FunctionUpsert(BaseModel):
         if method not in ALLOWED_METHODS:
             raise ValueError("HTTP method לא נתמך")
         return method
+
+    @model_validator(mode="after")
+    def event_needs_type(self):
+        if self.trigger == "event" and not self.event_type:
+            raise ValueError("בחר סוג אירוע")
+        return self
 
 
 class FunctionPatch(BaseModel):

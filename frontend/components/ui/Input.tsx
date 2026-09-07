@@ -95,11 +95,12 @@ Textarea.displayName = 'Textarea';
 interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   error?: string;
+  hint?: string;
   options: { value: string; label: string }[];
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, error, options, className = '', ...props }, ref) => {
+  ({ label, error, hint, options, className = '', ...props }, ref) => {
     return (
       <div className="space-y-1.5">
         {label && (
@@ -130,6 +131,9 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
         </div>
         {error && (
           <p className="text-sm text-red-400">{error}</p>
+        )}
+        {hint && !error && (
+          <p className="text-xs text-slate-500">{hint}</p>
         )}
       </div>
     );
