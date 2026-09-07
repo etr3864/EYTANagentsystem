@@ -34,7 +34,7 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
   const [busy, setBusy] = useState(false);
   const [page, setPage] = useState(1);
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (): Promise<AgentFunction[]> => {
     setLoading(true);
     try {
       const [fns, pending] = await Promise.all([
@@ -44,8 +44,10 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
       setItems(fns);
       setAttention(pending);
       setError(null);
+      return fns;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'שגיאה בטעינה');
+      return [];
     } finally {
       setLoading(false);
     }
@@ -82,20 +84,32 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
     setSaveError(null);
   };
 
+  const persist = async (): Promise<AgentFunction | null> => {
+    const payload = { ...draft, body_template: ['POST', 'PUT', 'PATCH'].includes(draft.method) ? draft.body_template : null };
+    if (creating) {
+      const created = await createAgentFunction(agentId, payload);
+      setEditing(created);
+      setCreating(false);
+      setDraft(toUpsert(created));
+      return created;
+    }
+    if (editing) {
+      const updated = await updateAgentFunction(agentId, editing.id, payload);
+      setEditing(updated);
+      setDraft(toUpsert(updated));
+      return updated;
+    }
+    return null;
+  };
+
   const save = async (): Promise<boolean> => {
     setBusy(true);
     setSaveError(null);
     try {
-      const payload = { ...draft, body_template: ['POST', 'PUT', 'PATCH'].includes(draft.method) ? draft.body_template : null };
-      if (creating) {
-        const created = await createAgentFunction(agentId, payload);
-        setEditing(created);
-        setCreating(false);
-        setDraft(toUpsert(created));
-      } else if (editing) {
-        const updated = await updateAgentFunction(agentId, editing.id, payload);
-        setEditing(updated);
-        setDraft(toUpsert(updated));
+      const row = await persist();
+      if (!row) {
+        setSaveError('אין מה לשמור');
+        return false;
       }
       await reload();
       return true;
@@ -118,10 +132,15 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
 
   const toggle = async (item: AgentFunction) => {
     try {
-      await patchAgentFunction(agentId, item.id, { enabled: !item.enabled });
+      const updated = await patchAgentFunction(agentId, item.id, { enabled: !item.enabled });
       await reload();
+      if (editing?.id === item.id) {
+        setEditing(updated);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'לא ניתן להפעיל');
+      const message = err instanceof Error ? err.message : 'לא ניתן להפעיל';
+      setSaveError(message);
+      setError(message);
     }
   };
 
@@ -133,10 +152,6 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
   };
 
   const runTest = async (live: boolean) => {
-    if (!editing) {
-      setSaveError('שמור קודם ואז בדוק');
-      return;
-    }
     let values: Record<string, string> = {};
     try {
       values = JSON.parse(sampleValues || '{}');
@@ -147,11 +162,19 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
     setBusy(true);
     setSaveError(null);
     try {
-      const ok = await save();
-      if (!ok) return;
-      const result = await testAgentFunction(agentId, editing.id, live, values);
+      const saved = await persist();
+      if (!saved) {
+        setSaveError('שמור קודם ואז בדוק');
+        return;
+      }
+      const result = await testAgentFunction(agentId, saved.id, live, values);
       setTestResult(result);
-      await reload();
+      const fns = await reload();
+      const fresh = fns.find((item) => item.id === saved.id);
+      if (fresh) setEditing(fresh);
+      if (!result.ok) {
+        setSaveError(result.error?.message_for_model || 'הבדיקה נכשלה — הפונקציה לא תופעל בשיחה');
+      }
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'הבדיקה נכשלה');
     } finally {
@@ -182,14 +205,15 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
         {paged.items.map((item) => (
           <Card key={item.id}>
             <div className="flex items-center justify-between gap-3">
-              <button type="button" className="text-right flex-1" onClick={() => openEdit(item)}>
+              <button type="button" className="text-right flex-1 min-w-0" onClick={() => openEdit(item)}>
                 <CardHeader>{item.name}</CardHeader>
                 <p className="text-xs text-slate-400">{item.method} {item.allowed_host} · {item.trigger}</p>
               </button>
-              <label className="text-xs text-slate-400 flex items-center gap-2">
-                <input type="checkbox" checked={item.enabled} disabled={!item.can_enable && !item.enabled} onChange={() => toggle(item)} />
-                פעיל
-              </label>
+              <EnableSwitch
+                enabled={item.enabled}
+                canEnable={item.can_enable}
+                onToggle={() => toggle(item)}
+              />
               <Button variant="secondary" size="sm" onClick={() => remove(item)}>מחק</Button>
             </div>
           </Card>
@@ -207,19 +231,30 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
       </div>
       {showEditor && (
         <Card>
-          <CardHeader>{creating ? 'פונקציה חדשה' : editing?.name}</CardHeader>
-          <FunctionEditor
-            key={editing?.id ?? 'new'}
-            value={draft}
-            onChange={(next) => {
-              setDraft(next);
-              if (saveError) setSaveError(null);
-            }}
-            error={null}
-          />
-          <div className="mt-4 space-y-3">
-            <p className="text-sm text-slate-400">
-              ערכי בדיקה לפרמטרים שהבוט היה שואל. JSON באנגלית, למשל {`{"phone":"97250..."}`}. יבש = בלי לשלוח. שלח באמת = ל-API החי.
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <CardHeader>{creating ? 'פונקציה חדשה' : editing?.name}</CardHeader>
+            {editing && (
+              <EnableSwitch
+                enabled={editing.enabled}
+                canEnable={editing.can_enable}
+                onToggle={() => toggle(editing)}
+              />
+            )}
+          </div>
+          {editing && !editing.can_enable && !editing.enabled && (
+            <p className="text-sm text-amber-300 mb-4">
+              {editing.side_effect === 'read' && !editing.test_was_live
+                ? 'GET חייב בדיקה אמיתית מוצלחת לפני הפעלה — יבש לא מספיק.'
+                : 'שמור, בדוק יבש, ואז שלח באמת. בלי טסט מוצלח אי אפשר להדליק.'}
+            </p>
+          )}
+          {editing?.can_enable && !editing.enabled && (
+            <p className="text-sm text-emerald-300 mb-4">הבדיקה עברה. אפשר להדליק את המתג.</p>
+          )}
+          <div className="space-y-3 mb-6 p-3 rounded-lg border border-purple-500/15 bg-white/[0.03]">
+            <p className="text-sm text-slate-300">בדיקה — בלי זה הסוכן לא יריץ את הפונקציה בשיחה</p>
+            <p className="text-xs text-slate-500">
+              ערכי בדיקה לפרמטרים. JSON, למשל {`{"phone":"97250..."}`}. יבש = בלי רשת. שלח באמת = לכתובת למעלה.
             </p>
             <textarea
               className="w-full bg-white/[0.04] border border-purple-500/10 rounded-lg p-2 text-sm text-white font-mono text-left"
@@ -246,8 +281,46 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
               <Button variant="secondary" onClick={close}>סגור</Button>
             </div>
           </div>
+          <FunctionEditor
+            key={editing?.id ?? 'new'}
+            value={draft}
+            onChange={(next) => {
+              setDraft(next);
+              if (saveError) setSaveError(null);
+            }}
+            error={null}
+          />
         </Card>
       )}
+    </div>
+  );
+}
+
+function EnableSwitch({
+  enabled,
+  canEnable,
+  onToggle,
+}: {
+  enabled: boolean;
+  canEnable: boolean;
+  onToggle: () => void;
+}) {
+  const blocked = !enabled && !canEnable;
+  return (
+    <div className={`flex items-center gap-2 shrink-0 ${blocked ? 'opacity-50' : ''}`}>
+      <span className="text-sm text-slate-300">{enabled ? 'פעיל' : 'כבוי'}</span>
+      <button
+        type="button"
+        dir="ltr"
+        disabled={blocked}
+        title={blocked ? 'צריך בדיקה אמיתית מוצלחת לפני הפעלה' : enabled ? 'לחץ לכיבוי' : 'לחץ להפעלה'}
+        onClick={onToggle}
+        className={`w-11 h-6 rounded-full transition-colors relative ${
+          blocked ? 'cursor-not-allowed' : 'cursor-pointer'
+        } ${enabled ? 'bg-emerald-500' : 'bg-slate-600'}`}
+      >
+        <span className={`w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-all ${enabled ? 'left-[22px]' : 'left-0.5'}`} />
+      </button>
     </div>
   );
 }
