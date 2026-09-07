@@ -53,6 +53,10 @@ export function FunctionEditor({
     <div className="space-y-5 min-w-0">
       {error && <p className="text-sm text-red-400">{error}</p>}
 
+      <p className="text-sm text-slate-400">
+        הבוט קורא ל-HTTP חיצוני בשיחה. שמור, בדוק (יבש ואז אמיתי), ורק אז הפעל.
+      </p>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Input
           label="שם הפונקציה (אנגלית)"
@@ -60,7 +64,7 @@ export function FunctionEditor({
           onChange={(e) => set({ name: e.target.value })}
           dir="ltr"
           className={LTR}
-          hint="למשל create_lead"
+          hint="אותיות ומקף תחתון בלבד, בלי רווחים. למשל create_lead"
         />
         <Select
           label="שיטת HTTP"
@@ -68,6 +72,7 @@ export function FunctionEditor({
           onChange={(e) => set({ method: e.target.value })}
           options={METHODS.map((m) => ({ value: m, label: m }))}
           dir="ltr"
+          hint="GET לשליפה. POST/PUT/PATCH ליצירה או עדכון — אז מופיע גוף JSON."
         />
         <Select
           label="סוג פעולה"
@@ -77,6 +82,7 @@ export function FunctionEditor({
             { value: 'read', label: 'קריאה — לא משנה כלום אצל הלקוח' },
             { value: 'write', label: 'כתיבה — יוצר/מעדכן משהו' },
           ]}
+          hint="כתיבה נחסמת אם לא ברור שהצלחנו. קריאה בטוחה יותר לבדיקות."
         />
         <Select
           label="מתי זה רץ"
@@ -92,6 +98,7 @@ export function FunctionEditor({
             { value: 'conversation', label: 'בשיחה — הבוט קורא כשצריך' },
             { value: 'event', label: 'אחרי אירוע במערכת' },
           ]}
+          hint="בשיחה = עובד עכשיו. אחרי אירוע = נשמר להגדרה, עדיין לא רץ אוטומטית."
         />
       </div>
 
@@ -101,7 +108,7 @@ export function FunctionEditor({
           value={value.event_type || ''}
           onChange={(e) => set({ event_type: e.target.value || null })}
           options={eventOptions}
-          hint="האירועים האלה קורים ביומן. ההרצה האוטומטית אחרי אירוע עדיין לא מחוברת — בשיחה הפונקציה כן רצה."
+          hint="רשימה סגורה מהיומן. ההרצה אחרי האירוע עדיין לא מחוברת."
         />
       )}
 
@@ -110,13 +117,14 @@ export function FunctionEditor({
         value={value.when_to_use}
         onChange={(e) => set({ when_to_use: e.target.value })}
         rows={3}
-        hint="הבוט קורא את זה כדי לדעת מתי לקרוא לפונקציה"
+        hint="הנחיה לבוט בשפה טבעית, לא קוד. למשל: כשלקוח רוצה להשאיר פרטים לקראת חזרה."
       />
       <Textarea
         label="מתי לא להשתמש"
         value={value.when_not_to_use}
         onChange={(e) => set({ when_not_to_use: e.target.value })}
         rows={2}
+        hint="אופציונלי. למשל: אל תקרא אם כבר יש ליד פתוח, או אם הלקוח רק שואל מחיר."
       />
       <Input
         label="כתובת HTTPS"
@@ -125,6 +133,7 @@ export function FunctionEditor({
         dir="ltr"
         className={LTR}
         placeholder="https://example.com/api/leads"
+        hint={'רק https. אפשר {{phone}} בנתיב — יוחלף בפרמטר באותו שם.'}
       />
 
       <ParamsEditor params={value.params} onChange={(params) => set({ params })} />
@@ -135,7 +144,7 @@ export function FunctionEditor({
           <div>
             <p className="text-sm font-medium text-white">גוף הבקשה (JSON)</p>
             <p className="text-xs text-slate-500 mt-1">
-              אפשר להכניס פרמטר עם {'{{name}}'}. לדוגמה {'{ "phone": "{{phone}}" }'}
+              JSON שנשלח בגוף. {'{{phone}}'} מוחלף בפרמטר. כפתור «סדר JSON» רק מעצב, לא משנה משמעות.
             </p>
           </div>
           <Textarea
@@ -161,7 +170,7 @@ export function FunctionEditor({
         value={value.response_instructions}
         onChange={(e) => set({ response_instructions: e.target.value })}
         rows={2}
-        hint="מה הבוט אומר אחרי שהקריאה הצליחה"
+        hint="הנחיה לבוט בשפה טבעית אחרי הצלחה — לא משפט שייקריא מילה במילה. למשל: תגיד שהפנייה נקלטה בלי לחשוף JSON."
       />
     </div>
   );
@@ -184,7 +193,7 @@ function ParamsEditor({
       <div>
         <p className="text-sm font-medium text-white">פרמטרים</p>
         <p className="text-xs text-slate-500 mt-1">
-          ערכים שנכנסים לכתובת או ל-JSON. &quot;לשאול את הלקוח&quot; = הבוט שואל ומעביר.
+          ערכים שנכנסים לכתובת או ל-JSON. &quot;לשאול את הלקוח&quot; = הבוט שואל ומעביר. השאר נשלפים לבד.
         </p>
       </div>
       {params.length === 0 && (
@@ -200,12 +209,14 @@ function ParamsEditor({
               onChange={(e) => update(index, { name: e.target.value })}
               dir="ltr"
               className={LTR}
+              hint="זה השם ב-JSON וב-{{phone}}. אותיות באנגלית בלבד."
             />
             <Select
               label="מאיפה הערך"
               value={param.source}
               onChange={(e) => update(index, { source: e.target.value as ParamSource })}
               options={SOURCES.map((s) => ({ value: s.id, label: s.label }))}
+              hint="לשאול = מהשיחה. טלפון/שם = מהכרטיס. שמור = מפונקציה קודמת. סיכום = סיכום השיחה."
             />
           </div>
           {param.source === 'saved' && (
@@ -216,6 +227,7 @@ function ParamsEditor({
               onChange={(e) => update(index, { source_key: e.target.value })}
               dir="ltr"
               className={LTR}
+              hint="השם ששמרת ב«לשמור בשם». אפשר function_name.crm_id אם זה מפונקציה אחרת."
             />
           )}
           <Input
@@ -223,6 +235,7 @@ function ParamsEditor({
             placeholder="מספר הטלפון של הלקוח"
             value={param.description}
             onChange={(e) => update(index, { description: e.target.value })}
+            hint="הבוט רואה את זה כשהוא צריך למלא את הפרמטר. בעברית, משפט קצר."
           />
           <div className="flex items-center justify-between gap-3">
             <label className="text-sm text-slate-300 flex items-center gap-2">
@@ -231,7 +244,7 @@ function ParamsEditor({
                 checked={param.required}
                 onChange={(e) => update(index, { required: e.target.checked })}
               />
-              חובה
+              חובה — בלי הערך הזה הקריאה לא תצא
             </label>
             <Button variant="ghost" size="sm" type="button" onClick={() => onChange(params.filter((_, i) => i !== index))}>
               הסר
@@ -276,7 +289,9 @@ function HeadersEditor({
     <div className="space-y-3 rounded-lg border border-purple-500/10 p-3">
       <div>
         <p className="text-sm font-medium text-white">Headers / טוקן</p>
-        <p className="text-xs text-slate-500 mt-1">אפשר כמה שורות. Authorization לטוקן, ואחר כך כל header נוסף.</p>
+        <p className="text-xs text-slate-500 mt-1">
+          נשלח עם כל בקשה. טוקן ב-Authorization: <span dir="ltr" className="font-mono">Bearer …</span>. הערך מוצפן אחרי שמירה.
+        </p>
       </div>
       {rows.length === 0 && (
         <p className="text-xs text-slate-500">אין headers עדיין.</p>
@@ -290,6 +305,7 @@ function HeadersEditor({
             onChange={(e) => setRow(index, e.target.value, value)}
             dir="ltr"
             className={LTR}
+            hint="שם ה-header כמו ב-HTTP. לא בעברית."
           />
           <Input
             label="ערך"
@@ -298,6 +314,7 @@ function HeadersEditor({
             onChange={(e) => setRow(index, key, e.target.value)}
             dir="ltr"
             className={LTR}
+            hint="הטוקן או הערך המלא. אפשר {{param}} אם זה מגיע מפרמטר."
           />
           <div className="flex justify-start">
             <Button
@@ -354,7 +371,7 @@ function OutputsEditor({
             onChange={(e) => update(index, { json_path: e.target.value })}
             dir="ltr"
             className={LTR}
-            hint="בלי $. בהתחלה. נקודה לירידה פנימה."
+            hint="הנתיב לתשובה. id לשדה בראש, data.id אם זה בתוך אובייקט. בלי $."
           />
           <Input
             label="לשמור בשם"
@@ -363,6 +380,7 @@ function OutputsEditor({
             onChange={(e) => update(index, { save_as: e.target.value })}
             dir="ltr"
             className={LTR}
+            hint="השם שתשתמש בו אחר כך בפרמטר «ערך שנשמר». אותיות באנגלית."
           />
           <Select
             label="לשמור אצל"
@@ -372,6 +390,7 @@ function OutputsEditor({
               { value: 'user', label: 'הלקוח — זמין בכל השיחות איתו' },
               { value: 'conversation', label: 'השיחה הזו בלבד' },
             ]}
+            hint="לקוח = נשאר בכל השיחות איתו. שיחה = נמחק כשמתחיל צ'אט חדש."
           />
           <Button variant="ghost" size="sm" type="button" onClick={() => onChange(outputs.filter((_, i) => i !== index))}>
             הסר

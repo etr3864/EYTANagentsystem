@@ -182,7 +182,9 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
           <CardHeader>{creating ? 'פונקציה חדשה' : editing?.name}</CardHeader>
           <FunctionEditor value={draft} onChange={setDraft} error={null} />
           <div className="mt-4 space-y-3">
-            <p className="text-sm text-slate-400">ערכי בדיקה (JSON) — למשל {`{"phone":"97250..."}`}</p>
+            <p className="text-sm text-slate-400">
+              ערכי בדיקה לפרמטרים שהבוט היה שואל. JSON באנגלית, למשל {`{"phone":"97250..."}`}. יבש = בלי לשלוח. שלח באמת = ל-API החי.
+            </p>
             <textarea
               className="w-full bg-white/[0.04] border border-purple-500/10 rounded-lg p-2 text-sm text-white font-mono text-left"
               dir="ltr"
