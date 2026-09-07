@@ -1,5 +1,5 @@
 import { API_URL, authFetch } from './api';
-import type { AgentFunction, FunctionTestResult, FunctionUpsert } from './agentFunctionTypes';
+import type { AgentFunction, AgentFunctionParam, FunctionTestResult, FunctionUpsert } from './agentFunctionTypes';
 
 const base = (agentId: number) => `${API_URL}/api/agents/${agentId}/functions`;
 
@@ -182,6 +182,52 @@ export async function resolveFunctionAttention(
     body: JSON.stringify({ action }),
   });
   if (!res.ok) throw new Error(await readError(res));
+}
+
+const TEMPLATE_VAR_RE = /\{\{([a-zA-Z][a-zA-Z0-9_]*)\}\}/g;
+
+export function extractTemplateVars(...texts: (string | null | undefined)[]): string[] {
+  const seen = new Set<string>();
+  for (const text of texts) {
+    if (!text) continue;
+    for (const match of text.matchAll(TEMPLATE_VAR_RE)) {
+      seen.add(match[1]);
+    }
+  }
+  return [...seen];
+}
+
+function isParamStub(param: AgentFunctionParam): boolean {
+  return (
+    param.source === 'ask'
+    && !param.description
+    && !param.source_key
+    && param.required !== false
+    && (param.type || 'string') === 'string'
+  );
+}
+
+export function mergeParamsFromVars(
+  params: AgentFunctionParam[],
+  vars: string[],
+): AgentFunctionParam[] {
+  const varSet = new Set(vars);
+  const kept = params.filter((param) => {
+    if (!param.name) return true;
+    if (varSet.has(param.name)) return true;
+    return !isParamStub(param);
+  });
+  const have = new Set(kept.map((param) => param.name).filter(Boolean));
+  const added: AgentFunctionParam[] = vars
+    .filter((name) => !have.has(name))
+    .map((name) => ({
+      name,
+      type: 'string',
+      required: true,
+      description: '',
+      source: 'ask',
+    }));
+  return [...kept, ...added];
 }
 
 export function prettyJsonPreservingVars(raw: string): string {

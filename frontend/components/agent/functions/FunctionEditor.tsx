@@ -5,10 +5,11 @@ import { Button } from '@/components/ui';
 import { Input, Select, Textarea } from '@/components/ui/Input';
 import type { AgentFunctionParam, AgentFunctionOutput, FunctionUpsert, ParamSource } from '@/lib/agentFunctionTypes';
 import { EVENT_TYPE_OPTIONS } from '@/lib/agentFunctionTypes';
-import { prettyJsonPreservingVars } from '@/lib/agentFunctions';
+import { extractTemplateVars, mergeParamsFromVars, prettyJsonPreservingVars } from '@/lib/agentFunctions';
 
 const LTR = 'text-left font-mono text-sm';
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
+const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH']);
 const SOURCES: { id: ParamSource; label: string }[] = [
   { id: 'ask', label: 'לשאול את הלקוח' },
   { id: 'user.phone', label: 'טלפון הלקוח' },
@@ -17,6 +18,37 @@ const SOURCES: { id: ParamSource; label: string }[] = [
   { id: 'event', label: 'מהאירוע' },
   { id: 'conversation.summary', label: 'סיכום שיחה' },
 ];
+
+function sideEffectForMethod(method: string): 'read' | 'write' {
+  return WRITE_METHODS.has(method) ? 'write' : 'read';
+}
+
+function extraHeaders(headers: Record<string, string>): Record<string, string> {
+  const next = { ...headers };
+  delete next.Authorization;
+  return next;
+}
+
+function joinHeaders(token: string, extra: Record<string, string>): Record<string, string> {
+  const next = { ...extra };
+  const trimmed = token.trim();
+  if (trimmed) next.Authorization = trimmed;
+  else delete next.Authorization;
+  return next;
+}
+
+function hasAdvanced(value: FunctionUpsert): boolean {
+  const extras = extraHeaders(value.headers);
+  return Boolean(
+    value.when_not_to_use
+    || value.response_instructions
+    || value.trigger === 'event'
+    || value.outputs.length > 0
+    || Object.keys(extras).length > 0
+    || value.params.some((param) => param.source !== 'ask' || param.description || param.source_key || param.required === false)
+    || value.side_effect !== sideEffectForMethod(value.method),
+  );
+}
 
 export function FunctionEditor({
   value,
@@ -27,9 +59,22 @@ export function FunctionEditor({
   onChange: (next: FunctionUpsert) => void;
   error: string | null;
 }) {
-  const hasBody = ['POST', 'PUT', 'PATCH'].includes(value.method);
+  const hasBody = WRITE_METHODS.has(value.method);
   const [jsonError, setJsonError] = useState<string | null>(null);
-  const set = (patch: Partial<FunctionUpsert>) => onChange({ ...value, ...patch });
+  const templateVars = extractTemplateVars(
+    value.url,
+    hasBody ? value.body_template : null,
+  );
+
+  const set = (patch: Partial<FunctionUpsert>) => {
+    const next = { ...value, ...patch };
+    const nextHasBody = WRITE_METHODS.has(next.method);
+    next.params = mergeParamsFromVars(
+      next.params,
+      extractTemplateVars(next.url, nextHasBody ? next.body_template : null),
+    );
+    onChange(next);
+  };
 
   const formatBody = () => {
     if (!value.body_template) return;
@@ -41,20 +86,15 @@ export function FunctionEditor({
     }
   };
 
-  const eventOptions = [
-    { value: '', label: 'בחר אירוע' },
-    ...EVENT_TYPE_OPTIONS.map((item) => ({ value: item.value, label: `${item.label} (${item.value})` })),
-  ];
-  if (value.event_type && !EVENT_TYPE_OPTIONS.some((item) => item.value === value.event_type)) {
-    eventOptions.push({ value: value.event_type, label: value.event_type });
-  }
+  const paramNames = value.params.map((param) => param.name).filter(Boolean);
+  const token = value.headers.Authorization || '';
 
   return (
     <div className="space-y-5 min-w-0">
       {error && <p className="text-sm text-red-400">{error}</p>}
 
       <p className="text-sm text-slate-400">
-        הבוט קורא ל-HTTP חיצוני בשיחה. שמור, בדוק (יבש ואז אמיתי), ורק אז הפעל.
+        שמור, בדוק יבש ואז אמיתי, ורק אז הפעל.
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -69,48 +109,15 @@ export function FunctionEditor({
         <Select
           label="שיטת HTTP"
           value={value.method}
-          onChange={(e) => set({ method: e.target.value })}
+          onChange={(e) => {
+            const method = e.target.value;
+            set({ method, side_effect: sideEffectForMethod(method) });
+          }}
           options={METHODS.map((m) => ({ value: m, label: m }))}
           dir="ltr"
           hint="GET לשליפה. POST/PUT/PATCH ליצירה או עדכון — אז מופיע גוף JSON."
         />
-        <Select
-          label="סוג פעולה"
-          value={value.side_effect}
-          onChange={(e) => set({ side_effect: e.target.value as 'read' | 'write' })}
-          options={[
-            { value: 'read', label: 'קריאה — לא משנה כלום אצל הלקוח' },
-            { value: 'write', label: 'כתיבה — יוצר/מעדכן משהו' },
-          ]}
-          hint="כתיבה נחסמת אם לא ברור שהצלחנו. קריאה בטוחה יותר לבדיקות."
-        />
-        <Select
-          label="מתי זה רץ"
-          value={value.trigger}
-          onChange={(e) => {
-            const trigger = e.target.value as 'conversation' | 'event';
-            set({
-              trigger,
-              event_type: trigger === 'event' ? (value.event_type || 'appointment.created') : null,
-            });
-          }}
-          options={[
-            { value: 'conversation', label: 'בשיחה — הבוט קורא כשצריך' },
-            { value: 'event', label: 'אחרי אירוע במערכת' },
-          ]}
-          hint="בשיחה = עובד עכשיו. אחרי אירוע = נשמר להגדרה, עדיין לא רץ אוטומטית."
-        />
       </div>
-
-      {value.trigger === 'event' && (
-        <Select
-          label="איזה אירוע"
-          value={value.event_type || ''}
-          onChange={(e) => set({ event_type: e.target.value || null })}
-          options={eventOptions}
-          hint="רשימה סגורה מהיומן. ההרצה אחרי האירוע עדיין לא מחוברת."
-        />
-      )}
 
       <Textarea
         label="מתי להשתמש"
@@ -119,13 +126,6 @@ export function FunctionEditor({
         rows={3}
         hint="הנחיה לבוט בשפה טבעית, לא קוד. למשל: כשלקוח רוצה להשאיר פרטים לקראת חזרה."
       />
-      <Textarea
-        label="מתי לא להשתמש"
-        value={value.when_not_to_use}
-        onChange={(e) => set({ when_not_to_use: e.target.value })}
-        rows={2}
-        hint="אופציונלי. למשל: אל תקרא אם כבר יש ליד פתוח, או אם הלקוח רק שואל מחיר."
-      />
       <Input
         label="כתובת HTTPS"
         value={value.url}
@@ -133,18 +133,26 @@ export function FunctionEditor({
         dir="ltr"
         className={LTR}
         placeholder="https://example.com/api/leads"
-        hint={'רק https. אפשר {{phone}} בנתיב — יוחלף בפרמטר באותו שם.'}
+        hint={'רק https. אפשר {{phone}} בנתיב — נוצר פרמטר אוטומטית.'}
       />
-
-      <ParamsEditor params={value.params} onChange={(params) => set({ params })} />
-      <HeadersEditor headers={value.headers} onChange={(headers) => set({ headers })} />
+      <Input
+        label="טוקן"
+        value={token}
+        onChange={(e) => set({ headers: joinHeaders(e.target.value, extraHeaders(value.headers)) })}
+        dir="ltr"
+        className={LTR}
+        placeholder="Bearer …"
+        hint={token.startsWith('...')
+          ? 'הטוקן שמור. השאר כך כדי לא לדרוס, או הדבק טוקן חדש.'
+          : 'נשלח כ-Authorization. כולל Bearer. מוצפן אחרי שמירה.'}
+      />
 
       {hasBody && (
         <div className="space-y-2 rounded-lg border border-purple-500/10 p-3">
           <div>
             <p className="text-sm font-medium text-white">גוף הבקשה (JSON)</p>
             <p className="text-xs text-slate-500 mt-1">
-              JSON שנשלח בגוף. {'{{phone}}'} מוחלף בפרמטר. כפתור «סדר JSON» רק מעצב, לא משנה משמעות.
+              {'{{phone}}'} בערך הופך לפרמטר. «סדר JSON» רק מעצב.
             </p>
           </div>
           <Textarea
@@ -164,25 +172,114 @@ export function FunctionEditor({
         </div>
       )}
 
-      <OutputsEditor outputs={value.outputs} onChange={(outputs) => set({ outputs })} />
-      <Textarea
-        label="איך להציג ללקוח"
-        value={value.response_instructions}
-        onChange={(e) => set({ response_instructions: e.target.value })}
-        rows={2}
-        hint="הנחיה לבוט בשפה טבעית אחרי הצלחה — לא משפט שייקריא מילה במילה. למשל: תגיד שהפנייה נקלטה בלי לחשוף JSON."
-      />
+      {paramNames.length > 0 && (
+        <p className="text-xs text-slate-500">
+          פרמטרים: {paramNames.join(', ')}. ברירת מחדל — הבוט שואל. מקור אחר במתקדם.
+        </p>
+      )}
+
+      <details className="rounded-lg border border-purple-500/10 p-3" defaultOpen={hasAdvanced(value)}>
+        <summary className="cursor-pointer text-sm font-medium text-white">
+          מתקדם
+        </summary>
+        <p className="text-xs text-slate-500 mt-1 mb-4">
+          מתי לא להשתמש, מקורות פרמטר, שמירת פלט, headers נוספים, טריגר אירוע.
+        </p>
+        <div className="space-y-5">
+          <Select
+            label="סוג פעולה"
+            value={value.side_effect}
+            onChange={(e) => set({ side_effect: e.target.value as 'read' | 'write' })}
+            options={[
+              { value: 'read', label: 'קריאה — לא משנה כלום אצל הלקוח' },
+              { value: 'write', label: 'כתיבה — יוצר/מעדכן משהו' },
+            ]}
+            hint="ברירת מחדל לפי השיטה (GET=קריאה, POST=כתיבה). אפשר לדרוס."
+          />
+          <Select
+            label="מתי זה רץ"
+            value={value.trigger}
+            onChange={(e) => {
+              const trigger = e.target.value as 'conversation' | 'event';
+              set({
+                trigger,
+                event_type: trigger === 'event' ? (value.event_type || 'appointment.created') : null,
+              });
+            }}
+            options={[
+              { value: 'conversation', label: 'בשיחה — הבוט קורא כשצריך' },
+              { value: 'event', label: 'אחרי אירוע במערכת' },
+            ]}
+            hint="בשיחה = עובד עכשיו. אחרי אירוע = נשמר להגדרה, עדיין לא רץ אוטומטית."
+          />
+          {value.trigger === 'event' && (
+            <EventTypeSelect value={value} onChange={set} />
+          )}
+          <Textarea
+            label="מתי לא להשתמש"
+            value={value.when_not_to_use}
+            onChange={(e) => set({ when_not_to_use: e.target.value })}
+            rows={2}
+            hint="אופציונלי. למשל: אל תקרא אם כבר יש ליד פתוח, או אם הלקוח רק שואל מחיר."
+          />
+          <Textarea
+            label="איך להציג ללקוח"
+            value={value.response_instructions}
+            onChange={(e) => set({ response_instructions: e.target.value })}
+            rows={2}
+            hint="הנחיה לבוט בשפה טבעית אחרי הצלחה — לא משפט שייקריא מילה במילה."
+          />
+          <ParamsEditor
+            params={value.params}
+            lockedNames={templateVars}
+            onChange={(params) => set({ params })}
+          />
+          <HeadersEditor
+            headers={extraHeaders(value.headers)}
+            onChange={(extra) => set({ headers: joinHeaders(token, extra) })}
+          />
+          <OutputsEditor outputs={value.outputs} onChange={(outputs) => set({ outputs })} />
+        </div>
+      </details>
     </div>
+  );
+}
+
+function EventTypeSelect({
+  value,
+  onChange,
+}: {
+  value: FunctionUpsert;
+  onChange: (patch: Partial<FunctionUpsert>) => void;
+}) {
+  const eventOptions = [
+    { value: '', label: 'בחר אירוע' },
+    ...EVENT_TYPE_OPTIONS.map((item) => ({ value: item.value, label: `${item.label} (${item.value})` })),
+  ];
+  if (value.event_type && !EVENT_TYPE_OPTIONS.some((item) => item.value === value.event_type)) {
+    eventOptions.push({ value: value.event_type, label: value.event_type });
+  }
+  return (
+    <Select
+      label="איזה אירוע"
+      value={value.event_type || ''}
+      onChange={(e) => onChange({ event_type: e.target.value || null })}
+      options={eventOptions}
+      hint="רשימה סגורה מהיומן. ההרצה אחרי האירוע עדיין לא מחוברת."
+    />
   );
 }
 
 function ParamsEditor({
   params,
+  lockedNames,
   onChange,
 }: {
   params: AgentFunctionParam[];
+  lockedNames: string[];
   onChange: (params: AgentFunctionParam[]) => void;
 }) {
+  const locked = new Set(lockedNames);
   const add = () => onChange([...params, { name: '', type: 'string', required: true, description: '', source: 'ask' }]);
   const update = (index: number, patch: Partial<AgentFunctionParam>) => {
     onChange(params.map((item, i) => (i === index ? { ...item, ...patch } : item)));
@@ -193,7 +290,7 @@ function ParamsEditor({
       <div>
         <p className="text-sm font-medium text-white">פרמטרים</p>
         <p className="text-xs text-slate-500 mt-1">
-          ערכים שנכנסים לכתובת או ל-JSON. &quot;לשאול את הלקוח&quot; = הבוט שואל ומעביר. השאר נשלפים לבד.
+          נוצרים מ-{'{{name}}'} בכתובת או ב-JSON. כאן משנים מקור ותיאור. להסיר מהתבנית — מחק את {'{{name}}'} משם.
         </p>
       </div>
       {params.length === 0 && (
@@ -209,7 +306,10 @@ function ParamsEditor({
               onChange={(e) => update(index, { name: e.target.value })}
               dir="ltr"
               className={LTR}
-              hint="זה השם ב-JSON וב-{{phone}}. אותיות באנגלית בלבד."
+              disabled={locked.has(param.name)}
+              hint={locked.has(param.name)
+                ? 'השם מגיע מ-{{ }} בכתובת או ב-JSON.'
+                : 'זה השם ב-JSON וב-{{phone}}. אותיות באנגלית בלבד.'}
             />
             <Select
               label="מאיפה הערך"
@@ -246,7 +346,14 @@ function ParamsEditor({
               />
               חובה — בלי הערך הזה הקריאה לא תצא
             </label>
-            <Button variant="ghost" size="sm" type="button" onClick={() => onChange(params.filter((_, i) => i !== index))}>
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              disabled={locked.has(param.name)}
+              title={locked.has(param.name) ? 'מחק את המשתנה מהכתובת או מה-JSON קודם' : undefined}
+              onClick={() => onChange(params.filter((_, i) => i !== index))}
+            >
               הסר
             </Button>
           </div>
@@ -268,7 +375,6 @@ function HeadersEditor({
 }) {
   const rows = Object.entries(headers);
   const nextKey = () => {
-    if (!('Authorization' in headers)) return 'Authorization';
     let n = 1;
     while (`X-Header-${n}` in headers) n += 1;
     return `X-Header-${n}`;
@@ -277,7 +383,7 @@ function HeadersEditor({
     const next: Record<string, string> = {};
     rows.forEach(([existingKey, existingValue], i) => {
       if (i === index) {
-        if (key) next[key] = value;
+        if (key && key !== 'Authorization') next[key] = value;
         return;
       }
       next[existingKey] = existingValue;
@@ -288,33 +394,32 @@ function HeadersEditor({
   return (
     <div className="space-y-3 rounded-lg border border-purple-500/10 p-3">
       <div>
-        <p className="text-sm font-medium text-white">Headers / טוקן</p>
+        <p className="text-sm font-medium text-white">Headers נוספים</p>
         <p className="text-xs text-slate-500 mt-1">
-          נשלח עם כל בקשה. טוקן ב-Authorization: <span dir="ltr" className="font-mono">Bearer …</span>. הערך מוצפן אחרי שמירה.
+          מלבד הטוקן. לרוב לא צריך. שם באנגלית כמו ב-HTTP.
         </p>
       </div>
       {rows.length === 0 && (
-        <p className="text-xs text-slate-500">אין headers עדיין.</p>
+        <p className="text-xs text-slate-500">אין headers נוספים.</p>
       )}
       {rows.map(([key, value], index) => (
         <div key={`${key}-${index}`} className="space-y-2 rounded-lg bg-white/[0.03] border border-purple-500/10 p-3">
           <Input
             label="שם ה-header"
-            placeholder="Authorization"
+            placeholder="X-Api-Key"
             value={key}
             onChange={(e) => setRow(index, e.target.value, value)}
             dir="ltr"
             className={LTR}
-            hint="שם ה-header כמו ב-HTTP. לא בעברית."
+            hint="לא Authorization — לזה יש שדה טוקן למעלה."
           />
           <Input
             label="ערך"
-            placeholder="Bearer …"
             value={value}
             onChange={(e) => setRow(index, key, e.target.value)}
             dir="ltr"
             className={LTR}
-            hint="הטוקן או הערך המלא. אפשר {{param}} אם זה מגיע מפרמטר."
+            hint="אפשר {{param}} אם זה מגיע מפרמטר."
           />
           <div className="flex justify-start">
             <Button

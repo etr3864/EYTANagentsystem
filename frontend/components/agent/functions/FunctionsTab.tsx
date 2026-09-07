@@ -196,6 +196,7 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
         <Card>
           <CardHeader>{creating ? 'פונקציה חדשה' : editing?.name}</CardHeader>
           <FunctionEditor
+            key={editing?.id ?? 'new'}
             value={draft}
             onChange={(next) => {
               setDraft(next);
