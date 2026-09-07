@@ -61,6 +61,7 @@ export function FunctionEditor({
 }) {
   const hasBody = WRITE_METHODS.has(value.method);
   const [jsonError, setJsonError] = useState<string | null>(null);
+  const [advancedOpen, setAdvancedOpen] = useState(() => hasAdvanced(value));
   const templateVars = extractTemplateVars(
     value.url,
     hasBody ? value.body_template : null,
@@ -178,10 +179,16 @@ export function FunctionEditor({
         </p>
       )}
 
-      <details className="rounded-lg border border-purple-500/10 p-3" defaultOpen={hasAdvanced(value)}>
-        <summary className="cursor-pointer text-sm font-medium text-white">
-          מתקדם
-        </summary>
+      <div className="rounded-lg border border-purple-500/10 p-3">
+        <button
+          type="button"
+          className="text-sm font-medium text-white"
+          onClick={() => setAdvancedOpen((open) => !open)}
+        >
+          {advancedOpen ? 'הסתר מתקדם' : 'הצג מתקדם'}
+        </button>
+        {advancedOpen && (
+          <>
         <p className="text-xs text-slate-500 mt-1 mb-4">
           מתי לא להשתמש, מקורות פרמטר, שמירת פלט, headers נוספים, טריגר אירוע.
         </p>
@@ -240,7 +247,9 @@ export function FunctionEditor({
           />
           <OutputsEditor outputs={value.outputs} onChange={(outputs) => set({ outputs })} />
         </div>
-      </details>
+          </>
+        )}
+      </div>
     </div>
   );
 }
