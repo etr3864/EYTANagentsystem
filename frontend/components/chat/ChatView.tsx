@@ -5,6 +5,7 @@ import type { Message } from '@/lib/types';
 import { parseUTCDate } from '@/lib/dates';
 import { SendIcon, PauseIcon, PlayIcon } from '@/components/ui/Icons';
 import { EscalationNote } from './EscalationNote';
+import { FunctionNote } from './FunctionNote';
 import { MessageMedia, bubbleText } from './MessageMedia';
 import { ReplyQuote } from './ReplyQuote';
 
@@ -123,7 +124,8 @@ export function ChatView({ messages, conversationId, isPaused, onSend, onToggleP
         const isExternal = msg.message_type === 'external';
         const isTriggerData = msg.message_type === 'trigger_data';
         const isEscalation = msg.message_type === 'escalation';
-        const isCenteredNote = isTriggerData || isEscalation;
+        const isFunction = msg.message_type === 'function';
+        const isCenteredNote = isTriggerData || isEscalation || isFunction;
         const hasMediaUrl = !!msg.media_url;
         const tooLarge = !!msg.media_too_large;
         
@@ -162,8 +164,12 @@ export function ChatView({ messages, conversationId, isPaused, onSend, onToggleP
             
             {/* Message Bubble */}
             <div className={`flex ${isCenteredNote ? 'justify-center' : isUser ? 'justify-start' : 'justify-end'}`}>
-              <div className={`${isCenteredNote ? 'max-w-[90%]' : 'max-w-[75%]'} px-4 py-2.5 rounded-2xl ${getBubbleStyle()}`}>
+              <div className={isFunction
+                ? 'w-fit max-w-[min(90%,28rem)]'
+                : `${isCenteredNote ? 'max-w-[90%]' : 'max-w-[75%]'} px-4 py-2.5 rounded-2xl ${getBubbleStyle()}`
+              }>
                 {isEscalation && <EscalationNote content={displayContent} />}
+                {isFunction && <FunctionNote content={msg.content} />}
                 {isTriggerData && (
                   <div className="flex items-center gap-2 text-amber-300 text-xs mb-2 pb-2 border-b border-amber-500/20">
                     <span>מידע שנכנס לסוכן · לא נשלח ללקוח</span>
@@ -174,16 +180,16 @@ export function ChatView({ messages, conversationId, isPaused, onSend, onToggleP
                     <span>נשלח ללקוח מאוטומציה</span>
                   </div>
                 )}
-                {msg.reply_to_text && <ReplyQuote text={msg.reply_to_text} />}
-                <MessageMedia msg={msg} displayContent={displayContent} />
+                {!isFunction && msg.reply_to_text && <ReplyQuote text={msg.reply_to_text} />}
+                {!isFunction && <MessageMedia msg={msg} displayContent={displayContent} />}
                 
-                {displayContent && !isEscalation && !captionUnderMedia && (
+                {displayContent && !isEscalation && !isFunction && !captionUnderMedia && (
                   <div className="text-sm whitespace-pre-wrap leading-relaxed">
                     {displayContent}
                   </div>
                 )}
                 
-                {msgDate && (
+                {msgDate && !isFunction && (
                   <div className={`
                     text-[10px] mt-1.5 flex items-center gap-1
                     ${isUser 

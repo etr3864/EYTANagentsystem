@@ -157,6 +157,7 @@ const MSG_TYPE_STYLES: Record<string, string> = {
   external: 'bg-orange-500/15 text-orange-300',
   trigger_data: 'bg-amber-500/15 text-amber-300',
   escalation: 'bg-rose-500/15 text-rose-300',
+  function: 'bg-violet-500/15 text-violet-300',
 };
 
 const MSG_TYPE_LABELS: Record<string, string> = {
@@ -168,6 +169,7 @@ const MSG_TYPE_LABELS: Record<string, string> = {
   external: '⚡ אוטומציה',
   trigger_data: '🧠 מידע לסוכן',
   escalation: '🚨 אסקלציה',
+  function: 'פונקציה',
 };
 
 export const messageColumns = [

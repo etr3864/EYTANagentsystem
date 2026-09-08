@@ -127,7 +127,7 @@ export interface Conversation {
 }
 
 // ============ Message ============
-export type MessageType = 'text' | 'voice' | 'image' | 'video' | 'document' | 'media' | 'manual' | 'external' | 'trigger_data' | 'escalation';
+export type MessageType = 'text' | 'voice' | 'image' | 'video' | 'document' | 'media' | 'manual' | 'external' | 'trigger_data' | 'escalation' | 'function';
 
 export interface Message {
   role: 'user' | 'assistant';

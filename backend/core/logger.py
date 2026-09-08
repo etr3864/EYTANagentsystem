@@ -32,6 +32,7 @@ STYLES = {
     
     # AI & Knowledge
     "KB_TOOL": (BLUE, "[KB]"),
+    "FN": (BLUE, "[FN]"),
     "AI_RESPONSE": (GREEN, "[AI]"),
     
     # Media

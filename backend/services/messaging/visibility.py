@@ -1,6 +1,7 @@
-from backend.services.escalation.constants import HIDDEN_FROM_LLM
+from backend.services.escalation.constants import HIDDEN_FROM_LLM as _ESC_HIDDEN
 from backend.services.messaging.replies import format_reply_for_llm
 
+HIDDEN_FROM_LLM = _ESC_HIDDEN | {"function"}
 _LLM_STRIP = ("media_url", "media_too_large", "reply_to_text")
 
 

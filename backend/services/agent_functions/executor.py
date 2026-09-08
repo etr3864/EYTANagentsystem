@@ -1,9 +1,10 @@
+import json
 from dataclasses import dataclass
 from typing import Any, Optional
 
 from backend.core.config import settings
 from backend.core.database import SessionLocal
-from backend.core.logger import log_error
+from backend.core.logger import log, log_error
 from backend.models.agent_function import AgentFunctionRun
 from backend.models.conversation_context_summary import ConversationContextSummary
 from backend.services.entities import conversations, users
@@ -172,8 +173,10 @@ def _finish_ok(prepared: PreparedCall, result, mapped: dict) -> None:
     except Exception:
         db.rollback()
         log_error("agent_function_finalize", prepared.name)
+        return
     finally:
         db.close()
+    _trace(prepared, "ok", result)
 
 
 def _finish_error(prepared: PreparedCall, result, contract: dict) -> None:
@@ -183,18 +186,20 @@ def _finish_error(prepared: PreparedCall, result, contract: dict) -> None:
     write_status = None
     if prepared.idempotency_key:
         write_status = "indeterminate" if code in WRITE_AMBIGUOUS else "done"
+    run_status = "indeterminate" if code == "indeterminate" else "error"
     db = SessionLocal()
     try:
         if write_status:
             idempotency.finalize(db, prepared.idempotency_key, write_status, error=code)
-        run_status = "indeterminate" if code == "indeterminate" else "error"
         db.add(_run_row(prepared, run_status, result, code))
         db.commit()
     except Exception:
         db.rollback()
         log_error("agent_function_run", prepared.name)
+        return
     finally:
         db.close()
+    _trace(prepared, run_status, result, code)
 
 
 def _close_write(prepared: PreparedCall, status: Optional[str], error: Optional[str] = None) -> None:
@@ -221,6 +226,33 @@ def _run_row(prepared: PreparedCall, status: str, result, error: Optional[str]) 
         response_preview=_clip(getattr(result, "body", None)),
         error=str(error)[:500] if error else None,
     )
+
+
+def _trace(prepared: PreparedCall, status: str, result, error: str | None = None) -> None:
+    """Operator log + a compact chat note. Must not roll back the function run."""
+    from backend.services.messaging import messages
+
+    latency_ms = getattr(result, "latency_ms", 0) or 0
+    log("FN", name=prepared.name, status=status, ms=latency_ms, err=error)
+    payload = {
+        "name": prepared.name,
+        "status": status,
+        "ms": latency_ms,
+        "error": error,
+        "body": _clip(getattr(result, "body", None)),
+    }
+    line = json.dumps(payload, ensure_ascii=False, default=str)
+    if len(line) > 2500:
+        payload["body"] = str(payload["body"])[:1800] + "…"
+        line = json.dumps(payload, ensure_ascii=False, default=str)
+    db = SessionLocal()
+    try:
+        messages.add(db, prepared.conversation_id, "assistant", line, message_type="function")
+    except Exception:
+        db.rollback()
+        log_error("agent_function_trace", prepared.name)
+    finally:
+        db.close()
 
 
 def _clip(body) -> dict | None:
