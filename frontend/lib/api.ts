@@ -1,4 +1,4 @@
-import type { Agent, AgentCreate, AgentUpdate, User, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DataTable, Provider, WaSenderConfig, DbMedia, AgentMedia, MediaConfig, WhatsAppTemplate, DbTemplate, MetaInfo, FollowupConfig, FollowupStats, DbFollowup, DbChannel, DbChannelUser } from './types';
+import type { Agent, AgentCreate, AgentUpdate, User, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DocumentDetail, DataTable, DataTableDetail, Provider, WaSenderConfig, DbMedia, AgentMedia, MediaConfig, WhatsAppTemplate, DbTemplate, MetaInfo, FollowupConfig, FollowupStats, DbFollowup, DbChannel, DbChannelUser } from './types';
 import { getAccessToken, clearAuth } from './auth';
 
 // Production URL or environment variable or localhost for development
@@ -289,19 +289,30 @@ export async function getDocuments(agentId: number): Promise<Document[]> {
   return res.json();
 }
 
+async function knowledgeError(res: Response): Promise<Error> {
+  try {
+    const data = await res.json();
+    return new Error(typeof data.detail === 'string' ? data.detail : 'הפעולה נכשלה');
+  } catch {
+    return new Error('הפעולה נכשלה');
+  }
+}
+
 export async function uploadDocument(
-  agentId: number, 
+  agentId: number,
   file: File,
+  title: string,
   onProgress?: (progress: number) => void
-): Promise<{ id: number; filename: string; chunks: number }> {
+): Promise<Document> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('title', title);
 
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable && onProgress) {
-        onProgress(Math.round((e.loaded / e.total) * 50)); // Upload is 50%
+        onProgress(Math.round((e.loaded / e.total) * 50));
       }
     };
 
@@ -333,7 +344,52 @@ export async function uploadDocument(
 
 export async function deleteDocument(agentId: number, docId: number): Promise<void> {
   const res = await authFetch(`${API_URL}/api/agents/${agentId}/knowledge/documents/${docId}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete document');
+  if (!res.ok) throw await knowledgeError(res);
+}
+
+export async function getDocument(agentId: number, docId: number): Promise<DocumentDetail> {
+  const res = await authFetch(`${API_URL}/api/agents/${agentId}/knowledge/documents/${docId}`);
+  if (!res.ok) throw await knowledgeError(res);
+  return res.json();
+}
+
+export async function createTextDocument(
+  agentId: number,
+  title: string,
+  content: string,
+): Promise<Document> {
+  const res = await authFetch(`${API_URL}/api/agents/${agentId}/knowledge/documents/text`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, content }),
+  });
+  if (!res.ok) throw await knowledgeError(res);
+  return res.json();
+}
+
+export async function updateDocument(
+  agentId: number,
+  docId: number,
+  data: { title?: string; content?: string },
+): Promise<DocumentDetail> {
+  const res = await authFetch(`${API_URL}/api/agents/${agentId}/knowledge/documents/${docId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw await knowledgeError(res);
+  return res.json();
+}
+
+export async function bulkDeleteDocuments(agentId: number, ids: number[]): Promise<number> {
+  const res = await authFetch(`${API_URL}/api/agents/${agentId}/knowledge/documents/bulk-delete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids }),
+  });
+  if (!res.ok) throw await knowledgeError(res);
+  const data = await res.json();
+  return data.deleted;
 }
 
 export async function getDataTables(agentId: number): Promise<DataTable[]> {
@@ -389,7 +445,41 @@ export async function uploadDataTable(
 
 export async function deleteDataTable(agentId: number, tableId: number): Promise<void> {
   const res = await authFetch(`${API_URL}/api/agents/${agentId}/knowledge/tables/${tableId}`, { method: 'DELETE' });
-  if (!res.ok) throw new Error('Failed to delete table');
+  if (!res.ok) throw await knowledgeError(res);
+}
+
+export async function getDataTable(agentId: number, tableId: number): Promise<DataTableDetail> {
+  const res = await authFetch(`${API_URL}/api/agents/${agentId}/knowledge/tables/${tableId}`);
+  if (!res.ok) throw await knowledgeError(res);
+  return res.json();
+}
+
+export async function createBlankTable(
+  agentId: number,
+  name: string,
+  columns: string[],
+): Promise<DataTable> {
+  const res = await authFetch(`${API_URL}/api/agents/${agentId}/knowledge/tables/blank`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, columns }),
+  });
+  if (!res.ok) throw await knowledgeError(res);
+  return res.json();
+}
+
+export async function updateDataTable(
+  agentId: number,
+  tableId: number,
+  data: { name?: string; columns: string[]; rows: Record<string, string>[] },
+): Promise<DataTableDetail> {
+  const res = await authFetch(`${API_URL}/api/agents/${agentId}/knowledge/tables/${tableId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw await knowledgeError(res);
+  return res.json();
 }
 
 // ============ Auth Users Management ============
@@ -840,4 +930,4 @@ export async function deleteAgentTrigger(agentId: number, triggerId: number): Pr
 }
 
 // Re-export types
-export type { Agent, AgentCreate, AgentUpdate, AgentBatchingConfig, ContextSummaryConfig, Provider, WaSenderConfig, CustomApiKeys, User, Gender, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DataTable, DbMedia, AgentMedia, MediaConfig, MediaType, WhatsAppTemplate, TemplateCategory, TemplateStatus, DbTemplate, FollowupConfig, FollowupStep, FollowupStats, DbFollowup, DbChannel, DbChannelUser, DashboardStats, SystemSummary, AgentTableRow, AgentDetail, PricingConfig } from './types';
+export type { Agent, AgentCreate, AgentUpdate, AgentBatchingConfig, ContextSummaryConfig, Provider, WaSenderConfig, CustomApiKeys, User, Gender, Conversation, Message, DbConversation, DbMessage, UsageStats, DbAppointment, DbReminder, DbSummary, Document, DocumentDetail, DataTable, DataTableDetail, DbMedia, AgentMedia, MediaConfig, MediaType, WhatsAppTemplate, TemplateCategory, TemplateStatus, DbTemplate, FollowupConfig, FollowupStep, FollowupStats, DbFollowup, DbChannel, DbChannelUser, DashboardStats, SystemSummary, AgentTableRow, AgentDetail, PricingConfig } from './types';

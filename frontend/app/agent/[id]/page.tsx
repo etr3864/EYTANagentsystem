@@ -18,12 +18,10 @@ import { phoneToUrl, phoneFromUrl } from '@/lib/phone';
 import { 
   getAgent, updateAgent, getConversations, getMessages, deleteConversation, 
   sendMessage, pauseConversation, resumeConversation,
-  getDocuments, uploadDocument, deleteDocument,
-  getDataTables, uploadDataTable, deleteDataTable,
   getAgentMedia, uploadAgentMedia, updateAgentMedia, deleteAgentMedia,
   type MediaUploadData, type ConversationCursor,
 } from '@/lib/api';
-import type { Agent, AgentBatchingConfig, ContextSummaryConfig, Conversation, Message, Document, DataTable, Provider, WaSenderConfig, AgentMedia, MediaConfig, CustomApiKeys } from '@/lib/types';
+import type { Agent, AgentBatchingConfig, ContextSummaryConfig, Conversation, Message, Provider, WaSenderConfig, AgentMedia, MediaConfig, CustomApiKeys } from '@/lib/types';
 import { DEFAULT_MODEL, getModel, resolveModel } from '@/lib/models';
 
 type Tab = 'prompt' | 'conversations' | 'knowledge' | 'media' | 'templates' | 'calendar' | 'followups' | 'summaries' | 'settings' | 'channels' | 'functions' | 'triggers' | 'escalation';
@@ -114,10 +112,6 @@ function AgentPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [selectedConv, setSelectedConv] = useState<number | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-
-  // Knowledge state
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [dataTables, setDataTables] = useState<DataTable[]>([]);
 
   // Media state
   const [media, setMedia] = useState<AgentMedia[]>([]);
@@ -355,41 +349,6 @@ function AgentPage() {
     await loadConversations();
   }
 
-  // Knowledge functions
-  async function loadKnowledge() {
-    try {
-      const [docs, tables] = await Promise.all([
-        getDocuments(agentId),
-        getDataTables(agentId)
-      ]);
-      setDocuments(docs);
-      setDataTables(tables);
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
-  async function handleUploadDocument(file: File, onProgress: (p: number) => void) {
-    await uploadDocument(agentId, file, onProgress);
-    await loadKnowledge();
-  }
-
-  async function handleDeleteDocument(docId: number) {
-    await deleteDocument(agentId, docId);
-    setDocuments(documents.filter(d => d.id !== docId));
-  }
-
-  async function handleUploadTable(file: File, name: string, onProgress: (p: number) => void) {
-    await uploadDataTable(agentId, file, name, undefined, onProgress);
-    await loadKnowledge();
-  }
-
-  async function handleDeleteTable(tableId: number) {
-    await deleteDataTable(agentId, tableId);
-    setDataTables(dataTables.filter(t => t.id !== tableId));
-  }
-
-  // Media functions
   async function loadMedia() {
     try {
       const data = await getAgentMedia(agentId);
@@ -439,8 +398,6 @@ function AgentPage() {
     setTab(newTab);
     if (newTab === 'conversations') {
       loadConversations();
-    } else if (newTab === 'knowledge') {
-      loadKnowledge();
     } else if (newTab === 'media') {
       loadMedia();
     }
@@ -534,12 +491,7 @@ function AgentPage() {
 
           {tab === 'knowledge' && (
             <KnowledgeTab
-              documents={documents}
-              tables={dataTables}
-              onUploadDocument={handleUploadDocument}
-              onDeleteDocument={handleDeleteDocument}
-              onUploadTable={handleUploadTable}
-              onDeleteTable={handleDeleteTable}
+              agentId={agentId}
               canUpload={isSuperAdmin(user)}
             />
           )}

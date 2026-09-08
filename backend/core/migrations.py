@@ -16,6 +16,7 @@ def run_all(conn):
     _llm_models(conn)
     _internal_triggers(conn)
     _escalation_reasons(conn)
+    _knowledge_source(conn)
     conn.commit()
 
 
@@ -565,5 +566,15 @@ def _escalation_reasons(conn):
     conn.execute(text("""
         CREATE UNIQUE INDEX IF NOT EXISTS uq_escalation_cooldown
         ON escalation_cooldowns(conversation_id, reason_id);
+    """))
+
+
+def _knowledge_source(conn):
+    conn.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE documents ADD COLUMN source_text TEXT;
+        EXCEPTION
+            WHEN duplicate_column THEN null;
+        END $$;
     """))
 

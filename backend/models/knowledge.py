@@ -18,8 +18,9 @@ class Document(Base):
     agent_id: Mapped[int] = mapped_column(ForeignKey("agents.id", ondelete="CASCADE"))
     
     filename: Mapped[str] = mapped_column(String(255))
-    file_type: Mapped[str] = mapped_column(String(20))  # pdf, docx
+    file_type: Mapped[str] = mapped_column(String(20))  # pdf, docx, txt
     file_size: Mapped[int] = mapped_column(default=0)
+    source_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     chunk_count: Mapped[int] = mapped_column(default=0)

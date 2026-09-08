@@ -240,7 +240,12 @@ export interface Document {
   file_type: string;
   file_size: number;
   chunk_count: number;
+  has_source: boolean;
   created_at: string;
+}
+
+export interface DocumentDetail extends Document {
+  source_text: string | null;
 }
 
 export interface DataTable {
@@ -250,6 +255,10 @@ export interface DataTable {
   columns: Record<string, string>;
   row_count: number;
   created_at: string;
+}
+
+export interface DataTableDetail extends DataTable {
+  rows: Record<string, unknown>[];
 }
 
 // ============ Agent Media ============

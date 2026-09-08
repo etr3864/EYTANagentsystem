@@ -41,15 +41,8 @@ def _handle_search_knowledge(db: Session, agent_id: int, data: dict) -> str:
     ]
     if content:
         result = "\n\n".join(content)
-    elif document:
-        available = ", ".join(d.filename for d in documents.get_by_agent(db, agent_id))
-        result = (
-            f"לא נמצא מידע רלוונטי במסמך '{document}'. "
-            f"מסמכים זמינים: {available or 'אין'}. "
-            "חפש שוב עם document מדויק או בלי document."
-        )
     else:
-        result = "לא נמצא מידע רלוונטי"
+        result = "לא נמצא מידע רלוונטי. נסח שאילתה אחרת או חפש בלי document."
 
     log_tool("search_knowledge", len(result))
     return result

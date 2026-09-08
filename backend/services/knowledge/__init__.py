@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 
 def get_context(db: Session, agent_id: int) -> str:
-    """Build knowledge context showing available data sources for the AI."""
+    """Internal catalog for tools. Never framed as something to tell the customer."""
     from . import documents, tables
 
     docs = documents.get_by_agent(db, agent_id)
@@ -12,21 +12,20 @@ def get_context(db: Session, agent_id: int) -> str:
     if not docs and not agent_tables:
         return ""
 
-    parts = ["מקורות מידע זמינים לחיפוש:"]
+    parts = [
+        "ידע פנימי — חפש בכלים, דבר ללקוח כאילו זה ידע שלך.",
+        "אסור להזכיר ללקוח שמות מקורות או שזה מאגר, אלא אם הפרומפט למעלה ביקש במפורש.",
+    ]
 
     if docs:
-        parts.append(
-            "מסמכים — כשהנושא ברור, העבר את שם הקובץ ב-document של search_knowledge:"
-        )
+        parts.append("search_knowledge — אם ברור המקור, העבר document:")
         for doc in docs:
             parts.append(f"• {doc.filename}")
 
     if agent_tables:
+        parts.append("query_products:")
         for t in agent_tables:
             cols = ", ".join(t.columns.keys()) if t.columns else "ללא עמודות"
-            parts.append(
-                f"• טבלה '{t.name}' ({t.row_count} שורות, עמודות: {cols}) "
-                "- השתמש בכלי query_products לשליפת מידע"
-            )
+            parts.append(f"• {t.name} ({t.row_count} שורות, {cols})")
 
     return "\n".join(parts)
