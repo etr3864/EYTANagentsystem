@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import {
   Button,
@@ -74,7 +74,8 @@ function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState('');
-  const [copied, setCopied] = useState<'token' | 'json' | 'url' | 'cli' | null>(null);
+  const [copied, setCopied] = useState<'json' | 'cli' | 'url' | null>(null);
+  const jsonRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     setError('');
@@ -89,21 +90,28 @@ function SettingsPage() {
       .finally(() => setLoading(false));
   }, [load]);
 
-  const snippetToken = created?.token || 'mcp_PASTE_TOKEN_HERE';
-  const snippet = useMemo(
-    () => mcpSnippet(mcpUrl || 'https://YOUR_API/mcp', snippetToken),
-    [mcpUrl, snippetToken],
-  );
+  useEffect(() => {
+    if (!created) return;
+    jsonRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [created]);
 
   async function handleCreate() {
     setSaving(true);
     setError('');
     try {
       const row = await createMcpToken(name.trim() || 'MCP');
+      const json = mcpSnippet(row.mcp_url, row.token);
       setCreated(row);
       setMcpUrl(row.mcp_url);
       setTokens((prev) => [asPublicToken(row), ...prev]);
       setName('');
+      try {
+        await copyText(json);
+        setCopied('json');
+        setTimeout(() => setCopied(null), 4000);
+      } catch {
+        setCopied(null);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'יצירת טוקן נכשלה');
     } finally {
@@ -139,14 +147,17 @@ function SettingsPage() {
     }
   }
 
-  async function handleCopy(kind: 'token' | 'json' | 'url' | 'cli', value: string) {
+  async function handleCopy(kind: 'json' | 'cli' | 'url', value: string) {
     await copyText(value);
     setCopied(kind);
     setTimeout(() => setCopied(null), 2000);
   }
 
   const displayUrl = mcpUrl || 'https://YOUR_API/mcp';
-  const cliSnippet = `claude mcp add --transport http optive ${displayUrl} --header "Authorization: Bearer ${snippetToken}"`;
+  const readyJson = created ? mcpSnippet(created.mcp_url || displayUrl, created.token) : null;
+  const readyCli = created
+    ? `claude mcp add --transport http optive ${created.mcp_url || displayUrl} --header "Authorization: Bearer ${created.token}"`
+    : null;
 
   return (
     <div className={`flex flex-col ${BELOW_NAV_CLASS}`}>
@@ -187,28 +198,6 @@ function SettingsPage() {
           <KeyIcon className="w-5 h-5 text-purple-300" />
           טוקנים
         </h2>
-
-        {created && (
-          <div className="mb-5 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 space-y-3">
-            <p className="text-amber-100 text-sm font-medium">
-              הטוקן מוצג פעם אחת. העתק עכשיו, אחרי רענון הוא לא יופיע שוב.
-            </p>
-            <div className="flex items-start gap-2">
-              <code className="flex-1 text-xs md:text-sm break-all bg-black/40 rounded-md px-3 py-2 text-emerald-300">
-                {created.token}
-              </code>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                icon={<CopyIcon />}
-                onClick={() => handleCopy('token', created.token)}
-              >
-                {copied === 'token' ? 'הועתק' : 'העתק'}
-              </Button>
-            </div>
-          </div>
-        )}
 
         <div className="flex flex-col sm:flex-row gap-3 sm:items-end mb-5">
           <div className="flex-1">
@@ -276,86 +265,85 @@ function SettingsPage() {
 
       <Card>
         <h2 className="text-lg font-medium text-white mb-3">חיבור לכלי MCP</h2>
-        <p className="text-slate-300 text-sm leading-relaxed mb-3">
-          שרת HTTP מרוחק. אותו URL ואותו Bearer עובדים בכל לקוח MCP שתומך בחיבור כזה.
+        <p className="text-slate-300 text-sm leading-relaxed">
+          צור טוקן. יופיע JSON מוכן עם הטוקן בפנים. מדביקים אותו בהגדרות MCP של הכלי
+          (Cursor, Claude, VS Code, Windsurf וכו') ומפעילים את השרת optive.
+          הטוקן מוצג פעם אחת ולא נשמר אצלנו אחרי רענון.
         </p>
-        <ol className="list-decimal pr-5 space-y-2 text-sm text-slate-300 leading-relaxed">
-          <li>צור טוקן למעלה והעתק אותו.</li>
-          <li>
-            בכלי שלך הוסף שרת MCP מרוחק (HTTP): URL, ואז כותרת{' '}
-            <code className="text-purple-300">Authorization: Bearer TOKEN</code>
-            . רוב הכלים מקבלים את ה-JSON למטה.
-          </li>
-          <li>הפעל את השרת <span className="text-white">optive</span>.</li>
-          <li>
-            בצ׳אט חדש יופיעו כלים כמו <code className="text-purple-300">list_agents</code>
-            {' '}ו-<code className="text-purple-300">get_agent_performance</code>.
-          </li>
-        </ol>
         <p className="text-slate-500 text-xs mt-3">
-          שמור את הטוקן אצלך, לא בריפו משותף. מי שיש לו את הטוקן פועל בשמך.
+          שמור את הקובץ אצלך, לא בריפו משותף. מי שיש לו את הטוקן פועל בשמך.
         </p>
 
-        <div className="mt-4 space-y-3">
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs text-slate-400">URL</span>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                icon={<CopyIcon />}
-                disabled={!mcpUrl}
-                onClick={() => handleCopy('url', displayUrl)}
-              >
-                {copied === 'url' ? 'הועתק' : 'העתק URL'}
-              </Button>
-            </div>
-            <code className="block text-xs md:text-sm break-all bg-black/40 rounded-lg px-3 py-2 text-slate-200 text-left" dir="ltr">
-              {displayUrl}
-            </code>
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs text-slate-400">URL</span>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              icon={<CopyIcon />}
+              disabled={!mcpUrl}
+              onClick={() => handleCopy('url', displayUrl)}
+            >
+              {copied === 'url' ? 'הועתק' : 'העתק URL'}
+            </Button>
           </div>
-
-          <div>
-            <div className="flex justify-end mb-1.5">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                icon={<CopyIcon />}
-                disabled={!mcpUrl}
-                onClick={() => handleCopy('json', snippet)}
-              >
-                {copied === 'json' ? 'הועתק' : 'העתק JSON'}
-              </Button>
-            </div>
-            <pre className="text-xs md:text-sm overflow-x-auto bg-black/40 rounded-lg p-4 text-slate-200 text-left" dir="ltr">
-              {snippet}
-            </pre>
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-xs text-slate-400">Claude Code</span>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                icon={<CopyIcon />}
-                disabled={!mcpUrl}
-                onClick={() => handleCopy('cli', cliSnippet)}
-              >
-                {copied === 'cli' ? 'הועתק' : 'העתק פקודה'}
-              </Button>
-            </div>
-            <pre className="text-xs md:text-sm overflow-x-auto bg-black/40 rounded-lg p-4 text-slate-200 text-left" dir="ltr">
-              {cliSnippet}
-            </pre>
-          </div>
+          <code className="block text-xs md:text-sm break-all bg-black/40 rounded-lg px-3 py-2 text-slate-200 text-left" dir="ltr">
+            {displayUrl}
+          </code>
         </div>
-        {!created && (
-          <p className="text-amber-200/80 text-xs mt-3">
-            אחרי יצירת טוקן, ה-JSON יכלול אותו אוטומטית. עד אז מופיע מקום להדבקה.
+
+        {readyJson ? (
+          <div ref={jsonRef} className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-amber-100 text-sm font-medium">
+                {copied === 'json' ? 'ה-JSON עם הטוקן הועתק. הדבק בכלי.' : 'JSON מוכן להדבקה, כולל הטוקן.'}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  icon={<CopyIcon />}
+                  onClick={() => handleCopy('json', readyJson)}
+                >
+                  {copied === 'json' ? 'הועתק' : 'העתק JSON'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCreated(null)}
+                >
+                  הסתר
+                </Button>
+              </div>
+            </div>
+            <pre className="text-xs md:text-sm overflow-x-auto bg-black/40 rounded-lg p-4 text-emerald-300 text-left" dir="ltr">
+              {readyJson}
+            </pre>
+            {readyCli && (
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs text-amber-200/80">Claude Code</span>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    icon={<CopyIcon />}
+                    onClick={() => handleCopy('cli', readyCli)}
+                  >
+                    {copied === 'cli' ? 'הועתק' : 'העתק פקודה'}
+                  </Button>
+                </div>
+                <pre className="text-xs overflow-x-auto bg-black/40 rounded-lg p-3 text-slate-200 text-left" dir="ltr">
+                  {readyCli}
+                </pre>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-slate-500 text-sm mt-4">
+            אחרי יצירת טוקן יופיע כאן JSON מוכן. אחרי רענון אי אפשר לשחזר את הסוד.
           </p>
         )}
       </Card>
