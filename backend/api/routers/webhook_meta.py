@@ -227,7 +227,8 @@ async def _process_media(
             log_error("webhook_meta", f"video download failed for {msg.channel_type}")
             text = text or "[וידאו]"
     elif msg.msg_type == "document":
-        text = text or "[קובץ]"
+        from backend.services.media.document_extraction import inbound_text
+        text = await inbound_text(filename, ingested.data, msg.mime_type)
     elif msg.msg_type == "audio":
         if ingested.data:
             transcript = await transcribe_audio(ingested.data)

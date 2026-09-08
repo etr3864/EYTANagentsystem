@@ -148,20 +148,24 @@ async def _process_video(api_key: str, msg_data: dict, agent_id: int, agent_name
 
 
 async def _process_document(api_key: str, msg_data: dict, agent_id: int) -> _InboundMedia:
+    from backend.services.media.document_extraction import document_label, inbound_text
+
     filename = msg_data.get("filename") or ""
-    label = f"[קובץ: {filename}]" if filename else "[קובץ]"
+    mime = msg_data.get("mime_type")
+    label = document_label(filename)
     public_url = await _decrypt(api_key, msg_data)
     if not public_url:
         return _InboundMedia(label, "document")
     ingested = await ingest_from_url(
-        agent_id, public_url, "document", msg_data.get("mime_type"), filename,
+        agent_id, public_url, "document", mime, filename,
     )
     if ingested.too_large:
         return _InboundMedia(
             too_large_text("document", filename, ingested.size), "document",
             media_url=ingested.media_url, media_too_large=True,
         )
-    return _InboundMedia(label, "document", media_url=ingested.media_url)
+    text = await inbound_text(filename, ingested.data, mime)
+    return _InboundMedia(text, "document", media_url=ingested.media_url)
 
 
 async def _resolve_channel_user(

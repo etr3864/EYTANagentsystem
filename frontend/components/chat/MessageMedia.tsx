@@ -22,10 +22,8 @@ export function bubbleText(msg: Message): string {
     return rest;
   }
   if (msg.message_type === 'document') {
-    return content
-      .replace(/^\[(document|קובץ)\]:?\s*/i, '')
-      .replace(/^\[קובץ:\s*/, '')
-      .replace(/\]$/, '');
+    const named = content.match(/^\[קובץ:\s*([^\]]*)\]/);
+    return named ? named[1].trim() : '';
   }
   return content;
 }

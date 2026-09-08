@@ -1,8 +1,25 @@
 """Document text extraction for various file formats."""
+import asyncio
 from io import BytesIO
 
-# Max characters to extract (enough for AI analysis, not too expensive)
+# Enough for one inbound turn. Keeps token cost bounded under parallel load.
 MAX_EXTRACT_CHARS = 5000
+
+_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+_PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+
+# WhatsApp often sends application/octet-stream — fall back to the filename.
+_EXT_MIME = {
+    "pdf": "application/pdf",
+    "docx": _DOCX,
+    "xlsx": _XLSX,
+    "pptx": _PPTX,
+    "txt": "text/plain",
+    "csv": "text/csv",
+}
+
+_INBOUND_MIME = frozenset(_EXT_MIME.values())
 
 
 def extract_text(content: bytes, mime_type: str) -> str:
@@ -10,18 +27,20 @@ def extract_text(content: bytes, mime_type: str) -> str:
     
     Returns extracted text (up to MAX_EXTRACT_CHARS) or empty string on failure.
     """
+    mime = (mime_type or "").split(";")[0].strip().lower()
     extractors = {
         "application/pdf": _extract_pdf,
         "application/msword": _extract_doc_fallback,
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": _extract_docx,
+        _DOCX: _extract_docx,
         "application/vnd.ms-excel": _extract_xlsx_fallback,
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": _extract_xlsx,
+        _XLSX: _extract_xlsx,
         "application/vnd.ms-powerpoint": _extract_pptx_fallback,
-        "application/vnd.openxmlformats-officedocument.presentationml.presentation": _extract_pptx,
+        _PPTX: _extract_pptx,
         "text/plain": _extract_txt,
+        "text/csv": _extract_txt,
     }
     
-    extractor = extractors.get(mime_type)
+    extractor = extractors.get(mime)
     if not extractor:
         return ""
     
@@ -30,6 +49,40 @@ def extract_text(content: bytes, mime_type: str) -> str:
         return _clean_text(text)[:MAX_EXTRACT_CHARS]
     except Exception:
         return ""
+
+
+def document_label(filename: str | None) -> str:
+    name = (filename or "").strip()
+    return f"[קובץ: {name}]" if name else "[קובץ]"
+
+
+def _inbound_mime(mime: str | None, filename: str | None) -> str:
+    clean = (mime or "").split(";")[0].strip().lower()
+    if clean in _INBOUND_MIME:
+        return clean
+    if filename and "." in filename:
+        ext = filename.rsplit(".", 1)[-1].lower()
+        return _EXT_MIME.get(ext, "")
+    return ""
+
+
+def _inbound_body(filename: str | None, data: bytes | None, mime: str | None) -> str:
+    """Label plus extracted text, or label only if unreadable."""
+    label = document_label(filename)
+    if not data:
+        return label
+    resolved = _inbound_mime(mime, filename)
+    if not resolved:
+        return label
+    extracted = extract_text(data, resolved)
+    if not extracted:
+        return label
+    return f"{label}:\n{extracted}"
+
+
+async def inbound_text(filename: str | None, data: bytes | None, mime: str | None) -> str:
+    """CPU-bound extract off the event loop so agents don't block each other."""
+    return await asyncio.to_thread(_inbound_body, filename, data, mime)
 
 
 def _clean_text(text: str) -> str:
