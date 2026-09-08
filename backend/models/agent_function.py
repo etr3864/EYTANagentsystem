@@ -31,6 +31,7 @@ class AgentFunction(Base):
     params: Mapped[list] = mapped_column(JSONB, default=list)
     outputs: Mapped[list] = mapped_column(JSONB, default=list)
     timeout_ms: Mapped[int] = mapped_column(Integer, default=8000)
+    max_response_chars: Mapped[int] = mapped_column(Integer, default=4000)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     test_passed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)

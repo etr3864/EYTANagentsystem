@@ -51,6 +51,7 @@ def _apply(row: AgentFunction, data: FunctionUpsert, headers_provided: bool) -> 
     row.params = [p.model_dump() for p in data.params]
     row.outputs = [o.model_dump() for o in data.outputs]
     row.timeout_ms = data.timeout_ms
+    row.max_response_chars = data.max_response_chars
     row.sort_order = data.sort_order
     if headers_provided:
         current = decrypt_headers(row.headers_encrypted)

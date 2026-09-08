@@ -24,6 +24,7 @@ def to_public(row: AgentFunction, include_masked_headers: bool = True) -> dict:
         "params": row.params or [],
         "outputs": row.outputs or [],
         "timeout_ms": row.timeout_ms,
+        "max_response_chars": row.max_response_chars,
         "sort_order": row.sort_order,
         "enabled": row.enabled,
         "test_passed_at": row.test_passed_at.isoformat() if row.test_passed_at else None,

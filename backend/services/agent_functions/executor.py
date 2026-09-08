@@ -11,6 +11,7 @@ from backend.services.entities import conversations, users
 from backend.services.agent_functions import breaker, errors as fn_errors
 from backend.services.agent_functions import http_client, idempotency, repo, resolve, state, tester, wrap
 from backend.services.agent_functions.budget import TurnBudget
+from backend.services.agent_functions.constants import DEFAULT_LLM_RESPONSE_CHARS
 from backend.services.agent_functions.egress import EgressDenied
 from backend.services.agent_functions.outputs import mapped_outputs, payload_for_llm
 from backend.services.agent_functions.template import MissingVariableError
@@ -30,6 +31,7 @@ class PreparedCall:
     timeout_ms: int
     outputs: list
     response_instructions: str
+    max_response_chars: int
     side_effect: str
     values: dict
     url: str
@@ -119,6 +121,7 @@ def _prepare_in_session(db, agent_id, user_id, conversation_id, name, args, budg
         timeout_ms=budget.timeout_ms(row.timeout_ms),
         outputs=list(row.outputs or []),
         response_instructions=row.response_instructions or "",
+        max_response_chars=row.max_response_chars or DEFAULT_LLM_RESPONSE_CHARS,
         side_effect=row.side_effect,
         values=values,
         url=built["url"],
@@ -154,7 +157,10 @@ async def _call_http(prepared: PreparedCall, budget: TurnBudget) -> str:
     mapped = mapped_outputs(result.body, prepared.outputs)
     breaker.record_success(prepared.function_id)
     _finish_ok(prepared, result, mapped)
-    return wrap.success(payload_for_llm(mapped, result.body), prepared.response_instructions)
+    return wrap.success(
+        payload_for_llm(mapped, result.body, prepared.max_response_chars),
+        prepared.response_instructions,
+    )
 
 
 def _finish_ok(prepared: PreparedCall, result, mapped: dict) -> None:

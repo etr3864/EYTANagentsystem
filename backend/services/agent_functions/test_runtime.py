@@ -118,6 +118,13 @@ class OutputsTests(unittest.TestCase):
         mapped = {"temp": 22.4}
         self.assertEqual(payload_for_llm(mapped, body), mapped)
 
+    def test_llm_clips_unmapped_body(self):
+        body = {"blob": "x" * 2000}
+        clipped = payload_for_llm({}, body, max_chars=500)
+        self.assertIn("text", clipped)
+        self.assertTrue(clipped["text"].endswith("…"))
+        self.assertEqual(len(clipped["text"]), 501)
+
 
 class TemplateTests(unittest.TestCase):
     def test_json_escape(self):

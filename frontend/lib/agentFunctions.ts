@@ -14,6 +14,7 @@ const FIELD_HE: Record<string, string> = {
   body_template: 'גוף הבקשה',
   params: 'פרמטר',
   outputs: 'שמירת תשובה',
+  max_response_chars: 'מקסימום תווים לסוכן',
   json_path: 'שדה ב-JSON',
   save_as: 'לשמור בשם',
   source: 'מאיפה הערך',

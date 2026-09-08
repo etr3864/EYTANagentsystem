@@ -413,6 +413,7 @@ def _agent_functions(conn):
             params JSONB NOT NULL DEFAULT '[]'::jsonb,
             outputs JSONB NOT NULL DEFAULT '[]'::jsonb,
             timeout_ms INTEGER NOT NULL DEFAULT 8000,
+            max_response_chars INTEGER NOT NULL DEFAULT 4000,
             sort_order INTEGER NOT NULL DEFAULT 0,
             enabled BOOLEAN NOT NULL DEFAULT FALSE,
             test_passed_at TIMESTAMP,
@@ -475,6 +476,13 @@ def _agent_functions(conn):
     conn.execute(text("""
         CREATE UNIQUE INDEX IF NOT EXISTS uq_agent_function_idempotency_key
         ON agent_function_idempotency(key);
+    """))
+    conn.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE agent_functions
+            ADD COLUMN max_response_chars INTEGER NOT NULL DEFAULT 4000;
+        EXCEPTION WHEN duplicate_column THEN null;
+        END $$;
     """))
     conn.execute(text("""
         CREATE INDEX IF NOT EXISTS ix_agent_function_idempotency_attention

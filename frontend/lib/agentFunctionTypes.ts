@@ -45,6 +45,7 @@ export interface AgentFunction {
   params: AgentFunctionParam[];
   outputs: AgentFunctionOutput[];
   timeout_ms: number;
+  max_response_chars: number;
   sort_order: number;
   enabled: boolean;
   test_passed_at: string | null;
@@ -68,6 +69,7 @@ export interface FunctionUpsert {
   params: AgentFunctionParam[];
   outputs: AgentFunctionOutput[];
   timeout_ms: number;
+  max_response_chars: number;
   sort_order: number;
 }
 
@@ -97,6 +99,7 @@ export const EMPTY_FUNCTION: FunctionUpsert = {
   params: [],
   outputs: [],
   timeout_ms: 8000,
+  max_response_chars: 4000,
   sort_order: 0,
 };
 
@@ -116,6 +119,7 @@ export function toUpsert(fn: AgentFunction): FunctionUpsert {
     params: fn.params || [],
     outputs: fn.outputs || [],
     timeout_ms: fn.timeout_ms,
+    max_response_chars: fn.max_response_chars || 4000,
     sort_order: fn.sort_order,
   };
 }

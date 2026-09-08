@@ -5,10 +5,13 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from backend.services.agent_functions.constants import (
     ALLOWED_METHODS,
     DEFAULT_HTTP_TIMEOUT_MS,
+    DEFAULT_LLM_RESPONSE_CHARS,
     EVENT_TYPE_ALIASES,
     EVENT_TYPES,
     MAX_HTTP_TIMEOUT_MS,
+    MAX_LLM_RESPONSE_CHARS,
     MIN_HTTP_MS,
+    MIN_LLM_RESPONSE_CHARS,
     OUTPUT_SCOPES,
     PARAM_SOURCES,
     SIDE_EFFECTS,
@@ -71,6 +74,11 @@ class FunctionUpsert(BaseModel):
         default=DEFAULT_HTTP_TIMEOUT_MS,
         ge=MIN_HTTP_MS,
         le=MAX_HTTP_TIMEOUT_MS,
+    )
+    max_response_chars: int = Field(
+        default=DEFAULT_LLM_RESPONSE_CHARS,
+        ge=MIN_LLM_RESPONSE_CHARS,
+        le=MAX_LLM_RESPONSE_CHARS,
     )
     sort_order: int = Field(default=0, ge=0, le=100)
 

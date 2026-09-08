@@ -11,6 +11,9 @@ const LTR = 'text-left font-mono text-sm';
 const DEFAULT_TIMEOUT_SEC = 8;
 const MIN_TIMEOUT_SEC = 1;
 const MAX_TIMEOUT_SEC = 30;
+const DEFAULT_RESPONSE_CHARS = 4000;
+const MIN_RESPONSE_CHARS = 500;
+const MAX_RESPONSE_CHARS = 20000;
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'];
 const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH']);
 const SOURCES: { id: ParamSource; label: string }[] = [
@@ -50,7 +53,8 @@ function hasAdvanced(value: FunctionUpsert): boolean {
     || Object.keys(extras).length > 0
     || value.params.some((param) => param.source !== 'ask' || param.description || param.source_key || param.required === false)
     || value.side_effect !== sideEffectForMethod(value.method)
-    || value.timeout_ms !== DEFAULT_TIMEOUT_SEC * 1000,
+    || value.timeout_ms !== DEFAULT_TIMEOUT_SEC * 1000
+    || value.max_response_chars !== DEFAULT_RESPONSE_CHARS,
   );
 }
 
@@ -250,6 +254,10 @@ export function FunctionEditor({
             onChange={(extra) => set({ headers: joinHeaders(token, extra) })}
           />
           <OutputsEditor outputs={value.outputs} onChange={(outputs) => set({ outputs })} />
+          <MaxResponseCharsField
+            value={value.max_response_chars}
+            onChange={(max_response_chars) => set({ max_response_chars })}
+          />
           <TimeoutField
             timeoutMs={value.timeout_ms}
             onChange={(timeout_ms) => set({ timeout_ms })}
@@ -523,6 +531,30 @@ function OutputsEditor({
         + הוסף שמירה
       </Button>
     </div>
+  );
+}
+
+function MaxResponseCharsField({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (chars: number) => void;
+}) {
+  const chars = value || DEFAULT_RESPONSE_CHARS;
+  return (
+    <NumberInput
+      label="מקסימום תווים לסוכן"
+      min={MIN_RESPONSE_CHARS}
+      max={MAX_RESPONSE_CHARS}
+      value={chars}
+      onChange={(e) => {
+        const next = Number(e.target.value);
+        if (!Number.isFinite(next)) return;
+        onChange(Math.min(MAX_RESPONSE_CHARS, Math.max(MIN_RESPONSE_CHARS, Math.round(next))));
+      }}
+      hint="כמה מגוף התשובה הסוכן רואה כשאין מיפוי שדות. ברירת מחדל 4000. מינימום 500, מקסימום 20000."
+    />
   );
 }
 
