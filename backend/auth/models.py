@@ -91,3 +91,23 @@ class AuthUser(Base):
         if self.role == UserRole.EMPLOYEE:
             return self.parent_id
         return self.id
+
+
+class McpToken(Base):
+    """Long-lived personal access token for the hosted MCP."""
+
+    __tablename__ = "auth_mcp_tokens"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("auth_users.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(80))
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    prefix: Mapped[str] = mapped_column(String(16))
+    last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    paused: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    user: Mapped["AuthUser"] = relationship()
+

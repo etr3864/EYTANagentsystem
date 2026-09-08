@@ -106,3 +106,26 @@ class MessageResponse(BaseModel):
     """Generic message response."""
     message: str
     success: bool = True
+
+
+class McpTokenCreateRequest(BaseModel):
+    name: str = Field(default="Cursor", min_length=1, max_length=80)
+
+
+class McpTokenPublic(BaseModel):
+    id: int
+    name: str
+    prefix: str
+    paused: bool = False
+    last_used_at: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+class McpTokenPatchRequest(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=80)
+    paused: Optional[bool] = None
+
+
+class McpTokenCreated(McpTokenPublic):
+    token: str
+    mcp_url: str

@@ -18,6 +18,7 @@ from backend.api.routers.external import router as external_router
 from backend.api.routers.agent_triggers import router as agent_triggers_router
 from backend.api.routers.agent_escalations import router as agent_escalations_router
 from backend.auth import auth_router
+from backend.mcp.server import mcp_http_app, combine_with_mcp
 from backend.services.scheduling import scheduler
 
 
@@ -39,7 +40,7 @@ async def lifespan(app: FastAPI):
     log("SERVER_DOWN")
 
 
-app = FastAPI(title="WhatsApp AI Agents", lifespan=lifespan)
+app = FastAPI(title="WhatsApp AI Agents", lifespan=combine_with_mcp(lifespan))
 
 # CORS - configurable via environment
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001").split(",")
@@ -91,6 +92,7 @@ app.include_router(agent_channels_router, prefix="/api")
 app.include_router(external_router, prefix="/api/external")
 app.include_router(agent_triggers_router, prefix="/api")
 app.include_router(agent_escalations_router, prefix="/api")
+app.mount("/mcp", mcp_http_app)
 
 
 @app.get("/health")

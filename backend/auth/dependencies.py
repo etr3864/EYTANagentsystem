@@ -10,52 +10,44 @@ from backend.core.database import get_db
 from .models import AuthUser, UserRole
 from .security import decode_access_token
 from . import service
+from . import mcp_tokens
 
 
 # Bearer token extractor
 security = HTTPBearer(auto_error=False)
 
 
+def _user_from_bearer(db: Session, raw: str | None) -> AuthUser | None:
+    if not raw:
+        return None
+    if raw.startswith(mcp_tokens.TOKEN_PREFIX):
+        return mcp_tokens.authenticate(db, raw)
+    payload = decode_access_token(raw)
+    if not payload:
+        return None
+    try:
+        user_id = int(payload.get("sub"))
+    except (TypeError, ValueError):
+        return None
+    user = service.get_by_id(db, user_id)
+    if not user or not user.is_active:
+        return None
+    return user
+
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
 ) -> AuthUser:
-    """Get the currently authenticated user.
-    
-    Raises 401 if token is invalid or user not found.
-    """
-    if not credentials:
+    """JWT session or long-lived MCP personal token."""
+    raw = credentials.credentials if credentials else None
+    user = _user_from_bearer(db, raw)
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
-    payload = decode_access_token(credentials.credentials)
-    if not payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    user_id = int(payload.get("sub"))
-    user = service.get_by_id(db, user_id)
-    
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User is deactivated",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
     return user
 
 
@@ -63,24 +55,8 @@ async def get_current_user_optional(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
 ) -> AuthUser | None:
-    """Get the currently authenticated user, or None if not authenticated.
-    
-    Useful for endpoints that have different behavior based on auth status.
-    """
-    if not credentials:
-        return None
-    
-    payload = decode_access_token(credentials.credentials)
-    if not payload:
-        return None
-    
-    user_id = int(payload.get("sub"))
-    user = service.get_by_id(db, user_id)
-    
-    if not user or not user.is_active:
-        return None
-    
-    return user
+    raw = credentials.credentials if credentials else None
+    return _user_from_bearer(db, raw)
 
 
 def require_role(*allowed_roles: UserRole) -> Callable:

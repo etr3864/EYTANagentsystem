@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { isSuperAdmin } from '@/lib/auth';
-import { AgentsIcon, ChartIcon, UsersIcon, DatabaseIcon, PlusIcon, LogoutIcon } from '@/components/ui';
+import { AgentsIcon, ChartIcon, UsersIcon, DatabaseIcon, PlusIcon, LogoutIcon, SettingsIcon } from '@/components/ui';
 
 const LOGO_ICON = 'https://res.cloudinary.com/daowx6msw/image/upload/v1761607495/white_logogg_uf3usn.png';
 
@@ -89,6 +89,21 @@ export function AppNavbar() {
                 </span>
               </div>
 
+              {isSuperAdmin(user) && (
+              <Link
+                href="/settings"
+                className={`p-2 rounded-lg transition-colors ${
+                  isActive('/settings')
+                    ? 'bg-purple-600/15 text-purple-300'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+                aria-label="הגדרות"
+                title="הגדרות"
+              >
+                <SettingsIcon className="w-5 h-5" />
+              </Link>
+              )}
+
               <button
                 onClick={logout}
                 className="hidden md:flex items-center gap-1.5 px-3 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors text-sm"
@@ -140,6 +155,22 @@ export function AppNavbar() {
               ))}
 
               <div className="border-t border-purple-500/10 pt-3 mt-2">
+                {isSuperAdmin(user) && (
+                <Link
+                  href="/settings"
+                  onClick={() => setMobileOpen(false)}
+                  className={`
+                    flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors
+                    ${isActive('/settings')
+                      ? 'bg-purple-600/15 text-purple-300'
+                      : 'text-slate-300 hover:bg-white/5'
+                    }
+                  `}
+                >
+                  <span className="opacity-70"><SettingsIcon /></span>
+                  הגדרות
+                </Link>
+                )}
                 <div className="flex items-center justify-between px-4 py-2">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-slate-300">{user.name}</span>

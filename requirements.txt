@@ -32,3 +32,5 @@ cryptography>=42.0.0
 google-genai>=1.0.0
 # Background tasks
 celery>=5.4.0
+# Hosted MCP
+fastmcp>=2.13.0,<4

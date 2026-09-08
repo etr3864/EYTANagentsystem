@@ -19,6 +19,7 @@ def run_all(conn):
     _knowledge_source(conn)
     _message_inbox_media(conn)
     _message_reply_to(conn)
+    _mcp_tokens(conn)
     conn.commit()
 
 
@@ -603,6 +604,32 @@ def _message_reply_to(conn):
     conn.execute(text("""
         DO $$ BEGIN
             ALTER TABLE messages ADD COLUMN reply_to_text TEXT;
+        EXCEPTION
+            WHEN duplicate_column THEN null;
+        END $$;
+    """))
+
+
+def _mcp_tokens(conn):
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS auth_mcp_tokens (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES auth_users(id) ON DELETE CASCADE,
+            name VARCHAR(80) NOT NULL,
+            token_hash VARCHAR(64) NOT NULL UNIQUE,
+            prefix VARCHAR(16) NOT NULL,
+            last_used_at TIMESTAMP,
+            paused BOOLEAN NOT NULL DEFAULT FALSE,
+            created_at TIMESTAMP NOT NULL DEFAULT NOW()
+        );
+    """))
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_auth_mcp_tokens_user_id
+        ON auth_mcp_tokens(user_id);
+    """))
+    conn.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE auth_mcp_tokens ADD COLUMN paused BOOLEAN NOT NULL DEFAULT FALSE;
         EXCEPTION
             WHEN duplicate_column THEN null;
         END $$;

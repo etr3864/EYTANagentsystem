@@ -18,4 +18,4 @@ from backend.models.agent_trigger import AgentTrigger
 from backend.models.escalation import AgentEscalationReason, EscalationCooldown
 
 # Auth models (imported last to avoid circular imports)
-from backend.auth.models import AuthUser, UserRole
+from backend.auth.models import AuthUser, UserRole, McpToken

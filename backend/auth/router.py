@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session, joinedload
 
 from backend.core.database import get_db
+from backend.core.config import settings
 from backend.core.logger import log
 from .models import AuthUser, UserRole
 from .dependencies import get_current_user, require_role
@@ -31,6 +32,10 @@ from .schemas import (
     EmployeeListResponse,
     EmployeeWithParentResponse,
     MessageResponse,
+    McpTokenCreateRequest,
+    McpTokenPublic,
+    McpTokenCreated,
+    McpTokenPatchRequest,
 )
 
 
@@ -174,6 +179,88 @@ def change_own_password(
     log("PASSWORD_CHANGED", user_id=current_user.id)
     
     return MessageResponse(message="Password changed successfully")
+
+
+def _mcp_public_url(request: Request) -> str:
+    base = (settings.oauth_redirect_base or "").rstrip("/")
+    if not base:
+        forwarded = request.headers.get("x-forwarded-host")
+        if forwarded:
+            proto = request.headers.get("x-forwarded-proto", "https")
+            base = f"{proto}://{forwarded}"
+        else:
+            base = str(request.base_url).rstrip("/")
+    return f"{base}/mcp"
+
+
+@router.get("/me/mcp-tokens", response_model=list[McpTokenPublic])
+def list_mcp_tokens(
+    current_user: AuthUser = Depends(require_role(UserRole.SUPER_ADMIN)),
+    db: Session = Depends(get_db),
+):
+    from backend.auth import mcp_tokens
+    return [mcp_tokens.to_public(row) for row in mcp_tokens.list_for_user(db, current_user.id)]
+
+
+@router.get("/me/mcp-connection")
+def mcp_connection(
+    request: Request,
+    current_user: AuthUser = Depends(require_role(UserRole.SUPER_ADMIN)),
+):
+    return {
+        "mcp_url": _mcp_public_url(request),
+        "user": {"id": current_user.id, "name": current_user.name, "role": current_user.role.value},
+    }
+
+
+@router.post("/me/mcp-tokens", response_model=McpTokenCreated, status_code=status.HTTP_201_CREATED)
+def create_mcp_token(
+    request: Request,
+    body: McpTokenCreateRequest,
+    current_user: AuthUser = Depends(require_role(UserRole.SUPER_ADMIN)),
+    db: Session = Depends(get_db),
+):
+    from backend.auth import mcp_tokens
+    try:
+        row, raw = mcp_tokens.issue(db, current_user, body.name)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    log("MCP_TOKEN_CREATED", user_id=current_user.id, token_id=row.id)
+    public = mcp_tokens.to_public(row)
+    return McpTokenCreated(**public, token=raw, mcp_url=_mcp_public_url(request))
+
+
+@router.patch("/me/mcp-tokens/{token_id}", response_model=McpTokenPublic)
+def patch_mcp_token(
+    token_id: int,
+    body: McpTokenPatchRequest,
+    current_user: AuthUser = Depends(require_role(UserRole.SUPER_ADMIN)),
+    db: Session = Depends(get_db),
+):
+    from backend.auth import mcp_tokens
+    if body.name is None and body.paused is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="אין מה לעדכן")
+    try:
+        row = mcp_tokens.patch(db, current_user.id, token_id, body.name, body.paused)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if not row:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="טוקן לא נמצא")
+    log("MCP_TOKEN_UPDATED", user_id=current_user.id, token_id=token_id, paused=row.paused)
+    return mcp_tokens.to_public(row)
+
+
+@router.delete("/me/mcp-tokens/{token_id}", response_model=MessageResponse)
+def revoke_mcp_token(
+    token_id: int,
+    current_user: AuthUser = Depends(require_role(UserRole.SUPER_ADMIN)),
+    db: Session = Depends(get_db),
+):
+    from backend.auth import mcp_tokens
+    if not mcp_tokens.revoke(db, current_user.id, token_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="טוקן לא נמצא")
+    log("MCP_TOKEN_REVOKED", user_id=current_user.id, token_id=token_id)
+    return MessageResponse(message="הטוקן נמחק")
 
 
 # ============================================================
