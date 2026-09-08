@@ -12,7 +12,7 @@ from backend.services.agent_functions import breaker, errors as fn_errors
 from backend.services.agent_functions import http_client, idempotency, repo, resolve, state, tester, wrap
 from backend.services.agent_functions.budget import TurnBudget
 from backend.services.agent_functions.egress import EgressDenied
-from backend.services.agent_functions.outputs import mapped_outputs
+from backend.services.agent_functions.outputs import mapped_outputs, payload_for_llm
 from backend.services.agent_functions.template import MissingVariableError
 
 WRITE_AMBIGUOUS = frozenset({"timeout", "unavailable", "indeterminate"})
@@ -154,7 +154,7 @@ async def _call_http(prepared: PreparedCall, budget: TurnBudget) -> str:
     mapped = mapped_outputs(result.body, prepared.outputs)
     breaker.record_success(prepared.function_id)
     _finish_ok(prepared, result, mapped)
-    return wrap.success(mapped, prepared.response_instructions)
+    return wrap.success(payload_for_llm(mapped, result.body), prepared.response_instructions)
 
 
 def _finish_ok(prepared: PreparedCall, result, mapped: dict) -> None:

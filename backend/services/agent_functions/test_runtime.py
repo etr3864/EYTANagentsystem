@@ -8,7 +8,7 @@ from backend.services.agent_functions.budget import TurnBudget
 from backend.services.agent_functions.constants import MIN_HTTP_MS, UNTRUSTED_PREFIX
 from backend.services.agent_functions.idempotency import make_key
 from backend.services.agent_functions.names import RESERVED_NAMES, validate_name, FunctionNameError
-from backend.services.agent_functions.outputs import mapped_outputs
+from backend.services.agent_functions.outputs import mapped_outputs, payload_for_llm
 from backend.services.agent_functions.tool_adapter import to_llm_tool
 from backend.services.agent_functions.template import render, MissingVariableError
 
@@ -108,6 +108,15 @@ class OutputsTests(unittest.TestCase):
             [{"json_path": "$.data.id", "save_as": "crm_id", "scope": "user"}],
         )
         self.assertEqual(mapped, {"crm_id": "99"})
+
+    def test_llm_gets_body_when_unmapped(self):
+        body = {"current": {"temperature_2m": 22.4}}
+        self.assertEqual(payload_for_llm({}, body), body)
+
+    def test_llm_prefers_mapped(self):
+        body = {"current": {"temperature_2m": 22.4}, "noise": "x"}
+        mapped = {"temp": 22.4}
+        self.assertEqual(payload_for_llm(mapped, body), mapped)
 
 
 class TemplateTests(unittest.TestCase):
