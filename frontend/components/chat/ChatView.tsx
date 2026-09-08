@@ -3,8 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Message } from '@/lib/types';
 import { parseUTCDate } from '@/lib/dates';
-import { VoiceIcon, ImageIcon, VideoIcon, SendIcon, PauseIcon, PlayIcon } from '@/components/ui/Icons';
+import { SendIcon, PauseIcon, PlayIcon } from '@/components/ui/Icons';
 import { EscalationNote } from './EscalationNote';
+import { MessageMedia, bubbleText } from './MessageMedia';
+import { ReplyQuote } from './ReplyQuote';
 
 interface ChatViewProps {
   messages: Message[];
@@ -116,24 +118,17 @@ export function ChatView({ messages, conversationId, isPaused, onSend, onToggleP
         const isVoice = msg.message_type === 'voice';
         const isImage = msg.message_type === 'image';
         const isVideo = msg.message_type === 'video';
+        const isDocument = msg.message_type === 'document';
         const isManual = msg.message_type === 'manual';
         const isExternal = msg.message_type === 'external';
         const isTriggerData = msg.message_type === 'trigger_data';
         const isEscalation = msg.message_type === 'escalation';
         const isCenteredNote = isTriggerData || isEscalation;
         const hasMediaUrl = !!msg.media_url;
+        const tooLarge = !!msg.media_too_large;
         
-        // Clean content for voice messages (remove prefix)
-        let displayContent = msg.content;
-        if (isVoice) {
-          displayContent = msg.content.replace(/^\[הודעה קולית\]:\s*/, '');
-        } else if (isImage && !hasMediaUrl) {
-          // User sent image - show description
-          displayContent = msg.content === '[תמונה]' ? '' : msg.content.replace(/^\[תמונה\]:\s*/, '');
-        } else if ((isImage || isVideo) && hasMediaUrl) {
-          // Agent sent media - show caption or clean content
-          displayContent = msg.content.replace(/^\[(image|video)\]:\s*/i, '');
-        }
+        const displayContent = bubbleText(msg);
+        const captionUnderMedia = tooLarge || ((isImage || isVideo) && hasMediaUrl);
         
         // Determine bubble style
         const getBubbleStyle = () => {
@@ -145,7 +140,8 @@ export function ChatView({ messages, conversationId, isPaused, onSend, onToggleP
             return 'bg-slate-700/50 text-slate-100 rounded-tl-sm';
           }
           if (isVoice) return 'bg-purple-600/20 text-purple-50 rounded-tr-sm border border-purple-500/30';
-          if (isImage) return 'bg-cyan-600/20 text-cyan-50 rounded-tr-sm border border-cyan-500/30';
+          if (isImage || isVideo) return 'bg-cyan-600/20 text-cyan-50 rounded-tr-sm border border-cyan-500/30';
+          if (isDocument || tooLarge) return 'bg-amber-600/20 text-amber-50 rounded-tr-sm border border-amber-500/30';
           return 'bg-emerald-600/20 text-emerald-50 rounded-tr-sm';
         };
         
@@ -178,53 +174,10 @@ export function ChatView({ messages, conversationId, isPaused, onSend, onToggleP
                     <span>נשלח ללקוח מאוטומציה</span>
                   </div>
                 )}
-                {isVoice && (
-                  <div className="flex items-center gap-2 text-purple-400 text-xs mb-2 pb-2 border-b border-purple-500/20">
-                    <VoiceIcon />
-                    <span>הודעה קולית</span>
-                  </div>
-                )}
+                {msg.reply_to_text && <ReplyQuote text={msg.reply_to_text} />}
+                <MessageMedia msg={msg} displayContent={displayContent} />
                 
-                {/* Image indicator (user sent image without URL) */}
-                {isImage && !hasMediaUrl && (
-                  <div className="flex items-center gap-2 text-cyan-400 text-xs mb-2 pb-2 border-b border-cyan-500/20">
-                    <ImageIcon />
-                    <span>תמונה</span>
-                  </div>
-                )}
-                
-                {/* Media display (agent sent media with URL) */}
-                {hasMediaUrl && (
-                  <div className="mb-2">
-                    {/* Media type indicator */}
-                    <div className={`flex items-center gap-2 text-xs mb-2 pb-2 border-b ${
-                      isVideo ? 'text-pink-400 border-pink-500/20' : 'text-indigo-400 border-indigo-500/20'
-                    }`}>
-                      {isVideo ? <VideoIcon /> : <ImageIcon />}
-                      <span>{isVideo ? 'סרטון' : 'תמונה'}</span>
-                    </div>
-                    
-                    {/* Actual media */}
-                    {isImage && (
-                      <img 
-                        src={msg.media_url!} 
-                        alt={displayContent || 'תמונה'}
-                        className="max-w-full max-h-64 rounded-lg object-contain cursor-pointer hover:opacity-90 transition-opacity"
-                        onClick={() => window.open(msg.media_url!, '_blank')}
-                      />
-                    )}
-                    {isVideo && (
-                      <video 
-                        src={msg.media_url!}
-                        controls
-                        className="max-w-full max-h-64 rounded-lg"
-                        preload="metadata"
-                      />
-                    )}
-                  </div>
-                )}
-                
-                {displayContent && !isEscalation && (
+                {displayContent && !isEscalation && !captionUnderMedia && (
                   <div className="text-sm whitespace-pre-wrap leading-relaxed">
                     {displayContent}
                   </div>

@@ -168,60 +168,69 @@ async def _resolve_messenger_profile(
 # ── Media processing ──────────────────────────────────────────────────────────
 
 async def _process_media(
-    msg: ParsedIncomingMessage, access_token: Optional[str] = None,
-) -> tuple[str, Optional[str]]:
-    """Process image/audio attachments. Returns (text, image_base64).
+    msg: ParsedIncomingMessage, agent_id: int, access_token: Optional[str] = None,
+) -> tuple[str, Optional[str], Optional[str], bool]:
+    """Download inbound media, persist under the size cap.
 
-    For WhatsApp Meta, media is downloaded via media_id + access_token (two-step Graph API).
-    For Instagram/Messenger, media is downloaded from the public URL.
+    Returns (text, image_base64, media_url, media_too_large).
     """
-    from backend.services import media
-    from backend.services.media import download_from_url
+    import base64
+
+    from backend.services.media.inbox import ingest_from_url, ingest_from_whatsapp, too_large_text
     from backend.services.media.transcription import transcribe_audio
 
     text = msg.text
     image_base64 = None
-    has_wa_media = msg.channel_type == "whatsapp_meta" and msg.media_id and access_token
-    has_url_media = msg.media_url
+    kind = {
+        "image": "image", "video": "video", "audio": "audio", "document": "document",
+    }.get(msg.msg_type)
+    if not kind:
+        return text, None, None, False
 
-    if msg.msg_type == "image" and (has_wa_media or has_url_media):
-        if has_wa_media:
-            image_base64 = await media.download_image_as_base64(msg.media_id, access_token)
-        else:
-            image_base64 = await media.download_url_as_base64(msg.media_url)
+    filename = (msg.extra or {}).get("filename")
+    has_wa = msg.channel_type == "whatsapp_meta" and msg.media_id and access_token
+    ingested = None
+    if has_wa:
+        ingested = await ingest_from_whatsapp(
+            agent_id, msg.media_id, access_token, kind, msg.mime_type, filename,
+        )
+    elif msg.media_url:
+        ingested = await ingest_from_url(
+            agent_id, msg.media_url, kind, msg.mime_type, filename,
+        )
 
-        if image_base64:
+    if ingested is None:
+        return text, None, None, False
+
+    if ingested.too_large:
+        body = too_large_text(kind, filename, ingested.size)
+        cap = (msg.text or "").strip()
+        if cap and cap not in ("[תמונה]", "[וידאו]", "[קובץ]", "[הודעה קולית]"):
+            body = f"{body}\n{cap}"
+        return body, None, ingested.media_url, True
+
+    media_url = ingested.media_url
+
+    if msg.msg_type == "image":
+        if ingested.data:
+            image_base64 = base64.b64encode(ingested.data).decode("utf-8")
             text = text or "[תמונה]"
         else:
             text = text or "[תמונה - לא הצלחתי להוריד]"
             log_error("webhook_meta", f"image download failed for {msg.channel_type}")
-
-    elif msg.msg_type == "video" and (has_wa_media or has_url_media):
+    elif msg.msg_type == "video":
         from backend.services.media.video import extract_first_frame
-
-        if has_wa_media:
-            video_bytes = await media.download_whatsapp_media(msg.media_id, access_token)
-        else:
-            video_bytes = await download_from_url(msg.media_url)
-
-        if video_bytes:
-            image_base64 = extract_first_frame(video_bytes)
+        if ingested.data:
+            image_base64 = extract_first_frame(ingested.data)
             text = text or "[וידאו]"
         else:
             log_error("webhook_meta", f"video download failed for {msg.channel_type}")
             text = text or "[וידאו]"
-
     elif msg.msg_type == "document":
         text = text or "[קובץ]"
-
-    elif msg.msg_type == "audio" and (has_wa_media or has_url_media):
-        if has_wa_media:
-            audio_bytes = await media.download_whatsapp_media(msg.media_id, access_token)
-        else:
-            audio_bytes = await download_from_url(msg.media_url)
-
-        if audio_bytes:
-            transcript = await transcribe_audio(audio_bytes)
+    elif msg.msg_type == "audio":
+        if ingested.data:
+            transcript = await transcribe_audio(ingested.data)
             if transcript:
                 text = f"[הודעה קולית]: {transcript}"
             else:
@@ -230,7 +239,7 @@ async def _process_media(
             log_error("webhook_meta", f"audio download failed for {msg.channel_type}")
             text = text or "[הודעה קולית - לא הצלחתי להוריד]"
 
-    return text, image_base64
+    return text, image_base64, media_url, False
 
 
 # ── Main message handler ──────────────────────────────────────────────────────
@@ -296,12 +305,23 @@ async def _handle_single_message(msg: ParsedIncomingMessage) -> None:
             creds = decrypt_credentials(channel.credentials_encrypted)
             wa_token = creds.get("access_token", "")
 
-        text, image_base64 = await _process_media(msg, access_token=wa_token)
+        text, image_base64, media_url, media_too_large = await _process_media(
+            msg, channel.agent_id, access_token=wa_token,
+        )
+        pending_mime = msg.mime_type
+        if image_base64:
+            if msg.msg_type == "video":
+                pending_mime = "image/jpeg"
+            elif msg.msg_type == "image":
+                from backend.services.media import get_media_type_from_mime
+                pending_mime = get_media_type_from_mime(msg.mime_type or "image/jpeg")
         pending = PendingMessage(
             text=text,
             msg_type="voice" if msg.msg_type == "audio" else msg.msg_type,
             image_base64=image_base64,
-            media_type=msg.mime_type,
+            media_type=pending_mime,
+            media_url=media_url,
+            media_too_large=media_too_large,
         )
 
         if debounce == 0:
@@ -325,7 +345,8 @@ async def _handle_single_message(msg: ParsedIncomingMessage) -> None:
             agent_id=channel.agent_id, user_phone=msg.external_user_id, text=text,
             debounce_seconds=debounce, max_messages=max_batch,
             process_callback=process_callback,
-            msg_type=pending.msg_type, image_base64=image_base64, media_type=msg.mime_type,
+            msg_type=pending.msg_type, image_base64=image_base64, media_type=pending_mime,
+            media_url=media_url, media_too_large=media_too_large,
         )
 
     except Exception as e:
@@ -429,6 +450,14 @@ async def _delete_user_data(external_user_id: str) -> None:
         ]
 
         if target_conv_ids:
+            from backend.services.media.inbox import delete_stored_urls
+            media_urls = [
+                row[0] for row in db.execute(
+                    text("SELECT media_url FROM messages WHERE conversation_id = ANY(:ids) AND media_url IS NOT NULL"),
+                    {"ids": target_conv_ids},
+                ).fetchall()
+            ]
+            delete_stored_urls(media_urls)
             db.execute(
                 text("DELETE FROM messages WHERE conversation_id = ANY(:ids)"),
                 {"ids": target_conv_ids},

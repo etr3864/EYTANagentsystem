@@ -9,7 +9,9 @@ def add(
     content: str,
     message_type: str = "text",
     media_id: int | None = None,
-    media_url: str | None = None
+    media_url: str | None = None,
+    media_too_large: bool = False,
+    reply_to_text: str | None = None,
 ) -> Message:
     """Add a message to conversation.
     
@@ -21,6 +23,7 @@ def add(
         message_type: Type of message ('text', 'image', 'video', 'voice')
         media_id: Optional link to AgentMedia record
         media_url: Optional URL of the media file
+        media_too_large: True when inbound media exceeded persist cap
     """
     msg = Message(
         conversation_id=conversation_id,
@@ -28,7 +31,9 @@ def add(
         content=content,
         message_type=message_type,
         media_id=media_id,
-        media_url=media_url
+        media_url=media_url,
+        media_too_large=media_too_large,
+        reply_to_text=reply_to_text,
     )
     db.add(msg)
     db.commit()
@@ -44,6 +49,8 @@ def add_no_commit(
     message_type: str = "text",
     media_id: int | None = None,
     media_url: str | None = None,
+    media_too_large: bool = False,
+    reply_to_text: str | None = None,
 ) -> Message:
     """Add a message without committing — caller is responsible for db.commit()."""
     msg = Message(
@@ -53,6 +60,8 @@ def add_no_commit(
         message_type=message_type,
         media_id=media_id,
         media_url=media_url,
+        media_too_large=media_too_large,
+        reply_to_text=reply_to_text,
     )
     db.add(msg)
     return msg
@@ -74,6 +83,9 @@ def get_history(db: Session, conversation_id: int, limit: int | None = None) -> 
             "role": m.role,
             "content": m.content,
             "message_type": m.message_type or "text",
+            "media_url": m.media_url,
+            "media_too_large": bool(m.media_too_large),
+            "reply_to_text": m.reply_to_text,
             "created_at": m.created_at.isoformat() if m.created_at else None,
         }
         for m in msgs

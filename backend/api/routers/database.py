@@ -88,6 +88,8 @@ def list_messages(page: int = Query(1, ge=1), per_page: int = Query(50, ge=1, le
             "role": m.role, "content": m.content,
             "message_type": m.message_type or "text",
             "media_id": m.media_id, "media_url": m.media_url,
+            "media_too_large": bool(m.media_too_large),
+            "reply_to_text": m.reply_to_text,
             "created_at": m.created_at.isoformat() if m.created_at else None,
         }
 

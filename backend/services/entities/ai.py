@@ -14,6 +14,7 @@ from backend.core.ai_config import SYSTEM_SUFFIX, USER_TOOLS
 from backend.services.llm import get_provider
 from backend.services.llm.catalog import conversation_model, resolve_model, sanitize_thinking
 from backend.services.llm.types import LLMResponse
+from backend.services.messaging.replies import format_reply_for_llm
 
 if TYPE_CHECKING:
     from backend.services.messaging.buffer import PendingMessage
@@ -224,6 +225,7 @@ def build_user_content(pending_messages: list["PendingMessage"]) -> list[dict]:
     content_blocks = []
     
     for msg in pending_messages:
+        text = format_reply_for_llm(msg.text or "", msg.reply_to_text)
         if msg.msg_type == "image" and msg.image_base64:
             content_blocks.append({
                 "type": "image",
@@ -233,15 +235,15 @@ def build_user_content(pending_messages: list["PendingMessage"]) -> list[dict]:
                     "data": msg.image_base64
                 }
             })
-            if msg.text:
+            if text:
                 content_blocks.append({
                     "type": "text",
-                    "text": msg.text
+                    "text": text
                 })
         else:
             content_blocks.append({
                 "type": "text",
-                "text": msg.text
+                "text": text
             })
     
     return content_blocks

@@ -5,6 +5,7 @@ Files are organized by: agents/{agent_id}/{media_type}s/{filename}
 """
 import io
 import logging
+import re
 from typing import BinaryIO, Optional
 from uuid import uuid4
 
@@ -149,6 +150,25 @@ def delete_file(file_key: str) -> bool:
     except ClientError as e:
         logger.error(f"storage delete_failed key={file_key} error={e}")
         return False
+
+
+def delete_prefix(prefix: str) -> None:
+    """Delete every object under an R2 key prefix. Inbox folder only."""
+    if not re.fullmatch(r"agents/\d+/inbox/", prefix):
+        raise ValueError("refusing to bulk-delete a non-inbox prefix")
+    client = _get_client()
+    paginator = client.get_paginator("list_objects_v2")
+    try:
+        for page in paginator.paginate(Bucket=settings.r2_bucket_name, Prefix=prefix):
+            keys = [{"Key": obj["Key"]} for obj in page.get("Contents") or []]
+            if not keys:
+                continue
+            client.delete_objects(
+                Bucket=settings.r2_bucket_name,
+                Delete={"Objects": keys, "Quiet": True},
+            )
+    except ClientError as e:
+        logger.error(f"storage prefix_delete_failed prefix={prefix} error={e}")
 
 
 def file_exists(file_key: str) -> bool:

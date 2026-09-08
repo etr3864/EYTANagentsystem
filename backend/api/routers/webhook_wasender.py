@@ -9,10 +9,10 @@ from sqlalchemy.orm import Session
 from backend.core.database import SessionLocal
 from backend.core.logger import log_error, log_audio, log_image, log
 from backend.models.agent import Agent
-from backend.services import media
 from backend.services.entities import agents
 from backend.services.messaging import buffer as message_buffer
 from backend.services.media import transcription
+from backend.services.media.inbox import ingest_from_url, too_large_text
 from backend.services.channels import wasender
 from backend.services.messaging.buffer import PendingMessage
 from backend.services.messaging.processing import process_batched_messages, is_duplicate
@@ -49,54 +49,119 @@ def _resolve_credentials(db: Session, agent: Agent) -> _ResolvedConfig:
     )
 
 
-async def _process_audio(api_key: str, msg_data: dict, agent_name: str) -> tuple[str, str]:
-    """Process incoming audio → returns (text, msg_type)."""
+@dataclass
+class _InboundMedia:
+    text: str
+    msg_type: str
+    image_base64: Optional[str] = None
+    mime_type: Optional[str] = None
+    media_url: Optional[str] = None
+    media_too_large: bool = False
+
+
+async def _decrypt(api_key: str, msg_data: dict) -> Optional[str]:
+    return await wasender.decrypt_media(api_key, msg_data["message_key"], msg_data["message_data"])
+
+
+async def _process_audio(api_key: str, msg_data: dict, agent_id: int, agent_name: str) -> _InboundMedia:
     log_audio("received", agent=agent_name, provider="wasender")
-    public_url = await wasender.decrypt_media(api_key, msg_data["message_key"], msg_data["message_data"])
+    public_url = await _decrypt(api_key, msg_data)
     if not public_url:
-        return "[הודעה קולית - לא הצלחתי לפענח]", "voice"
-    audio_bytes = await media.download_from_url(public_url)
-    if not audio_bytes:
-        return "[הודעה קולית - לא הצלחתי להוריד]", "voice"
-    transcript = await transcription.transcribe_audio(audio_bytes)
-    if transcript:
-        return f"[הודעה קולית]: {transcript}", "voice"
-    log_error("audio", "transcription failed")
-    return "[הודעה קולית - לא הצלחתי לתמלל]", "voice"
+        return _InboundMedia("[הודעה קולית - לא הצלחתי לפענח]", "voice")
+    ingested = await ingest_from_url(
+        agent_id, public_url, "audio", msg_data.get("mime_type"),
+    )
+    if ingested.too_large:
+        return _InboundMedia(
+            too_large_text("audio", size=ingested.size), "voice",
+            media_url=ingested.media_url, media_too_large=True,
+        )
+    if not ingested.data:
+        return _InboundMedia("[הודעה קולית - לא הצלחתי להוריד]", "voice")
+    transcript = await transcription.transcribe_audio(ingested.data)
+    text = f"[הודעה קולית]: {transcript}" if transcript else "[הודעה קולית - לא הצלחתי לתמלל]"
+    if not transcript:
+        log_error("audio", "transcription failed")
+    return _InboundMedia(text, "voice", media_url=ingested.media_url)
 
 
-async def _process_image(api_key: str, msg_data: dict, agent_name: str) -> tuple[str, str, Optional[str], Optional[str]]:
-    """Process incoming image → returns (text, msg_type, image_base64, mime_type)."""
+async def _process_image(api_key: str, msg_data: dict, agent_id: int, agent_name: str) -> _InboundMedia:
+    import base64
+    from backend.services.media import get_media_type_from_mime
+
     log_image("received", agent=agent_name, provider="wasender")
-    public_url = await wasender.decrypt_media(api_key, msg_data["message_key"], msg_data["message_data"])
+    caption = (msg_data.get("text") or "").strip()
+    public_url = await _decrypt(api_key, msg_data)
     if not public_url:
-        return "[תמונה - לא הצלחתי לפענח]", "text", None, None
-    image_base64 = await media.download_url_as_base64(public_url)
-    if not image_base64:
+        return _InboundMedia(caption or "[תמונה - לא הצלחתי לפענח]", "text")
+    ingested = await ingest_from_url(
+        agent_id, public_url, "image", msg_data.get("mime_type"),
+    )
+    mime = get_media_type_from_mime(msg_data.get("mime_type", "image/jpeg"))
+    if ingested.too_large:
+        body = too_large_text("image", size=ingested.size)
+        if caption:
+            body = f"{body}\n{caption}"
+        return _InboundMedia(
+            body, "image",
+            media_url=ingested.media_url, media_too_large=True,
+        )
+    if not ingested.data:
         log_error("image", "download failed")
-        return "[תמונה - לא הצלחתי להוריד]", "text", None, None
-    mime = media.get_media_type_from_mime(msg_data.get("mime_type", "image/jpeg"))
-    return "[תמונה]", "image", image_base64, mime
+        return _InboundMedia(caption or "[תמונה - לא הצלחתי להוריד]", "text")
+    return _InboundMedia(
+        caption or "[תמונה]", "image",
+        image_base64=base64.b64encode(ingested.data).decode("utf-8"),
+        mime_type=mime,
+        media_url=ingested.media_url,
+    )
 
 
-async def _process_video(api_key: str, msg_data: dict, agent_name: str) -> tuple[str, str, Optional[str], Optional[str]]:
-    """Process incoming video → decrypt, extract first frame, return as image for AI."""
+async def _process_video(api_key: str, msg_data: dict, agent_id: int, agent_name: str) -> _InboundMedia:
     from backend.services.media.video import extract_first_frame
 
     log("VIDEO", agent=agent_name, provider="wasender")
-    public_url = await wasender.decrypt_media(api_key, msg_data["message_key"], msg_data["message_data"])
+    caption = (msg_data.get("text") or "").strip()
+    public_url = await _decrypt(api_key, msg_data)
     if not public_url:
-        return "[וידאו]", "video", None, None
-
-    video_bytes = await media.download_from_url(public_url)
-    if not video_bytes:
+        return _InboundMedia(caption or "[וידאו]", "video")
+    ingested = await ingest_from_url(
+        agent_id, public_url, "video", msg_data.get("mime_type"),
+    )
+    if ingested.too_large:
+        body = too_large_text("video", size=ingested.size)
+        if caption:
+            body = f"{body}\n{caption}"
+        return _InboundMedia(
+            body, "video",
+            media_url=ingested.media_url, media_too_large=True,
+        )
+    if not ingested.data:
         log_error("video", "download failed")
-        return "[וידאו]", "video", None, None
+        return _InboundMedia(caption or "[וידאו]", "video")
+    return _InboundMedia(
+        caption or "[וידאו]", "video",
+        image_base64=extract_first_frame(ingested.data),
+        mime_type="image/jpeg",
+        media_url=ingested.media_url,
+    )
 
-    frame_base64 = extract_first_frame(video_bytes)
-    caption = msg_data.get("text", "")
-    text = f"[וידאו]: {caption}" if caption else "[וידאו]"
-    return text, "video", frame_base64, "image/jpeg"
+
+async def _process_document(api_key: str, msg_data: dict, agent_id: int) -> _InboundMedia:
+    filename = msg_data.get("filename") or ""
+    label = f"[קובץ: {filename}]" if filename else "[קובץ]"
+    public_url = await _decrypt(api_key, msg_data)
+    if not public_url:
+        return _InboundMedia(label, "document")
+    ingested = await ingest_from_url(
+        agent_id, public_url, "document", msg_data.get("mime_type"), filename,
+    )
+    if ingested.too_large:
+        return _InboundMedia(
+            too_large_text("document", filename, ingested.size), "document",
+            media_url=ingested.media_url, media_too_large=True,
+        )
+    return _InboundMedia(label, "document", media_url=ingested.media_url)
 
 
 async def _resolve_channel_user(
@@ -196,16 +261,28 @@ async def handle_wasender_message(agent_id: int, msg_data: dict):
         text = msg_data.get("text", "")
         image_base64 = None
         mime_type = None
+        media_url = None
+        media_too_large = False
+        quoted_text = msg_data.get("quoted_text")
 
         if msg_type == "audio":
-            text, msg_type = await _process_audio(creds.api_key, msg_data, agent.name)
+            inbound = await _process_audio(creds.api_key, msg_data, agent.id, agent.name)
         elif msg_type == "image":
-            text, msg_type, image_base64, mime_type = await _process_image(creds.api_key, msg_data, agent.name)
+            inbound = await _process_image(creds.api_key, msg_data, agent.id, agent.name)
         elif msg_type == "video":
-            text, msg_type, image_base64, mime_type = await _process_video(creds.api_key, msg_data, agent.name)
+            inbound = await _process_video(creds.api_key, msg_data, agent.id, agent.name)
         elif msg_type == "document":
-            filename = msg_data.get("filename", "")
-            text = f"[קובץ: {filename}]" if filename else "[קובץ]"
+            inbound = await _process_document(creds.api_key, msg_data, agent.id)
+        else:
+            inbound = None
+
+        if inbound:
+            text = inbound.text
+            msg_type = inbound.msg_type
+            image_base64 = inbound.image_base64
+            mime_type = inbound.mime_type
+            media_url = inbound.media_url
+            media_too_large = inbound.media_too_large
 
         channel_id, channel_user_id = await _resolve_channel_user(db, agent.id, phone, name, creds.api_key)
 
@@ -213,7 +290,11 @@ async def handle_wasender_message(agent_id: int, msg_data: dict):
         debounce = batching_config.get("debounce_seconds", 3)
         max_batch = batching_config.get("max_batch_messages", 10)
 
-        pending = PendingMessage(text=text, msg_type=msg_type, image_base64=image_base64, media_type=mime_type)
+        pending = PendingMessage(
+            text=text, msg_type=msg_type, image_base64=image_base64,
+            media_type=mime_type, media_url=media_url, media_too_large=media_too_large,
+            reply_to_text=quoted_text,
+        )
 
         async def send_fn(to: str, txt: str) -> bool:
             return await wasender.send_message(creds.api_key, creds.session, to, txt)
@@ -241,6 +322,8 @@ async def handle_wasender_message(agent_id: int, msg_data: dict):
             debounce_seconds=debounce, max_messages=max_batch,
             process_callback=process_callback,
             msg_type=msg_type, image_base64=image_base64, media_type=mime_type,
+            media_url=media_url, media_too_large=media_too_large,
+            reply_to_text=quoted_text,
         )
     finally:
         db.close()

@@ -17,6 +17,8 @@ def run_all(conn):
     _internal_triggers(conn)
     _escalation_reasons(conn)
     _knowledge_source(conn)
+    _message_inbox_media(conn)
+    _message_reply_to(conn)
     conn.commit()
 
 
@@ -573,6 +575,26 @@ def _knowledge_source(conn):
     conn.execute(text("""
         DO $$ BEGIN
             ALTER TABLE documents ADD COLUMN source_text TEXT;
+        EXCEPTION
+            WHEN duplicate_column THEN null;
+        END $$;
+    """))
+
+
+def _message_inbox_media(conn):
+    conn.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE messages ADD COLUMN media_too_large BOOLEAN NOT NULL DEFAULT FALSE;
+        EXCEPTION
+            WHEN duplicate_column THEN null;
+        END $$;
+    """))
+
+
+def _message_reply_to(conn):
+    conn.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE messages ADD COLUMN reply_to_text TEXT;
         EXCEPTION
             WHEN duplicate_column THEN null;
         END $$;

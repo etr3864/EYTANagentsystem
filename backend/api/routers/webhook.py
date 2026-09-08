@@ -36,27 +36,48 @@ async def handle_incoming_message(
         image_base64 = None
         final_msg_type = msg_type
         final_mime_type = None
-        
+        media_url = None
+        media_too_large = False
+
         if msg_type == "audio":
+            from backend.services.media.inbox import ingest_from_whatsapp, too_large_text
             log_audio("received", provider="meta", agent=agent.name)
-            transcript = await transcription.transcribe_whatsapp_audio(content, agent.access_token)
-            
-            if transcript:
-                text = f"[הודעה קולית]: {transcript}"
-                final_msg_type = "voice"
+            ingested = await ingest_from_whatsapp(
+                agent.id, content, agent.access_token, "audio", mime_type,
+            )
+            final_msg_type = "voice"
+            if ingested.too_large:
+                text = too_large_text("audio", size=ingested.size)
+                media_url = ingested.media_url
+                media_too_large = True
+            elif ingested.data:
+                transcript = await transcription.transcribe_audio(ingested.data)
+                text = f"[הודעה קולית]: {transcript}" if transcript else "[הודעה קולית - לא הצלחתי לתמלל]"
+                media_url = ingested.media_url
+                if not transcript:
+                    log_error("audio", "transcription failed")
             else:
                 text = "[הודעה קולית - לא הצלחתי לתמלל]"
-                final_msg_type = "voice"
                 log_error("audio", "transcription failed")
-        
+
         elif msg_type == "image":
+            import base64
+            from backend.services.media.inbox import ingest_from_whatsapp, too_large_text
             log_image("received", provider="meta", agent=agent.name)
-            image_base64 = await media.download_image_as_base64(content, agent.access_token)
-            
-            if image_base64:
+            ingested = await ingest_from_whatsapp(
+                agent.id, content, agent.access_token, "image", mime_type,
+            )
+            if ingested.too_large:
+                text = too_large_text("image", size=ingested.size)
+                final_msg_type = "image"
+                media_url = ingested.media_url
+                media_too_large = True
+            elif ingested.data:
+                image_base64 = base64.b64encode(ingested.data).decode("utf-8")
                 text = "[תמונה]"
                 final_msg_type = "image"
                 final_mime_type = media.get_media_type_from_mime(mime_type or "image/jpeg")
+                media_url = ingested.media_url
             else:
                 text = "[תמונה - לא הצלחתי להוריד]"
                 final_msg_type = "text"
@@ -73,7 +94,9 @@ async def handle_incoming_message(
             text=text,
             msg_type=final_msg_type,
             image_base64=image_base64,
-            media_type=final_mime_type
+            media_type=final_mime_type,
+            media_url=media_url,
+            media_too_large=media_too_large,
         )
         
         # Create send functions for this agent
@@ -101,7 +124,9 @@ async def handle_incoming_message(
             process_callback=process_callback,
             msg_type=final_msg_type,
             image_base64=image_base64,
-            media_type=final_mime_type
+            media_type=final_mime_type,
+            media_url=media_url,
+            media_too_large=media_too_large,
         )
     finally:
         db.close()

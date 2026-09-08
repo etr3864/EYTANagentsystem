@@ -272,6 +272,84 @@ async def decrypt_media(api_key: str, message_key: dict, message_data: dict) -> 
         return None
 
 
+def _unwrap_message(message: dict) -> dict:
+    if not isinstance(message, dict):
+        return {}
+    for wrap in (
+        "ephemeralMessage", "viewOnceMessage", "viewOnceMessageV2",
+        "documentWithCaptionMessage",
+    ):
+        inner = message.get(wrap)
+        if isinstance(inner, dict) and isinstance(inner.get("message"), dict):
+            return inner["message"]
+    return message
+
+
+def extract_quoted_text(message: dict) -> Optional[str]:
+    """Pull the quoted WhatsApp message body from Baileys/Wasender payload.
+
+    Replies arrive as extendedTextMessage.contextInfo.quotedMessage
+    (also on image/video/document when the reply is media).
+    """
+    ctx = _context_info(_unwrap_message(message) if message else {})
+    quoted = ctx.get("quotedMessage") if ctx else None
+    if not isinstance(quoted, dict):
+        return None
+    text = _quoted_body(quoted).strip()
+    if not text:
+        return None
+    return " ".join(text.split())[:400]
+
+
+def _context_info(message: dict) -> dict:
+    if not isinstance(message, dict):
+        return {}
+    if isinstance(message.get("contextInfo"), dict):
+        return message["contextInfo"]
+    for key in (
+        "extendedTextMessage", "imageMessage", "videoMessage",
+        "documentMessage", "audioMessage", "stickerMessage",
+    ):
+        inner = message.get(key)
+        if isinstance(inner, dict) and isinstance(inner.get("contextInfo"), dict):
+            return inner["contextInfo"]
+    return {}
+
+
+def _quoted_body(quoted: dict) -> str:
+    if quoted.get("conversation"):
+        return str(quoted["conversation"])
+    ext = quoted.get("extendedTextMessage")
+    if isinstance(ext, dict) and ext.get("text"):
+        return str(ext["text"])
+    img = quoted.get("imageMessage")
+    if isinstance(img, dict):
+        return str(img.get("caption") or "[תמונה]")
+    vid = quoted.get("videoMessage")
+    if isinstance(vid, dict):
+        return str(vid.get("caption") or "[וידאו]")
+    doc = quoted.get("documentMessage")
+    if isinstance(doc, dict):
+        return str(doc.get("fileName") or doc.get("caption") or "[קובץ]")
+    if quoted.get("audioMessage"):
+        return "[הודעה קולית]"
+    if quoted.get("stickerMessage"):
+        return "[סטיקר]"
+    return ""
+
+
+def _media_caption(inner: dict, messages_data: dict) -> str:
+    """Customer caption on image/video.
+
+    Wasender: imageMessage.caption, and also messageBody for media captions.
+    https://wasenderapi.com/api-docs/getting-started/how-to-receive-messages-and-media-from-wasenderapi
+    """
+    return (
+        (inner.get("caption") or messages_data.get("messageBody") or "")
+        .strip()
+    )
+
+
 def extract_message_data(payload: dict) -> Optional[dict]:
     """Extract normalized message data from WA Sender webhook payload.
     
@@ -291,6 +369,10 @@ def extract_message_data(payload: dict) -> Optional[dict]:
         
         data = payload.get("data", {})
         messages_data = data.get("messages", {})
+        if isinstance(messages_data, list):
+            messages_data = messages_data[0] if messages_data else {}
+        if not isinstance(messages_data, dict):
+            return None
         
         # Extract key info
         key = messages_data.get("key", {})
@@ -312,35 +394,45 @@ def extract_message_data(payload: dict) -> Optional[dict]:
         
         name = messages_data.get("pushName", "")
         timestamp = messages_data.get("messageTimestamp", 0)
-        message = messages_data.get("message", {})
+        raw_message = messages_data.get("message", {}) or {}
+        message = _unwrap_message(raw_message)
         
         result = {
             "phone": phone,
             "name": name,
             "timestamp": timestamp,
             "message_key": key,
-            "message_data": message,
+            "message_data": raw_message,
         }
         
         # Determine message type
         if message.get("imageMessage"):
+            img = message["imageMessage"]
             result["msg_type"] = "image"
-            result["text"] = message.get("imageMessage", {}).get("caption", "")
-            result["mime_type"] = message.get("imageMessage", {}).get("mimetype", "image/jpeg")
+            result["text"] = _media_caption(img, messages_data)
+            result["mime_type"] = img.get("mimetype", "image/jpeg")
         elif message.get("audioMessage"):
             result["msg_type"] = "audio"
             result["text"] = ""
             result["mime_type"] = message.get("audioMessage", {}).get("mimetype", "audio/ogg")
         elif message.get("videoMessage"):
+            vid = message["videoMessage"]
             result["msg_type"] = "video"
-            result["text"] = message.get("videoMessage", {}).get("caption", "")
-            result["mime_type"] = message.get("videoMessage", {}).get("mimetype", "video/mp4")
+            result["text"] = _media_caption(vid, messages_data)
+            result["mime_type"] = vid.get("mimetype", "video/mp4")
         elif message.get("documentMessage"):
             doc = message["documentMessage"]
             result["msg_type"] = "document"
             result["text"] = ""
             result["mime_type"] = doc.get("mimetype", "")
             result["filename"] = doc.get("fileName", "")
+        elif message.get("extendedTextMessage"):
+            result["msg_type"] = "text"
+            result["text"] = (
+                message["extendedTextMessage"].get("text")
+                or messages_data.get("messageBody")
+                or ""
+            )
         elif message.get("conversation"):
             result["msg_type"] = "text"
             result["text"] = message.get("conversation", "")
@@ -349,7 +441,11 @@ def extract_message_data(payload: dict) -> Optional[dict]:
             result["text"] = messages_data.get("messageBody", "")
         else:
             return None
-        
+
+        quoted = extract_quoted_text(message)
+        if quoted:
+            result["quoted_text"] = quoted
+
         return result
         
     except Exception as e:

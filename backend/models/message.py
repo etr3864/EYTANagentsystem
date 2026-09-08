@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import Text, DateTime, ForeignKey, String, Integer, Index
+from sqlalchemy import Text, DateTime, ForeignKey, String, Integer, Index, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.core.database import Base
 
@@ -25,7 +25,9 @@ class Message(Base):
         nullable=True
     )
     media_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    
+    media_too_large: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    reply_to_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     conversation: Mapped["Conversation"] = relationship(back_populates="messages")

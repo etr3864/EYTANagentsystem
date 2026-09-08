@@ -28,16 +28,24 @@ def get_by_agent(db: Session, agent_id: int) -> list[Conversation]:
 
 
 def delete(db: Session, conversation_id: int) -> bool:
-    """Delete conversation and its messages."""
+    """Delete conversation, messages, and conversation-scoped R2 files."""
     from backend.models.message import Message
-    
-    db.query(Message).filter(Message.conversation_id == conversation_id).delete()
+    from backend.services.media.inbox import delete_stored_urls
+
     conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
-    if conv:
-        db.delete(conv)
-        db.commit()
-        return True
-    return False
+    if not conv:
+        return False
+
+    rows = db.query(Message.media_url).filter(
+        Message.conversation_id == conversation_id,
+        Message.media_url.isnot(None),
+    ).all()
+    delete_stored_urls([row[0] for row in rows])
+
+    db.query(Message).filter(Message.conversation_id == conversation_id).delete()
+    db.delete(conv)
+    db.commit()
+    return True
 
 
 def set_paused(db: Session, conversation_id: int, paused: bool) -> Conversation | None:

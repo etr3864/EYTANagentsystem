@@ -189,27 +189,36 @@ def _parse_wa_message(phone_number_id: str, msg: dict, contacts: dict) -> Option
     msg_type = "text"
     media_id = None
     mime_type = None
+    extra: dict = {}
 
     if msg_type_raw == "text":
         text = msg.get("text", {}).get("body", "")
         msg_type = "text"
     elif msg_type_raw == "image":
-        text = "[תמונה]"
+        img = msg.get("image") or {}
+        caption = (img.get("caption") or "").strip()
+        text = caption or "[תמונה]"
         msg_type = "image"
-        media_id = msg.get("image", {}).get("id")
-        mime_type = msg.get("image", {}).get("mime_type")
+        media_id = img.get("id")
+        mime_type = img.get("mime_type")
     elif msg_type_raw == "audio":
         text = "[הודעה קולית]"
         msg_type = "audio"
         media_id = msg.get("audio", {}).get("id")
     elif msg_type_raw == "video":
-        text = "[וידאו]"
+        vid = msg.get("video") or {}
+        caption = (vid.get("caption") or "").strip()
+        text = caption or "[וידאו]"
         msg_type = "video"
-        media_id = msg.get("video", {}).get("id")
+        media_id = vid.get("id")
     elif msg_type_raw == "document":
-        text = "[קובץ]"
+        doc = msg.get("document", {})
+        filename = doc.get("filename") or ""
+        text = f"[קובץ: {filename}]" if filename else "[קובץ]"
         msg_type = "document"
-        media_id = msg.get("document", {}).get("id")
+        media_id = doc.get("id")
+        if filename:
+            extra["filename"] = filename
     elif msg_type_raw == "identity":
         return None
     else:
@@ -228,4 +237,5 @@ def _parse_wa_message(phone_number_id: str, msg: dict, contacts: dict) -> Option
         display_name=display_name,
         media_id=media_id,
         mime_type=mime_type,
+        extra=extra,
     )

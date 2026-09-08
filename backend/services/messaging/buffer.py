@@ -26,6 +26,9 @@ class PendingMessage:
     msg_type: str = "text"
     image_base64: Optional[str] = None
     media_type: Optional[str] = None
+    media_url: Optional[str] = None
+    media_too_large: bool = False
+    reply_to_text: Optional[str] = None
     timestamp: datetime = field(default_factory=datetime.utcnow)
     
     def to_dict(self) -> dict:
@@ -34,6 +37,9 @@ class PendingMessage:
             "msg_type": self.msg_type,
             "image_base64": self.image_base64,
             "media_type": self.media_type,
+            "media_url": self.media_url,
+            "media_too_large": self.media_too_large,
+            "reply_to_text": self.reply_to_text,
             "timestamp": self.timestamp.isoformat()
         }
     
@@ -44,6 +50,9 @@ class PendingMessage:
             msg_type=data.get("msg_type", "text"),
             image_base64=data.get("image_base64"),
             media_type=data.get("media_type"),
+            media_url=data.get("media_url"),
+            media_too_large=bool(data.get("media_too_large")),
+            reply_to_text=data.get("reply_to_text"),
             timestamp=datetime.fromisoformat(data["timestamp"]) if data.get("timestamp") else datetime.utcnow()
         )
 
@@ -106,7 +115,10 @@ async def add_message(
     process_callback: Callable[[list[PendingMessage]], Awaitable[None]],
     msg_type: str = "text",
     image_base64: Optional[str] = None,
-    media_type: Optional[str] = None
+    media_type: Optional[str] = None,
+    media_url: Optional[str] = None,
+    media_too_large: bool = False,
+    reply_to_text: Optional[str] = None,
 ) -> None:
     """Add message to buffer. Processes when debounce expires or max reached."""
     r = await _get_redis()
@@ -114,12 +126,14 @@ async def add_message(
     if r:
         await _add_message_redis(
             r, agent_id, user_phone, text, debounce_seconds, max_messages,
-            process_callback, msg_type, image_base64, media_type
+            process_callback, msg_type, image_base64, media_type,
+            media_url, media_too_large, reply_to_text,
         )
     else:
         await _add_message_memory(
             agent_id, user_phone, text, debounce_seconds, max_messages,
-            process_callback, msg_type, image_base64, media_type
+            process_callback, msg_type, image_base64, media_type,
+            media_url, media_too_large, reply_to_text,
         )
 
 
@@ -133,7 +147,10 @@ async def _add_message_redis(
     process_callback: Callable[[list[PendingMessage]], Awaitable[None]],
     msg_type: str = "text",
     image_base64: Optional[str] = None,
-    media_type: Optional[str] = None
+    media_type: Optional[str] = None,
+    media_url: Optional[str] = None,
+    media_too_large: bool = False,
+    reply_to_text: Optional[str] = None,
 ) -> None:
     """Redis-backed message buffer."""
     key = _buffer_key(agent_id, user_phone)
@@ -144,7 +161,10 @@ async def _add_message_redis(
         text=text,
         msg_type=msg_type,
         image_base64=image_base64,
-        media_type=media_type
+        media_type=media_type,
+        media_url=media_url,
+        media_too_large=media_too_large,
+        reply_to_text=reply_to_text,
     )
     await r.rpush(key, json.dumps(msg.to_dict()))
     await r.expire(key, BUFFER_TTL_SECONDS)
@@ -253,7 +273,10 @@ async def _add_message_memory(
     process_callback: Callable[[list[PendingMessage]], Awaitable[None]],
     msg_type: str = "text",
     image_base64: Optional[str] = None,
-    media_type: Optional[str] = None
+    media_type: Optional[str] = None,
+    media_url: Optional[str] = None,
+    media_too_large: bool = False,
+    reply_to_text: Optional[str] = None,
 ) -> None:
     """In-memory buffer (fallback when Redis unavailable)."""
     key = (agent_id, user_phone)
@@ -274,7 +297,10 @@ async def _add_message_memory(
         text=text,
         msg_type=msg_type,
         image_base64=image_base64,
-        media_type=media_type
+        media_type=media_type,
+        media_url=media_url,
+        media_too_large=media_too_large,
+        reply_to_text=reply_to_text,
     ))
     
     if len(buffer.messages) >= max_messages:

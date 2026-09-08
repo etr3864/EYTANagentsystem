@@ -22,6 +22,70 @@ from backend.services.llm.catalog import conversation_model
 # Type for media send callback: (phone, media_url, media_type, caption, filename) -> bool
 MediaSendCallback = Callable[[str, str, str, str | None, str | None], Awaitable[bool]]
 
+_MEDIA_PLACEHOLDERS = frozenset({"[תמונה]", "[וידאו]"})
+
+
+def _customer_media_caption(text: str) -> str:
+    """Caption the customer typed — never the vision line we compose later.
+
+    Inbound text is the caption or a placeholder. After vision we store
+    '[תמונה]: {desc}\\n{caption}'. Called only on inbound, before describe.
+    """
+    raw = (text or "").strip()
+    if not raw or raw in _MEDIA_PLACEHOLDERS:
+        return ""
+    if raw.startswith("[קובץ גדול מדי]"):
+        parts = raw.split("\n", 1)
+        return parts[1].strip() if len(parts) > 1 else ""
+    # Old wasender video wrap: "[וידאו]: caption" before vision ran.
+    if raw.startswith("[וידאו]: "):
+        rest = raw.split("\n", 1)
+        return rest[1].strip() if len(rest) > 1 else rest[0][len("[וידאו]: "):].strip()
+    if raw.startswith("[תמונה]: "):
+        rest = raw.split("\n", 1)
+        return rest[1].strip() if len(rest) > 1 else ""
+    return raw
+
+
+def _compose_media_content(kind: str, description: str, caption: str) -> str:
+    prefix = "[תמונה]" if kind == "image" else "[וידאו]"
+    line = f"{prefix}: {description}"
+    if caption:
+        return f"{line}\n{caption}"
+    return line
+
+
+def _vision_media_type(msg: PendingMessage) -> str:
+    """Claude only accepts image/* — video frames are always JPEG."""
+    from backend.services.media import get_media_type_from_mime
+    if msg.msg_type == "video":
+        return "image/jpeg"
+    return get_media_type_from_mime(msg.media_type or "image/jpeg")
+
+
+async def _describe_pending_media(
+    pending_msgs: list[PendingMessage], agent,
+) -> tuple[bool, dict]:
+    """Run vision on buffered image/video, keep caption on a separate line.
+
+    Mutates msg.text in place so the LLM turn and the saved row match.
+    describe_image never raises — fallback description is 'תמונה'.
+    """
+    has_images = False
+    usage = {"input_tokens": 0, "output_tokens": 0}
+    for msg in pending_msgs:
+        if msg.msg_type not in ("image", "video") or not msg.image_base64:
+            continue
+        has_images = True
+        caption = _customer_media_caption(msg.text)
+        description, desc_usage = await ai.describe_image(
+            msg.image_base64, _vision_media_type(msg), agent=agent,
+        )
+        usage["input_tokens"] += desc_usage.get("input_tokens", 0)
+        usage["output_tokens"] += desc_usage.get("output_tokens", 0)
+        msg.text = _compose_media_content(msg.msg_type, description, caption)
+    return has_images, usage
+
 
 # TTL for deduplication records
 _DEDUP_TTL_MINUTES = 5
@@ -193,28 +257,26 @@ async def process_batched_messages(
 
         if conv.is_paused:
             for msg in pending_msgs:
-                messages.add_no_commit(db, conv.id, "user", msg.text, message_type=msg.msg_type)
+                messages.add_no_commit(
+                    db, conv.id, "user", msg.text,
+                    message_type=msg.msg_type,
+                    media_url=msg.media_url,
+                    media_too_large=msg.media_too_large,
+                    reply_to_text=msg.reply_to_text,
+                )
             db.commit()
             log("PAUSED", agent=agent.name, user=display_name, msgs=len(pending_msgs))
             return
         
-        has_images = False
-        describe_usage_total = {"input_tokens": 0, "output_tokens": 0}
+        has_images, describe_usage_total = await _describe_pending_media(pending_msgs, agent)
         for msg in pending_msgs:
-            content_to_save = msg.text
-
-            if msg.msg_type in ("image", "video") and msg.image_base64:
-                has_images = True
-                description, desc_usage = await ai.describe_image(
-                    msg.image_base64, msg.media_type or "image/jpeg", agent=agent,
-                )
-                describe_usage_total["input_tokens"] += desc_usage.get("input_tokens", 0)
-                describe_usage_total["output_tokens"] += desc_usage.get("output_tokens", 0)
-                prefix = "[תמונה]" if msg.msg_type == "image" else "[וידאו]"
-                content_to_save = f"{prefix}: {description}"
-                msg.text = content_to_save
-
-            messages.add_no_commit(db, conv.id, "user", content_to_save, message_type=msg.msg_type)
+            messages.add_no_commit(
+                db, conv.id, "user", msg.text,
+                message_type=msg.msg_type,
+                media_url=msg.media_url,
+                media_too_large=msg.media_too_large,
+                reply_to_text=msg.reply_to_text,
+            )
         db.commit()
 
         combined_text = "\n".join(msg.text for msg in pending_msgs)

@@ -146,6 +146,23 @@ export function VideoIcon({ className = 'w-4 h-4' }: IconProps) {
   );
 }
 
+export function DownloadIcon({ className = 'w-4 h-4' }: IconProps) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke={defaultStroke} strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+    </svg>
+  );
+}
+
+export function FileIcon({ className = 'w-4 h-4' }: IconProps) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke={defaultStroke} strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7 3h8l5 5v13a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 3v5h5" />
+    </svg>
+  );
+}
+
 export function PauseIcon({ className = 'w-4 h-4' }: IconProps) {
   return (
     <svg className={className} fill="currentColor" viewBox="0 0 24 24">

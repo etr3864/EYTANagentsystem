@@ -80,6 +80,7 @@ def _get_messages_after(
             "role": m.role,
             "content": m.content,
             "message_type": m.message_type or "text",
+            "reply_to_text": m.reply_to_text,
             "created_at": m.created_at.isoformat() if m.created_at else None,
         }
         for m in query.all()
