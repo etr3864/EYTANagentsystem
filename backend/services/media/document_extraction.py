@@ -40,9 +40,9 @@ def _clean_text(text: str) -> str:
 
 def _extract_pdf(content: bytes) -> str:
     """Extract text from PDF using PyMuPDF."""
-    import fitz  # PyMuPDF
+    import pymupdf
     
-    doc = fitz.open(stream=content, filetype="pdf")
+    doc = pymupdf.open(stream=content, filetype="pdf")
     texts = []
     
     for page in doc:

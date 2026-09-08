@@ -37,18 +37,12 @@ def _init_extensions(conn):
 def run_migrations():
     """Run all schema setup atomically: extensions, ORM tables, raw SQL migrations.
 
-    A PostgreSQL advisory lock serializes DDL across workers so only one
-    process performs schema changes during multi-worker startup. Other
-    workers wait for the lock-holder to finish, ensuring the schema is
-    fully ready before any worker proceeds.
+    A PostgreSQL advisory lock serializes DDL across workers. Every worker
+    waits, then runs the idempotent statements — waiters must not skip, or a
+    rolling deploy leaves new code on an old schema.
     """
     with engine.connect() as conn:
-        if not conn.execute(text("SELECT pg_try_advisory_lock(1)")).scalar():
-            conn.execute(text("SELECT pg_advisory_lock(1)"))
-            conn.execute(text("SELECT pg_advisory_unlock(1)"))
-            conn.commit()
-            return
-
+        conn.execute(text("SELECT pg_advisory_lock(1)"))
         try:
             _init_extensions(conn)
             conn.commit()

@@ -33,9 +33,9 @@ FILE_TOO_HEAVY = (
 
 
 def _extract_text_pdf(content: bytes) -> str:
-    import fitz
+    import pymupdf
 
-    doc = fitz.open(stream=content, filetype="pdf")
+    doc = pymupdf.open(stream=content, filetype="pdf")
     try:
         return "\n".join(page.get_text() for page in doc)
     finally:
@@ -166,6 +166,7 @@ def _new_document(db: Session, agent_id: int, title: str, file_type: str, file_s
         filename=title,
         file_type=file_type,
         file_size=file_size,
+        source_text=text,
         chunk_count=0,
     )
     db.add(doc)
