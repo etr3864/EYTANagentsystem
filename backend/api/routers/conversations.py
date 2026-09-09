@@ -45,7 +45,7 @@ async def _read_upload(upload: Optional[UploadFile]) -> tuple[Optional[bytes], s
     return data, upload.content_type or "", upload.filename or "file"
 
 
-@router.get("/whatsapp-inbox")
+@router.get("/inbox/whatsapp")
 def whatsapp_inbox(
     agent_id: int = Query(...),
     current_user: AuthUser = Depends(get_current_user),
@@ -85,7 +85,7 @@ def whatsapp_inbox(
     return {"channel_type": channel_type, "templates": templates}
 
 
-@router.post("/whatsapp")
+@router.post("/inbox/whatsapp")
 async def start_whatsapp_chat(
     agent_id: int = Form(...),
     phone: str = Form(...),

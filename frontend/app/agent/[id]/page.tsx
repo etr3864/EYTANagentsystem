@@ -18,7 +18,7 @@ import { phoneToUrl, phoneFromUrl } from '@/lib/phone';
 import { 
   getAgent, updateAgent, getConversations, getMessages, deleteConversation, 
   sendMessage, sendConversationMedia, sendConversationTemplate,
-  getWhatsAppInbox, pauseConversation, resumeConversation,
+  getWhatsAppInbox, whatsappKindFromAgent, pauseConversation, resumeConversation,
   getAgentMedia, uploadAgentMedia, updateAgentMedia, deleteAgentMedia,
   type MediaUploadData, type ConversationCursor, type WhatsAppInbox,
 } from '@/lib/api';
@@ -178,6 +178,10 @@ function AgentPage() {
         enabled: false, message_threshold: 20, messages_after_summary: 20, full_summary_every: 5,
       });
       setMaxToolRounds(data.max_tool_rounds || 5);
+      setWaInbox(prev => ({
+        channel_type: whatsappKindFromAgent(data) ?? prev.channel_type,
+        templates: prev.templates,
+      }));
     } catch (e) {
       console.error(e);
     } finally {
@@ -219,7 +223,11 @@ function AgentPage() {
 
   async function loadWaInbox() {
     try {
-      setWaInbox(await getWhatsAppInbox(agentId));
+      const inbox = await getWhatsAppInbox(agentId);
+      setWaInbox(prev => ({
+        channel_type: inbox.channel_type ?? prev.channel_type,
+        templates: inbox.templates,
+      }));
     } catch (e) {
       console.error(e);
     }

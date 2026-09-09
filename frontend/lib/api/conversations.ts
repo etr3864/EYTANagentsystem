@@ -107,8 +107,20 @@ export interface WhatsAppInbox {
   templates: import('../types').WhatsAppTemplate[];
 }
 
+export function whatsappKindFromAgent(agent: {
+  provider?: string | null;
+  active_channel_types?: string[] | null;
+}): WhatsAppInbox['channel_type'] {
+  const types = agent.active_channel_types || [];
+  if (types.includes('whatsapp_wasender')) return 'whatsapp_wasender';
+  if (types.includes('whatsapp_meta')) return 'whatsapp_meta';
+  if (agent.provider === 'wasender') return 'whatsapp_wasender';
+  if (agent.provider === 'meta') return 'whatsapp_meta';
+  return null;
+}
+
 export async function getWhatsAppInbox(agentId: number): Promise<WhatsAppInbox> {
-  const res = await authFetch(`${API_URL}/api/conversations/whatsapp-inbox?agent_id=${agentId}`);
+  const res = await authFetch(`${API_URL}/api/conversations/inbox/whatsapp?agent_id=${agentId}`);
   if (!res.ok) throw new Error('Failed to fetch inbox settings');
   return res.json();
 }
@@ -136,7 +148,7 @@ export async function startWhatsAppChat(input: {
     fd.append('body_params', JSON.stringify(input.bodyParams || []));
   }
   if (input.headerFile) fd.append('header_file', input.headerFile);
-  const res = await authFetch(`${API_URL}/api/conversations/whatsapp`, {
+  const res = await authFetch(`${API_URL}/api/conversations/inbox/whatsapp`, {
     method: 'POST',
     body: fd,
   });
