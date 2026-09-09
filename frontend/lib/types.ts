@@ -118,6 +118,8 @@ export interface Conversation {
   user_name: string | null;
   user_gender: Gender | null;
   is_paused: boolean;
+  opted_out?: boolean;
+  last_customer_message_at?: string | null;
   created_at: string | null;
   updated_at: string | null;
   channel_type?: string | null;

@@ -122,6 +122,8 @@ async def send_media(
         payload["imageUrl"] = media_url
     elif media_type == "video":
         payload["videoUrl"] = media_url
+    elif media_type in ("audio", "voice"):
+        payload["audioUrl"] = media_url
     else:
         log_error("wasender", f"send_media: unsupported type {media_type}")
         return False

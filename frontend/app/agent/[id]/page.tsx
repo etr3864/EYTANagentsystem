@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-import { Button, Card, ArrowRightIcon } from '@/components/ui';
+import { Button, Card, ArrowRightIcon, BELOW_NAV_CLASS } from '@/components/ui';
 import { FunctionsTab } from '@/components/agent/functions/FunctionsTab';
 import { AgentTabs, PromptTab, SettingsTab, ConversationsTab, KnowledgeTab, CalendarTab, SummaryTab, MediaTab, TriggersTab, EscalationTab } from '@/components/agent';
 import type { AgentTabGroup } from '@/components/agent/AgentTabs';
@@ -17,12 +17,15 @@ import { isSuperAdmin, isAdmin, isEmployee } from '@/lib/auth';
 import { phoneToUrl, phoneFromUrl } from '@/lib/phone';
 import { 
   getAgent, updateAgent, getConversations, getMessages, deleteConversation, 
-  sendMessage, pauseConversation, resumeConversation,
+  sendMessage, sendConversationMedia, sendConversationTemplate,
+  getWhatsAppInbox, pauseConversation, resumeConversation,
   getAgentMedia, uploadAgentMedia, updateAgentMedia, deleteAgentMedia,
-  type MediaUploadData, type ConversationCursor,
+  type MediaUploadData, type ConversationCursor, type WhatsAppInbox,
 } from '@/lib/api';
 import type { Agent, AgentBatchingConfig, ContextSummaryConfig, Conversation, Message, Provider, WaSenderConfig, AgentMedia, MediaConfig, CustomApiKeys } from '@/lib/types';
 import { DEFAULT_MODEL, getModel, resolveModel } from '@/lib/models';
+import { NewChatModal } from '@/components/chat/NewChatModal';
+import type { TemplateSendPayload } from '@/components/chat/Composer';
 
 type Tab = 'prompt' | 'conversations' | 'knowledge' | 'media' | 'templates' | 'calendar' | 'followups' | 'summaries' | 'settings' | 'channels' | 'functions' | 'triggers' | 'escalation';
 
@@ -112,6 +115,8 @@ function AgentPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [selectedConv, setSelectedConv] = useState<number | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [showNewChat, setShowNewChat] = useState(false);
+  const [waInbox, setWaInbox] = useState<WhatsAppInbox>({ channel_type: null, templates: [] });
 
   // Media state
   const [media, setMedia] = useState<AgentMedia[]>([]);
@@ -122,11 +127,8 @@ function AgentPage() {
   // Load agent data on mount or when agentId changes
   useEffect(() => {
     loadAgent();
-    
-    const urlPhone = searchParams.get('conv');
-    if (urlPhone) {
-      loadConversations();
-    }
+    loadConversations();
+    loadWaInbox();
   }, [agentId]);
 
   // Handle tab from URL or fallback when visible tabs change
@@ -192,20 +194,32 @@ function AgentPage() {
     }
   }, [agentId, router]);
 
-  async function loadConversations() {
+  async function loadConversations(opts?: { selectFromUrl?: boolean }): Promise<Conversation[]> {
     try {
       const page = await getConversations(agentId);
       setConversations(page.items);
       setNextCursor(page.next_cursor);
 
-      const urlPhone = searchParams.get('conv');
-      if (urlPhone && page.items.length > 0) {
-        const conv = page.items.find(c => c.user_phone === phoneFromUrl(urlPhone));
-        if (conv) {
-          loadMessagesWithPhone(conv.id, conv.user_phone);
-          setTab('conversations');
+      if (opts?.selectFromUrl !== false) {
+        const urlPhone = searchParams.get('conv');
+        if (urlPhone && page.items.length > 0) {
+          const conv = page.items.find(c => c.user_phone === phoneFromUrl(urlPhone));
+          if (conv) {
+            loadMessagesWithPhone(conv.id, conv.user_phone);
+            setTab('conversations');
+          }
         }
       }
+      return page.items;
+    } catch (e) {
+      console.error(e);
+      return [];
+    }
+  }
+
+  async function loadWaInbox() {
+    try {
+      setWaInbox(await getWhatsAppInbox(agentId));
     } catch (e) {
       console.error(e);
     }
@@ -327,11 +341,41 @@ function AgentPage() {
 
   async function handleSendMessage(text: string) {
     if (!selectedConv) return;
-    
     await sendMessage(selectedConv, text);
-    
-    // Refresh messages to show the sent message
     await loadMessages(selectedConv);
+    await loadConversations({ selectFromUrl: false });
+  }
+
+  async function handleSendMedia(file: File, caption: string, asVoice?: boolean) {
+    if (!selectedConv) return;
+    await sendConversationMedia(selectedConv, file, caption, asVoice);
+    await loadMessages(selectedConv);
+    await loadConversations({ selectFromUrl: false });
+  }
+
+  async function handleSendVoice(blob: Blob) {
+    if (!selectedConv) return;
+    const file = new File([blob], 'voice.webm', { type: blob.type || 'audio/webm' });
+    await sendConversationMedia(selectedConv, file, undefined, true);
+    await loadMessages(selectedConv);
+    await loadConversations({ selectFromUrl: false });
+  }
+
+  async function handleSendTemplate(payload: TemplateSendPayload) {
+    if (!selectedConv) return;
+    await sendConversationTemplate(selectedConv, payload.templateId, payload.bodyParams, payload.headerFile);
+    await loadMessages(selectedConv);
+    await loadConversations({ selectFromUrl: false });
+  }
+
+  async function handleChatOpened(conversationId: number) {
+    setShowNewChat(false);
+    const items = await loadConversations({ selectFromUrl: false });
+    const data = await getMessages(conversationId);
+    setMessages(data);
+    setSelectedConv(conversationId);
+    const conv = items.find(c => c.id === conversationId);
+    if (conv) updateUrlWithConversation(conv);
   }
 
   async function handleTogglePause() {
@@ -398,6 +442,7 @@ function AgentPage() {
     setTab(newTab);
     if (newTab === 'conversations') {
       loadConversations();
+      loadWaInbox();
     } else if (newTab === 'media') {
       loadMedia();
     }
@@ -429,10 +474,9 @@ function AgentPage() {
   }
 
   return (
-    <div className="min-h-screen">
-      {/* Agent Context Header */}
-      <header className="border-b border-purple-500/10 bg-[#0B0914]/80 backdrop-blur-sm sticky top-16 z-40">
-        <div className="max-w-5xl mx-auto px-3 md:px-6 py-3 md:py-4 space-y-3">
+    <div className={`flex flex-col ${BELOW_NAV_CLASS}`}>
+      <header className="shrink-0 border-b border-purple-500/10 bg-[#0B0914]/80 backdrop-blur-sm">
+        <div className={`${tab === 'conversations' ? 'max-w-[90rem]' : 'max-w-5xl'} mx-auto px-3 md:px-6 py-3 md:py-4 space-y-3`}>
           <div className="flex items-center justify-between gap-3">
             <h1 className="font-semibold text-white text-sm md:text-base truncate">{agent.name}</h1>
             <div className="flex items-center gap-2 text-xs text-slate-400 shrink-0">
@@ -444,7 +488,6 @@ function AgentPage() {
         </div>
       </header>
 
-      {/* Feedback Toast */}
       {feedback && (
         <div className={`
           fixed top-20 left-1/2 -translate-x-1/2 z-50
@@ -461,9 +504,41 @@ function AgentPage() {
         </div>
       )}
 
-      {/* Content */}
-      <main className="max-w-5xl mx-auto px-3 md:px-6 py-4 md:py-6">
-        <div className="animate-fade-in">
+      <main className="flex-1 min-h-0">
+        {tab === 'conversations' ? (
+          <div className="h-full max-w-[90rem] mx-auto px-3 md:px-6 py-3 flex flex-col min-h-0 animate-fade-in">
+            <div className="flex-1 min-h-0">
+            <ConversationsTab
+              conversations={conversations}
+              selectedId={selectedConv}
+              messages={messages}
+              templates={waInbox.templates}
+              onSelectConversation={loadMessages}
+              onDeleteConversation={handleDeleteConv}
+              onDeselectConversation={() => { setSelectedConv(null); setMessages([]); updateUrlWithConversation(null); }}
+              onNewChat={() => setShowNewChat(true)}
+              onSendMessage={handleSendMessage}
+              onSendMedia={handleSendMedia}
+              onSendVoice={handleSendVoice}
+              onSendTemplate={handleSendTemplate}
+              onTogglePause={handleTogglePause}
+              onLoadMore={loadMoreConversations}
+              hasMore={!!nextCursor}
+              loadingMore={loadingMore}
+            />
+            {showNewChat && (
+              <NewChatModal
+                agentId={agentId}
+                inbox={waInbox}
+                onClose={() => setShowNewChat(false)}
+                onOpened={handleChatOpened}
+              />
+            )}
+            </div>
+          </div>
+        ) : (
+        <div className="h-full overflow-y-auto">
+        <div className="max-w-5xl mx-auto px-3 md:px-6 py-4 md:py-6 animate-fade-in">
           {tab === 'prompt' && (
             <PromptTab
               value={systemPrompt}
@@ -472,23 +547,6 @@ function AgentPage() {
               saving={saving}
             />
           )}
-
-          {tab === 'conversations' && (
-            <ConversationsTab
-              conversations={conversations}
-              selectedId={selectedConv}
-              messages={messages}
-              onSelectConversation={loadMessages}
-              onDeleteConversation={handleDeleteConv}
-              onDeselectConversation={() => { setSelectedConv(null); setMessages([]); updateUrlWithConversation(null); }}
-              onSendMessage={handleSendMessage}
-              onTogglePause={handleTogglePause}
-              onLoadMore={loadMoreConversations}
-              hasMore={!!nextCursor}
-              loadingMore={loadingMore}
-            />
-          )}
-
           {tab === 'knowledge' && (
             <KnowledgeTab
               agentId={agentId}
@@ -584,6 +642,8 @@ function AgentPage() {
             />
           )}
         </div>
+        </div>
+        )}
       </main>
     </div>
   );

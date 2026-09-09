@@ -41,28 +41,24 @@ async def send_media(
     to: str,
     media_url: str,
     media_type: str,
-    caption: str | None = None
+    caption: str | None = None,
+    voice: bool = False,
 ) -> bool:
-    """Send image or video via Meta WhatsApp API.
-    
-    Args:
-        phone_number_id: WhatsApp phone number ID
-        access_token: Meta API access token
-        to: Recipient phone number (E.164) or BSUID
-        media_url: Public URL of the media file
-        media_type: 'image' or 'video'
-        caption: Optional caption text
-    """
+    """Send image, video, or audio via Meta WhatsApp API."""
     url = f"{_API_URL}/{phone_number_id}/messages"
     
     log("MEDIA", msg=f"sending {media_type} to {to[-4:] if len(to) <= 20 else to[:8]}", url=media_url[:50])
     
-    # Meta API uses 'image' or 'video' as type
-    api_type = media_type if media_type in ("image", "video") else "image"
-    
-    media_object = {"link": media_url}
-    if caption:
-        media_object["caption"] = caption
+    if media_type in ("audio", "voice"):
+        api_type = "audio"
+        media_object: dict = {"link": media_url}
+        if voice or media_type == "voice":
+            media_object["voice"] = True
+    else:
+        api_type = media_type if media_type in ("image", "video") else "image"
+        media_object = {"link": media_url}
+        if caption:
+            media_object["caption"] = caption
     
     try:
         async with httpx.AsyncClient() as client:

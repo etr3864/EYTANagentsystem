@@ -122,7 +122,8 @@ async def send_media(
         to,
         media_url,
         media_type,
-        caption
+        caption,
+        voice=(media_type in ("audio", "voice")),
     )
 
 
@@ -176,6 +177,33 @@ async def send_channel_message(
     return False
 
 
+async def send_channel_template(
+    channel: "AgentChannel",
+    to: str,
+    template_name: str,
+    language: str,
+    components: list[dict],
+    db=None,
+) -> bool:
+    """Send an approved WhatsApp template via a Meta channel."""
+    if channel.channel_type != "whatsapp_meta":
+        log_error("send_channel", "send_channel_template called for non-meta channel")
+        return False
+
+    from backend.core.encryption import decrypt_credentials
+
+    try:
+        creds = decrypt_credentials(channel.credentials_encrypted)
+    except Exception as e:
+        log_error("send_channel", f"credential decryption failed: {e}")
+        return False
+
+    token = await _ensure_valid_token(db, channel, creds)
+    return await whatsapp.send_template(
+        channel.external_account_id, token, to, template_name, language, components,
+    )
+
+
 async def send_channel_media(
     channel: "AgentChannel",
     to: str,
@@ -184,6 +212,7 @@ async def send_channel_media(
     caption: Optional[str] = None,
     filename: Optional[str] = None,
     db=None,
+    voice: bool = False,
 ) -> bool:
     """Send media via any channel type."""
     from backend.core.encryption import decrypt_credentials
@@ -214,7 +243,8 @@ async def send_channel_media(
                 channel.external_account_id, token, to, media_url, filename or "file", caption
             )
         return await whatsapp.send_media(
-            channel.external_account_id, token, to, media_url, media_type, caption
+            channel.external_account_id, token, to, media_url, media_type, caption,
+            voice=voice or media_type in ("audio", "voice"),
         )
 
     if ct == "instagram":

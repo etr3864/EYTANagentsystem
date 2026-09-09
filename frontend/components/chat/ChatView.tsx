@@ -1,30 +1,48 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import type { Message } from '@/lib/types';
+import { useEffect, useRef } from 'react';
+import type { Message, WhatsAppTemplate } from '@/lib/types';
 import { parseUTCDate } from '@/lib/dates';
-import { SendIcon, PauseIcon, PlayIcon } from '@/components/ui/Icons';
+import { PauseIcon, PlayIcon } from '@/components/ui/Icons';
 import { EscalationNote } from './EscalationNote';
 import { FunctionNote } from './FunctionNote';
 import { MessageMedia, bubbleText } from './MessageMedia';
 import { ReplyQuote } from './ReplyQuote';
+import { Composer, type TemplateSendPayload } from './Composer';
+import { getCapabilities } from '@/lib/channels';
+import { customerWindowOpen } from '@/lib/whatsappWindow';
 
 interface ChatViewProps {
   messages: Message[];
   conversationId?: number | null;
   isPaused?: boolean;
+  channelType?: string | null;
+  lastCustomerMessageAt?: string | null;
+  templates?: WhatsAppTemplate[];
   onSend?: (text: string) => Promise<void>;
+  onSendMedia?: (file: File, caption: string, asVoice?: boolean) => Promise<void>;
+  onSendVoice?: (blob: Blob) => Promise<void>;
+  onSendTemplate?: (payload: TemplateSendPayload) => Promise<void>;
   onTogglePause?: () => Promise<void>;
 }
 
-export function ChatView({ messages, conversationId, isPaused, onSend, onTogglePause }: ChatViewProps) {
+export function ChatView({
+  messages,
+  conversationId,
+  isPaused,
+  channelType,
+  lastCustomerMessageAt,
+  templates = [],
+  onSend,
+  onSendMedia,
+  onSendVoice,
+  onSendTemplate,
+  onTogglePause,
+}: ChatViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevMessageCount = useRef<number>(0);
   const prevConversationId = useRef<number | null | undefined>(null);
-  const [text, setText] = useState('');
-  const [sending, setSending] = useState(false);
   
-  // Scroll to bottom only on initial load, conversation change, or when NEW messages arrive
   useEffect(() => {
     if (scrollRef.current) {
       const isConversationChange = conversationId !== prevConversationId.current;
@@ -39,31 +57,15 @@ export function ChatView({ messages, conversationId, isPaused, onSend, onToggleP
       prevConversationId.current = conversationId;
     }
   }, [messages, conversationId]);
-  
-  async function handleSend() {
-    if (!text.trim() || !onSend || sending) return;
-    
-    setSending(true);
-    try {
-      await onSend(text.trim());
-      setText('');
-    } catch (e) {
-      console.error('Send failed:', e);
-    } finally {
-      setSending(false);
-    }
-  }
-  
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  }
+
+  const caps = getCapabilities(channelType || '');
+  const isMetaWa = channelType === 'whatsapp_meta';
+  const windowOpen = customerWindowOpen(lastCustomerMessageAt);
+  const needsTemplate = isMetaWa && !windowOpen;
+  const canComposer = Boolean(onSend);
 
   return (
     <div className="flex-1 flex flex-col h-full min-h-0">
-      {/* Header with pause toggle */}
       {onTogglePause && (
         <div className="px-4 py-2 border-b border-slate-700 bg-slate-800/50 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -96,14 +98,18 @@ export function ChatView({ messages, conversationId, isPaused, onSend, onToggleP
         </div>
       )}
       
-      {/* Paused banner */}
       {isPaused && (
         <div className="px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-amber-300 text-xs text-center">
           הודעות נשמרות אך ה-AI לא מגיב. לחץ &quot;הפעל AI&quot; כדי לחדש.
         </div>
       )}
+
+      {needsTemplate && (
+        <div className="px-4 py-2 bg-blue-500/10 border-b border-blue-500/20 text-blue-200 text-xs text-center">
+          חלון 24 שעות סגור. אפשר לשלוח רק תבנית מאושרת.
+        </div>
+      )}
       
-      {/* Messages Area */}
       <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-slate-900/30">
         {messages.length === 0 ? (
           <div className="h-full flex items-center justify-center">
@@ -132,7 +138,6 @@ export function ChatView({ messages, conversationId, isPaused, onSend, onToggleP
         const displayContent = bubbleText(msg);
         const captionUnderMedia = tooLarge || ((isImage || isVideo) && hasMediaUrl);
         
-        // Determine bubble style
         const getBubbleStyle = () => {
           if (!isUser) {
             if (isEscalation) return 'bg-rose-600/10 text-rose-50 rounded-tl-sm border border-rose-500/30';
@@ -149,7 +154,6 @@ export function ChatView({ messages, conversationId, isPaused, onSend, onToggleP
         
         return (
           <div key={i}>
-            {/* Date Separator */}
             {showDate && msgDate && (
               <div className="flex items-center justify-center my-6">
                 <div className="bg-slate-700/50 text-slate-300 text-xs px-4 py-1.5 rounded-full">
@@ -162,7 +166,6 @@ export function ChatView({ messages, conversationId, isPaused, onSend, onToggleP
               </div>
             )}
             
-            {/* Message Bubble */}
             <div className={`flex ${isCenteredNote ? 'justify-center' : isUser ? 'justify-start' : 'justify-end'}`}>
               <div className={isFunction
                 ? 'w-fit max-w-[min(90%,28rem)]'
@@ -232,46 +235,18 @@ export function ChatView({ messages, conversationId, isPaused, onSend, onToggleP
         )}
       </div>
       
-      {/* Input Area */}
-      {onSend && (
-        <div className="p-3 border-t border-slate-700 bg-slate-800/50">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="כתוב הודעה..."
-              disabled={sending}
-              className="
-                flex-1 px-4 py-2.5 rounded-xl
-                bg-slate-700/50 border border-slate-600/50
-                text-white placeholder-slate-400
-                focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50
-                disabled:opacity-50
-              "
-            />
-            <button
-              onClick={handleSend}
-              disabled={!text.trim() || sending}
-              className="
-                px-4 py-2.5 rounded-xl
-                bg-blue-600 hover:bg-blue-500 
-                disabled:bg-slate-600 disabled:cursor-not-allowed
-                transition-colors duration-200
-                text-white font-medium
-                flex items-center gap-2
-              "
-            >
-              {sending ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <SendIcon />
-              )}
-              <span>שלח</span>
-            </button>
-          </div>
-        </div>
+      {canComposer && onSend && onSendMedia && onSendVoice && onSendTemplate && (
+        <Composer
+          mode={needsTemplate ? 'template' : 'freeform'}
+          templates={templates}
+          allowVoice={!needsTemplate && caps.voice}
+          allowImages={!needsTemplate && caps.images}
+          allowFiles={!needsTemplate && caps.files}
+          onSendText={onSend}
+          onSendMedia={onSendMedia}
+          onSendVoice={onSendVoice}
+          onSendTemplate={onSendTemplate}
+        />
       )}
     </div>
   );

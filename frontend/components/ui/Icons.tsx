@@ -25,6 +25,14 @@ export function ArrowLeftIcon({ className = 'w-4 h-4' }: IconProps) {
   );
 }
 
+export function PaperclipIcon({ className = 'w-4 h-4' }: IconProps) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke={defaultStroke} strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21.44 11.05l-8.49 8.49a5.5 5.5 0 01-7.78-7.78l8.49-8.49a3.5 3.5 0 014.95 4.95l-8.49 8.49a1.5 1.5 0 01-2.12-2.12l7.78-7.78" />
+    </svg>
+  );
+}
+
 export function PlusIcon({ className = 'w-4 h-4' }: IconProps) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke={defaultStroke} strokeWidth={2}>

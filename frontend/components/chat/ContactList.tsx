@@ -3,13 +3,14 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import type { Conversation } from '@/lib/types';
 import { CHANNEL_DISPLAY_NAMES } from '@/lib/channels';
-import { ChannelIcon } from '@/components/ui/Icons';
+import { ChannelIcon, PlusIcon } from '@/components/ui/Icons';
 
 interface ContactListProps {
   conversations: Conversation[];
   selectedId: number | null;
   onSelect: (id: number) => void;
   onDelete: (id: number) => void;
+  onNewChat?: () => void;
   onLoadMore?: () => void;
   hasMore?: boolean;
   loadingMore?: boolean;
@@ -31,7 +32,7 @@ function ChannelBadge({ channelType }: { channelType: string | null | undefined 
   );
 }
 
-export function ContactList({ conversations, selectedId, onSelect, onDelete, onLoadMore, hasMore, loadingMore }: ContactListProps) {
+export function ContactList({ conversations, selectedId, onSelect, onDelete, onNewChat, onLoadMore, hasMore, loadingMore }: ContactListProps) {
   const [search, setSearch] = useState('');
   const [channelFilter, setChannelFilter] = useState<string>('all');
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -73,7 +74,20 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete, onL
   return (
     <div className="h-full border-l border-slate-700 flex flex-col bg-slate-800/30">
       <div className="p-4 border-b border-slate-700">
-        <div className="text-sm font-medium text-white">שיחות</div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-sm font-medium text-white">שיחות</div>
+          {onNewChat && (
+            <button
+              type="button"
+              onClick={onNewChat}
+              title="צ׳אט חדש"
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white"
+            >
+              <PlusIcon className="w-3.5 h-3.5" />
+              חדש
+            </button>
+          )}
+        </div>
         <div className="text-xs text-slate-400">
           {search || channelFilter !== 'all'
             ? `${filtered.length} מתוך ${conversations.length}`
@@ -131,7 +145,9 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete, onL
 
       <div className="overflow-y-auto flex-1">
         {filtered.length === 0 && (
-          <div className="p-6 text-center text-sm text-slate-400">לא נמצאו תוצאות</div>
+          <div className="p-6 text-center text-sm text-slate-400">
+            {conversations.length === 0 ? 'אין שיחות עדיין. אפשר לפתוח צ׳אט חדש.' : 'לא נמצאו תוצאות'}
+          </div>
         )}
         {filtered.map(conv => (
           <div
