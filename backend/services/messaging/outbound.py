@@ -19,7 +19,8 @@ from backend.models.whatsapp_template import WhatsAppTemplate
 from backend.services.channels import providers
 from backend.services.channels.agent_channels import get_channel, get_channel_by_type
 from backend.services.channels.channel_users import IncomingUserInfo, get_or_create_for_incoming
-from backend.services.entities import conversations, messages, users
+from backend.services.entities import conversations, users
+from backend.services.messaging import messages
 from backend.services.media.inbox import persist_bytes
 
 WINDOW_SECONDS = 24 * 3600
