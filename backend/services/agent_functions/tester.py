@@ -10,7 +10,13 @@ from backend.services.agent_functions import errors as fn_errors
 from backend.services.agent_functions import http_client
 from backend.services.agent_functions.outputs import mapped_outputs
 from backend.services.agent_functions.secrets import decrypt_headers
-from backend.services.agent_functions.template import MissingVariableError, render
+from backend.services.agent_functions.template import (
+    MissingVariableError,
+    append_query_params,
+    extract_placeholders,
+    render,
+    unused_for_query,
+)
 
 
 def build_request(
@@ -19,10 +25,15 @@ def build_request(
     header_overrides: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     values = dict(sample_values or {})
-    url = render(row.url, values, "url")
     headers = decrypt_headers(row.headers_encrypted)
     if header_overrides:
         headers.update({k: v for k, v in header_overrides.items() if v})
+    placeholder_keys = set(extract_placeholders(row.url or ""))
+    for header_value in headers.values():
+        placeholder_keys.update(extract_placeholders(header_value or ""))
+    if row.method in METHODS_WITH_BODY and row.body_template:
+        placeholder_keys.update(extract_placeholders(row.body_template))
+    url = render(row.url, values, "url")
     rendered_headers = {
         key: render(value, values, "header") for key, value in headers.items()
     }
@@ -32,6 +43,8 @@ def build_request(
         json.loads(body)
     if body is not None and not any(k.lower() == "content-type" for k in rendered_headers):
         rendered_headers["Content-Type"] = "application/json"
+    if row.method not in METHODS_WITH_BODY:
+        url = append_query_params(url, unused_for_query(values, placeholder_keys))
     assert_url_allowed(url, row.allowed_host)
     return {"url": url, "headers": rendered_headers, "body": body}
 

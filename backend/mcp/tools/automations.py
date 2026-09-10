@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import copy
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from sqlalchemy import func
 
@@ -159,7 +159,12 @@ def _functions(mcp) -> None:
 def _triggers(mcp) -> None:
     @mcp.tool()
     def list_triggers(agent_id: int) -> list[dict]:
-        """List internal message triggers. Super-admin only."""
+        """List HTTP webhook triggers on an agent (kinds: push, send). Super-admin only.
+
+        push = inject facts into agent memory for a phone, optional WaSender text.
+        send = WaSender text only; agent does not learn new facts.
+        These are not keyword auto-replies.
+        """
         with db_session() as db:
             user = current_user(db)
             require_super(user)
@@ -167,8 +172,19 @@ def _triggers(mcp) -> None:
             return [triggers.to_public(row) for row in triggers.list_for_agent(db, agent_id)]
 
     @mcp.tool()
-    def create_trigger(agent_id: int, name: str, kind: str) -> dict:
-        """Create an internal trigger. Super-admin only. kind is a trigger type the product supports."""
+    def create_trigger(
+        agent_id: int,
+        name: str,
+        kind: Literal["push", "send"],
+    ) -> dict:
+        """Create an HTTP webhook trigger. Super-admin only.
+
+        kind must be exactly one of:
+        - push: store data on the customer so the agent knows it; optional WaSender text.
+        - send: WaSender text only. The agent does not get new facts.
+
+        Not a keyword/auto-reply. Only push and send exist.
+        """
         with db_session() as db:
             user = current_user(db)
             require_super(user)

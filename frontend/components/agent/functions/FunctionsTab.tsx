@@ -11,6 +11,7 @@ import {
   resolveFunctionAttention,
   testAgentFunction,
   updateAgentFunction,
+  sampleValuesFromParams,
   type FunctionAttention,
 } from '@/lib/agentFunctions';
 import { EMPTY_FUNCTION, toUpsert, type AgentFunction, type FunctionTestResult, type FunctionUpsert } from '@/lib/agentFunctionTypes';
@@ -65,6 +66,7 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
     setCreating(true);
     setEditing(null);
     setDraft({ ...EMPTY_FUNCTION });
+    setSampleValues('{}');
     setTestResult(null);
     setSaveError(null);
   };
@@ -73,6 +75,7 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
     setCreating(false);
     setEditing(item);
     setDraft(toUpsert(item));
+    setSampleValues(sampleValuesFromParams(item.params));
     setTestResult(null);
     setSaveError(null);
   };
@@ -166,6 +169,17 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
       if (!saved) {
         setSaveError('שמור קודם ואז בדוק');
         return;
+      }
+      if (['GET', 'DELETE'].includes(saved.method)) {
+        const missing = (saved.params || [])
+          .filter((param) => param.name && param.required !== false)
+          .map((param) => param.name)
+          .filter((name) => values[name] === undefined || values[name] === '');
+        if (missing.length) {
+          setSampleValues(sampleValuesFromParams(saved.params));
+          setSaveError(`מלא ערכי בדיקה ל: ${missing.join(', ')}`);
+          return;
+        }
       }
       const result = await testAgentFunction(agentId, saved.id, live, values);
       setTestResult(result);
@@ -263,7 +277,7 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
           <div className="space-y-3 mt-6 p-3 rounded-lg border border-purple-500/15 bg-white/[0.03]">
             <p className="text-sm text-slate-300">בדיקה — בלי זה הסוכן לא יריץ את הפונקציה בשיחה</p>
             <p className="text-xs text-slate-500">
-              ערכי בדיקה לפרמטרים. JSON, למשל {`{"phone":"97250..."}`}. יבש = בלי רשת. שלח באמת = לכתובת למעלה.
+              ערכי בדיקה לפרמטרים. JSON, למשל {`{"phone":"97250..."}`}. ב-GET בלי {`{{ }}`} בכתובת — ממלאים כאן והם יישלחו כ-query. יבש = בלי רשת. שלח באמת = לכתובת למעלה.
             </p>
             <textarea
               className="w-full bg-white/[0.04] border border-purple-500/10 rounded-lg p-2 text-sm text-white font-mono text-left"

@@ -142,7 +142,9 @@ export function FunctionEditor({
         dir="ltr"
         className={LTR}
         placeholder="https://example.com/api/leads"
-        hint={'רק https. אפשר {{phone}} בנתיב — נוצר פרמטר אוטומטית.'}
+        hint={hasBody
+          ? 'רק https. אפשר {{phone}} בנתיב או ב-JSON — נוצר פרמטר אוטומטית.'
+          : 'רק https. אפשר {{sku}} בנתיב או ב-query. פרמטר בלי {{ }} בכתובת יישלח כ-query לבד.'}
       />
       <Input
         label="טוקן"
@@ -183,7 +185,10 @@ export function FunctionEditor({
 
       {paramNames.length > 0 && (
         <p className="text-xs text-slate-500">
-          פרמטרים: {paramNames.join(', ')}. ברירת מחדל — הבוט שואל. מקור אחר במתקדם.
+          פרמטרים: {paramNames.join(', ')}. ברירת מחדל — הבוט שואל.
+          {hasBody
+            ? ' מקור אחר במתקדם.'
+            : ' ב-GET הם מצטרפים לכתובת כ-query אם אין {{שם}} ב-URL.'}
         </p>
       )}
 

@@ -1,7 +1,7 @@
 import json
 import re
 from typing import Any, Literal
-from urllib.parse import quote
+from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
 
 VAR_RE = re.compile(r"\{\{([a-zA-Z0-9_.]+)\}\}")
 
@@ -16,6 +16,35 @@ class MissingVariableError(ValueError):
 
 def extract_placeholders(template: str) -> list[str]:
     return VAR_RE.findall(template or "")
+
+
+def append_query_params(url: str, extra: dict[str, Any]) -> str:
+    """Add unused values as query string. Does not overwrite keys already on the URL."""
+    if not extra:
+        return url
+    parts = urlsplit(url)
+    existing = dict(parse_qsl(parts.query, keep_blank_values=True))
+    added = False
+    for key, value in extra.items():
+        if not key or key in existing or value is None or value == "":
+            continue
+        existing[key] = str(value)
+        added = True
+    if not added:
+        return url
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(existing), parts.fragment))
+
+
+def unused_for_query(
+    values: dict[str, Any],
+    placeholder_keys: set[str],
+) -> dict[str, Any]:
+    extra: dict[str, Any] = {}
+    for key, value in values.items():
+        if not key or key in placeholder_keys or value is None or value == "":
+            continue
+        extra[key] = value
+    return extra
 
 
 def render(template: str, values: dict[str, Any], context: RenderContext) -> str:

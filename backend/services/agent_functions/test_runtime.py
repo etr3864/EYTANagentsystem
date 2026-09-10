@@ -10,7 +10,12 @@ from backend.services.agent_functions.idempotency import make_key
 from backend.services.agent_functions.names import RESERVED_NAMES, validate_name, FunctionNameError
 from backend.services.agent_functions.outputs import mapped_outputs, payload_for_llm
 from backend.services.agent_functions.tool_adapter import to_llm_tool
-from backend.services.agent_functions.template import render, MissingVariableError
+from backend.services.agent_functions.template import (
+    MissingVariableError,
+    append_query_params,
+    render,
+    unused_for_query,
+)
 
 
 class WrapTests(unittest.TestCase):
@@ -134,6 +139,18 @@ class TemplateTests(unittest.TestCase):
     def test_missing_var(self):
         with self.assertRaises(MissingVariableError):
             render("{{missing}}", {}, "plain")
+
+    def test_get_appends_params_not_in_url(self):
+        extra = unused_for_query({"sku": "ABC", "q": "hello"}, set())
+        url = append_query_params("https://example.com/stock", extra)
+        self.assertIn("sku=ABC", url)
+        self.assertIn("q=hello", url)
+
+    def test_get_does_not_duplicate_placeholder(self):
+        extra = unused_for_query({"sku": "ABC", "lang": "he"}, {"sku"})
+        url = append_query_params("https://example.com/stock?sku=ABC", extra)
+        self.assertEqual(url.count("sku="), 1)
+        self.assertIn("lang=he", url)
 
 
 class ResolveTests(unittest.TestCase):

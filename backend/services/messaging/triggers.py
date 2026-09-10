@@ -60,7 +60,7 @@ def get_for_agent(db: Session, agent_id: int, trigger_id: int) -> AgentTrigger |
 def create_trigger(db: Session, agent: Agent, name: str, kind: str) -> AgentTrigger:
     kind = kind.strip()
     if kind not in VALID_KINDS:
-        raise ValueError("סוג טריגר לא תקין")
+        raise ValueError("סוג טריגר לא תקין. מותר רק: push (דחיפת מידע לסוכן), send (שליחת הודעה ב-WaSender)")
     label = name.strip()
     if not label:
         raise ValueError("חובה לתת שם לטריגר")

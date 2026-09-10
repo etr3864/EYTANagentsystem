@@ -231,6 +231,14 @@ export function mergeParamsFromVars(
   return [...kept, ...added];
 }
 
+export function sampleValuesFromParams(params: AgentFunctionParam[]): string {
+  const entries = (params || [])
+    .filter((param) => param.name)
+    .map((param) => [param.name, ''] as const);
+  if (entries.length === 0) return '{}';
+  return JSON.stringify(Object.fromEntries(entries), null, 2);
+}
+
 export function prettyJsonPreservingVars(raw: string): string {
   const tokens: string[] = [];
   const replaced = raw.replace(/\{\{[^}]+\}\}/g, (match) => {
