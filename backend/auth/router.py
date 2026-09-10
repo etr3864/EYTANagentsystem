@@ -190,7 +190,7 @@ def _mcp_public_url(request: Request) -> str:
             base = f"{proto}://{forwarded}"
         else:
             base = str(request.base_url).rstrip("/")
-    return f"{base}/mcp"
+    return f"{base}/mcp/"
 
 
 @router.get("/me/mcp-tokens", response_model=list[McpTokenPublic])

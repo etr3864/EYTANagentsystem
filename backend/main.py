@@ -18,7 +18,7 @@ from backend.api.routers.external import router as external_router
 from backend.api.routers.agent_triggers import router as agent_triggers_router
 from backend.api.routers.agent_escalations import router as agent_escalations_router
 from backend.auth import auth_router
-from backend.mcp.server import mcp_http_app, combine_with_mcp
+from backend.mcp.server import McpSlashRewrite, mcp_http_app, combine_with_mcp
 from backend.services.scheduling import scheduler
 
 
@@ -52,6 +52,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(McpSlashRewrite)
 
 
 @app.exception_handler(Exception)

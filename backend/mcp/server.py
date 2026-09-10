@@ -77,6 +77,26 @@ _raw_mcp_app = _http_app()
 mcp_http_app = _RequireMcpToken(_raw_mcp_app)
 
 
+class McpSlashRewrite:
+    """Starlette redirects /mcp → /mcp/ with Location: http:// behind TLS proxies.
+
+    mcp-remote treats that as a failed Streamable HTTP probe, then invents an
+    OAuth registration URL and dies on FastAPI's {"detail":"Not Found"}.
+    """
+
+    def __init__(self, app: ASGIApp):
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http" and scope.get("path") == "/mcp":
+            scope = dict(scope)
+            scope["path"] = "/mcp/"
+            raw = scope.get("raw_path") or b"/mcp"
+            if not raw.endswith(b"/"):
+                scope["raw_path"] = raw + b"/"
+        await self.app(scope, receive, send)
+
+
 def _combine_lifespans(*lifespans):
     try:
         from fastmcp.utilities.lifespan import combine_lifespans
