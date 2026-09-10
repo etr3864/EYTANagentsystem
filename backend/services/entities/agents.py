@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 from backend.models.agent import Agent
 
-from backend.services.llm.catalog import resolve_model, sanitize_thinking
+from backend.services.llm.catalog import require_selectable_model, sanitize_thinking
 
 _JSON_FIELDS = {"provider_config", "batching_config", "usage_stats", "calendar_config",
                 "summary_config", "followup_config", "media_config", "custom_api_keys"}
@@ -46,7 +46,7 @@ def create(
     provider_config: dict | None = None,
     batching_config: dict | None = None
 ) -> Agent:
-    model = resolve_model(model)
+    model = require_selectable_model(model)
     thinking_level = sanitize_thinking(model, thinking_level)
     agent = Agent(
         name=name,
@@ -72,6 +72,8 @@ def update(db: Session, agent_id: int, **kwargs) -> Agent | None:
         return None
     if "phone_number_id" in kwargs and kwargs["phone_number_id"] is not None:
         kwargs["phone_number_id"] = _normalize_phone_id(kwargs["phone_number_id"])
+    if "model" in kwargs and kwargs["model"] is not None:
+        kwargs["model"] = require_selectable_model(kwargs["model"])
     for key, value in kwargs.items():
         if hasattr(agent, key) and value is not None:
             setattr(agent, key, value)

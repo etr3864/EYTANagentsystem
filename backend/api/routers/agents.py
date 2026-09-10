@@ -93,19 +93,22 @@ def create_agent(
     db: Session = Depends(get_db)
 ):
     """Create a new agent (Super Admin only)."""
-    agent = agents.create(
-        db=db,
-        name=data.name,
-        phone_number_id=data.phone_number_id,
-        access_token=data.access_token,
-        verify_token=data.verify_token,
-        system_prompt=data.system_prompt,
-        model=data.model,
-        thinking_level=data.thinking_level,
-        provider=data.provider,
-        provider_config=data.provider_config,
-        batching_config=data.batching_config.model_dump()
-    )
+    try:
+        agent = agents.create(
+            db=db,
+            name=data.name,
+            phone_number_id=data.phone_number_id,
+            access_token=data.access_token,
+            verify_token=data.verify_token,
+            system_prompt=data.system_prompt,
+            model=data.model,
+            thinking_level=data.thinking_level,
+            provider=data.provider,
+            provider_config=data.provider_config,
+            batching_config=data.batching_config.model_dump()
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"id": agent.id, "name": agent.name}
 
 
@@ -157,8 +160,11 @@ def update_agent(
         next_model = update_data.get("model", existing.model)
         next_thinking = update_data.get("thinking_level", getattr(existing, "thinking_level", None))
         update_data["thinking_level"] = sanitize_thinking(next_model, next_thinking)
-    
-    agent = agents.update(db, agent_id, **update_data)
+
+    try:
+        agent = agents.update(db, agent_id, **update_data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"id": agent.id, "name": agent.name}
 
 

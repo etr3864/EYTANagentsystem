@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, case
+from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.exc import IntegrityError
 
 from backend.models.conversation_summary import ConversationSummary
@@ -46,6 +47,49 @@ def get_summary_config(agent: Agent) -> dict:
         "webhook_retry_delay": config.get("webhook_retry_delay", DEFAULT_RETRY_DELAY_SECONDS),
         "summary_prompt": config.get("summary_prompt", DEFAULT_SUMMARY_PROMPT),
     }
+
+
+_SUMMARY_BOUNDS = {
+    "delay_minutes": (1, 1440),
+    "min_messages": (1, 100),
+    "max_messages": (10, 500),
+    "webhook_retry_count": (0, 10),
+    "webhook_retry_delay": (10, 3600),
+}
+_SUMMARY_FIELDS = frozenset({
+    "enabled",
+    "delay_minutes",
+    "min_messages",
+    "max_messages",
+    "webhook_url",
+    "webhook_retry_count",
+    "webhook_retry_delay",
+    "summary_prompt",
+})
+
+
+def apply_summary_updates(agent: Agent, updates: dict) -> dict:
+    """Merge summary_config. Raises ValueError on bad fields/ranges."""
+    unknown = set(updates) - _SUMMARY_FIELDS
+    if unknown:
+        raise ValueError(f"שדות לא נתמכים: {', '.join(sorted(unknown))}")
+    config = dict(agent.summary_config or {})
+    for key, value in updates.items():
+        if key in _SUMMARY_BOUNDS and value is not None:
+            low, high = _SUMMARY_BOUNDS[key]
+            if not low <= int(value) <= high:
+                raise ValueError(f"{key} חייב {low}-{high}")
+            config[key] = int(value)
+        elif key == "webhook_url":
+            url = (value or "").strip()
+            config[key] = url or None
+        elif key == "summary_prompt":
+            config[key] = (value or "").strip() or DEFAULT_SUMMARY_PROMPT
+        elif key == "enabled":
+            config[key] = bool(value)
+    agent.summary_config = config
+    flag_modified(agent, "summary_config")
+    return get_summary_config(agent)
 
 
 def _get_conversations_needing_summary(

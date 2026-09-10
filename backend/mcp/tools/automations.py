@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import copy
+from datetime import datetime
 from typing import Any, Literal, Optional
 
 from sqlalchemy import func
 
 from backend.api.routers.agent_escalations import ReasonPatch
-from backend.core.enums import FollowupStatus
+from backend.core.enums import FollowupStatus, SummaryWebhookStatus
 from backend.mcp.ctx import (
     current_user,
     db_session,
@@ -16,13 +17,20 @@ from backend.mcp.ctx import (
     require_super,
 )
 from backend.models.agent_function import AgentFunctionRun
+from backend.models.conversation_summary import ConversationSummary
 from backend.models.scheduled_followup import ScheduledFollowup
+from backend.models.user import User
 from backend.services.agent_functions import commands, present, repo, tester
 from backend.services.agent_functions.egress import EgressDenied
 from backend.services.agent_functions.names import FunctionNameError
 from backend.services.agent_functions.present import can_enable
 from backend.services.agent_functions.schemas import FunctionUpsert
 from backend.services.engagement.followups import DEFAULT_CONFIG, get_config
+from backend.services.engagement.summaries import (
+    apply_summary_updates,
+    get_summary_config,
+    send_test_webhook,
+)
 from backend.services.entities import agents as agents_service
 from backend.services.escalation import commands as escalation_commands
 from backend.services.escalation import present as escalation_present
@@ -35,6 +43,7 @@ def register(mcp) -> None:
     _triggers(mcp)
     _escalations(mcp)
     _followups(mcp)
+    _summaries(mcp)
 
 
 def _fn_row(agent_id: int, function_id: int, db):
@@ -382,3 +391,131 @@ def _followups(mcp) -> None:
                 ).update({"status": FollowupStatus.CANCELLED}, synchronize_session="fetch")
             agents_service.update(db, agent_id, followup_config=merged)
             return merged
+
+
+def _summary_webhook_stats(db, agent_id: int) -> dict:
+    counts = {}
+    for status in (
+        SummaryWebhookStatus.PENDING,
+        SummaryWebhookStatus.SENT,
+        SummaryWebhookStatus.FAILED,
+    ):
+        counts[status.value] = (
+            db.query(func.count(ConversationSummary.id))
+            .filter(
+                ConversationSummary.agent_id == agent_id,
+                ConversationSummary.webhook_status == status,
+            )
+            .scalar()
+        ) or 0
+    counts["total"] = sum(counts.values())
+    return counts
+
+
+def _summaries(mcp) -> None:
+    @mcp.tool()
+    def get_summaries(agent_id: int) -> dict:
+        """Webhook conversation-summary config (Summaries tab) and delivery counts. Not context_summary_config."""
+        with db_session() as db:
+            user = current_user(db)
+            agent = require_agent(db, user, agent_id)
+            return {
+                "config": get_summary_config(agent),
+                "stats": _summary_webhook_stats(db, agent_id),
+            }
+
+    @mcp.tool()
+    def update_summaries(
+        agent_id: int,
+        enabled: Optional[bool] = None,
+        delay_minutes: Optional[int] = None,
+        min_messages: Optional[int] = None,
+        max_messages: Optional[int] = None,
+        webhook_url: Optional[str] = None,
+        webhook_retry_count: Optional[int] = None,
+        webhook_retry_delay: Optional[int] = None,
+        summary_prompt: Optional[str] = None,
+    ) -> dict:
+        """Update webhook summary settings. Super-admin only. Same fields as the Summaries tab."""
+        with db_session() as db:
+            user = current_user(db)
+            require_super(user)
+            agent = require_agent(db, user, agent_id)
+            updates = {
+                key: value
+                for key, value in {
+                    "enabled": enabled,
+                    "delay_minutes": delay_minutes,
+                    "min_messages": min_messages,
+                    "max_messages": max_messages,
+                    "webhook_url": webhook_url,
+                    "webhook_retry_count": webhook_retry_count,
+                    "webhook_retry_delay": webhook_retry_delay,
+                    "summary_prompt": summary_prompt,
+                }.items()
+                if value is not None
+            }
+            if not updates:
+                raise fail("אין מה לעדכן")
+            try:
+                config = apply_summary_updates(agent, updates)
+            except ValueError as exc:
+                raise fail(str(exc)) from exc
+            db.commit()
+            return config
+
+    @mcp.tool()
+    async def test_summaries_webhook(agent_id: int) -> dict:
+        """POST a test payload to the configured summary webhook URL."""
+        with db_session() as db:
+            user = current_user(db)
+            require_super(user)
+            agent = require_agent(db, user, agent_id)
+            webhook_url = get_summary_config(agent).get("webhook_url")
+            if not webhook_url:
+                raise fail("אין כתובת וובהוק מוגדרת")
+            payload = {
+                "event": "test",
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "agent_id": agent.id,
+                "agent_name": agent.name,
+                "message": "This is a test webhook from WhatsApp Agent",
+            }
+        success, error = await send_test_webhook(webhook_url, payload)
+        if not success:
+            raise fail(f"וובהוק נכשל: {error}")
+        return {"status": "sent"}
+
+    @mcp.tool()
+    def list_conversation_summaries(agent_id: int, limit: int = 20) -> list[dict]:
+        """Recent generated conversation summaries and webhook delivery status."""
+        with db_session() as db:
+            user = current_user(db)
+            require_agent(db, user, agent_id)
+            capped = max(1, min(50, int(limit)))
+            rows = (
+                db.query(ConversationSummary, User)
+                .join(User, User.id == ConversationSummary.user_id)
+                .filter(ConversationSummary.agent_id == agent_id)
+                .order_by(ConversationSummary.created_at.desc())
+                .limit(capped)
+                .all()
+            )
+            return [
+                {
+                    "id": row.id,
+                    "conversation_id": row.conversation_id,
+                    "user_id": row.user_id,
+                    "phone": contact.phone,
+                    "user_name": contact.name,
+                    "summary_text": row.summary_text,
+                    "message_count": row.message_count,
+                    "webhook_status": row.webhook_status,
+                    "webhook_attempts": row.webhook_attempts,
+                    "webhook_last_error": row.webhook_last_error,
+                    "webhook_sent_at": row.webhook_sent_at.isoformat() if row.webhook_sent_at else None,
+                    "last_message_at": row.last_message_at.isoformat() if row.last_message_at else None,
+                    "created_at": row.created_at.isoformat() if row.created_at else None,
+                }
+                for row, contact in rows
+            ]

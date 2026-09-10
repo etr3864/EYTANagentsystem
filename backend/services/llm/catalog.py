@@ -74,6 +74,33 @@ def resolve_model(model: str | None) -> str:
     return ALIASES.get(model, model)
 
 
+def selectable_models() -> list[dict]:
+    """Same keys as the agent model dropdown. Aliases are not listed."""
+    out = []
+    for key, spec in CATALOG.items():
+        if key.startswith("claude"):
+            provider = "Anthropic"
+        elif key.startswith("gpt"):
+            provider = "OpenAI"
+        else:
+            provider = "Google"
+        out.append({
+            "key": key,
+            "provider": provider,
+            "thinking_options": list(spec["options"]),
+            "default_thinking": spec["default"],
+        })
+    return out
+
+
+def require_selectable_model(model: str | None) -> str:
+    resolved = resolve_model(model)
+    if resolved not in CATALOG:
+        keys = ", ".join(CATALOG)
+        raise ValueError(f"מודל לא נתמך. בחר מהרשימה: {keys}")
+    return resolved
+
+
 def conversation_model(model: str | None, has_images: bool = False) -> str:
     actual = resolve_model(model)
     if has_images and actual.startswith("gemini"):

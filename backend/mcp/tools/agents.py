@@ -15,7 +15,7 @@ from backend.mcp.ctx import (
 )
 from backend.services.entities import agents as agents_service
 from backend.services.knowledge import documents
-from backend.services.llm.catalog import resolve_model, sanitize_thinking
+from backend.services.llm.catalog import require_selectable_model, sanitize_thinking, selectable_models
 
 
 def register(mcp) -> None:
@@ -53,19 +53,27 @@ def register(mcp) -> None:
             return public_agent(require_agent(db, user, agent_id))
 
     @mcp.tool()
+    def list_models() -> list[dict]:
+        """Selectable agent models — same keys as the UI dropdown. Pass key as model on create/update."""
+        return selectable_models()
+
+    @mcp.tool()
     def create_agent(
         name: str,
         system_prompt: str,
         model: str = "claude-sonnet-5",
         thinking_level: str = "off",
     ) -> dict:
-        """Create an agent. Super-admin only. Channel/OAuth is a separate step."""
+        """Create an agent. Super-admin only. model must be a key from list_models. Channel/OAuth is a separate step."""
         with db_session() as db:
             user = current_user(db)
             require_super(user)
             if not name.strip() or not system_prompt.strip():
                 raise fail("name ו-system_prompt חובה")
-            resolved = resolve_model(model)
+            try:
+                resolved = require_selectable_model(model)
+            except ValueError as exc:
+                raise fail(str(exc)) from exc
             agent = agents_service.create(
                 db=db,
                 name=name.strip(),
@@ -76,7 +84,7 @@ def register(mcp) -> None:
                 model=resolved,
                 thinking_level=sanitize_thinking(resolved, thinking_level),
             )
-            return {"id": agent.id, "name": agent.name}
+            return {"id": agent.id, "name": agent.name, "model": agent.model}
 
     @mcp.tool()
     def update_agent(
@@ -93,7 +101,7 @@ def register(mcp) -> None:
         media_config: Optional[dict[str, Any]] = None,
         context_summary_config: Optional[dict[str, Any]] = None,
     ) -> dict:
-        """Update agent prompt and settings. Super-admin only. Does not change channel secrets."""
+        """Update agent prompt and settings. Super-admin only. model must be a key from list_models. Does not change channel secrets. context_summary_config is long-chat memory, not webhook summaries — use update_summaries for those."""
         with db_session() as db:
             user = current_user(db)
             require_super(user)
@@ -118,7 +126,10 @@ def register(mcp) -> None:
             if max_tool_rounds is not None:
                 updates["max_tool_rounds"] = max(1, min(8, int(max_tool_rounds)))
             if model is not None:
-                updates["model"] = resolve_model(model)
+                try:
+                    updates["model"] = require_selectable_model(model)
+                except ValueError as exc:
+                    raise fail(str(exc)) from exc
             if model is not None or thinking_level is not None:
                 next_model = updates.get("model", existing.model)
                 next_thinking = (
@@ -129,8 +140,18 @@ def register(mcp) -> None:
                 updates["thinking_level"] = sanitize_thinking(next_model, next_thinking)
             if not updates:
                 raise fail("אין מה לעדכן")
-            agent = agents_service.update(db, agent_id, **updates)
-            return {"id": agent.id, "name": agent.name}
+            try:
+                agent = agents_service.update(db, agent_id, **updates)
+            except ValueError as exc:
+                raise fail(str(exc)) from exc
+            if not agent:
+                raise fail("סוכן לא נמצא")
+            return {
+                "id": agent.id,
+                "name": agent.name,
+                "model": agent.model,
+                "thinking_level": agent.thinking_level,
+            }
 
     @mcp.tool()
     def delete_agent(agent_id: int, confirm: bool = False) -> dict:

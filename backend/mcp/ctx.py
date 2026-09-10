@@ -8,6 +8,7 @@ from backend.auth.models import AuthUser, UserRole
 from backend.auth import service as auth_service
 from backend.core.database import SessionLocal
 from backend.services.entities import agents as agents_service
+from backend.services.engagement.summaries import get_summary_config
 
 try:
     from fastmcp.exceptions import ToolError
@@ -101,6 +102,7 @@ def public_agent(agent) -> dict:
         "calendar": calendar,
         "media_config": agent.media_config,
         "followup_config": agent.followup_config,
+        "summary_config": get_summary_config(agent),
         "context_summary_config": agent.context_summary_config,
         "max_tool_rounds": getattr(agent, "max_tool_rounds", 5) or 5,
         "business_assistant_mode": getattr(agent, "business_assistant_mode", False),
