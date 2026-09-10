@@ -20,14 +20,23 @@ def _pat_ok(token: str) -> bool:
         db.close()
 
 
-try:
-    mcp = FastMCP(
-        name="Optive",
-        instructions=INSTRUCTIONS,
-        stateless_http=True,
-    )
-except TypeError:
-    mcp = FastMCP(name="Optive", instructions=INSTRUCTIONS)
+def _build_mcp() -> FastMCP:
+    # Streamable HTTP, one request = one JSON body. SSE stays open and
+    # mcp-remote (Claude Desktop) hangs on large tools/call payloads.
+    common = {"name": "Optive", "instructions": INSTRUCTIONS}
+    for extra in (
+        {"stateless_http": True, "json_response": True},
+        {"stateless_http": True},
+        {},
+    ):
+        try:
+            return FastMCP(**common, **extra)
+        except TypeError:
+            continue
+    return FastMCP(name="Optive", instructions=INSTRUCTIONS)
+
+
+mcp = _build_mcp()
 register(mcp)
 
 
@@ -48,10 +57,11 @@ class _RequireMcpToken:
             raw = headers.get("authorization", "")
             token = raw[7:].strip() if raw.lower().startswith("bearer ") else ""
             if not _pat_ok(token):
+                # No WWW-Authenticate: Bearer — that makes mcp-remote start
+                # OAuth discovery against routes we do not serve.
                 response = JSONResponse(
                     {"error": "invalid_mcp_token"},
                     status_code=401,
-                    headers={"WWW-Authenticate": "Bearer"},
                 )
                 await response(scope, receive, send)
                 return
@@ -68,6 +78,8 @@ def _http_app():
         kwargs["path"] = "/"
     if "stateless_http" in params:
         kwargs["stateless_http"] = True
+    if "json_response" in params:
+        kwargs["json_response"] = True
     if "host_origin_protection" in params:
         kwargs["host_origin_protection"] = False
     return mcp.http_app(**kwargs)
