@@ -7,12 +7,18 @@ import time
 from typing import AsyncIterator, Optional
 
 import redis.asyncio as redis
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from backend.core.config import settings
 
 STREAM_MAXLEN = 1000
 STREAM_TTL = 60 * 60 * 48
-HEARTBEAT_SEC = 20
+# Must stay below the Redis client/proxy idle timeout. redis-py raises
+# TimeoutError if XREAD.block exceeds socket_timeout; a 20s block on a
+# ~5–15s socket kills the SSE generator.
+HEARTBEAT_SEC = 8
+SOCKET_TIMEOUT_SEC = 15
 
 _pool: Optional[redis.Redis] = None
 _redis_ok: Optional[bool] = None
@@ -30,7 +36,14 @@ async def _redis() -> Optional[redis.Redis]:
         return None
     if _pool is None:
         try:
-            _pool = redis.from_url(settings.redis_url, encoding="utf-8", decode_responses=True)
+            _pool = redis.from_url(
+                settings.redis_url,
+                encoding="utf-8",
+                decode_responses=True,
+                socket_connect_timeout=5,
+                socket_timeout=SOCKET_TIMEOUT_SEC,
+                socket_keepalive=True,
+            )
             await _pool.ping()
             _redis_ok = True
         except Exception:
@@ -63,21 +76,32 @@ async def publish(conversation_id: int, payload: dict) -> str:
     return event_id
 
 
-async def read_since(conversation_id: int, last_id: str, block_ms: int = 20_000) -> list[tuple[str, dict]]:
+async def read_since(conversation_id: int, last_id: str, block_ms: int = HEARTBEAT_SEC * 1000) -> list[tuple[str, dict]]:
     r = await _redis()
     if r:
-        rows = await r.xread({stream_key(conversation_id): last_id or "0-0"}, block=block_ms, count=20)
-        out: list[tuple[str, dict]] = []
-        for _, entries in rows or []:
-            for event_id, fields in entries:
-                raw = fields.get("d") or "{}"
-                try:
-                    data = json.loads(raw)
-                except json.JSONDecodeError:
-                    data = {"type": "error", "text": "bad_event"}
-                out.append((str(event_id), data))
-        return out
+        try:
+            rows = await r.xread({stream_key(conversation_id): last_id or "0-0"}, block=block_ms, count=20)
+        except (RedisTimeoutError, TimeoutError, RedisConnectionError, OSError):
+            return []
+        return _decode_rows(rows)
     await asyncio.sleep(min(block_ms / 1000, 0.4))
+    return _mem_since(conversation_id, last_id)
+
+
+def _decode_rows(rows) -> list[tuple[str, dict]]:
+    out: list[tuple[str, dict]] = []
+    for _, entries in rows or []:
+        for event_id, fields in entries:
+            raw = fields.get("d") or "{}"
+            try:
+                data = json.loads(raw)
+            except json.JSONDecodeError:
+                data = {"type": "error", "text": "bad_event"}
+            out.append((str(event_id), data))
+    return out
+
+
+def _mem_since(conversation_id: int, last_id: str) -> list[tuple[str, dict]]:
     items = _memory.get(conversation_id, [])
     if not last_id:
         return items[:]
@@ -95,7 +119,12 @@ async def iterate(conversation_id: int, last_id: str) -> AsyncIterator[tuple[str
     """Yield (id, payload). payload None = heartbeat."""
     cursor = last_id or "0-0"
     while True:
-        batch = await read_since(conversation_id, cursor, HEARTBEAT_SEC * 1000)
+        try:
+            batch = await read_since(conversation_id, cursor, HEARTBEAT_SEC * 1000)
+        except Exception:
+            yield ("", None)
+            await asyncio.sleep(1)
+            continue
         if not batch:
             yield ("", None)
             continue
