@@ -3,7 +3,7 @@ from datetime import datetime
 from types import SimpleNamespace
 
 from backend.services.playground.identity import display_phone, normalize_phone, tester_label
-from backend.services.playground.transcript import _boundary, _turn, filename
+from backend.services.playground.transcript import _boundary, _turn, filename, tester_filename
 
 
 def _msg(**kwargs):
@@ -69,6 +69,12 @@ class TranscriptTests(unittest.TestCase):
             SimpleNamespace(created_at=datetime(2026, 9, 1), updated_at=None),
         )
         self.assertEqual(name, "playground-0501234567-20260901.json")
+
+    def test_tester_filename_covers_all_sessions(self):
+        name = tester_filename(
+            SimpleNamespace(name="נועה", metadata_={"claimed_phone": "972501234567"}),
+        )
+        self.assertEqual(name, "playground-0501234567-all.json")
 
 
 if __name__ == "__main__":

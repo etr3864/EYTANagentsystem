@@ -5,6 +5,7 @@ import { Button, Card } from '@/components/ui';
 import { AdminBubble, ExportButton, SessionDivider } from './AdminTranscript';
 import {
   downloadPlaygroundExport,
+  downloadPlaygroundTesterExport,
   getPlaygroundTester,
   type PlaygroundTesterDetail,
 } from '@/lib/api/playground';
@@ -22,7 +23,7 @@ export function TesterThread({
 }) {
   const [data, setData] = useState<PlaygroundTesterDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<'all' | number | null>(null);
 
   useEffect(() => {
     getPlaygroundTester(agentId, linkId, userId)
@@ -30,23 +31,40 @@ export function TesterThread({
       .catch((err) => setError(err instanceof Error ? err.message : 'שגיאה'));
   }, [agentId, linkId, userId]);
 
-  async function exportConv(convId: number) {
-    setBusy(true);
+  async function runExport(key: 'all' | number, fn: () => Promise<void>) {
+    setBusy(key);
     setError(null);
     try {
-      await downloadPlaygroundExport(agentId, linkId, convId);
+      await fn();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ייצוא נכשל');
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
 
+  const canExportAll = Boolean(data && data.conversations.length > 0);
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={onBack}>חזרה</Button>
-        <p className="text-sm text-white">{data?.tester.label || 'בודק'}</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <Button variant="ghost" size="sm" onClick={onBack}>← התכתבויות</Button>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-white truncate">{data?.tester.label || 'בודק'}</p>
+            {data && (
+              <p className="text-xs text-slate-400">{data.conversations.length} שיחות</p>
+            )}
+          </div>
+        </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={!canExportAll || busy != null}
+          onClick={() => runExport('all', () => downloadPlaygroundTesterExport(agentId, linkId, userId))}
+        >
+          ייצוא JSON
+        </Button>
       </div>
       {error && <p className="text-sm text-red-400">{error}</p>}
       {!data ? (
@@ -57,7 +75,10 @@ export function TesterThread({
         data.conversations.map((conv) => (
           <Card key={conv.id} padding="sm">
             <SessionDivider at={conv.archived_at || conv.created_at} live={!conv.archived_at} />
-            <ExportButton busy={busy} onClick={() => exportConv(conv.id)} />
+            <ExportButton
+              busy={busy != null}
+              onClick={() => runExport(conv.id, () => downloadPlaygroundExport(agentId, linkId, conv.id))}
+            />
             <div className="space-y-3">
               {conv.messages.length === 0 ? (
                 <p className="text-sm text-slate-500 text-center py-4">אין הודעות</p>

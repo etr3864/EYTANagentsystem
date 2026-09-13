@@ -188,6 +188,27 @@ def get_tester(
     }
 
 
+@router.get("/{agent_id}/playground-links/{link_id}/testers/{user_id}/export")
+def export_tester(
+    agent_id: int,
+    link_id: int,
+    user_id: int,
+    _: AuthUser = Depends(_super_agent),
+    db: Session = Depends(get_db),
+):
+    link = _load_link(db, agent_id, link_id)
+    user = repo.tester_on_link(db, link_id, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="בודק לא נמצא")
+    convs = repo.conversations_for_tester(db, link_id, user_id)
+    payload = transcript.export_tester(db, convs, user, link)
+    name = transcript.tester_filename(user)
+    return JSONResponse(
+        content=payload,
+        headers={"Content-Disposition": f'attachment; filename="{name}"'},
+    )
+
+
 @router.get("/{agent_id}/playground-links/{link_id}/conversations/{conv_id}/export")
 def export_conversation(
     agent_id: int,

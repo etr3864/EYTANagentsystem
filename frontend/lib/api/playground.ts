@@ -111,6 +111,23 @@ export async function getPlaygroundTester(
   return parse(res);
 }
 
+async function downloadAttachment(res: Response, fallback: string) {
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.detail || 'ייצוא נכשל');
+  }
+  const blob = await res.blob();
+  const cd = res.headers.get('Content-Disposition') || '';
+  const match = cd.match(/filename="([^"]+)"/);
+  const name = match?.[1] || fallback;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export async function downloadPlaygroundExport(
   agentId: number,
   linkId: number,
@@ -119,18 +136,16 @@ export async function downloadPlaygroundExport(
   const res = await authFetch(
     `${API_URL}/api/agents/${agentId}/playground-links/${linkId}/conversations/${convId}/export`,
   );
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error(body?.detail || 'ייצוא נכשל');
-  }
-  const blob = await res.blob();
-  const cd = res.headers.get('Content-Disposition') || '';
-  const match = cd.match(/filename="([^"]+)"/);
-  const name = match?.[1] || 'playground.json';
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.click();
-  URL.revokeObjectURL(url);
+  await downloadAttachment(res, 'playground.json');
+}
+
+export async function downloadPlaygroundTesterExport(
+  agentId: number,
+  linkId: number,
+  userId: number,
+): Promise<void> {
+  const res = await authFetch(
+    `${API_URL}/api/agents/${agentId}/playground-links/${linkId}/testers/${userId}/export`,
+  );
+  await downloadAttachment(res, 'playground-all.json');
 }

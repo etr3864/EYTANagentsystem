@@ -33,8 +33,28 @@ def export_conversation(db, conv, user, link) -> dict:
 def filename(_link, user, conv) -> str:
     stamp = conv.created_at or conv.updated_at
     day = stamp.strftime("%Y%m%d") if stamp else "export"
-    phone = "".join(c for c in claimed_phone(user) if c.isdigit()) or "tester"
-    return f"playground-{phone}-{day}.json"
+    return f"playground-{_phone_slug(user)}-{day}.json"
+
+
+def export_tester(db, convs, user, link) -> dict:
+    sessions = [export_conversation(db, conv, user, link) for conv in convs]
+    return {
+        "meta": {
+            "agent_name": link.agent_name_snapshot,
+            "tester_name": claimed_name(user),
+            "tester_phone": claimed_phone(user),
+            "conversation_count": len(sessions),
+        },
+        "conversations": sessions,
+    }
+
+
+def tester_filename(user) -> str:
+    return f"playground-{_phone_slug(user)}-all.json"
+
+
+def _phone_slug(user) -> str:
+    return "".join(c for c in claimed_phone(user) if c.isdigit()) or "tester"
 
 
 def _iso(value):

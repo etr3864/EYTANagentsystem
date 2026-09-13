@@ -87,7 +87,7 @@ export function ExportButton({
   return (
     <div className="flex justify-end mb-2">
       <Button variant="secondary" size="sm" disabled={busy} onClick={onClick}>
-        ייצוא JSON
+        ייצוא שיחה
       </Button>
     </div>
   );
