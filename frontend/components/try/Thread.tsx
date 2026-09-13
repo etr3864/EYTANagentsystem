@@ -3,17 +3,20 @@
 import { useEffect, useRef } from 'react';
 import type { TryBubble } from '@/lib/api/try';
 import { Bubble } from './Bubble';
+import { TypingBubble } from './TypingBubble';
 
 export function Thread({
   messages,
   closedMessage,
   onReply,
   viewportHeight,
+  typing,
 }: {
   messages: TryBubble[];
   closedMessage: string | null;
   onReply: (text: string) => void;
   viewportHeight?: number | null;
+  typing?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -21,7 +24,7 @@ export function Thread({
     const el = ref.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-  }, [messages, closedMessage, viewportHeight]);
+  }, [messages, closedMessage, viewportHeight, typing]);
 
   return (
     <div
@@ -40,6 +43,7 @@ export function Thread({
         const showDate = !prev || (msg.created_at || '').slice(0, 10) !== (prev.created_at || '').slice(0, 10);
         return <div key={String(msg.id)} className="mb-1.5"><Bubble msg={msg} showDate={showDate} onReply={onReply} /></div>;
       })}
+      {typing && !closedMessage && <TypingBubble />}
       {closedMessage && (
         <div className="flex justify-center my-4">
           <div className="max-w-[88%] rounded-2xl bg-white/[0.06] border border-white/[0.08] px-4 py-3 text-[13.5px] leading-6 text-white/80 text-center">

@@ -38,6 +38,7 @@ export function TryApp({ token }: { token: string }) {
   const [session, setSession] = useState<TrySession | null>(null);
   const [messages, setMessages] = useState<TryBubble[]>([]);
   const [status, setStatus] = useState<string | null>(null);
+  const [typing, setTyping] = useState(false);
   const [draft, setDraft] = useState('');
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -79,12 +80,19 @@ export function TryApp({ token }: { token: string }) {
           message?: TryBubble;
           error?: string;
         };
-        if (payload.type === 'status' || payload.type === 'typing') {
-          setStatus(payload.status || (payload.type === 'typing' ? 'מקליד' : null));
+        if (payload.type === 'typing' || payload.status === 'מקליד') {
+          setTyping(true);
+          setStatus(null);
+          return;
+        }
+        if (payload.type === 'status') {
+          setTyping(false);
+          setStatus(payload.status || null);
           return;
         }
         if (payload.type === 'error') {
           setStatus(null);
+          setTyping(false);
           return;
         }
         if ((payload.type === 'message' || payload.type === 'media') && payload.message) {
@@ -94,6 +102,7 @@ export function TryApp({ token }: { token: string }) {
           ids.current.add(key);
           setMessages((prev) => [...prev, row]);
           setStatus(null);
+          setTyping(false);
         }
       } catch {
         /* ignore malformed */
@@ -133,16 +142,19 @@ export function TryApp({ token }: { token: string }) {
     setMessages((prev) => [...prev, optimistic]);
     setDraft('');
     setReplyTo(null);
+    setTyping(true);
     try {
       const res = await trySend(token, text, replyTo, messageId);
       if ('closed' in res && res.closed) {
         applySession(res);
         setStatus(null);
+        setTyping(false);
       }
     } catch (err) {
       if (isGone(err)) setPhase('gone');
       setMessages((prev) => prev.filter((m) => m.id !== messageId));
       setDraft(text);
+      setTyping(false);
     }
   }
 
@@ -164,11 +176,13 @@ export function TryApp({ token }: { token: string }) {
     setMessages((prev) => [...prev, optimistic]);
     setDraft('');
     setReplyTo(null);
+    setTyping(true);
     try {
       const res = await trySendMedia(token, file, caption, quoted, messageId);
       if ('closed' in res && res.closed) {
         applySession(res);
         setStatus(null);
+        setTyping(false);
         return;
       }
       if ('message' in res && res.message?.media_url) {
@@ -179,6 +193,7 @@ export function TryApp({ token }: { token: string }) {
       if (isGone(err)) setPhase('gone');
       setMessages((prev) => prev.filter((m) => m.id !== messageId));
       URL.revokeObjectURL(localUrl);
+      setTyping(false);
     }
   }
 
@@ -192,6 +207,7 @@ export function TryApp({ token }: { token: string }) {
     try {
       applySession(await tryReset(token));
       setStatus(null);
+      setTyping(false);
     } catch (err) {
       if (isGone(err)) setPhase('gone');
     }
@@ -260,6 +276,7 @@ export function TryApp({ token }: { token: string }) {
               closedMessage={locked ? (session?.closed_message || GONE_COPY) : null}
               onReply={setReplyTo}
               viewportHeight={height}
+              typing={typing}
             />
             <TryComposer
               value={draft}

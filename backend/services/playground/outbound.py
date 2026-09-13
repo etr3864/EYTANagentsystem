@@ -40,7 +40,10 @@ class PlaygroundOutbound:
         return True
 
     async def send_typing(self, to: str) -> None:
-        await self.emit_status(to, "מקליד")
+        await streams.publish(self.conversation_id, {"type": "typing"})
 
     async def emit_status(self, to: str, status: str | None) -> None:
+        if status == "מקליד":
+            await self.send_typing(to)
+            return
         await streams.publish(self.conversation_id, {"type": "status", "status": status})
