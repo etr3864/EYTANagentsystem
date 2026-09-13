@@ -444,9 +444,12 @@ async def _delete_user_data(external_user_id: str) -> None:
                 SELECT c.id FROM conversations c
                 LEFT JOIN channel_users cu ON cu.id = c.channel_user_id
                 LEFT JOIN users u ON u.id = c.user_id
-                WHERE cu.external_id = :uid
-                   OR cu.bsuid = :uid
-                   OR u.phone = :uid
+                WHERE c.playground_link_id IS NULL
+                  AND (
+                    cu.external_id = :uid
+                    OR cu.bsuid = :uid
+                    OR u.phone = :uid
+                  )
             """), params).fetchall()
         ]
 

@@ -11,10 +11,13 @@ from backend.api.routers.media import router as media_router
 from backend.api.routers.templates import router as templates_router
 from backend.api.routers.followups import router as followups_router
 from backend.api.routers.agent_functions import router as agent_functions_router
+from backend.api.routers.playground import router as playground_router
+from backend.api.routers.playground_public import router as playground_public_router
 
 __all__ = [
     'agents_router', 'users_router', 'conversations_router', 
     'database_router', 'webhook_router', 'webhook_wasender_router', 
     'knowledge_router', 'calendar_router', 'summaries_router', 'media_router',
-    'templates_router', 'followups_router', 'agent_functions_router'
+    'templates_router', 'followups_router', 'agent_functions_router',
+    'playground_router', 'playground_public_router',
 ]

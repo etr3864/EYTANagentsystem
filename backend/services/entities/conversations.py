@@ -6,14 +6,32 @@ def get_by_id(db: Session, conversation_id: int) -> Conversation | None:
     return db.query(Conversation).filter(Conversation.id == conversation_id).first()
 
 
-def get_or_create(db: Session, agent_id: int, user_id: int) -> Conversation:
-    conv = db.query(Conversation).filter(
-        Conversation.agent_id == agent_id,
-        Conversation.user_id == user_id
-    ).first()
+def get_or_create(
+    db: Session,
+    agent_id: int,
+    user_id: int,
+    playground_link_id: int | None = None,
+) -> Conversation:
+    q = db.query(Conversation).filter(
+        Conversation.user_id == user_id,
+        Conversation.archived_at.is_(None),
+    )
+    if playground_link_id:
+        q = q.filter(Conversation.playground_link_id == playground_link_id)
+    else:
+        q = q.filter(
+            Conversation.agent_id == agent_id,
+            Conversation.playground_link_id.is_(None),
+        )
+    conv = q.first()
 
     if not conv:
-        conv = Conversation(agent_id=agent_id, user_id=user_id)
+        conv = Conversation(
+            agent_id=agent_id,
+            user_id=user_id,
+            playground_link_id=playground_link_id,
+            channel_type_snapshot="playground" if playground_link_id else None,
+        )
         db.add(conv)
         db.commit()
         db.refresh(conv)
@@ -23,7 +41,8 @@ def get_or_create(db: Session, agent_id: int, user_id: int) -> Conversation:
 
 def get_by_agent(db: Session, agent_id: int) -> list[Conversation]:
     return db.query(Conversation).filter(
-        Conversation.agent_id == agent_id
+        Conversation.agent_id == agent_id,
+        Conversation.playground_link_id.is_(None),
     ).order_by(Conversation.updated_at.desc()).all()
 
 
@@ -71,5 +90,6 @@ def set_opted_out(db: Session, conversation_id: int, opted_out: bool) -> Convers
 def get_by_agent_and_user(db: Session, agent_id: int, user_id: int) -> Conversation | None:
     return db.query(Conversation).filter(
         Conversation.agent_id == agent_id,
-        Conversation.user_id == user_id
+        Conversation.user_id == user_id,
+        Conversation.playground_link_id.is_(None),
     ).first()

@@ -11,6 +11,9 @@ export function OctopusBackground() {
 
   const isHome = pathname === '/home';
   const isLogin = pathname === '/login';
+  const isTry = pathname === '/try' || pathname.startsWith('/try/');
+
+  if (isTry) return null;
 
   if (isHome) {
     return (

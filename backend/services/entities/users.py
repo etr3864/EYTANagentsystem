@@ -56,4 +56,9 @@ def update_metadata(db: Session, user_id: int, key: str, value) -> User | None:
 
 
 def get_all(db: Session) -> list[User]:
-    return db.query(User).order_by(User.updated_at.desc(), User.id.desc()).all()
+    return (
+        db.query(User)
+        .filter(User.playground_link_id.is_(None))
+        .order_by(User.updated_at.desc(), User.id.desc())
+        .all()
+    )

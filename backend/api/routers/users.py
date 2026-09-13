@@ -28,7 +28,7 @@ def list_users(_: AuthUser = _super, db: Session = Depends(get_db)):
 @router.get("/{user_id}")
 def get_user(user_id: int, _: AuthUser = _super, db: Session = Depends(get_db)):
     user = db.query(users.User).filter(users.User.id == user_id).first()
-    if not user:
+    if not user or user.playground_link_id is not None:
         raise HTTPException(status_code=404, detail="User not found")
     return {
         "id": user.id,
@@ -48,7 +48,7 @@ def delete_user(user_id: int, _: AuthUser = _super, db: Session = Depends(get_db
     from backend.models.message import Message
     
     user = db.query(User).filter(User.id == user_id).first()
-    if not user:
+    if not user or user.playground_link_id is not None:
         raise HTTPException(status_code=404, detail="User not found")
     
     convs = db.query(Conversation).filter(Conversation.user_id == user_id).all()

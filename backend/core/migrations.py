@@ -20,6 +20,7 @@ def run_all(conn):
     _message_inbox_media(conn)
     _message_reply_to(conn)
     _mcp_tokens(conn)
+    _playground(conn)
     conn.commit()
 
 
@@ -633,5 +634,92 @@ def _mcp_tokens(conn):
         EXCEPTION
             WHEN duplicate_column THEN null;
         END $$;
+    """))
+
+
+def _playground(conn):
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS playground_links (
+            id SERIAL PRIMARY KEY,
+            agent_id INTEGER REFERENCES agents(id) ON DELETE SET NULL,
+            agent_name_snapshot VARCHAR(100) NOT NULL,
+            created_by INTEGER NOT NULL REFERENCES auth_users(id) ON DELETE RESTRICT,
+            token_hash VARCHAR(64) NOT NULL UNIQUE,
+            token_encrypted BYTEA NOT NULL,
+            ttl_seconds INTEGER NOT NULL,
+            expires_at TIMESTAMP NOT NULL,
+            stopped_at TIMESTAMP,
+            deleted_at TIMESTAMP,
+            require_profile BOOLEAN NOT NULL DEFAULT TRUE,
+            token_limit INTEGER NOT NULL DEFAULT 1000000,
+            tokens_used INTEGER NOT NULL DEFAULT 0,
+            created_at TIMESTAMP NOT NULL DEFAULT NOW()
+        );
+    """))
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_playground_links_agent_id
+        ON playground_links(agent_id);
+    """))
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_playground_links_expires_at
+        ON playground_links(expires_at);
+    """))
+    conn.execute(text("""
+        ALTER TABLE users ALTER COLUMN phone TYPE VARCHAR(64);
+    """))
+    conn.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE users ADD COLUMN playground_link_id INTEGER
+                REFERENCES playground_links(id) ON DELETE RESTRICT;
+        EXCEPTION
+            WHEN duplicate_column THEN null;
+        END $$;
+    """))
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_users_playground_link_id
+        ON users(playground_link_id);
+    """))
+    conn.execute(text("""
+        ALTER TABLE conversations ALTER COLUMN agent_id DROP NOT NULL;
+    """))
+    conn.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE conversations ADD COLUMN playground_link_id INTEGER
+                REFERENCES playground_links(id) ON DELETE RESTRICT;
+        EXCEPTION
+            WHEN duplicate_column THEN null;
+        END $$;
+    """))
+    conn.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE conversations ADD COLUMN archived_at TIMESTAMP;
+        EXCEPTION
+            WHEN duplicate_column THEN null;
+        END $$;
+    """))
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_conversations_playground_link_id
+        ON conversations(playground_link_id);
+    """))
+    conn.execute(text("""
+        DROP INDEX IF EXISTS ix_agent_user;
+    """))
+    conn.execute(text("""
+        CREATE UNIQUE INDEX IF NOT EXISTS ix_agent_user_live
+        ON conversations (agent_id, user_id)
+        WHERE archived_at IS NULL AND playground_link_id IS NULL AND agent_id IS NOT NULL;
+    """))
+    conn.execute(text("""
+        CREATE UNIQUE INDEX IF NOT EXISTS ix_playground_user_live
+        ON conversations (playground_link_id, user_id)
+        WHERE archived_at IS NULL AND playground_link_id IS NOT NULL;
+    """))
+    conn.execute(text("""
+        CREATE OR REPLACE VIEW conversations_live AS
+        SELECT * FROM conversations WHERE playground_link_id IS NULL;
+    """))
+    conn.execute(text("""
+        CREATE OR REPLACE VIEW users_live AS
+        SELECT * FROM users WHERE playground_link_id IS NULL;
     """))
 

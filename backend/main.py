@@ -8,7 +8,7 @@ from sqlalchemy import text
 
 from backend.core.database import run_migrations, SessionLocal
 from backend.core.logger import log, log_error
-from backend.api.routers import agents_router, users_router, conversations_router, database_router, webhook_router, knowledge_router, webhook_wasender_router, calendar_router, summaries_router, media_router, templates_router, followups_router, agent_functions_router
+from backend.api.routers import agents_router, users_router, conversations_router, database_router, webhook_router, knowledge_router, webhook_wasender_router, calendar_router, summaries_router, media_router, templates_router, followups_router, agent_functions_router, playground_router, playground_public_router
 from backend.api.routers.dashboard import router as dashboard_router
 from backend.api.routers.super_admin_dashboard import router as super_admin_dashboard_router
 from backend.api.routers.export import router as export_router
@@ -93,6 +93,8 @@ app.include_router(agent_channels_router, prefix="/api")
 app.include_router(external_router, prefix="/api/external")
 app.include_router(agent_triggers_router, prefix="/api")
 app.include_router(agent_escalations_router, prefix="/api")
+app.include_router(playground_router, prefix="/api/agents")
+app.include_router(playground_public_router, prefix="/api/try")
 app.mount("/mcp", mcp_http_app)
 
 

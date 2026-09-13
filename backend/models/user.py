@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import String, DateTime, JSON, Enum
+from sqlalchemy import String, DateTime, JSON, Enum, ForeignKey, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.core.database import Base
 import enum
@@ -16,8 +16,11 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    phone: Mapped[str] = mapped_column(String(20), unique=True, index=True)
+    phone: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    playground_link_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("playground_links.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
     gender: Mapped[Gender] = mapped_column(Enum(Gender), default=Gender.UNKNOWN)
     metadata_: Mapped[Optional[dict]] = mapped_column("metadata", JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

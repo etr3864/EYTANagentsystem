@@ -6,7 +6,7 @@ import Link from 'next/link';
 
 import { Button, Card, ArrowRightIcon, BELOW_NAV_CLASS } from '@/components/ui';
 import { FunctionsTab } from '@/components/agent/functions/FunctionsTab';
-import { AgentTabs, PromptTab, SettingsTab, ConversationsTab, KnowledgeTab, CalendarTab, SummaryTab, MediaTab, TriggersTab, EscalationTab } from '@/components/agent';
+import { AgentTabs, PromptTab, SettingsTab, ConversationsTab, KnowledgeTab, CalendarTab, SummaryTab, MediaTab, TriggersTab, EscalationTab, PlaygroundLinksTab } from '@/components/agent';
 import type { AgentTabGroup } from '@/components/agent/AgentTabs';
 import { TemplatesTab } from '@/components/agent/TemplatesTab';
 import FollowUpTab from '@/components/agent/FollowUpTab';
@@ -27,7 +27,7 @@ import { DEFAULT_MODEL, getModel, resolveModel } from '@/lib/models';
 import { NewChatModal } from '@/components/chat/NewChatModal';
 import type { TemplateSendPayload } from '@/components/chat/Composer';
 
-type Tab = 'prompt' | 'conversations' | 'knowledge' | 'media' | 'templates' | 'calendar' | 'followups' | 'summaries' | 'settings' | 'channels' | 'functions' | 'triggers' | 'escalation';
+type Tab = 'prompt' | 'conversations' | 'knowledge' | 'media' | 'templates' | 'calendar' | 'followups' | 'summaries' | 'settings' | 'channels' | 'functions' | 'triggers' | 'escalation' | 'playground';
 
 interface TabConfig {
   id: Tab;
@@ -38,6 +38,7 @@ interface TabConfig {
 
 const allTabs: TabConfig[] = [
   { id: 'conversations', label: 'שיחות', group: 'ops', roles: ['super_admin', 'admin', 'employee'] },
+  { id: 'playground', label: 'קישורי בדיקה', group: 'ops', roles: ['super_admin'] },
   { id: 'prompt', label: 'Prompt', group: 'content', roles: ['super_admin'] },
   { id: 'knowledge', label: 'מאגר', group: 'content', roles: ['super_admin', 'admin'] },
   { id: 'media', label: 'מדיה', group: 'content', roles: ['super_admin', 'admin'] },
@@ -622,6 +623,10 @@ function AgentPage() {
 
           {tab === 'channels' && (
             <ChannelsTab agentId={agentId} canEdit={isSuperAdmin(user)} />
+          )}
+
+          {tab === 'playground' && (
+            <PlaygroundLinksTab agentId={agentId} />
           )}
 
           {tab === 'settings' && (

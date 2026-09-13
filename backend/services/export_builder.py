@@ -98,6 +98,7 @@ def _fetch_conversations(
         JOIN users u ON u.id = c.user_id
         LEFT JOIN channel_users cu ON cu.id = c.channel_user_id
         WHERE c.agent_id = :agent_id
+          AND c.playground_link_id IS NULL
           AND c.created_at >= :start_dt
           AND c.created_at <= :end_dt
         ORDER BY c.created_at
@@ -126,6 +127,7 @@ def _fetch_channel_stats(
             AND m.created_at >= :start_dt AND m.created_at <= :end_dt
         LEFT JOIN appointments a ON a.agent_id = c.agent_id AND a.user_id = c.user_id
         WHERE c.agent_id = :agent_id
+          AND c.playground_link_id IS NULL
           AND c.created_at >= :start_dt
           AND c.created_at <= :end_dt
         GROUP BY channel_type

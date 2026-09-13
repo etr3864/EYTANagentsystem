@@ -361,6 +361,7 @@ async def handle_tool_calls(
     tool_calls: list[dict[str, Any]],
     conversation_id: int = None,
     function_runtime=None,
+    simulate_calendar: bool = False,
 ) -> list[dict[str, Any]]:
     """Handle all AI tool calls (knowledge, appointments, user info, media).
     
@@ -398,19 +399,38 @@ async def handle_tool_calls(
         
         # Appointment tools
         elif name == "check_availability":
-            result = await _handle_check_availability(db, agent, data, config, tz)
+            if simulate_calendar:
+                from backend.services.playground import calendar_sim
+                result = calendar_sim.check_availability(data, config, tz)
+            else:
+                result = await _handle_check_availability(db, agent, data, config, tz)
         
         elif name == "book_appointment":
-            result = await _handle_book_appointment(db, agent, user_id, data, config, tz)
+            if simulate_calendar:
+                from backend.services.playground import calendar_sim
+                result = calendar_sim.book(data, tz)
+            else:
+                result = await _handle_book_appointment(db, agent, user_id, data, config, tz)
         
         elif name == "get_my_appointments":
-            result = _handle_get_my_appointments(db, agent_id, user_id, config.get("timezone", "Asia/Jerusalem"))
+            if simulate_calendar:
+                result = "אין פגישות קרובות"
+            else:
+                result = _handle_get_my_appointments(db, agent_id, user_id, config.get("timezone", "Asia/Jerusalem"))
         
         elif name == "cancel_appointment":
-            result = await _handle_cancel_appointment(db, agent, user_id, data)
+            if simulate_calendar:
+                from backend.services.playground import calendar_sim
+                result = calendar_sim.cancel(data)
+            else:
+                result = await _handle_cancel_appointment(db, agent, user_id, data)
         
         elif name == "reschedule_appointment":
-            result = await _handle_reschedule_appointment(db, agent, user_id, data, tz)
+            if simulate_calendar:
+                from backend.services.playground import calendar_sim
+                result = calendar_sim.reschedule(data, tz)
+            else:
+                result = await _handle_reschedule_appointment(db, agent, user_id, data, tz)
         
         # Opt-out
         elif name == "opt_out_conversation":

@@ -1,0 +1,60 @@
+"""Outbound transport contract — not WhatsApp send helpers (see outbound.py)."""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Awaitable, Callable, Protocol, runtime_checkable
+
+MediaSendCallback = Callable[[str, str, str, str | None, str | None], Awaitable[bool]]
+TextSendCallback = Callable[[str, str], Awaitable[bool]]
+
+
+@dataclass(frozen=True)
+class OutboundCaps:
+    followups: bool = True
+    reminders: bool = True
+    escalation_tools: bool = True
+    google_writes: bool = True
+    usage_source: str = "conversation"
+    calendar_as_connected: bool = False
+
+
+@runtime_checkable
+class OutboundChannel(Protocol):
+    async def send_message(self, to: str, text: str, meta: dict | None = None) -> bool: ...
+    async def send_media(
+        self, to: str, url: str, media_type: str, caption: str | None, filename: str | None = None,
+    ) -> bool: ...
+    async def send_typing(self, to: str) -> None: ...
+    async def emit_status(self, to: str, status: str | None) -> None: ...
+    def capabilities(self) -> OutboundCaps: ...
+
+
+class CallbackOutbound:
+    """Wraps existing webhook send_message / send_media callbacks."""
+
+    def __init__(
+        self,
+        send_message: TextSendCallback,
+        send_media: MediaSendCallback | None = None,
+    ):
+        self._send = send_message
+        self._media = send_media
+
+    async def send_message(self, to: str, text: str, meta: dict | None = None) -> bool:
+        return await self._send(to, text)
+
+    async def send_media(
+        self, to: str, url: str, media_type: str, caption: str | None, filename: str | None = None,
+    ) -> bool:
+        if not self._media:
+            return False
+        return await self._media(to, url, media_type, caption, filename)
+
+    async def send_typing(self, to: str) -> None:
+        return None
+
+    async def emit_status(self, to: str, status: str | None) -> None:
+        return None
+
+    def capabilities(self) -> OutboundCaps:
+        return OutboundCaps()

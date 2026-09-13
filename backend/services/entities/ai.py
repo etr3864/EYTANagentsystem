@@ -293,7 +293,9 @@ async def get_response(
     
     # Build full system prompt with calendar context
     full_prompt = system_prompt
-    if calendar_config and calendar_config.get("google_tokens"):
+    if calendar_config and (
+        calendar_config.get("google_tokens") or calendar_config.get("playground")
+    ):
         working_hours = calendar_config.get("working_hours", {})
         days_hebrew = {'0': 'ראשון', '1': 'שני', '2': 'שלישי', '3': 'רביעי', '4': 'חמישי', '5': 'שישי', '6': 'שבת'}
         hours_text = []

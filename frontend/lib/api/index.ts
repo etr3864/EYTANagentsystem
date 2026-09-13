@@ -10,6 +10,7 @@ export * from './followups';
 export * from './dashboard';
 export * from './triggers';
 export * from './mcp';
+export * from './playground';
 
 export type {
   Agent,

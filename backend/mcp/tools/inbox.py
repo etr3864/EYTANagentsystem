@@ -34,11 +34,11 @@ def register(mcp) -> None:
 
 
 def _require_conversation(db, user, conversation_id):
+    conv = conversations.get_by_id(db, conversation_id)
+    if not conv or conv.playground_link_id is not None:
+        raise fail("שיחה לא נמצאה")
     if not auth_service.can_access_conversation(db, user, conversation_id):
         raise fail("אין גישה לשיחה")
-    conv = conversations.get_by_id(db, conversation_id)
-    if not conv:
-        raise fail("שיחה לא נמצאה")
     return conv
 
 
@@ -67,7 +67,10 @@ def _conversations(mcp) -> None:
             rows = (
                 db.query(Conversation, User)
                 .join(User, User.id == Conversation.user_id)
-                .filter(Conversation.agent_id == agent_id)
+                .filter(
+                    Conversation.agent_id == agent_id,
+                    Conversation.playground_link_id.is_(None),
+                )
                 .order_by(Conversation.updated_at.desc())
                 .limit(capped)
                 .all()

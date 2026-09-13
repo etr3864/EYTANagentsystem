@@ -35,6 +35,18 @@
     "story_replies": true,
     "mentions": true
   },
+  "playground": {
+    "text": true,
+    "images": true,
+    "files": true,
+    "voice": true,
+    "reminders": false,
+    "followups": false,
+    "templates": false,
+    "has_24h_window": false,
+    "story_replies": false,
+    "mentions": false
+  },
   "messenger": {
     "text": true,
     "images": true,

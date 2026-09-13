@@ -9,7 +9,7 @@ import { AgentsIcon, ChartIcon, UsersIcon, DatabaseIcon, PlusIcon, LogoutIcon, S
 
 const LOGO_ICON = 'https://res.cloudinary.com/daowx6msw/image/upload/v1761607495/white_logogg_uf3usn.png';
 
-const HIDDEN_PATHS = ['/home', '/login', '/privacy', '/terms'];
+const HIDDEN_PATHS = ['/home', '/login', '/privacy', '/terms', '/try'];
 
 interface NavLink {
   href: string;

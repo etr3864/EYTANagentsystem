@@ -55,7 +55,7 @@ def _query_stats(
     base_msg = (
         db.query(Message)
         .join(Conversation, Message.conversation_id == Conversation.id)
-        .filter(Conversation.agent_id.in_(agent_ids), Message.created_at >= from_dt, Message.created_at <= to_dt)
+        .filter(Conversation.agent_id.in_(agent_ids), Conversation.playground_link_id.is_(None), Message.created_at >= from_dt, Message.created_at <= to_dt)
     )
     if channel_type:
         base_msg = (
@@ -168,6 +168,7 @@ def get_dashboard_channel_breakdown(
         JOIN agent_channels ac ON c.channel_id = ac.id
         JOIN messages m ON m.conversation_id = c.id
         WHERE c.agent_id = ANY(:ids)
+          AND c.playground_link_id IS NULL
           AND m.role = 'user'
           AND m.created_at >= :from_dt
           AND m.created_at <= :to_dt
@@ -181,6 +182,7 @@ def get_dashboard_channel_breakdown(
         JOIN messages m ON m.conversation_id = c.id
         WHERE c.agent_id = ANY(:ids)
           AND c.channel_id IS NULL
+          AND c.playground_link_id IS NULL
           AND m.role = 'user'
           AND m.created_at >= :from_dt
           AND m.created_at <= :to_dt

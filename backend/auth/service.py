@@ -297,7 +297,7 @@ def can_access_conversation(db: Session, user: AuthUser, conversation_id: int) -
     from backend.models.conversation import Conversation
     
     conv = db.query(Conversation).filter(Conversation.id == conversation_id).first()
-    if not conv:
+    if not conv or conv.playground_link_id is not None:
         return False
     
     return can_access_agent(db, user, conv.agent_id)

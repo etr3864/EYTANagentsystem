@@ -219,7 +219,9 @@ def list_agent_conversations(
         FROM conversations c
         JOIN users u ON u.id = c.user_id
         LEFT JOIN channel_users cu ON cu.id = c.channel_user_id
-        WHERE c.agent_id = :agent_id {cursor_clause}
+        WHERE c.agent_id = :agent_id
+          AND c.playground_link_id IS NULL
+          {cursor_clause}
         ORDER BY c.updated_at DESC, c.id DESC
         LIMIT :lim
     """), params).fetchall()

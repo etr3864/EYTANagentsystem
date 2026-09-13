@@ -143,6 +143,7 @@ def _query_perf(
             FROM conversations c
             JOIN messages m ON m.conversation_id = c.id
             WHERE c.agent_id = ANY(:ids)
+              AND c.playground_link_id IS NULL
               AND m.created_at >= :from_dt
               AND m.created_at <= :to_dt
               AND m.role = 'user'
@@ -300,6 +301,7 @@ def _build_performance(
         .join(Conversation, Message.conversation_id == Conversation.id)
         .filter(
             Conversation.agent_id == agent_id,
+            Conversation.playground_link_id.is_(None),
             Message.created_at >= from_dt,
             Message.created_at <= to_dt,
         )
@@ -481,6 +483,7 @@ def get_channel_breakdown(
         JOIN agent_channels ac ON c.channel_id = ac.id
         JOIN messages m ON m.conversation_id = c.id
         WHERE m.role = 'user'
+          AND c.playground_link_id IS NULL
           AND m.created_at >= :from_dt
           AND m.created_at <= :to_dt
           {agent_filter}
@@ -493,6 +496,7 @@ def get_channel_breakdown(
         FROM conversations c
         JOIN messages m ON m.conversation_id = c.id
         WHERE c.channel_id IS NULL
+          AND c.playground_link_id IS NULL
           AND m.role = 'user'
           AND m.created_at >= :from_dt
           AND m.created_at <= :to_dt

@@ -108,7 +108,8 @@ def _get_conversations_needing_summary(
     
     # Filter to this agent's conversations for all subqueries
     agent_conv_ids = db.query(Conversation.id).filter(
-        Conversation.agent_id == agent_id
+        Conversation.agent_id == agent_id,
+        Conversation.playground_link_id.is_(None),
     )
 
     # Subquery: last user message time per conversation
@@ -154,6 +155,7 @@ def _get_conversations_needing_summary(
         msg_counts, Conversation.id == msg_counts.c.conversation_id
     ).filter(
         Conversation.agent_id == agent_id,
+        Conversation.playground_link_id.is_(None),
         msg_counts.c.new_count >= min_messages,
         last_user_msg.c.last_user_msg_time <= threshold,
         (msg_counts.c.last_summarized_msg == None) |

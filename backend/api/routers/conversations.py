@@ -15,8 +15,11 @@ router = APIRouter(tags=["conversations"])
 
 
 def require_conversation_access(conv_id: int, user: AuthUser, db: Session):
-    """Check conversation access or raise 403."""
-    if not auth_service.can_access_conversation(db, user, conv_id):
+    """404 if missing or playground; 403 if the caller cannot access the agent."""
+    conv = conversations.get_by_id(db, conv_id)
+    if not conv or conv.playground_link_id is not None:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    if not auth_service.can_access_agent(db, user, conv.agent_id):
         raise HTTPException(status_code=403, detail="Access denied to this conversation")
 
 
@@ -31,7 +34,7 @@ def _raise_outbound(err: outbound.OutboundError):
 
 def _load_conv(db: Session, conv_id: int):
     conv = conversations.get_by_id(db, conv_id)
-    if not conv:
+    if not conv or conv.playground_link_id is not None:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return conv
 

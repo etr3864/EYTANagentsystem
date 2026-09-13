@@ -11,6 +11,7 @@ from backend.core.config import settings
 from backend.services import knowledge
 from backend.services.entities import agents, users, conversations, ai
 from backend.services.messaging import messages
+from backend.services.messaging.channel import CallbackOutbound, OutboundChannel
 from backend.services.scheduling import appointments
 from backend.services.entities.tools import handle_tool_calls
 from backend.services.messaging.buffer import PendingMessage, is_stale
@@ -141,11 +142,12 @@ def _cleanup_old_entries(db: Session) -> None:
 
 def get_user_info(user: User) -> dict:
     """Extract user info for AI context."""
+    meta = user.metadata_ or {}
     return {
         "name": user.name,
-        "phone": user.phone,
+        "phone": meta.get("claimed_phone") or user.phone,
         "gender": user.gender.value if user.gender else "unknown",
-        "metadata": user.metadata_
+        "metadata": meta,
     }
 
 
@@ -159,6 +161,7 @@ async def process_batched_messages(
     send_media: MediaSendCallback | None = None,
     channel_id: Optional[int] = None,
     channel_user_id: Optional[int] = None,
+    outbound: OutboundChannel | None = None,
 ) -> None:
     """Process batched messages with knowledge base integration.
     
@@ -173,6 +176,9 @@ async def process_batched_messages(
         channel_id: AgentChannel.id — when set, new multichannel path is used
         channel_user_id: ChannelUser.id — when set, stored on new messages
     """
+    if outbound is None:
+        outbound = CallbackOutbound(send_message, send_media)
+
     db = SessionLocal()
     try:
         agent = agents.get_by_id(db, agent_id)
@@ -182,7 +188,7 @@ async def process_batched_messages(
 
         fresh = [m for m in pending_msgs if not is_stale(m)]
         if not fresh:
-            await send_message(
+            await outbound.send_message(
                 user_phone,
                 "לא הצלחנו לטפל בהודעה בזמן. אפשר לשלוח שוב?",
             )
@@ -218,7 +224,11 @@ async def process_batched_messages(
         batching_config = agent.get_batching_config()
         max_history = batching_config.get("max_history_messages", 20)
 
-        conv = conversations.get_or_create(db, agent.id, user.id)
+        conv = conversations.get_or_create(
+            db, agent.id, user.id, playground_link_id=user.playground_link_id,
+        )
+        if user.playground_link_id:
+            conv.channel_type_snapshot = conv.channel_type_snapshot or "playground"
 
         from backend.services.messaging.triggers import persistent_for_agent
         external_data = persistent_for_agent(user, agent.id)
@@ -240,20 +250,20 @@ async def process_batched_messages(
             except Exception:
                 pass
         
-        # Auto opt-in: customer sending a message re-enables proactive messages
-        if conv.opted_out:
+        if conv.opted_out and not user.playground_link_id:
             conv.opted_out = False
 
-        # Track last customer message time + cancel pending follow-ups + cancel timer
         conv.last_customer_message_at = datetime.utcnow()
-        _mark_followup_responded(db, conv.id)
+        if not user.playground_link_id:
+            _mark_followup_responded(db, conv.id)
         db.commit()
 
-        from backend.services.engagement.followups import cancel_pending_followups, cancel_followup_timer
-        cancelled = cancel_pending_followups(db, conv.id)
-        if cancelled:
-            db.commit()
-        await cancel_followup_timer(agent.id, conv.id)
+        if not user.playground_link_id:
+            from backend.services.engagement.followups import cancel_pending_followups, cancel_followup_timer
+            cancelled = cancel_pending_followups(db, conv.id)
+            if cancelled:
+                db.commit()
+            await cancel_followup_timer(agent.id, conv.id)
 
         if conv.is_paused:
             for msg in pending_msgs:
@@ -294,35 +304,61 @@ async def process_batched_messages(
         from backend.services.messaging.visibility import filter_history_for_llm
         history = filter_history_for_llm(history)
 
-        # Load knowledge context
-        knowledge_context = knowledge.get_context(db, agent_id)
+        out_caps = outbound.capabilities()
+        if user.playground_link_id:
+            from backend.services.playground import quota as pg_quota, repo as pg_repo
+            from backend.services.playground.constants import CLOSED_MESSAGE
+            pg_link = pg_repo.get(db, user.playground_link_id)
+            if pg_link and pg_quota.would_exceed(pg_link, 1):
+                await outbound.send_message(user_phone, CLOSED_MESSAGE)
+                db.commit()
+                return
 
-        # Load media context
+        await outbound.emit_status(user_phone, "חושב")
+
+        knowledge_context = knowledge.get_context(db, agent_id)
         media_context = ai.build_media_context(db, agent.id, agent.media_config)
 
-        # Load user's upcoming appointments for context
         user_appointments = []
-        if agent.calendar_config and agent.calendar_config.get("google_tokens"):
+        if (
+            agent.calendar_config
+            and agent.calendar_config.get("google_tokens")
+            and not out_caps.calendar_as_connected
+        ):
             user_appointments = appointments.get_user_appointments(db, agent.id, user.id)
 
-        # Create tool handler with conversation_id for media
+        calendar_config = dict(agent.calendar_config or {})
+        if out_caps.calendar_as_connected:
+            calendar_config["playground"] = True
+            if not calendar_config.get("working_hours"):
+                from backend.services.scheduling.appointments import DEFAULT_WORKING_HOURS
+                calendar_config["working_hours"] = DEFAULT_WORKING_HOURS
+
         function_runtime = None
         extra_tools = []
         if settings.agent_functions_enabled:
             from backend.services.agent_functions.runtime import ConversationRuntime
             function_runtime = ConversationRuntime(agent.id, user.id, conv.id)
             extra_tools = function_runtime.llm_tools(db)
-        from backend.services.escalation.tools import llm_tools as escalation_tools
-        extra_tools = extra_tools + escalation_tools(db, agent.id)
+        if out_caps.escalation_tools:
+            from backend.services.escalation.tools import llm_tools as escalation_tools
+            extra_tools = extra_tools + escalation_tools(db, agent.id)
 
         async def tool_handler(calls):
+            names = {c.get("name") or "" for c in calls}
+            if "search_knowledge" in names or "query_products" in names:
+                await outbound.emit_status(user_phone, "מחפש במאגר")
+            elif "send_media" in names:
+                await outbound.emit_status(user_phone, "שולח מדיה")
+            else:
+                await outbound.emit_status(user_phone, "מריץ פעולה")
             return await handle_tool_calls(
                 db, agent, user.id, calls,
                 conversation_id=conv.id,
                 function_runtime=function_runtime,
+                simulate_calendar=out_caps.calendar_as_connected,
             )
 
-        # Get AI response
         try:
             response_text, tool_calls, usage_data, media_actions = await ai.get_response(
                 model=agent.model,
@@ -335,21 +371,21 @@ async def process_batched_messages(
                 media_context=media_context,
                 tool_handler=tool_handler,
                 appointment_prompt=agent.appointment_prompt,
-                calendar_config=agent.calendar_config,
+                calendar_config=calendar_config or None,
                 user_appointments=user_appointments,
                 agent=agent,
                 extra_tools=extra_tools,
             )
         except Exception as e:
             log_error(provider, f"ai failed: {str(e)[:120]}")
-            await send_message(
+            await outbound.emit_status(user_phone, None)
+            await outbound.send_message(
                 user_phone,
                 "לא הצלחנו לענות עכשיו. אפשר לשלוח שוב בעוד רגע?",
             )
             db.commit()
             return
-        
-        # Update usage (cumulative JSON + daily table)
+
         used_model = conversation_model(agent.model, has_images)
         agent.add_usage(
             model=used_model,
@@ -360,61 +396,78 @@ async def process_batched_messages(
         )
         from backend.services.entities.usage_tracking import record_usage
         record_usage(
-            db, agent.id, used_model, "conversation",
+            db, agent.id, used_model, out_caps.usage_source,
             usage_data["input_tokens"], usage_data["output_tokens"],
             usage_data["cache_read_tokens"], usage_data["cache_creation_tokens"],
         )
+        if user.playground_link_id:
+            from backend.services.playground import quota as pg_quota, repo as pg_repo
+            pg_link = pg_repo.get(db, user.playground_link_id)
+            if pg_link:
+                pg_quota.add_usage(
+                    pg_link,
+                    int(usage_data["input_tokens"]) + int(usage_data["output_tokens"]),
+                )
         if describe_usage_total["input_tokens"] > 0:
             record_usage(
-                db, agent.id, "claude-haiku-4-5", "conversation",
+                db, agent.id, "claude-haiku-4-5", out_caps.usage_source,
                 describe_usage_total["input_tokens"], describe_usage_total["output_tokens"], 0, 0,
             )
-        
-        # Limit and send media if AI requested
+
         media_config = agent.media_config or {}
         max_media = media_config.get("max_per_message", 10)
-        
+
         seen_media_ids = set()
         sent_count = 0
         for media_action in media_actions:
             if sent_count >= max_media:
                 break
-            
+
             media_id = media_action.get("media_id")
             if media_id in seen_media_ids:
                 continue
             seen_media_ids.add(media_id)
-            
-            if send_media:
-                media_ok = await send_media(
-                    user_phone,
-                    media_action["file_url"],
-                    media_action["media_type"],
-                    media_action.get("caption"),
-                    media_action.get("filename")
+
+            media_ok = await outbound.send_media(
+                user_phone,
+                media_action["file_url"],
+                media_action["media_type"],
+                media_action.get("caption"),
+                media_action.get("filename")
+            )
+            if media_ok:
+                messages.add(
+                    db, conv.id, "assistant",
+                    f"[{media_action['media_type']}]: {media_action['name']}",
+                    message_type=media_action["media_type"],
+                    media_id=media_action["media_id"],
+                    media_url=media_action["file_url"]
                 )
-                if media_ok:
-                    messages.add(
-                        db, conv.id, "assistant",
-                        f"[{media_action['media_type']}]: {media_action['name']}",
-                        message_type=media_action["media_type"],
-                        media_id=media_action["media_id"],
-                        media_url=media_action["file_url"]
-                    )
-                    sent_count += 1
-                else:
-                    log_error(provider, f"media send failed: {media_action['name']}")
-        
-        # Only save and send if there's actual text
+                sent_count += 1
+            else:
+                log_error(provider, f"media send failed: {media_action['name']}")
+
         if response_text and response_text.strip():
-            messages.add(db, conv.id, "assistant", response_text)
+            saved = messages.add(db, conv.id, "assistant", response_text)
             db.commit()
             log_response(usage_data["input_tokens"], usage_data["output_tokens"], usage_data["cache_read_tokens"])
-
-            ok = await send_message(user_phone, response_text)
+            await outbound.emit_status(user_phone, "מקליד")
+            ok = await outbound.send_message(
+                user_phone,
+                response_text,
+                meta={
+                    "id": saved.id,
+                    "role": "assistant",
+                    "content": response_text,
+                    "message_type": "text",
+                    "created_at": saved.created_at.isoformat() if saved.created_at else None,
+                },
+            )
+            await outbound.emit_status(user_phone, None)
             if not ok:
                 log_error(provider, f"send failed to {display_name}")
         else:
+            await outbound.emit_status(user_phone, None)
             db.commit()
 
         # Resolve channel capabilities from CHANNEL_CAPABILITIES matrix

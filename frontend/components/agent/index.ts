@@ -8,3 +8,4 @@ export { SummaryTab } from './SummaryTab';
 export { MediaTab } from './MediaTab';
 export { TriggersTab } from './TriggersTab';
 export { EscalationTab } from './escalation/EscalationTab';
+export { PlaygroundLinksTab } from './playground/LinksTab';

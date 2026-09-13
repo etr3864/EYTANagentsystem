@@ -437,7 +437,8 @@ async def _generate_appointment_summary(agent: Agent, appointment: Appointment, 
 
     conv = db.query(Conversation).filter(
         Conversation.agent_id == agent.id,
-        Conversation.user_id == appointment.user_id
+        Conversation.user_id == appointment.user_id,
+        Conversation.playground_link_id.is_(None),
     ).first()
     if not conv:
         return None
@@ -516,6 +517,7 @@ async def send_webhook(agent: Agent, appointment: Appointment, event: str, db: S
     conv = db.query(Conversation).filter(
         Conversation.agent_id == agent.id,
         Conversation.user_id == appointment.user_id,
+        Conversation.playground_link_id.is_(None),
     ).order_by(Conversation.updated_at.desc()).first()
     channel_type = conv.channel_type_snapshot if conv else None
     channel_display = CHANNEL_DISPLAY_NAMES.get(channel_type, channel_type) if channel_type else None

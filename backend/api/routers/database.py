@@ -49,7 +49,7 @@ def _iso(dt) -> str | None:
 
 def _name_maps(db: Session):
     agents = {a.id: a.name for a in db.query(Agent.id, Agent.name).all()}
-    users = {u.id: (u.name, u.phone) for u in db.query(User.id, User.name, User.phone).all()}
+    users = {u.id: (u.name, u.phone) for u in db.query(User.id, User.name, User.phone).filter(User.playground_link_id.is_(None)).all()}
     return agents, users
 
 
@@ -77,7 +77,10 @@ def list_conversations(page: int = Query(1, ge=1), per_page: int = Query(50, ge=
             "updated_at": c.updated_at.isoformat() if c.updated_at else None,
         }
 
-    return _paginate(db.query(Conversation).order_by(Conversation.updated_at.desc()), to_dict, page, per_page)
+    return _paginate(
+        db.query(Conversation).filter(Conversation.playground_link_id.is_(None)).order_by(Conversation.updated_at.desc()),
+        to_dict, page, per_page,
+    )
 
 
 @router.get("/messages")
@@ -93,7 +96,13 @@ def list_messages(page: int = Query(1, ge=1), per_page: int = Query(50, ge=1, le
             "created_at": m.created_at.isoformat() if m.created_at else None,
         }
 
-    return _paginate(db.query(Message).order_by(Message.created_at.desc()), to_dict, page, per_page)
+    return _paginate(
+        db.query(Message)
+        .join(Conversation, Conversation.id == Message.conversation_id)
+        .filter(Conversation.playground_link_id.is_(None))
+        .order_by(Message.created_at.desc()),
+        to_dict, page, per_page,
+    )
 
 
 @router.get("/appointments")

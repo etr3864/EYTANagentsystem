@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import String, DateTime, ForeignKey, Index, Boolean
+from sqlalchemy import String, DateTime, ForeignKey, Index, Boolean, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from backend.core.database import Base
@@ -10,8 +10,14 @@ class Conversation(Base):
     __tablename__ = "conversations"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    agent_id: Mapped[int] = mapped_column(ForeignKey("agents.id", ondelete="CASCADE"))
+    agent_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("agents.id", ondelete="CASCADE"), nullable=True
+    )
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    playground_link_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("playground_links.id", ondelete="RESTRICT"), nullable=True, index=True
+    )
+    archived_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     channel_id: Mapped[Optional[int]] = mapped_column(ForeignKey("agent_channels.id", ondelete="SET NULL"), nullable=True)
     channel_user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("channel_users.id", ondelete="SET NULL"), nullable=True)
     channel_type_snapshot: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
@@ -23,8 +29,27 @@ class Conversation(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    agent: Mapped["Agent"] = relationship(back_populates="conversations")
+    agent: Mapped[Optional["Agent"]] = relationship(back_populates="conversations")
     user: Mapped["User"] = relationship(back_populates="conversations")
     messages: Mapped[list["Message"]] = relationship(back_populates="conversation", order_by="Message.created_at")
 
-    __table_args__ = (Index("ix_agent_user", "agent_id", "user_id", unique=True),)
+    __table_args__ = (
+        Index(
+            "ix_agent_user_live",
+            "agent_id",
+            "user_id",
+            unique=True,
+            postgresql_where=text(
+                "archived_at IS NULL AND playground_link_id IS NULL AND agent_id IS NOT NULL"
+            ),
+        ),
+        Index(
+            "ix_playground_user_live",
+            "playground_link_id",
+            "user_id",
+            unique=True,
+            postgresql_where=text(
+                "archived_at IS NULL AND playground_link_id IS NOT NULL"
+            ),
+        ),
+    )

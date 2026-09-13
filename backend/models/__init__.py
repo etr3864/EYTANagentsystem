@@ -16,6 +16,7 @@ from backend.models.whatsapp_template import WhatsAppTemplate
 from backend.models.agent_function import AgentFunction, AgentFunctionRun, AgentFunctionIdempotency
 from backend.models.agent_trigger import AgentTrigger
 from backend.models.escalation import AgentEscalationReason, EscalationCooldown
+from backend.models.playground_link import PlaygroundLink
 
 # Auth models (imported last to avoid circular imports)
 from backend.auth.models import AuthUser, UserRole, McpToken

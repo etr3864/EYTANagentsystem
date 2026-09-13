@@ -89,6 +89,8 @@ def delete(db: Session, agent_id: int) -> bool:
     if not agent:
         return False
     from backend.services.media.inbox import delete_agent_inbox
+    from backend.services.playground.detach import detach_from_agent
+    detach_from_agent(db, agent_id)
     delete_agent_inbox(agent_id)
     db.delete(agent)
     db.commit()
