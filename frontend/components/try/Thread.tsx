@@ -5,6 +5,18 @@ import type { TryBubble } from '@/lib/api/try';
 import { Bubble } from './Bubble';
 import { TypingBubble } from './TypingBubble';
 
+function dayKey(iso?: string | null): string {
+  return (iso || '').slice(0, 10);
+}
+
+function isNewDay(current?: string | null, previous?: string | null): boolean {
+  const today = dayKey(current);
+  if (!today) return false;
+  if (!previous) return true;
+  const before = dayKey(previous);
+  return Boolean(before && today !== before);
+}
+
 export function Thread({
   messages,
   closedMessage,
@@ -40,8 +52,11 @@ export function Thread({
       )}
       {messages.map((msg, i) => {
         const prev = messages[i - 1];
-        const showDate = !prev || (msg.created_at || '').slice(0, 10) !== (prev.created_at || '').slice(0, 10);
-        return <div key={String(msg.id)} className="mb-1.5"><Bubble msg={msg} showDate={showDate} onReply={onReply} /></div>;
+        return (
+          <div key={String(msg.id ?? `${msg.created_at || ''}-${i}`)} className="mb-1.5">
+            <Bubble msg={msg} showDate={isNewDay(msg.created_at, prev?.created_at)} onReply={onReply} />
+          </div>
+        );
       })}
       {typing && !closedMessage && <TypingBubble />}
       {closedMessage && (

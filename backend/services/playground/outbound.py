@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from backend.services.messaging.channel import OutboundCaps
 from backend.services.playground import streams
 
@@ -35,6 +37,7 @@ class PlaygroundOutbound:
                 "message_type": media_type,
                 "media_url": url,
                 "filename": filename,
+                "created_at": datetime.now(timezone.utc).isoformat(),
             },
         })
         return True

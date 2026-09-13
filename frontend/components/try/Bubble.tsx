@@ -66,7 +66,7 @@ export function Bubble({
 
   return (
     <div>
-      {showDate && (
+      {showDate && dateLabel(msg.created_at) && (
         <div className="flex justify-center my-4">
           <span className="text-[11px] text-white/45 bg-black/25 px-3 py-1 rounded-full">
             {dateLabel(msg.created_at)}
