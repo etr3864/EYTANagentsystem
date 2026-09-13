@@ -638,6 +638,9 @@ def _mcp_tokens(conn):
 
 
 def _playground(conn):
+    # Views block ALTER on underlying columns. Drop first, recreate at the end.
+    conn.execute(text("DROP VIEW IF EXISTS conversations_live"))
+    conn.execute(text("DROP VIEW IF EXISTS users_live"))
     conn.execute(text("""
         CREATE TABLE IF NOT EXISTS playground_links (
             id SERIAL PRIMARY KEY,
