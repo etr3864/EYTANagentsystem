@@ -17,6 +17,7 @@ export const viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: 'cover' as const,
+  interactiveWidget: 'resizes-content' as const,
 };
 
 export default async function TryPage({

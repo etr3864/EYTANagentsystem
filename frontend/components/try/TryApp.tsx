@@ -33,7 +33,10 @@ function fileType(file: File): TryBubble['message_type'] {
 }
 
 export function TryApp({ token }: { token: string }) {
-  const height = useVisualViewportHeight();
+  const frame = useVisualViewportHeight();
+  const height = frame?.height ?? null;
+  const offsetTop = frame?.offsetTop ?? 0;
+  const keyboardOpen = frame?.keyboard ?? false;
   const [phase, setPhase] = useState<'boot' | 'gone' | 'entry' | 'chat'>('boot');
   const [session, setSession] = useState<TrySession | null>(null);
   const [messages, setMessages] = useState<TryBubble[]>([]);
@@ -218,10 +221,10 @@ export function TryApp({ token }: { token: string }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex justify-center items-center bg-[#07080c] text-white"
-      style={{ height: height ?? '100dvh' }}
+      className="fixed left-0 right-0 z-50 flex justify-center md:items-center bg-[#07080c] text-white overflow-hidden"
+      style={{ top: offsetTop, height: height ?? '100dvh' }}
     >
-      <div className="w-full max-w-[420px] h-full md:h-[min(100%,820px)] md:my-auto flex flex-col bg-[#0c0e14] md:rounded-[28px] md:overflow-hidden md:border md:border-white/[0.08] shadow-[0_0_80px_rgba(0,0,0,0.45)]">
+      <div className="w-full max-w-[420px] h-full md:h-[min(100%,820px)] md:my-auto flex flex-col overflow-hidden bg-[#0c0e14] md:rounded-[28px] md:border md:border-white/[0.08] shadow-[0_0_80px_rgba(0,0,0,0.45)]">
         {phase === 'boot' && (
           <div className="flex-1 grid place-items-center">
             <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white/80 animate-spin" />
@@ -236,7 +239,9 @@ export function TryApp({ token }: { token: string }) {
 
         {phase === 'chat' && (
           <>
-            <header className="shrink-0 flex items-center gap-3 px-3 h-[60px] pt-[env(safe-area-inset-top)] bg-[#141821]/90 backdrop-blur-xl border-b border-white/[0.06]">
+            <header className={`shrink-0 flex items-center gap-3 px-3 bg-[#141821]/90 backdrop-blur-xl border-b border-white/[0.06] ${
+              keyboardOpen ? 'h-12' : 'h-[60px] pt-[env(safe-area-inset-top)]'
+            }`}>
               <AgentAvatar name={agentName} size={40} />
               <div className="min-w-0 flex-1">
                 <div className="font-semibold text-[16px] leading-tight truncate">{agentName}</div>
@@ -287,6 +292,7 @@ export function TryApp({ token }: { token: string }) {
               replyTo={replyTo}
               onCancelReply={() => setReplyTo(null)}
               locked={locked}
+              keyboardOpen={keyboardOpen}
             />
           </>
         )}

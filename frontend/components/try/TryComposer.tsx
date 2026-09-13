@@ -11,6 +11,7 @@ export function TryComposer({
   replyTo,
   onCancelReply,
   locked,
+  keyboardOpen = false,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -20,6 +21,7 @@ export function TryComposer({
   replyTo: string | null;
   onCancelReply: () => void;
   locked: boolean;
+  keyboardOpen?: boolean;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -119,7 +121,9 @@ export function TryComposer({
   return (
     <form
       onSubmit={submit}
-      className="px-3 pt-2 pb-[max(0.6rem,env(safe-area-inset-bottom))] bg-[#11141c] border-t border-white/[0.06]"
+      className={`px-3 pt-2 bg-[#11141c] border-t border-white/[0.06] ${
+        keyboardOpen ? 'pb-2' : 'pb-[max(0.6rem,env(safe-area-inset-bottom))]'
+      }`}
     >
       {replyTo && (
         <div className="mb-2 mx-1 flex items-start gap-2 rounded-xl bg-white/[0.05] px-3 py-2 border-r-2 border-teal-400/70">
@@ -173,6 +177,7 @@ export function TryComposer({
           rows={1}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onFocus={() => window.scrollTo(0, 0)}
           onKeyDown={onKey}
           placeholder={file ? 'כיתוב (אופציונלי)' : 'הודעה'}
           enterKeyHint="send"

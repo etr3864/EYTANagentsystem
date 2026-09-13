@@ -42,6 +42,7 @@ export function EntryForm({
               autoFocus
               placeholder="השם שלך"
               value={name}
+              onFocus={() => window.scrollTo(0, 0)}
               onChange={(e) => setName(e.target.value)}
               className="w-full h-12 rounded-2xl bg-white/[0.06] border border-white/[0.08] px-4 text-[16px] placeholder:text-white/35 focus:outline-none focus:border-white/25 focus:ring-2 focus:ring-white/10"
             />
@@ -55,6 +56,7 @@ export function EntryForm({
               autoComplete="tel"
               placeholder="מספר טלפון"
               value={phone}
+              onFocus={() => window.scrollTo(0, 0)}
               onChange={(e) => setPhone(e.target.value)}
               className="w-full h-12 rounded-2xl bg-white/[0.06] border border-white/[0.08] px-4 text-[16px] placeholder:text-white/35 focus:outline-none focus:border-white/25 focus:ring-2 focus:ring-white/10"
               dir="ltr"

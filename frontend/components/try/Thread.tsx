@@ -29,7 +29,7 @@ export function Thread({
   return (
     <div
       ref={ref}
-      className="flex-1 min-h-0 overflow-y-auto px-3 py-3"
+      className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 py-3"
       style={{
         backgroundImage:
           'radial-gradient(ellipse at top, rgba(31,138,112,0.08), transparent 42%), linear-gradient(#0c0e14, #0c0e14)',
