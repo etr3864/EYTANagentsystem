@@ -76,6 +76,28 @@ async def publish(conversation_id: int, payload: dict) -> str:
     return event_id
 
 
+async def latest_id(conversation_id: int) -> str:
+    """Last event already in the stream, or 0-0 if empty. Exclusive cursor for live SSE."""
+    r = await _redis()
+    if r:
+        try:
+            rows = await r.xrevrange(stream_key(conversation_id), max="+", min="-", count=1)
+        except (RedisTimeoutError, TimeoutError, RedisConnectionError, OSError):
+            return "0-0"
+        if rows:
+            return str(rows[0][0])
+        return "0-0"
+    items = _memory.get(conversation_id, [])
+    return items[-1][0] if items else "0-0"
+
+
+async def live_cursor(conversation_id: int, last_id: str | None) -> str:
+    """Resume from Last-Event-ID; `$` or empty means skip history and wait for new events."""
+    if last_id and last_id != "$":
+        return last_id
+    return await latest_id(conversation_id)
+
+
 async def read_since(conversation_id: int, last_id: str, block_ms: int = HEARTBEAT_SEC * 1000) -> list[tuple[str, dict]]:
     r = await _redis()
     if r:
@@ -117,7 +139,7 @@ def _mem_since(conversation_id: int, last_id: str) -> list[tuple[str, dict]]:
 
 async def iterate(conversation_id: int, last_id: str) -> AsyncIterator[tuple[str, dict | None]]:
     """Yield (id, payload). payload None = heartbeat."""
-    cursor = last_id or "0-0"
+    cursor = await live_cursor(conversation_id, last_id)
     while True:
         try:
             batch = await read_since(conversation_id, cursor, HEARTBEAT_SEC * 1000)

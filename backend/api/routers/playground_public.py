@@ -251,7 +251,7 @@ async def events(token: str, request: Request, db: Session = Depends(get_db)):
     conv = repo.live_conversation(db, link.id, user.id)
     if not conv:
         raise HTTPException(status_code=404, detail="אין שיחה")
-    last_id = request.headers.get("last-event-id") or request.query_params.get("after") or "0-0"
+    last_id = request.headers.get("last-event-id") or request.query_params.get("after") or "$"
     conv_id = conv.id
 
     async def gen():

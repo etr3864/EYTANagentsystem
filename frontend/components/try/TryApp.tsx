@@ -53,6 +53,8 @@ export function TryApp({ token }: { token: string }) {
     setSession(next);
     setMessages(next.messages || []);
     ids.current = new Set((next.messages || []).map((m) => String(m.id)));
+    setStatus(null);
+    setTyping(false);
     if (next.needs_profile) setPhase('entry');
     else setPhase('chat');
   }, []);
@@ -85,13 +87,12 @@ export function TryApp({ token }: { token: string }) {
         };
         if (payload.type === 'typing' || payload.status === 'מקליד') {
           setTyping(true);
+          setStatus(null);
           return;
         }
         if (payload.type === 'status') {
-          if (payload.status) {
-            setTyping(true);
-            setStatus(payload.status);
-          }
+          setStatus(payload.status ?? null);
+          setTyping(Boolean(payload.status));
           return;
         }
         if (payload.type === 'error') {
@@ -102,11 +103,11 @@ export function TryApp({ token }: { token: string }) {
         if ((payload.type === 'message' || payload.type === 'media') && payload.message) {
           const row = payload.message;
           const key = String(row.id ?? `${row.created_at}-${row.content}`);
+          setStatus(null);
+          setTyping(false);
           if (ids.current.has(key)) return;
           ids.current.add(key);
           setMessages((prev) => [...prev, row]);
-          setStatus(null);
-          setTyping(false);
         }
       } catch {
         /* ignore malformed */
