@@ -242,10 +242,19 @@ body {
     0 16px 40px rgba(0, 0, 0, 0.28);
 }
 
+.try-pebble {
+  border-radius: 58% 42% 50% 48% / 46% 54% 46% 54%;
+}
+
+.try-blob {
+  border-radius: 32px 18px 28px 22px;
+}
+
 .try-avatar {
   position: relative;
   overflow: hidden;
-  border-radius: 50%;
+  border-radius: 62% 38% 52% 48% / 44% 58% 42% 56%;
+  animation: try-pebble 18s ease-in-out infinite;
   background:
     radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.26), transparent 34%),
     radial-gradient(circle at 50% 112%, rgba(0, 0, 0, 0.38), transparent 52%),
@@ -256,6 +265,11 @@ body {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.32),
     inset 0 -10px 18px rgba(0, 0, 0, 0.28);
+}
+
+@keyframes try-pebble {
+  0%, 100% { border-radius: 62% 38% 52% 48% / 44% 58% 42% 56%; }
+  50% { border-radius: 40% 60% 46% 54% / 58% 42% 56% 44%; }
 }
 
 .try-net {
@@ -292,7 +306,12 @@ body {
     0 16px 40px rgba(0, 0, 0, 0.28);
 }
 
+.try-dock {
+  border-radius: 34px 20px 30px 24px;
+}
+
 .try-send {
+  border-radius: 58% 42% 50% 48% / 46% 54% 46% 54%;
   margin-bottom: 1px;
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.22);
 }
@@ -303,12 +322,12 @@ body {
   left: 10px;
   right: 10px;
   top: max(8px, env(safe-area-inset-top));
-  border-radius: 24px 28px 20px 26px;
+  border-radius: 34px 20px 30px 16px;
 }
 
 .try-shell[data-kbd="true"] .try-chrome-head {
   top: 6px;
-  border-radius: 20px 24px 16px 22px;
+  border-radius: 28px 16px 24px 14px;
 }
 
 .try-chrome-foot {
@@ -358,10 +377,10 @@ body {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
-.try-speech-mine .try-speech-body { border-radius: 26px 20px 14px 26px; }
-.try-speech-agent .try-speech-body { border-radius: 20px 26px 26px 14px; }
-.try-speech-mine.is-tailed .try-speech-body { border-radius: 26px 20px 22px 6px; }
-.try-speech-agent.is-tailed .try-speech-body { border-radius: 20px 26px 6px 22px; }
+.try-speech-mine .try-speech-body { border-radius: 34px 16px 18px 30px; }
+.try-speech-agent .try-speech-body { border-radius: 16px 34px 30px 18px; }
+.try-speech-mine.is-tailed .try-speech-body { border-radius: 34px 16px 26px 8px; }
+.try-speech-agent.is-tailed .try-speech-body { border-radius: 16px 34px 8px 26px; }
 
 .try-speech-body > button {
   display: block;
@@ -425,7 +444,8 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .try-liquid i,
-  .try-net-core { animation: none; }
+  .try-net-core,
+  .try-avatar { animation: none; }
   .try-jump {
     transform: none;
     transition: opacity 0.15s linear;

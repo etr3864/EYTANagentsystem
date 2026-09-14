@@ -3,7 +3,7 @@
 export function ClosedPane({ message }: { message: string }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-8 text-center">
-      <div className="w-14 h-14 rounded-full try-glass grid place-items-center mb-5">
+      <div className="try-pebble try-glass w-14 h-14 grid place-items-center mb-5">
         <svg className="w-6 h-6 text-white/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.6}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
         </svg>

@@ -229,7 +229,7 @@ export function TryApp({ token }: { token: string }) {
       style={{ top: offsetTop, height: height ?? '100dvh' }}
     >
       <div
-        className="try-shell w-full max-w-[420px] h-full md:h-[min(100%,820px)] md:my-auto flex flex-col overflow-hidden md:rounded-[36px] md:border md:border-white/[0.1] md:shadow-[0_40px_90px_rgba(0,0,0,0.55)]"
+        className="try-shell w-full max-w-[420px] h-full md:h-[min(100%,820px)] md:my-auto flex flex-col overflow-hidden md:rounded-[42px_26px_38px_22px] md:border md:border-white/[0.1] md:shadow-[0_40px_90px_rgba(0,0,0,0.55)]"
         data-kbd={keyboardOpen ? 'true' : undefined}
       >
         <span className="try-liquid" aria-hidden>
@@ -264,7 +264,7 @@ export function TryApp({ token }: { token: string }) {
                   type="button"
                   disabled={locked}
                   onClick={resetChat}
-                  className="w-10 h-10 rounded-full grid place-items-center text-white/55 hover:bg-white/[0.08] disabled:opacity-40"
+                  className="try-pebble w-10 h-10 grid place-items-center text-white/55 hover:bg-white/[0.08] disabled:opacity-40"
                   aria-label="שיחה חדשה"
                   title="שיחה חדשה"
                 >

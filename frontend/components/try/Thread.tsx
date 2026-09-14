@@ -83,7 +83,7 @@ export function Thread({
         aria-hidden={!stick.showJump}
         aria-label="להודעה האחרונה"
         onClick={stick.jumpToLatest}
-        className="try-jump try-glass w-10 h-10 rounded-full grid place-items-center text-white/80"
+        className="try-jump try-glass try-pebble w-10 h-10 grid place-items-center text-white/80"
       >
         <svg className="w-[17px] h-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
