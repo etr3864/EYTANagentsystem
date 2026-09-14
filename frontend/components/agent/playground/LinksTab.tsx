@@ -140,46 +140,41 @@ export function PlaygroundLinksTab({ agentId }: { agentId: number }) {
 
   return (
     <div className="h-full min-h-0 flex flex-col gap-4">
-      <Card padding="sm" className="shrink-0">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="text-base font-semibold text-white">קישורי בדיקה</h2>
-            <p className="text-xs text-slate-400 mt-1 max-w-xl">
-              הפונקציות רצות באמת עם המספר שהבודק יקליד. תיאום פגישות נשאר בשיחה ולא נכתב ליומן גוגל.
-            </p>
-          </div>
-          <div className="flex flex-col items-stretch sm:items-end gap-2">
-            <div className="flex flex-wrap items-end gap-2">
-              <label className="text-xs text-slate-400">
-                תוקף
-                <select
-                  className="mt-1 block px-3 py-2 bg-slate-800/50 border border-slate-600/50 rounded-lg text-sm text-white"
-                  value={ttl}
-                  onChange={(e) => setTtl(Number(e.target.value))}
-                >
-                  {TTL_OPTIONS.map((opt) => (
-                    <option key={opt.seconds} value={opt.seconds}>{opt.label}</option>
-                  ))}
-                </select>
-              </label>
-              <TokenLimitField value={tokenDraft} onChange={setTokenDraft} />
-              <Button disabled={busy} onClick={() => {
-                const parsed = parseTokenLimit(tokenDraft);
-                const limitErr = tokenLimitError(parsed);
-                if (limitErr || parsed == null) {
-                  setError(limitErr || 'תקרת טוקנים לא תקינה');
-                  return;
-                }
-                setPage(1);
-                return run(() => createPlaygroundLink(agentId, ttl, parsed));
-              }}>
-                צור קישור
-              </Button>
-            </div>
-            <TokenLimitPresets value={tokenDraft} onChange={setTokenDraft} />
-            <TokenLimitHint value={tokenDraft} />
-          </div>
+      <Card padding="md" className="shrink-0">
+        <h2 className="text-base font-semibold text-white">קישורי בדיקה</h2>
+        <p className="text-sm text-slate-400 mt-1 mb-5">
+          הפונקציות רצות באמת עם המספר שהבודק יקליד. תיאום פגישות נשאר בשיחה ולא נכתב ליומן גוגל.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-[11rem_minmax(0,1fr)_auto] gap-3 items-end">
+          <label className="text-xs text-slate-400">
+            תוקף
+            <select
+              className="mt-1.5 block w-full px-3 py-2.5 bg-slate-800/50 border border-slate-600/50 rounded-lg text-sm text-white"
+              value={ttl}
+              onChange={(e) => setTtl(Number(e.target.value))}
+            >
+              {TTL_OPTIONS.map((opt) => (
+                <option key={opt.seconds} value={opt.seconds}>{opt.label}</option>
+              ))}
+            </select>
+          </label>
+          <TokenLimitField value={tokenDraft} onChange={setTokenDraft} />
+          <Button disabled={busy} onClick={() => {
+            const parsed = parseTokenLimit(tokenDraft);
+            const limitErr = tokenLimitError(parsed);
+            if (limitErr || parsed == null) {
+              setError(limitErr || 'תקרת טוקנים לא תקינה');
+              return;
+            }
+            setPage(1);
+            return run(() => createPlaygroundLink(agentId, ttl, parsed));
+          }}>
+            צור קישור
+          </Button>
         </div>
+        <p className="text-xs text-slate-500 mt-5 mb-2">בחירה מהירה</p>
+        <TokenLimitPresets value={tokenDraft} onChange={setTokenDraft} />
+        <TokenLimitHint value={tokenDraft} />
       </Card>
 
       {error && <p className="text-sm text-red-400 shrink-0">{error}</p>}
@@ -233,14 +228,14 @@ function TokenLimitField({
 }) {
   const parsed = parseTokenLimit(value);
   return (
-    <label className="text-xs text-slate-400">
+    <label className="text-xs text-slate-400 min-w-0">
       תקרת טוקנים — הקלדה ידנית
       <input
         dir="ltr"
         inputMode="numeric"
         autoComplete="off"
         placeholder="1,000,000"
-        className="mt-1 block w-44 px-3 py-2 bg-slate-800/50 border border-slate-600/50 rounded-lg text-sm text-white text-left tabular-nums"
+        className="mt-1.5 block w-full px-3 py-2.5 bg-slate-800/50 border border-slate-600/50 rounded-lg text-sm text-white text-left tabular-nums"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onBlur={() => {
@@ -255,7 +250,7 @@ function TokenLimitHint({ value }: { value: string }) {
   const parsed = parseTokenLimit(value);
   const err = tokenLimitError(parsed);
   return (
-    <p className={`text-[11px] ${err ? 'text-red-400' : 'text-slate-500'}`}>
+    <p className={`mt-3 text-sm ${err ? 'text-red-400' : 'text-slate-400'}`}>
       {err || (parsed != null ? messagesApproxLabel(parsed) : '')}
     </p>
   );
@@ -270,7 +265,7 @@ function TokenLimitPresets({
 }) {
   const parsed = parseTokenLimit(value);
   return (
-    <div className="flex flex-wrap justify-end gap-1.5">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
       {TOKEN_LIMIT_PRESETS.map((opt) => {
         const selected = parsed === opt.tokens;
         return (
@@ -278,14 +273,14 @@ function TokenLimitPresets({
             key={opt.tokens}
             type="button"
             onClick={() => onChange(formatTokenLimit(opt.tokens))}
-            className={`rounded-lg border px-2.5 py-1.5 text-right transition-colors ${
+            className={`rounded-xl border px-3 py-3 text-right transition-colors ${
               selected
                 ? 'border-purple-500/50 bg-purple-500/15 text-white'
                 : 'border-white/[0.08] bg-white/[0.03] text-slate-300 hover:border-white/20'
             }`}
           >
-            <span className="block text-xs font-medium">{opt.label}</span>
-            <span className="block text-[10px] text-slate-500">
+            <span className="block text-sm font-medium">{opt.label}</span>
+            <span className="block text-xs text-slate-500 mt-1">
               ~{estimateMessages(opt.tokens).toLocaleString('he-IL')} הודעות
             </span>
           </button>
