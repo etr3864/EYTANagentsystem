@@ -1,6 +1,7 @@
 'use client';
 
-import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react';
+import { RecordMeter } from './RecordMeter';
 
 export function TryComposer({
   value,
@@ -30,6 +31,7 @@ export function TryComposer({
   const streamRef = useRef<MediaStream | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [recording, setRecording] = useState(false);
+  const [liveStream, setLiveStream] = useState<MediaStream | null>(null);
   const [micError, setMicError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -68,6 +70,7 @@ export function TryComposer({
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
+      setLiveStream(stream);
       const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
         ? 'audio/webm;codecs=opus'
         : 'audio/webm';
@@ -80,6 +83,7 @@ export function TryComposer({
         const blob = new Blob(chunksRef.current, { type: rec.mimeType || 'audio/webm' });
         stream.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
+        setLiveStream(null);
         setRecording(false);
         if (blob.size > 0) onSendVoice(blob);
       };
@@ -95,12 +99,14 @@ export function TryComposer({
     const rec = recRef.current;
     if (!rec || rec.state === 'inactive') {
       setRecording(false);
+      setLiveStream(null);
       return;
     }
     if (!send) {
       rec.onstop = () => {
         streamRef.current?.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
+        setLiveStream(null);
         setRecording(false);
       };
     }
@@ -110,7 +116,7 @@ export function TryComposer({
 
   if (locked) {
     return (
-      <div className="px-4 py-3 text-center text-[13px] text-white/40 border-t border-white/[0.06]">
+      <div className="px-4 py-3 text-center text-[13px] text-white/40">
         השיחה נסגרה
       </div>
     );
@@ -121,12 +127,10 @@ export function TryComposer({
   return (
     <form
       onSubmit={submit}
-      className={`px-3 pt-2 bg-[#11141c] border-t border-white/[0.06] ${
-        keyboardOpen ? 'pb-2' : 'pb-[max(0.6rem,env(safe-area-inset-bottom))]'
-      }`}
+      className={`px-3 pt-2 ${keyboardOpen ? 'pb-2' : 'pb-[max(0.6rem,env(safe-area-inset-bottom))]'}`}
     >
       {replyTo && (
-        <div className="mb-2 mx-1 flex items-start gap-2 rounded-xl bg-white/[0.05] px-3 py-2 border-r-2 border-teal-400/70">
+        <div className="mb-2 mx-1 flex items-start gap-2 rounded-2xl try-glass px-3 py-2 border-r-2 border-violet-300/60">
           <p className="flex-1 text-[12px] text-white/70 line-clamp-2">{replyTo}</p>
           <button type="button" onClick={onCancelReply} className="text-white/40 p-1" aria-label="בטל ציטוט">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -142,10 +146,11 @@ export function TryComposer({
         </div>
       )}
       {recording && (
-        <div className="mb-2 mx-1 flex items-center gap-2 text-[12px] text-rose-300">
-          <span className="w-2 h-2 rounded-full bg-rose-400 animate-pulse" />
-          מקליט
-          <button type="button" onClick={() => stopRecording(false)} className="text-white/50 mr-auto">ביטול</button>
+        <div className="mb-2 mx-1 flex items-center gap-3 rounded-2xl try-glass px-3 py-2">
+          <span className="w-2 h-2 rounded-full bg-rose-400 animate-pulse shrink-0" />
+          <RecordMeter stream={liveStream} />
+          <span className="text-[12px] text-white/70">מקליט</span>
+          <button type="button" onClick={() => stopRecording(false)} className="text-white/50 mr-auto text-[12px]">ביטול</button>
         </div>
       )}
       {micError && <p className="mb-2 mx-1 text-[12px] text-rose-400">{micError}</p>}
@@ -161,17 +166,11 @@ export function TryComposer({
             e.target.value = '';
           }}
         />
-        <button
-          type="button"
-          disabled={recording}
-          onClick={() => fileRef.current?.click()}
-          className="w-11 h-11 rounded-full bg-[#1c2230] grid place-items-center shrink-0 disabled:opacity-35"
-          aria-label="צרף קובץ"
-        >
-          <svg className="w-5 h-5 text-white/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <IconButton disabled={recording} onClick={() => fileRef.current?.click()} label="צרף קובץ">
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
           </svg>
-        </button>
+        </IconButton>
         <textarea
           ref={ref}
           rows={1}
@@ -182,32 +181,51 @@ export function TryComposer({
           placeholder={file ? 'כיתוב (אופציונלי)' : 'הודעה'}
           enterKeyHint="send"
           disabled={recording}
-          className="flex-1 max-h-[120px] resize-none rounded-[22px] bg-[#1c2230] px-4 py-2.5 text-[16px] leading-5 placeholder:text-white/35 focus:outline-none disabled:opacity-50"
+          className="flex-1 max-h-[120px] resize-none rounded-[22px] try-glass px-4 py-2.5 text-[16px] leading-5 placeholder:text-white/35 focus:outline-none disabled:opacity-50"
         />
         {!value.trim() && !file && !recording && (
-          <button
-            type="button"
-            onClick={() => void startRecording()}
-            className="w-11 h-11 rounded-full bg-[#1c2230] grid place-items-center shrink-0"
-            aria-label="הקלט"
-          >
-            <svg className="w-5 h-5 text-white/70" fill="currentColor" viewBox="0 0 24 24">
+          <IconButton onClick={() => void startRecording()} label="הקלט">
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 14a3 3 0 003-3V7a3 3 0 10-6 0v4a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 0014 0h-2z" />
             </svg>
-          </button>
+          </IconButton>
         )}
         <button
           type={recording ? 'button' : 'submit'}
           onClick={recording ? () => stopRecording(true) : undefined}
           disabled={!canSend}
-          className="w-11 h-11 rounded-full bg-[#1f8a70] grid place-items-center disabled:opacity-35 shrink-0 active:scale-95 transition-transform"
+          className="w-11 h-11 rounded-full bg-white/90 text-[#2e1065] grid place-items-center disabled:opacity-35 shrink-0 active:scale-95 transition-transform shadow-[0_8px_24px_rgba(255,255,255,0.12)]"
           aria-label="שלח"
         >
-          <svg className="w-5 h-5 text-white -rotate-90" fill="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 -rotate-90" fill="currentColor" viewBox="0 0 24 24">
             <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
           </svg>
         </button>
       </div>
     </form>
+  );
+}
+
+function IconButton({
+  children,
+  onClick,
+  label,
+  disabled,
+}: {
+  children: ReactNode;
+  onClick: () => void;
+  label: string;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="w-11 h-11 rounded-full try-glass grid place-items-center shrink-0 text-white/75 disabled:opacity-35"
+      aria-label={label}
+    >
+      {children}
+    </button>
   );
 }

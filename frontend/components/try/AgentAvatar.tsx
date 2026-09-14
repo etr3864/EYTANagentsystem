@@ -1,26 +1,21 @@
 'use client';
 
-export function agentHue(name: string) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i += 1) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return Math.abs(hash) % 360;
-}
-
+/** One global mark — glass orb, no initials. */
 export function AgentAvatar({ name, size = 40 }: { name: string; size?: number }) {
-  const hue = agentHue(name);
-  const letter = (name.trim()[0] || '•').toUpperCase();
+  const core = Math.round(size * 0.32);
   return (
     <div
-      className="shrink-0 rounded-full grid place-items-center font-semibold text-white shadow-inner"
-      style={{
-        width: size,
-        height: size,
-        fontSize: size * 0.42,
-        background: `linear-gradient(145deg, hsl(${hue} 42% 42%), hsl(${hue} 38% 28%))`,
-      }}
-      aria-hidden
+      className="relative shrink-0 rounded-full overflow-hidden shadow-[0_0_0_1px_rgba(255,255,255,0.14),0_8px_24px_rgba(80,30,160,0.35)]"
+      style={{ width: size, height: size }}
+      role="img"
+      aria-label={name}
     >
-      {letter}
+      <span className="absolute inset-0 bg-[radial-gradient(circle_at_30%_25%,#e9d5ff,transparent_42%),linear-gradient(145deg,#c084fc_0%,#6d28d9_48%,#1e1b4b_100%)]" />
+      <span className="absolute inset-[2px] rounded-full bg-gradient-to-tr from-white/30 via-transparent to-black/20" />
+      <span
+        className="absolute rounded-full bg-white/90 shadow-[0_0_10px_rgba(255,255,255,0.55)] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+        style={{ width: core, height: core }}
+      />
     </div>
   );
 }

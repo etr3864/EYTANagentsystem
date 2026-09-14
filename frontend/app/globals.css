@@ -163,3 +163,63 @@ body {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+.try-chat-bg {
+  background:
+    radial-gradient(ellipse 90% 55% at 12% 0%, rgba(168, 85, 247, 0.38), transparent 58%),
+    radial-gradient(ellipse 70% 50% at 100% 85%, rgba(76, 29, 149, 0.42), transparent 55%),
+    linear-gradient(180deg, #1a0b2e 0%, #0b0614 72%);
+}
+
+.try-glass {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+}
+
+.try-glass-header {
+  background: rgba(18, 8, 36, 0.42);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+@keyframes try-bubble-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+.try-bubble-in {
+  animation: try-bubble-in 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.try-eq {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 12px;
+}
+
+.try-eq i {
+  display: block;
+  width: 3px;
+  height: 4px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.75);
+  animation: try-eq 0.9s ease-in-out infinite;
+}
+
+.try-eq i:nth-child(2) { animation-delay: 0.12s; }
+.try-eq i:nth-child(3) { animation-delay: 0.24s; }
+.try-eq i:nth-child(4) { animation-delay: 0.36s; }
+
+@keyframes try-eq {
+  0%, 100% { height: 4px; opacity: 0.45; }
+  50% { height: 12px; opacity: 1; }
+}
+
+.try-wave-bar {
+  transition: height 80ms linear;
+}

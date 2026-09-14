@@ -46,7 +46,6 @@ export function TryApp({ token }: { token: string }) {
   const [draft, setDraft] = useState('');
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [menu, setMenu] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const ids = useRef(new Set<string>());
 
@@ -86,12 +85,13 @@ export function TryApp({ token }: { token: string }) {
         };
         if (payload.type === 'typing' || payload.status === 'מקליד') {
           setTyping(true);
-          setStatus(null);
           return;
         }
         if (payload.type === 'status') {
-          setTyping(false);
-          setStatus(payload.status || null);
+          if (payload.status) {
+            setTyping(true);
+            setStatus(payload.status);
+          }
           return;
         }
         if (payload.type === 'error') {
@@ -190,7 +190,11 @@ export function TryApp({ token }: { token: string }) {
         return;
       }
       if ('message' in res && res.message?.media_url) {
-        setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...res.message!, id: messageId } : m)));
+        setMessages((prev) => prev.map((m) => (
+          m.id === messageId
+            ? { ...res.message!, id: messageId, created_at: res.message!.created_at || m.created_at }
+            : m
+        )));
         URL.revokeObjectURL(localUrl);
       }
     } catch (err) {
@@ -207,7 +211,6 @@ export function TryApp({ token }: { token: string }) {
   }
 
   async function resetChat() {
-    setMenu(false);
     try {
       applySession(await tryReset(token));
       setStatus(null);
@@ -222,10 +225,10 @@ export function TryApp({ token }: { token: string }) {
 
   return (
     <div
-      className="fixed left-0 right-0 z-50 flex justify-center md:items-center bg-[#07080c] text-white overflow-hidden"
+      className="fixed left-0 right-0 z-50 flex justify-center md:items-center text-white overflow-hidden bg-[#0b0614]"
       style={{ top: offsetTop, height: height ?? '100dvh' }}
     >
-      <div className="w-full max-w-[420px] h-full md:h-[min(100%,820px)] md:my-auto flex flex-col overflow-hidden bg-[#0c0e14] md:rounded-[28px] md:border md:border-white/[0.08] shadow-[0_0_80px_rgba(0,0,0,0.45)]">
+      <div className="try-chat-bg w-full max-w-[420px] h-full md:h-[min(100%,820px)] md:my-auto flex flex-col overflow-hidden md:rounded-[28px] md:border md:border-white/10 shadow-[0_0_80px_rgba(40,10,80,0.45)]">
         {phase === 'boot' && (
           <div className="flex-1 grid place-items-center">
             <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white/80 animate-spin" />
@@ -240,40 +243,26 @@ export function TryApp({ token }: { token: string }) {
 
         {phase === 'chat' && (
           <>
-            <header className={`shrink-0 flex items-center gap-3 px-3 bg-[#141821]/90 backdrop-blur-xl border-b border-white/[0.06] ${
+            <header className={`shrink-0 flex items-center gap-3 px-3 try-glass-header ${
               keyboardOpen ? 'h-12' : 'h-[60px] pt-[env(safe-area-inset-top)]'
             }`}>
               <AgentAvatar name={agentName} size={40} />
               <div className="min-w-0 flex-1">
                 <div className="font-semibold text-[16px] leading-tight truncate">{agentName}</div>
-                <AgentStatus status={status} locked={locked} />
+                <AgentStatus locked={locked} />
               </div>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setMenu((v) => !v)}
-                  className="w-9 h-9 rounded-full hover:bg-white/8 grid place-items-center"
-                  aria-label="תפריט"
-                >
-                  <svg className="w-5 h-5 text-white/70" fill="currentColor" viewBox="0 0 24 24">
-                    <circle cx="12" cy="5" r="1.6" />
-                    <circle cx="12" cy="12" r="1.6" />
-                    <circle cx="12" cy="19" r="1.6" />
-                  </svg>
-                </button>
-                {menu && (
-                  <div className="absolute left-0 top-10 z-10 w-44 rounded-xl bg-[#1c2230] border border-white/10 shadow-xl py-1">
-                    <button
-                      type="button"
-                      disabled={locked}
-                      onClick={resetChat}
-                      className="w-full text-right px-3 py-2.5 text-sm hover:bg-white/5 disabled:opacity-40"
-                    >
-                      שיחה חדשה
-                    </button>
-                  </div>
-                )}
-              </div>
+              <button
+                type="button"
+                disabled={locked}
+                onClick={resetChat}
+                className="w-10 h-10 rounded-full try-glass grid place-items-center disabled:opacity-40"
+                aria-label="שיחה חדשה"
+                title="שיחה חדשה"
+              >
+                <svg className="w-[18px] h-[18px] text-white/75" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
+                </svg>
+              </button>
             </header>
             <Thread
               messages={messages}
@@ -281,6 +270,7 @@ export function TryApp({ token }: { token: string }) {
               onReply={setReplyTo}
               viewportHeight={height}
               typing={typing}
+              activity={status}
             />
             <TryComposer
               value={draft}
