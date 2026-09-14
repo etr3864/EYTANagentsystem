@@ -1,39 +1,22 @@
 'use client';
 
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '';
+  if (parts.length === 1) return parts[0].slice(0, 1);
+  return `${parts[0].slice(0, 1)}${parts[1].slice(0, 1)}`;
+}
+
 export function AgentAvatar({ name, size = 40 }: { name: string; size?: number }) {
-  const core = Math.max(6, Math.round(size * 0.22));
+  const letters = initials(name);
   return (
     <div
-      className="relative shrink-0 rounded-full overflow-hidden"
-      style={{
-        width: size,
-        height: size,
-        boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.14)',
-      }}
+      className="try-avatar shrink-0 grid place-items-center"
+      style={{ width: size, height: size, fontSize: Math.max(13, Math.round(size * 0.34)) }}
       role="img"
       aria-label={name}
     >
-      <span
-        className="absolute inset-0"
-        style={{
-          background: 'linear-gradient(158deg, #e4dfd6 0%, #7a7380 46%, #1c1b21 100%)',
-        }}
-      />
-      <span
-        className="absolute inset-0"
-        style={{
-          background: 'linear-gradient(180deg, rgba(255,255,255,0.22) 0%, transparent 38%, rgba(0,0,0,0.28) 100%)',
-        }}
-      />
-      <span
-        className="absolute rounded-full bg-white/90"
-        style={{
-          width: core,
-          height: core,
-          left: '34%',
-          top: '30%',
-        }}
-      />
+      {letters}
     </div>
   );
 }

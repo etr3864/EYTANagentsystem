@@ -242,6 +242,20 @@ body {
     0 16px 40px rgba(0, 0, 0, 0.28);
 }
 
+.try-avatar {
+  overflow: hidden;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(18px) saturate(1.45);
+  -webkit-backdrop-filter: blur(18px) saturate(1.45);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.34);
+  color: rgba(255, 255, 255, 0.86);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
 .try-dock:focus-within {
   border-color: rgba(255, 255, 255, 0.3);
   box-shadow:
