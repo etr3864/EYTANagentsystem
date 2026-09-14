@@ -12,7 +12,6 @@ import {
   type TrySession,
 } from '@/lib/api/try';
 import { AgentAvatar } from './AgentAvatar';
-import { AgentStatus } from './AgentStatus';
 import { ClosedPane } from './ClosedPane';
 import { EntryForm } from './EntryForm';
 import { Thread } from './Thread';
@@ -250,7 +249,9 @@ export function TryApp({ token }: { token: string }) {
               <AgentAvatar name={agentName} size={40} />
               <div className="min-w-0 flex-1">
                 <div className="font-semibold text-[16px] leading-tight truncate">{agentName}</div>
-                <AgentStatus locked={locked} />
+                {locked && (
+                  <p className="text-[12px] text-white/40 truncate">השיחה הסתיימה</p>
+                )}
               </div>
               <button
                 type="button"
