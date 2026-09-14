@@ -66,7 +66,7 @@ export function EntryForm({
           <button
             type="submit"
             disabled={busy || !name.trim() || !phone.trim()}
-            className="w-full h-12 rounded-[20px_28px_18px_24px] bg-white/[0.92] text-[#1a1228] font-semibold text-[16px] disabled:opacity-40 active:scale-[0.99] transition-transform"
+            className="w-full h-12 rounded-[20px_28px_18px_24px] bg-[#efeae3] text-[#16141a] font-semibold text-[16px] disabled:opacity-40 active:scale-[0.99] transition-transform"
           >
             {busy ? 'נכנס…' : 'התחל שיחה'}
           </button>

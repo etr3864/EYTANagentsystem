@@ -225,7 +225,7 @@ export function TryApp({ token }: { token: string }) {
 
   return (
     <div
-      className="fixed left-0 right-0 z-50 flex justify-center md:items-center text-white overflow-hidden bg-[#07060b]"
+      className="fixed left-0 right-0 z-50 flex justify-center md:items-center text-white overflow-hidden bg-[#08080c]"
       style={{ top: offsetTop, height: height ?? '100dvh' }}
     >
       <div

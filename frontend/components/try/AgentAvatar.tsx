@@ -16,7 +16,7 @@ export function AgentAvatar({ name, size = 40 }: { name: string; size?: number }
       <span
         className="absolute inset-0"
         style={{
-          background: 'linear-gradient(158deg, #cbb6e8 0%, #6a4a9a 42%, #231635 100%)',
+          background: 'linear-gradient(158deg, #e4dfd6 0%, #7a7380 46%, #1c1b21 100%)',
         }}
       />
       <span

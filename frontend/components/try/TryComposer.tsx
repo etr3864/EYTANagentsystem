@@ -210,7 +210,7 @@ function SendDisc({
     <button
       type={submit ? 'submit' : 'button'}
       onClick={onClick}
-      className="try-send w-10 h-10 rounded-[14px] bg-white/[0.92] text-[#1a1228] grid place-items-center shrink-0 active:scale-95 transition-transform"
+      className="try-send w-10 h-10 rounded-[13px] bg-[#efeae3] text-[#16141a] grid place-items-center shrink-0 active:scale-95 transition-transform"
       aria-label="שלח"
     >
       <svg className="w-[18px] h-[18px] -rotate-90" fill="currentColor" viewBox="0 0 24 24">
