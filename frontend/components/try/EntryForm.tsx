@@ -29,7 +29,7 @@ export function EntryForm({
           <AgentAvatar name={agentName} size={72} />
           <h1 className="mt-5 text-[28px] font-semibold tracking-tight leading-tight">{agentName}</h1>
           <p className="mt-2 text-[15px] text-white/55 leading-6">
-            שיחה אישית, בדיוק כמו בוואטסאפ — עם הסוכן עצמו.
+            שיחה אישית, בדיוק כמו בוואטסאפ, עם הסוכן עצמו.
           </p>
         </div>
 

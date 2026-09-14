@@ -105,7 +105,7 @@ export function Bubble({
             </div>
           )}
           {msg.media_too_large && (
-            <div className="text-[12px] opacity-80 mb-1.5">קובץ גדול מדי — לא נשמר</div>
+            <div className="text-[12px] opacity-80 mb-1.5">קובץ גדול מדי, לא נשמר</div>
           )}
           {msg.media_url && kind === 'image' && (
             // eslint-disable-next-line @next/next/no-img-element

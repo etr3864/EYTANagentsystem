@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 const TITLE = 'קישור לבדיקת עובד הבינה המלאכותית שלך';
-const DESCRIPTION = 'שיחה אישית עם הסוכן — בדיוק כמו בוואטסאפ.';
+const DESCRIPTION = 'שיחה אישית עם הסוכן, בדיוק כמו בוואטסאפ.';
 
 function siteUrl(): URL {
   const raw = process.env.NEXT_PUBLIC_SITE_URL || process.env.RENDER_EXTERNAL_URL || 'https://whatsapp-frontend.onrender.com';
