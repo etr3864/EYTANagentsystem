@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Card } from '@/components/ui';
+import { Button, Card, ListPager, ListViewport } from '@/components/ui';
+import { paginate } from '@/lib/pagination';
 import { parseUTCDate } from '@/lib/dates';
 import { TestersPanel } from './TestersPanel';
 import { TesterThread } from './TesterThread';
@@ -46,6 +47,7 @@ export function PlaygroundLinksTab({ agentId }: { agentId: number }) {
   const [testers, setTesters] = useState<PlaygroundTester[]>([]);
   const [testersLoading, setTestersLoading] = useState(false);
   const [openTesterId, setOpenTesterId] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
 
   const reload = useCallback(async () => {
     const data = await listPlaygroundLinks(agentId);
@@ -94,18 +96,20 @@ export function PlaygroundLinksTab({ agentId }: { agentId: number }) {
 
   if (openLink && openTesterId != null) {
     return (
-      <TesterThread
-        agentId={agentId}
-        linkId={openLink.id}
-        userId={openTesterId}
-        onBack={() => setOpenTesterId(null)}
-      />
+      <div className="h-full min-h-0 overflow-y-auto overscroll-contain">
+        <TesterThread
+          agentId={agentId}
+          linkId={openLink.id}
+          userId={openTesterId}
+          onBack={() => setOpenTesterId(null)}
+        />
+      </div>
     );
   }
 
   if (openLink) {
     return (
-      <div className="space-y-4">
+      <div className="h-full min-h-0 overflow-y-auto overscroll-contain">
         {error && <p className="text-sm text-red-400">{error}</p>}
         <TestersPanel
           agentId={agentId}
@@ -119,9 +123,11 @@ export function PlaygroundLinksTab({ agentId }: { agentId: number }) {
     );
   }
 
+  const paged = paginate(rows, page);
+
   return (
-    <div className="space-y-4">
-      <Card padding="sm">
+    <div className="h-full min-h-0 flex flex-col gap-4">
+      <Card padding="sm" className="shrink-0">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0">
             <h2 className="text-base font-semibold text-white">קישורי בדיקה</h2>
@@ -142,37 +148,53 @@ export function PlaygroundLinksTab({ agentId }: { agentId: number }) {
                 ))}
               </select>
             </label>
-            <Button disabled={busy} onClick={() => run(() => createPlaygroundLink(agentId, ttl))}>
+            <Button disabled={busy} onClick={() => {
+              setPage(1);
+              return run(() => createPlaygroundLink(agentId, ttl));
+            }}>
               צור קישור
             </Button>
           </div>
         </div>
       </Card>
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-red-400 shrink-0">{error}</p>}
       {loading ? (
         <p className="text-sm text-slate-400">טוען…</p>
       ) : rows.length === 0 ? (
         <p className="text-sm text-slate-400 px-1">אין קישורים עדיין — צור אחד למעלה</p>
       ) : (
-        <div className="space-y-2">
-          {rows.map((row) => (
-            <LinkRow
-              key={row.id}
-              row={row}
-              busy={busy}
-              copied={copiedId === row.id}
-              onCopy={() => copyUrl(row)}
-              onOpen={() => openTesters(row)}
-              onStop={() => run(() => stopPlaygroundLink(agentId, row.id))}
-              onRestore={() => run(() => restorePlaygroundLink(agentId, row.id))}
-              onDelete={() => {
-                if (!window.confirm('למחוק את הקישור? הבודקים לא יוכלו להיכנס.')) return;
-                return run(() => deletePlaygroundLink(agentId, row.id));
-              }}
+        <ListViewport
+          footer={(
+            <ListPager
+              page={paged.page}
+              totalPages={paged.totalPages}
+              from={paged.from}
+              to={paged.to}
+              total={paged.total}
+              onPage={setPage}
             />
-          ))}
-        </div>
+          )}
+        >
+          <div className="space-y-2">
+            {paged.items.map((row) => (
+              <LinkRow
+                key={row.id}
+                row={row}
+                busy={busy}
+                copied={copiedId === row.id}
+                onCopy={() => copyUrl(row)}
+                onOpen={() => openTesters(row)}
+                onStop={() => run(() => stopPlaygroundLink(agentId, row.id))}
+                onRestore={() => run(() => restorePlaygroundLink(agentId, row.id))}
+                onDelete={() => {
+                  if (!window.confirm('להסתיר את הקישור? הבודקים לא ייכנסו. ההתכתבויות נשארות במערכת.')) return;
+                  return run(() => deletePlaygroundLink(agentId, row.id));
+                }}
+              />
+            ))}
+          </div>
+        </ListViewport>
       )}
     </div>
   );
@@ -233,7 +255,7 @@ function LinkRow({
             <Button variant="ghost" size="sm" disabled={busy} onClick={onRestore}>שחזר</Button>
           )}
           {row.status !== 'deleted' && (
-            <Button variant="ghost" size="sm" disabled={busy} onClick={onDelete}>מחק</Button>
+            <Button variant="ghost" size="sm" disabled={busy} onClick={onDelete}>הסתר</Button>
           )}
         </div>
       </div>

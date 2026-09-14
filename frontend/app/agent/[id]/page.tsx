@@ -545,6 +545,10 @@ function AgentPage() {
             )}
             </div>
           </div>
+        ) : tab === 'playground' ? (
+          <div className="h-full max-w-5xl mx-auto px-3 md:px-6 py-4 flex flex-col min-h-0 animate-fade-in">
+            <PlaygroundLinksTab agentId={agentId} />
+          </div>
         ) : (
         <div className="h-full overflow-y-auto">
         <div className="max-w-5xl mx-auto px-3 md:px-6 py-4 md:py-6 animate-fade-in">
@@ -623,10 +627,6 @@ function AgentPage() {
 
           {tab === 'channels' && (
             <ChannelsTab agentId={agentId} canEdit={isSuperAdmin(user)} />
-          )}
-
-          {tab === 'playground' && (
-            <PlaygroundLinksTab agentId={agentId} />
           )}
 
           {tab === 'settings' && (

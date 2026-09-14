@@ -91,12 +91,16 @@ export function Bubble({
           style={{ transform: `translateX(${drag}px)` }}
           className={`
             max-w-[78%] text-right px-3.5 py-2 rounded-[22px] text-[15px] leading-[1.45]
-            try-glass transition-transform duration-150 ease-out
-            ${mine ? 'bg-white/[0.16]' : 'bg-white/[0.07]'}
+            backdrop-blur-md transition-transform duration-150 ease-out
+            ${mine
+              ? 'bg-cyan-400/20 border border-cyan-300/40 text-cyan-50 shadow-[0_0_28px_rgba(34,211,238,0.16)]'
+              : 'bg-violet-500/22 border border-violet-300/35 text-violet-50 shadow-[0_0_28px_rgba(139,92,246,0.18)]'}
           `}
         >
           {msg.reply_to && (
-            <div className="mb-1.5 pr-2 border-r-2 border-violet-300/50 text-[12px] text-white/65 line-clamp-2">
+            <div className={`mb-1.5 pr-2 border-r-2 text-[12px] line-clamp-2 ${
+              mine ? 'border-cyan-200/50 text-cyan-50/70' : 'border-violet-200/50 text-violet-50/70'
+            }`}>
               {msg.reply_to}
             </div>
           )}
@@ -127,7 +131,9 @@ export function Bubble({
           {text && (
             <div className="whitespace-pre-wrap break-words">{text}</div>
           )}
-          <div className="mt-1 text-[10px] text-white/40 flex items-center gap-1 justify-end">
+          <div className={`mt-1 text-[10px] flex items-center gap-1 justify-end ${
+            mine ? 'text-cyan-100/45' : 'text-violet-100/45'
+          }`}>
             <span>{formatTime(msg.created_at)}</span>
             {mine && (
               <svg className="w-3.5 h-3.5" viewBox="0 0 16 11" fill="none">

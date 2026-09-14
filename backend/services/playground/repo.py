@@ -36,7 +36,7 @@ def live_conversation(db: Session, link_id: int, user_id: int) -> Conversation |
 def list_for_agent(db: Session, agent_id: int) -> list[PlaygroundLink]:
     return (
         db.query(PlaygroundLink)
-        .filter(PlaygroundLink.agent_id == agent_id)
+        .filter(PlaygroundLink.agent_id == agent_id, PlaygroundLink.deleted_at.is_(None))
         .order_by(PlaygroundLink.created_at.desc())
         .all()
     )
