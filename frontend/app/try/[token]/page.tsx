@@ -7,11 +7,6 @@ const heebo = Heebo({
   display: 'swap',
 });
 
-export const metadata = {
-  title: 'שיחה',
-  robots: { index: false, follow: false },
-};
-
 export const viewport = {
   width: 'device-width',
   initialScale: 1,
