@@ -4,7 +4,12 @@ from sqlalchemy.orm import Session
 
 from backend.models.agent import Agent
 from backend.models.playground_link import PlaygroundLink
-from backend.services.playground.constants import ALLOWED_TOKEN_LIMITS, ALLOWED_TTL, DEFAULT_TOKEN_LIMIT
+from backend.services.playground.constants import (
+    ALLOWED_TTL,
+    DEFAULT_TOKEN_LIMIT,
+    MAX_TOKEN_LIMIT,
+    MIN_TOKEN_LIMIT,
+)
 from backend.services.playground import tokens
 
 
@@ -23,8 +28,8 @@ def create(
 ) -> tuple[PlaygroundLink, str]:
     if ttl_seconds not in ALLOWED_TTL:
         raise ValueError("TTL לא נתמך")
-    if token_limit not in ALLOWED_TOKEN_LIMITS:
-        raise ValueError("תקרת טוקנים לא נתמכת")
+    if token_limit < MIN_TOKEN_LIMIT or token_limit > MAX_TOKEN_LIMIT:
+        raise ValueError("תקרת טוקנים חייבת להיות בין מיליון ל־50 מיליון")
     raw = tokens.issue_raw()
     now = datetime.utcnow()
     row = PlaygroundLink(

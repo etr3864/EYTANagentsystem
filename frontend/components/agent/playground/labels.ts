@@ -25,7 +25,48 @@ export function publicUrl(path: string | null): string | null {
   return `${window.location.origin}${path}`;
 }
 
+export const MIN_TOKEN_LIMIT = 1_000_000;
+export const MAX_TOKEN_LIMIT = 50_000_000;
+export const DEFAULT_TOKEN_LIMIT = 1_000_000;
+
+/** One user message + one agent reply, billed as a full LLM turn. */
+const TOKENS_PER_TURN = 8_000;
+
+export const TOKEN_LIMIT_PRESETS = [
+  { tokens: 1_000_000, label: 'מיליון' },
+  { tokens: 2_000_000, label: '2 מיליון' },
+  { tokens: 5_000_000, label: '5 מיליון' },
+  { tokens: 10_000_000, label: '10 מיליון' },
+] as const;
+
+export function parseTokenLimit(raw: string): number | null {
+  const digits = raw.replace(/[^\d]/g, '');
+  if (!digits) return null;
+  const n = Number(digits);
+  return Number.isSafeInteger(n) ? n : null;
+}
+
+export function formatTokenLimit(n: number): string {
+  return n.toLocaleString('he-IL');
+}
+
+export function estimateMessages(tokens: number): number {
+  if (tokens <= 0) return 0;
+  return Math.max(2, Math.round((tokens / TOKENS_PER_TURN) * 2));
+}
+
+export function messagesApproxLabel(tokens: number): string {
+  return `בערך ${estimateMessages(tokens).toLocaleString('he-IL')} הודעות (משתמש וסוכן)`;
+}
+
+export function tokenLimitError(n: number | null): string | null {
+  if (n == null) return 'הקלד תקרת טוקנים';
+  if (n < MIN_TOKEN_LIMIT) return 'מינימום מיליון טוקנים';
+  if (n > MAX_TOKEN_LIMIT) return 'מקסימום 50 מיליון טוקנים';
+  return null;
+}
+
 export function tokensLabel(used: number, limit: number): string {
   if (!limit) return '';
-  return `${used.toLocaleString('he-IL')} / ${limit.toLocaleString('he-IL')} טוקנים`;
+  return `${used.toLocaleString('he-IL')} / ${limit.toLocaleString('he-IL')} טוקנים · ${messagesApproxLabel(limit)}`;
 }
