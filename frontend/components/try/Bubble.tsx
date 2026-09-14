@@ -69,7 +69,7 @@ export function Bubble({
     <div className={animate ? 'try-bubble-in' : undefined}>
       {showDate && label && (
         <div className="flex justify-center my-3.5">
-          <span className="try-glass px-3 py-1 rounded-[14px_18px_12px_16px] text-[11px] tracking-[0.12em] text-white/55">{label}</span>
+          <span className="text-[11px] tracking-[0.12em] text-white/30">{label}</span>
         </div>
       )}
       <div className={`flex items-end gap-1.5 ${mine ? 'justify-end' : 'justify-start'}`}>

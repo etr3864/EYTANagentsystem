@@ -44,7 +44,7 @@ export function EntryForm({
               value={name}
               onFocus={() => window.scrollTo(0, 0)}
               onChange={(e) => setName(e.target.value)}
-              className="w-full h-12 rounded-[22px_18px_24px_16px] try-glass px-4 text-[16px] placeholder:text-white/35 outline-none focus:outline-none focus-visible:outline-none"
+              className="w-full h-12 rounded-[22px] try-glass px-4 text-[16px] placeholder:text-white/35 outline-none focus:outline-none focus-visible:outline-none"
             />
           </label>
           <label className="block">
@@ -58,7 +58,7 @@ export function EntryForm({
               value={phone}
               onFocus={() => window.scrollTo(0, 0)}
               onChange={(e) => setPhone(e.target.value)}
-              className="w-full h-12 rounded-[22px_18px_24px_16px] try-glass px-4 text-[16px] placeholder:text-white/35 outline-none focus:outline-none focus-visible:outline-none"
+              className="w-full h-12 rounded-[22px] try-glass px-4 text-[16px] placeholder:text-white/35 outline-none focus:outline-none focus-visible:outline-none"
               dir="ltr"
             />
           </label>
@@ -66,7 +66,7 @@ export function EntryForm({
           <button
             type="submit"
             disabled={busy || !name.trim() || !phone.trim()}
-            className="w-full h-12 rounded-[20px_28px_18px_24px] bg-[#efeae3] text-[#16141a] font-semibold text-[16px] disabled:opacity-40 active:scale-[0.99] transition-transform"
+            className="w-full h-12 rounded-[22px] bg-white/[0.88] text-[#16141a] font-semibold text-[16px] disabled:opacity-40 active:scale-[0.99] transition-transform"
           >
             {busy ? 'נכנס…' : 'התחל שיחה'}
           </button>
