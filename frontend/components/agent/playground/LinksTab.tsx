@@ -25,6 +25,13 @@ const TTL_OPTIONS = [
   { seconds: 2592000, label: '30 ימים' },
 ];
 
+const TOKEN_LIMIT_OPTIONS = [
+  { tokens: 100_000, label: '100 אלף' },
+  { tokens: 250_000, label: '250 אלף' },
+  { tokens: 500_000, label: '500 אלף' },
+  { tokens: 1_000_000, label: 'מיליון' },
+];
+
 function whenLabel(iso: string | null, prefix: string): string {
   const date = parseUTCDate(iso);
   if (!date) return '';
@@ -39,6 +46,7 @@ function whenLabel(iso: string | null, prefix: string): string {
 export function PlaygroundLinksTab({ agentId }: { agentId: number }) {
   const [rows, setRows] = useState<PlaygroundLinkRow[]>([]);
   const [ttl, setTtl] = useState(604800);
+  const [tokenLimit, setTokenLimit] = useState(1_000_000);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -148,9 +156,21 @@ export function PlaygroundLinksTab({ agentId }: { agentId: number }) {
                 ))}
               </select>
             </label>
+            <label className="text-xs text-slate-400">
+              תקרת טוקנים
+              <select
+                className="mt-1 block px-3 py-2 bg-slate-800/50 border border-slate-600/50 rounded-lg text-sm text-white"
+                value={tokenLimit}
+                onChange={(e) => setTokenLimit(Number(e.target.value))}
+              >
+                {TOKEN_LIMIT_OPTIONS.map((opt) => (
+                  <option key={opt.tokens} value={opt.tokens}>{opt.label}</option>
+                ))}
+              </select>
+            </label>
             <Button disabled={busy} onClick={() => {
               setPage(1);
-              return run(() => createPlaygroundLink(agentId, ttl));
+              return run(() => createPlaygroundLink(agentId, ttl, tokenLimit));
             }}>
               צור קישור
             </Button>

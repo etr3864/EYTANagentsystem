@@ -30,11 +30,12 @@ export async function listPlaygroundLinks(agentId: number): Promise<PlaygroundLi
 export async function createPlaygroundLink(
   agentId: number,
   ttlSeconds: number,
+  tokenLimit: number,
 ): Promise<PlaygroundLinkRow> {
   const res = await authFetch(`${API_URL}/api/agents/${agentId}/playground-links`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ttl_seconds: ttlSeconds }),
+    body: JSON.stringify({ ttl_seconds: ttlSeconds, token_limit: tokenLimit }),
   });
   return parse(res);
 }
