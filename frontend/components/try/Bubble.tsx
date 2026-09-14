@@ -72,13 +72,9 @@ export function Bubble({
           <span className="try-glass px-3 py-1 rounded-[14px_18px_12px_16px] text-[11px] tracking-[0.12em] text-white/55">{label}</span>
         </div>
       )}
-      <div className={`relative flex ${mine ? 'justify-end' : 'justify-start'}`}>
-        {replyHint > 0.05 && (
-          <span
-            className={`absolute top-1/2 -translate-y-1/2 text-white/55 ${mine ? 'right-0' : 'left-0'}`}
-            style={{ opacity: replyHint }}
-            aria-hidden
-          >
+      <div className={`flex items-end gap-1.5 ${mine ? 'justify-end' : 'justify-start'}`}>
+        {!mine && (
+          <span className="w-4 shrink-0 text-white/55" style={{ opacity: replyHint }} aria-hidden>
             <ReplyMark />
           </span>
         )}
@@ -134,6 +130,11 @@ export function Bubble({
             )}
           </button>
         </SpeechFrame>
+        {mine && (
+          <span className="w-4 shrink-0 text-white/55" style={{ opacity: replyHint }} aria-hidden>
+            <ReplyMark />
+          </span>
+        )}
       </div>
     </div>
   );
