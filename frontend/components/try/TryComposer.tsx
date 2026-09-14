@@ -130,7 +130,7 @@ export function TryComposer({
       className={`px-3 pt-2 ${keyboardOpen ? 'pb-2' : 'pb-[max(0.6rem,env(safe-area-inset-bottom))]'}`}
     >
       {replyTo && (
-        <div className="mb-2 mx-1 flex items-start gap-2 rounded-[18px] try-glass px-3 py-2 border-r border-white/20">
+        <div className="mb-2 mx-1 flex items-start gap-2 try-glass px-3 py-2 rounded-[20px_16px_22px_14px] border-r border-white/20">
           <p className="flex-1 text-[12px] text-white/70 line-clamp-2">{replyTo}</p>
           <button type="button" onClick={onCancelReply} className="text-white/40 p-1" aria-label="בטל ציטוט">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -147,7 +147,7 @@ export function TryComposer({
       )}
       {micError && <p className="mb-2 mx-1 text-[12px] text-rose-400">{micError}</p>}
       {recording ? (
-        <div className="flex items-center gap-3 try-glass rounded-[26px] px-3 h-12">
+        <div className="flex items-center gap-3 try-glass try-dock rounded-[28px_22px_30px_20px] px-3 h-12">
           <span className="w-2 h-2 rounded-full bg-rose-400 animate-pulse shrink-0" />
           <RecordMeter stream={liveStream} />
           <span className="text-[12px] text-white/70">מקליט</span>
@@ -157,7 +157,7 @@ export function TryComposer({
           <SendDisc onClick={() => stopRecording(true)} />
         </div>
       ) : (
-        <div className="flex items-end gap-0.5 try-glass rounded-[26px] p-1 pl-1.5">
+        <div className="flex items-end gap-0.5 try-glass try-dock rounded-[28px_22px_30px_20px] p-1 pl-1.5">
           <input
             ref={fileRef}
             type="file"
@@ -183,7 +183,7 @@ export function TryComposer({
             onKeyDown={onKey}
             placeholder={file ? 'כיתוב (אופציונלי)' : 'הודעה'}
             enterKeyHint="send"
-            className="flex-1 max-h-[120px] min-h-[40px] resize-none bg-transparent px-2 py-2.5 text-[16px] leading-5 placeholder:text-white/35 focus:outline-none"
+            className="flex-1 max-h-[120px] min-h-[40px] resize-none bg-transparent px-2 py-2.5 text-[16px] leading-5 placeholder:text-white/35 outline-none focus:outline-none focus-visible:outline-none"
           />
           {!canSend && (
             <IconButton onClick={() => void startRecording()} label="הקלט">
@@ -210,7 +210,7 @@ function SendDisc({
     <button
       type={submit ? 'submit' : 'button'}
       onClick={onClick}
-      className="w-10 h-10 rounded-full bg-white/[0.92] text-[#1a1228] grid place-items-center shrink-0 active:scale-95 transition-transform"
+      className="try-send w-10 h-10 rounded-[14px] bg-white/[0.92] text-[#1a1228] grid place-items-center shrink-0 active:scale-95 transition-transform"
       aria-label="שלח"
     >
       <svg className="w-[18px] h-[18px] -rotate-90" fill="currentColor" viewBox="0 0 24 24">

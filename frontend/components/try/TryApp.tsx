@@ -225,68 +225,78 @@ export function TryApp({ token }: { token: string }) {
 
   return (
     <div
-      className="fixed left-0 right-0 z-50 flex justify-center md:items-center text-white overflow-hidden bg-[#0b090f]"
+      className="fixed left-0 right-0 z-50 flex justify-center md:items-center text-white overflow-hidden bg-[#07060b]"
       style={{ top: offsetTop, height: height ?? '100dvh' }}
     >
-      <div className="try-chat-bg w-full max-w-[420px] h-full md:h-[min(100%,820px)] md:my-auto flex flex-col overflow-hidden md:rounded-[32px] md:border md:border-white/[0.07] md:shadow-[0_40px_90px_rgba(0,0,0,0.55)]">
-        {phase === 'boot' && (
-          <div className="flex-1 grid place-items-center">
-            <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white/80 animate-spin" />
-          </div>
-        )}
+      <div
+        className="try-shell w-full max-w-[420px] h-full md:h-[min(100%,820px)] md:my-auto flex flex-col overflow-hidden md:rounded-[36px] md:border md:border-white/[0.1] md:shadow-[0_40px_90px_rgba(0,0,0,0.55)]"
+        data-kbd={keyboardOpen ? 'true' : undefined}
+      >
+        <span className="try-liquid" aria-hidden>
+          <i /><i /><i />
+        </span>
+        <div className="relative z-[1] flex flex-1 min-h-0 flex-col">
+          {phase === 'boot' && (
+            <div className="flex-1 grid place-items-center">
+              <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white/80 animate-spin" />
+            </div>
+          )}
 
-        {phase === 'gone' && <ClosedPane message={error || GONE_COPY} />}
+          {phase === 'gone' && <ClosedPane message={error || GONE_COPY} />}
 
-        {phase === 'entry' && (
-          <EntryForm agentName={agentName} busy={busy} error={error} onSubmit={enter} />
-        )}
+          {phase === 'entry' && (
+            <EntryForm agentName={agentName} busy={busy} error={error} onSubmit={enter} />
+          )}
 
-        {phase === 'chat' && (
-          <>
-            <header className={`shrink-0 flex items-center gap-3 px-3 try-glass-header ${
-              keyboardOpen ? 'h-12' : 'h-[60px] pt-[env(safe-area-inset-top)]'
-            }`}>
-              <AgentAvatar name={agentName} size={40} />
-              <div className="min-w-0 flex-1">
-                <div className="font-semibold text-[16px] leading-tight tracking-tight truncate">{agentName}</div>
-                {locked && (
-                  <p className="text-[12px] text-white/40 truncate">השיחה הסתיימה</p>
-                )}
+          {phase === 'chat' && (
+            <div className="relative flex-1 min-h-0">
+              <header className={`try-chrome-head try-glass flex items-center gap-3 px-3 ${
+                keyboardOpen ? 'h-11' : 'h-[56px]'
+              }`}>
+                <AgentAvatar name={agentName} size={keyboardOpen ? 32 : 40} />
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold text-[16px] leading-tight tracking-tight truncate">{agentName}</div>
+                  {locked && (
+                    <p className="text-[12px] text-white/40 truncate">השיחה הסתיימה</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  disabled={locked}
+                  onClick={resetChat}
+                  className="w-10 h-10 rounded-full grid place-items-center text-white/55 hover:bg-white/[0.08] disabled:opacity-40"
+                  aria-label="שיחה חדשה"
+                  title="שיחה חדשה"
+                >
+                  <svg className="w-[18px] h-[18px] text-white/75" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
+                  </svg>
+                </button>
+              </header>
+              <Thread
+                messages={messages}
+                closedMessage={locked ? (session?.closed_message || GONE_COPY) : null}
+                onReply={setReplyTo}
+                viewportHeight={height}
+                typing={typing}
+                activity={status}
+              />
+              <div className="try-chrome-foot">
+                <TryComposer
+                  value={draft}
+                  onChange={setDraft}
+                  onSend={send}
+                  onSendFile={sendFile}
+                  onSendVoice={sendVoice}
+                  replyTo={replyTo}
+                  onCancelReply={() => setReplyTo(null)}
+                  locked={locked}
+                  keyboardOpen={keyboardOpen}
+                />
               </div>
-              <button
-                type="button"
-                disabled={locked}
-                onClick={resetChat}
-                className="w-10 h-10 rounded-full grid place-items-center text-white/55 hover:bg-white/[0.06] disabled:opacity-40"
-                aria-label="שיחה חדשה"
-                title="שיחה חדשה"
-              >
-                <svg className="w-[18px] h-[18px] text-white/75" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
-                </svg>
-              </button>
-            </header>
-            <Thread
-              messages={messages}
-              closedMessage={locked ? (session?.closed_message || GONE_COPY) : null}
-              onReply={setReplyTo}
-              viewportHeight={height}
-              typing={typing}
-              activity={status}
-            />
-            <TryComposer
-              value={draft}
-              onChange={setDraft}
-              onSend={send}
-              onSendFile={sendFile}
-              onSendVoice={sendVoice}
-              replyTo={replyTo}
-              onCancelReply={() => setReplyTo(null)}
-              locked={locked}
-              keyboardOpen={keyboardOpen}
-            />
-          </>
-        )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
