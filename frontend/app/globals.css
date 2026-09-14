@@ -165,25 +165,81 @@ body {
 }
 
 .try-chat-bg {
-  background:
-    radial-gradient(ellipse 90% 55% at 12% 0%, rgba(168, 85, 247, 0.38), transparent 58%),
-    radial-gradient(ellipse 70% 50% at 100% 85%, rgba(76, 29, 149, 0.42), transparent 55%),
-    linear-gradient(180deg, #1a0b2e 0%, #0b0614 72%);
+  background-color: #0b090f;
+  background-image:
+    radial-gradient(ellipse 80% 42% at 50% -18%, rgba(92, 58, 132, 0.22), transparent 62%),
+    linear-gradient(180deg, #120f18 0%, #0b090f 100%);
 }
 
 .try-glass {
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  background: rgba(18, 15, 24, 0.62);
+  backdrop-filter: blur(22px) saturate(1.15);
+  -webkit-backdrop-filter: blur(22px) saturate(1.15);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 .try-glass-header {
-  background: rgba(18, 8, 36, 0.42);
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(10, 8, 14, 0.72);
+  backdrop-filter: blur(22px) saturate(1.1);
+  -webkit-backdrop-filter: blur(22px) saturate(1.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.try-speech {
+  --speech: #322848;
+  position: relative;
+  max-width: 78%;
+  transition: transform 0.15s ease-out;
+}
+
+.try-speech-mine { --speech: #17555a; }
+.try-speech-agent { --speech: #3a3148; }
+
+.try-speech-body {
+  overflow: hidden;
+  background: var(--speech);
+  color: rgba(255, 255, 255, 0.94);
+  text-align: right;
+  padding: 8px 13px 6px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.try-speech-mine .try-speech-body { border-radius: 20px 20px 12px 20px; }
+.try-speech-agent .try-speech-body { border-radius: 20px 20px 20px 12px; }
+.try-speech-mine.is-tailed .try-speech-body { border-radius: 20px 20px 20px 5px; }
+.try-speech-agent.is-tailed .try-speech-body { border-radius: 20px 20px 5px 20px; }
+
+.try-speech-body > button {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+.try-speech-nub {
+  position: absolute;
+  bottom: 0;
+  width: 9px;
+  height: 13px;
+  background: var(--speech);
+  pointer-events: none;
+}
+
+.try-speech-mine.is-tailed .try-speech-nub {
+  left: -6px;
+  clip-path: path('M9 0C6.2 6.5 2.8 11.2 0 13H9V0Z');
+}
+
+.try-speech-agent.is-tailed .try-speech-nub {
+  right: -6px;
+  clip-path: path('M0 0C2.8 6.5 6.2 11.2 9 13H0V0Z');
 }
 
 @keyframes try-bubble-in {
@@ -193,6 +249,28 @@ body {
 
 .try-bubble-in {
   animation: try-bubble-in 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.try-jump {
+  opacity: 0;
+  transform: translate3d(0, 12px, 0) scale(0.86);
+  pointer-events: none;
+  transition:
+    opacity 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.try-jump[data-show="true"] {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .try-jump {
+    transform: none;
+    transition: opacity 0.15s linear;
+  }
 }
 
 .try-eq {

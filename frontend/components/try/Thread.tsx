@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import type { TryBubble } from '@/lib/api/try';
 import { Bubble } from './Bubble';
 import { isNewDay } from './dates';
 import { TypingBubble } from './TypingBubble';
+import { useStickToBottom } from './useStickToBottom';
 
 export function Thread({
   messages,
@@ -21,48 +22,73 @@ export function Thread({
   typing?: boolean;
   activity?: string | null;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
+  const last = messages[messages.length - 1];
+  const pinKey = `${last?.id ?? ''}:${viewportHeight ?? ''}:${typing ? 1 : 0}:${activity ?? ''}:${closedMessage ?? ''}`;
+  const stick = useStickToBottom(pinKey, last ? String(last.id) : '', last?.role);
   const born = useRef<Set<string> | null>(null);
   if (born.current === null) {
     born.current = new Set(messages.map((m) => String(m.id)));
   }
 
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.scrollTop = el.scrollHeight;
-  }, [messages, closedMessage, viewportHeight, typing, activity]);
-
   return (
-    <div
-      ref={ref}
-      className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 py-3 try-chat-bg"
-    >
-      {messages.length === 0 && !closedMessage && (
-        <p className="text-center text-white/40 text-sm mt-16">התחל לכתוב — הסוכן בצד השני</p>
-      )}
-      {messages.map((msg, i) => {
-        const prev = messages[i - 1];
-        const key = String(msg.id ?? `${msg.created_at || ''}-${i}`);
-        return (
-          <div key={key} className="mb-1.5">
-            <Bubble
-              msg={msg}
-              showDate={isNewDay(msg.created_at, prev?.created_at, !prev)}
-              onReply={onReply}
-              animate={!born.current!.has(String(msg.id))}
-            />
-          </div>
-        );
-      })}
-      {typing && !closedMessage && <TypingBubble label={activity} />}
-      {closedMessage && (
-        <div className="flex justify-center my-4">
-          <div className="max-w-[88%] rounded-2xl try-glass px-4 py-3 text-[13.5px] leading-6 text-white/80 text-center">
-            {closedMessage}
-          </div>
+    <div className="relative flex-1 min-h-0">
+      <div
+        ref={stick.scrollerRef}
+        onScroll={stick.onScroll}
+        onPointerDown={stick.onPointerDown}
+        className="h-full overflow-y-auto overscroll-contain px-3 py-3 try-chat-bg [overflow-anchor:none]"
+      >
+        <div ref={stick.contentRef}>
+          {messages.length === 0 && !closedMessage && (
+            <div className="mt-20 text-center">
+              <p className="text-[13px] text-white/30">התחל לכתוב</p>
+              <p className="mt-1 text-[12px] text-white/20">הסוכן בצד השני</p>
+            </div>
+          )}
+          {messages.map((msg, i) => {
+            const prev = messages[i - 1];
+            const next = messages[i + 1];
+            const key = String(msg.id ?? `${msg.created_at || ''}-${i}`);
+            const newDay = isNewDay(msg.created_at, prev?.created_at, !prev);
+            const stacked = Boolean(prev && prev.role === msg.role && !newDay);
+            const tailed = !next || next.role !== msg.role || isNewDay(next.created_at, msg.created_at, false);
+            return (
+              <div key={key} className={stacked ? 'mb-0.5' : 'mb-2.5'}>
+                <Bubble
+                  msg={msg}
+                  showDate={newDay}
+                  tailed={tailed}
+                  onReply={onReply}
+                  animate={!born.current!.has(String(msg.id))}
+                />
+              </div>
+            );
+          })}
+          {typing && !closedMessage && (
+            <div className="mb-2.5">
+              <TypingBubble label={activity} />
+            </div>
+          )}
+          {closedMessage && (
+            <p className="text-center text-[13px] leading-6 text-white/45 max-w-[20rem] mx-auto my-5">
+              {closedMessage}
+            </p>
+          )}
         </div>
-      )}
+      </div>
+      <button
+        type="button"
+        data-show={stick.showJump ? 'true' : 'false'}
+        tabIndex={stick.showJump ? 0 : -1}
+        aria-hidden={!stick.showJump}
+        aria-label="להודעה האחרונה"
+        onClick={stick.jumpToLatest}
+        className="try-jump try-glass absolute left-3 bottom-3 z-10 w-10 h-10 rounded-full grid place-items-center text-white/80"
+      >
+        <svg className="w-[17px] h-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+        </svg>
+      </button>
     </div>
   );
 }

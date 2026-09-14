@@ -67,7 +67,7 @@ export function TryApp({ token }: { token: string }) {
       })
       .catch((err) => {
         if (!live) return;
-        setPhase(isGone(err) ? 'gone' : 'gone');
+        setPhase('gone');
         setError(err instanceof Error ? err.message : GONE_COPY);
       });
     return () => { live = false; };
@@ -225,10 +225,10 @@ export function TryApp({ token }: { token: string }) {
 
   return (
     <div
-      className="fixed left-0 right-0 z-50 flex justify-center md:items-center text-white overflow-hidden bg-[#0b0614]"
+      className="fixed left-0 right-0 z-50 flex justify-center md:items-center text-white overflow-hidden bg-[#0b090f]"
       style={{ top: offsetTop, height: height ?? '100dvh' }}
     >
-      <div className="try-chat-bg w-full max-w-[420px] h-full md:h-[min(100%,820px)] md:my-auto flex flex-col overflow-hidden md:rounded-[28px] md:border md:border-white/10 shadow-[0_0_80px_rgba(40,10,80,0.45)]">
+      <div className="try-chat-bg w-full max-w-[420px] h-full md:h-[min(100%,820px)] md:my-auto flex flex-col overflow-hidden md:rounded-[32px] md:border md:border-white/[0.07] md:shadow-[0_40px_90px_rgba(0,0,0,0.55)]">
         {phase === 'boot' && (
           <div className="flex-1 grid place-items-center">
             <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white/80 animate-spin" />
@@ -248,7 +248,7 @@ export function TryApp({ token }: { token: string }) {
             }`}>
               <AgentAvatar name={agentName} size={40} />
               <div className="min-w-0 flex-1">
-                <div className="font-semibold text-[16px] leading-tight truncate">{agentName}</div>
+                <div className="font-semibold text-[16px] leading-tight tracking-tight truncate">{agentName}</div>
                 {locked && (
                   <p className="text-[12px] text-white/40 truncate">השיחה הסתיימה</p>
                 )}
@@ -257,7 +257,7 @@ export function TryApp({ token }: { token: string }) {
                 type="button"
                 disabled={locked}
                 onClick={resetChat}
-                className="w-10 h-10 rounded-full try-glass grid place-items-center disabled:opacity-40"
+                className="w-10 h-10 rounded-full grid place-items-center text-white/55 hover:bg-white/[0.06] disabled:opacity-40"
                 aria-label="שיחה חדשה"
                 title="שיחה חדשה"
               >
