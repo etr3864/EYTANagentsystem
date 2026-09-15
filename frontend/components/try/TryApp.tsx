@@ -11,14 +11,17 @@ import {
   type TryBubble,
   type TrySession,
 } from '@/lib/api/try';
-import { AgentAvatar } from './AgentAvatar';
+import { Atmosphere } from './Atmosphere';
 import { ClosedPane } from './ClosedPane';
+import { Connecting } from './Connecting';
 import { EntryForm } from './EntryForm';
+import { Orb } from './Orb';
 import { Thread } from './Thread';
 import { TryComposer } from './TryComposer';
 import { useVisualViewportHeight } from './useVisualViewportHeight';
 
 const GONE_COPY = 'מטעמי אבטחה הקישור פג תוקף, פנה למנהל התיק שלך לקבלת קישור חדש לבדיקה. בהצלחה!';
+const THEME_KEY = 'try-theme';
 
 function isGone(err: unknown) {
   return Boolean(err && typeof err === 'object' && 'gone' in err);
@@ -37,7 +40,8 @@ export function TryApp({ token }: { token: string }) {
   const height = frame?.height ?? null;
   const offsetTop = frame?.offsetTop ?? 0;
   const keyboardOpen = frame?.keyboard ?? false;
-  const [phase, setPhase] = useState<'boot' | 'gone' | 'entry' | 'chat'>('boot');
+  const [phase, setPhase] = useState<'boot' | 'gone' | 'entry' | 'connecting' | 'chat'>('boot');
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [session, setSession] = useState<TrySession | null>(null);
   const [messages, setMessages] = useState<TryBubble[]>([]);
   const [status, setStatus] = useState<string | null>(null);
@@ -46,7 +50,20 @@ export function TryApp({ token }: { token: string }) {
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const ids = useRef(new Set<string>());
+
+  useEffect(() => {
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved === 'light' || saved === 'dark') setTheme(saved);
+  }, []);
+
+  function toggleTheme() {
+    const next = theme === 'light' ? 'dark' : 'light';
+    setTheme(next);
+    localStorage.setItem(THEME_KEY, next);
+  }
 
   const applySession = useCallback((next: TrySession) => {
     setSession(next);
@@ -118,13 +135,18 @@ export function TryApp({ token }: { token: string }) {
     return () => src.close();
   }, [phase, token, session?.closed]);
 
-  async function enter(name: string, phone: string) {
+  async function enter() {
+    const nextName = name.trim();
+    const nextPhone = phone.trim();
+    if (!nextName || !nextPhone) return;
     setBusy(true);
     setError(null);
+    setPhase('connecting');
     try {
-      applySession(await tryEnter(token, name, phone));
+      applySession(await tryEnter(token, nextName, nextPhone));
     } catch (err) {
       if (isGone(err)) setPhase('gone');
+      else setPhase('entry');
       setError(err instanceof Error ? err.message : 'לא ניתן להיכנס');
     } finally {
       setBusy(false);
@@ -225,78 +247,93 @@ export function TryApp({ token }: { token: string }) {
 
   return (
     <div
-      className="fixed left-0 right-0 z-50 flex justify-center md:items-center text-white overflow-hidden bg-[#08080c]"
+      className="try-root" dir="rtl"
+      data-theme={theme}
       style={{ top: offsetTop, height: height ?? '100dvh' }}
     >
-      <div
-        className="try-shell w-full max-w-[420px] h-full md:h-[min(100%,820px)] md:my-auto flex flex-col overflow-hidden md:rounded-[42px_26px_38px_22px] md:border md:border-white/[0.1] md:shadow-[0_40px_90px_rgba(0,0,0,0.55)]"
-        data-kbd={keyboardOpen ? 'true' : undefined}
-      >
-        <span className="try-liquid" aria-hidden>
-          <i /><i /><i />
-        </span>
-        <div className="relative z-[1] flex flex-1 min-h-0 flex-col">
-          {phase === 'boot' && (
-            <div className="flex-1 grid place-items-center">
-              <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white/80 animate-spin" />
-            </div>
-          )}
-
-          {phase === 'gone' && <ClosedPane message={error || GONE_COPY} />}
-
-          {phase === 'entry' && (
-            <EntryForm agentName={agentName} busy={busy} error={error} onSubmit={enter} />
-          )}
-
-          {phase === 'chat' && (
-            <div className="relative flex-1 min-h-0">
-              <header className={`try-chrome-head try-glass flex items-center gap-3 px-3 ${
-                keyboardOpen ? 'h-11' : 'h-[56px]'
-              }`}>
-                <AgentAvatar name={agentName} size={keyboardOpen ? 32 : 40} />
-                <div className="min-w-0 flex-1">
-                  <div className="font-semibold text-[16px] leading-tight tracking-tight truncate">{agentName}</div>
-                  {locked && (
-                    <p className="text-[12px] text-white/40 truncate">השיחה הסתיימה</p>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  disabled={locked}
-                  onClick={resetChat}
-                  className="try-pebble w-10 h-10 grid place-items-center text-white/55 hover:bg-white/[0.08] disabled:opacity-40"
-                  aria-label="שיחה חדשה"
-                  title="שיחה חדשה"
-                >
-                  <svg className="w-[18px] h-[18px] text-white/75" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
-                  </svg>
-                </button>
-              </header>
-              <Thread
-                messages={messages}
-                closedMessage={locked ? (session?.closed_message || GONE_COPY) : null}
-                onReply={setReplyTo}
-                viewportHeight={height}
-                typing={typing}
-                activity={status}
-              />
-              <div className="try-chrome-foot">
-                <TryComposer
-                  value={draft}
-                  onChange={setDraft}
-                  onSend={send}
-                  onSendFile={sendFile}
-                  onSendVoice={sendVoice}
-                  replyTo={replyTo}
-                  onCancelReply={() => setReplyTo(null)}
-                  locked={locked}
-                  keyboardOpen={keyboardOpen}
+      <Atmosphere />
+      {phase !== 'chat' && (
+        <div className="relative z-[1] flex justify-end px-5 pt-[max(12px,env(safe-area-inset-top))] max-w-[1080px] w-full mx-auto">
+          <button type="button" onClick={toggleTheme} className="try-chip flex items-center gap-2 rounded-full py-2 px-4 text-[12px]">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+              <path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z" />
+            </svg>
+            {theme === 'light' ? 'בהיר' : 'כהה'}
+          </button>
+        </div>
+      )}
+      <div className={`try-stage ${phase === 'chat' ? 'px-[clamp(12px,4vw,16px)] pt-[max(8px,env(safe-area-inset-top))]' : ''}`}>
+        {phase === 'boot' && <Connecting title="פותח ערוץ" />}
+        {phase === 'connecting' && <Connecting title="פותח ערוץ" live />}
+        {phase === 'gone' && <ClosedPane message={error || GONE_COPY} />}
+        {phase === 'entry' && (
+          <EntryForm
+            agentName={agentName}
+            name={name}
+            phone={phone}
+            busy={busy}
+            error={error}
+            onName={setName}
+            onPhone={setPhone}
+            onSubmit={enter}
+          />
+        )}
+        {phase === 'chat' && (
+          <>
+            <header className="try-glass relative shrink-0 flex items-center gap-3.5 px-5 py-3.5 rounded-[28px] overflow-hidden">
+              <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[inherit]" aria-hidden>
+                <div
+                  className="absolute inset-0"
+                  style={{ background: 'radial-gradient(120% 140% at 12% -20%, rgba(255,255,255,0.14), transparent 55%)' }}
+                />
+                <div
+                  className="absolute w-[70%] h-[280%] -top-[90%] left-[5%]"
+                  style={{
+                    background: 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.16), transparent 58%)',
+                    animation: 'try-inner 18s ease-in-out infinite',
+                  }}
                 />
               </div>
-            </div>
-          )}
-        </div>
+              <Orb size={keyboardOpen ? 36 : 46} />
+              <div className="relative min-w-0 flex-1">
+                <div className="text-[16px] font-bold truncate">{agentName}</div>
+                {locked && <p className="text-[12px] text-[color:var(--ink-faint)] truncate">השיחה הסתיימה</p>}
+              </div>
+              <button
+                type="button"
+                disabled={locked}
+                onClick={resetChat}
+                className="relative try-chip rounded-full py-2 px-4 text-[12px] disabled:opacity-40"
+              >
+                שיחה חדשה
+              </button>
+            </header>
+            <Thread
+              messages={messages}
+              closedMessage={locked ? (session?.closed_message || GONE_COPY) : null}
+              onReply={setReplyTo}
+              viewportHeight={height}
+              typing={typing}
+              activity={status}
+            />
+            <TryComposer
+              value={draft}
+              onChange={setDraft}
+              onSend={send}
+              onSendFile={sendFile}
+              onSendVoice={sendVoice}
+              replyTo={replyTo}
+              onCancelReply={() => setReplyTo(null)}
+              locked={locked}
+              keyboardOpen={keyboardOpen}
+            />
+            {!keyboardOpen && (
+              <div className="text-center mt-3 mb-1 text-[11px] text-[color:var(--ink-faint)] tracking-[0.1em]">
+                מופעל על ידי OPTIVE
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

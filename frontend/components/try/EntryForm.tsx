@@ -1,41 +1,53 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
-import { AgentAvatar } from './AgentAvatar';
+import { FormEvent } from 'react';
+import { Orb } from './Orb';
 
 export function EntryForm({
   agentName,
+  name,
+  phone,
   busy,
   error,
+  onName,
+  onPhone,
   onSubmit,
 }: {
   agentName: string;
+  name: string;
+  phone: string;
   busy: boolean;
   error: string | null;
-  onSubmit: (name: string, phone: string) => Promise<void>;
+  onName: (v: string) => void;
+  onPhone: (v: string) => void;
+  onSubmit: () => Promise<void>;
 }) {
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-
   async function handle(e: FormEvent) {
     e.preventDefault();
-    await onSubmit(name.trim(), phone.trim());
+    await onSubmit();
   }
 
   return (
-    <div className="flex-1 flex flex-col px-6 pt-[max(3rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-      <div className="flex-1 flex flex-col justify-center max-w-[360px] w-full mx-auto">
-        <div className="flex flex-col items-center text-center mb-10">
-          <AgentAvatar name={agentName} size={72} />
-          <h1 className="mt-5 text-[28px] font-semibold tracking-tight leading-tight">{agentName}</h1>
-          <p className="mt-2 text-[15px] text-white/55 leading-6">
-            שיחה אישית, בדיוק כמו בוואטסאפ, עם הסוכן עצמו.
-          </p>
+    <div className="relative flex-1 flex items-center justify-center px-4 pb-[max(1.75rem,env(safe-area-inset-bottom))]">
+      <div className="try-rise w-full max-w-[440px]">
+        <div className="relative mx-auto mb-8 w-[104px] h-[104px]">
+          <Orb size={104} ornate />
         </div>
-
-        <form onSubmit={handle} className="space-y-3">
-          <label className="block">
-            <span className="sr-only">שם</span>
+        <h1 className="m-0 mb-3 text-[clamp(26px,8vw,38px)] leading-[1.1] font-extrabold tracking-[-0.02em] text-center text-pretty">
+          {agentName}
+        </h1>
+        <p className="m-0 mb-8 text-[16px] leading-[1.55] text-center text-[color:var(--ink-dim)] text-pretty">
+          שיחה אישית עם הסוכן עצמו, בדיוק כמו בוואטסאפ.
+        </p>
+        <form onSubmit={handle} className="try-glass relative p-[22px] rounded-[26px] overflow-hidden">
+          <div
+            className="absolute top-0 left-0 w-[40%] h-full pointer-events-none"
+            style={{
+              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.10), transparent)',
+              animation: 'try-sheen 7s ease-in-out infinite',
+            }}
+          />
+          <div className="relative flex flex-col gap-3">
             <input
               required
               autoComplete="name"
@@ -43,12 +55,9 @@ export function EntryForm({
               placeholder="השם שלך"
               value={name}
               onFocus={() => window.scrollTo(0, 0)}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full h-12 try-blob try-glass px-4 text-[16px] placeholder:text-white/35 outline-none focus:outline-none focus-visible:outline-none"
+              onChange={(e) => onName(e.target.value)}
+              className="try-field"
             />
-          </label>
-          <label className="block">
-            <span className="sr-only">טלפון</span>
             <input
               required
               type="tel"
@@ -56,20 +65,20 @@ export function EntryForm({
               autoComplete="tel"
               placeholder="מספר טלפון"
               value={phone}
-              onFocus={() => window.scrollTo(0, 0)}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full h-12 try-blob try-glass px-4 text-[16px] placeholder:text-white/35 outline-none focus:outline-none focus-visible:outline-none"
               dir="ltr"
+              onFocus={() => window.scrollTo(0, 0)}
+              onChange={(e) => onPhone(e.target.value)}
+              className="try-field"
             />
-          </label>
-          {error && <p className="text-sm text-rose-300 px-1">{error}</p>}
-          <button
-            type="submit"
-            disabled={busy || !name.trim() || !phone.trim()}
-            className="w-full h-12 try-blob bg-white/[0.88] text-[#16141a] font-semibold text-[16px] disabled:opacity-40 active:scale-[0.99] transition-transform"
-          >
-            {busy ? 'נכנס…' : 'התחל שיחה'}
-          </button>
+            {error && <p className="text-sm text-rose-300 px-1">{error}</p>}
+            <button
+              type="submit"
+              disabled={busy || !name.trim() || !phone.trim()}
+              className="try-cta mt-1"
+            >
+              {busy ? 'נכנס…' : 'התחל שיחה'}
+            </button>
+          </div>
         </form>
       </div>
     </div>

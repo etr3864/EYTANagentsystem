@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useState } from 'react';
 import type { TryBubble } from '@/lib/api/try';
 import { Bubble } from './Bubble';
 import { isNewDay } from './dates';
@@ -24,27 +24,22 @@ export function Thread({
 }) {
   const last = messages[messages.length - 1];
   const pinKey = `${last?.id ?? ''}:${viewportHeight ?? ''}:${typing ? 1 : 0}:${activity ?? ''}:${closedMessage ?? ''}`;
-  const stick = useStickToBottom(pinKey, last ? String(last.id) : '', last?.role);
-  const born = useRef<Set<string> | null>(null);
-  if (born.current === null) {
-    born.current = new Set(messages.map((m) => String(m.id)));
-  }
+  const { scrollerRef, contentRef, showJump, onScroll, onPointerDown, jumpToLatest } = useStickToBottom(
+    pinKey,
+    last ? String(last.id) : '',
+    last?.role,
+  );
+  const [initialIds] = useState(() => new Set(messages.map((m) => String(m.id))));
 
   return (
-    <div className="absolute inset-0">
+    <div className="relative flex-1 min-h-0">
       <div
-        ref={stick.scrollerRef}
-        onScroll={stick.onScroll}
-        onPointerDown={stick.onPointerDown}
-        className="try-thread"
+        ref={scrollerRef}
+        onScroll={onScroll}
+        onPointerDown={onPointerDown}
+        className="try-thread scrollbar-hide h-full"
       >
-        <div ref={stick.contentRef}>
-          {messages.length === 0 && !closedMessage && (
-            <div className="mt-20 text-center">
-              <p className="text-[13px] text-white/30">התחל לכתוב</p>
-              <p className="mt-1 text-[12px] text-white/20">הסוכן בצד השני</p>
-            </div>
-          )}
+        <div ref={contentRef} className="flex flex-col gap-3">
           {messages.map((msg, i) => {
             const prev = messages[i - 1];
             const next = messages[i + 1];
@@ -53,24 +48,20 @@ export function Thread({
             const stacked = Boolean(prev && prev.role === msg.role && !newDay);
             const tailed = !next || next.role !== msg.role || isNewDay(next.created_at, msg.created_at, false);
             return (
-              <div key={key} className={stacked ? 'mb-0.5' : 'mb-2.5'}>
+              <div key={key} className={stacked ? '-mt-1.5' : undefined}>
                 <Bubble
                   msg={msg}
                   showDate={newDay}
                   tailed={tailed}
                   onReply={onReply}
-                  animate={!born.current!.has(String(msg.id))}
+                  animate={!initialIds.has(String(msg.id))}
                 />
               </div>
             );
           })}
-          {typing && !closedMessage && (
-            <div className="mb-2.5">
-              <TypingBubble label={activity} />
-            </div>
-          )}
+          {typing && !closedMessage && <TypingBubble label={activity} />}
           {closedMessage && (
-            <p className="text-center text-[13px] leading-6 text-white/45 max-w-[20rem] mx-auto my-5">
+            <p className="text-center text-[13px] leading-6 text-[color:var(--ink-dim)] max-w-[20rem] mx-auto my-5">
               {closedMessage}
             </p>
           )}
@@ -78,12 +69,12 @@ export function Thread({
       </div>
       <button
         type="button"
-        data-show={stick.showJump ? 'true' : 'false'}
-        tabIndex={stick.showJump ? 0 : -1}
-        aria-hidden={!stick.showJump}
+        data-show={showJump ? 'true' : 'false'}
+        tabIndex={showJump ? 0 : -1}
+        aria-hidden={!showJump}
         aria-label="להודעה האחרונה"
-        onClick={stick.jumpToLatest}
-        className="try-jump try-glass try-pebble w-10 h-10 grid place-items-center text-white/80"
+        onClick={jumpToLatest}
+        className="try-jump try-icon"
       >
         <svg className="w-[17px] h-[17px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />

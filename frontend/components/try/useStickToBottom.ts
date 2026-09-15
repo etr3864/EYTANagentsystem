@@ -75,8 +75,11 @@ export function useStickToBottom(pinKey: string, lastId: string, lastRole?: stri
     const newUserMsg = lastRole === 'user' && lastId !== lastIdRef.current;
     lastIdRef.current = lastId;
     if (newUserMsg) stuckRef.current = true;
-    if (stuckRef.current) pinNow();
-    else measure();
+    const id = requestAnimationFrame(() => {
+      if (stuckRef.current) pinNow();
+      else measure();
+    });
+    return () => cancelAnimationFrame(id);
   }, [pinKey, lastId, lastRole, pinNow, measure]);
 
   useEffect(() => {

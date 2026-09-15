@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react';
+import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { RecordMeter } from './RecordMeter';
 
 export function TryComposer({
@@ -116,7 +116,7 @@ export function TryComposer({
 
   if (locked) {
     return (
-      <div className="px-4 py-3 text-center text-[13px] text-white/40">
+      <div className="px-4 py-3 text-center text-[13px] text-[color:var(--ink-faint)]">
         השיחה נסגרה
       </div>
     );
@@ -127,12 +127,12 @@ export function TryComposer({
   return (
     <form
       onSubmit={submit}
-      className={`px-3 pt-2 ${keyboardOpen ? 'pb-2' : 'pb-[max(0.6rem,env(safe-area-inset-bottom))]'}`}
+      className={keyboardOpen ? 'pb-2' : 'pb-[max(0.4rem,env(safe-area-inset-bottom))]'}
     >
       {replyTo && (
-        <div className="mb-2 mx-1 flex items-start gap-2 try-glass try-blob px-3 py-2 border-r border-white/20">
-          <p className="flex-1 text-[12px] text-white/70 line-clamp-2">{replyTo}</p>
-          <button type="button" onClick={onCancelReply} className="text-white/40 p-1" aria-label="בטל ציטוט">
+        <div className="try-glass mb-2 flex items-start gap-2 rounded-[22px] px-3 py-2 border-r border-[var(--edge-strong)]">
+          <p className="flex-1 text-[12px] text-[color:var(--ink-dim)] line-clamp-2">{replyTo}</p>
+          <button type="button" onClick={onCancelReply} className="text-[color:var(--ink-faint)] p-1" aria-label="בטל ציטוט">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -140,40 +140,56 @@ export function TryComposer({
         </div>
       )}
       {file && (
-        <div className="mb-2 mx-1 flex items-center gap-2 text-[12px] text-white/70">
+        <div className="mb-2 mx-1 flex items-center gap-2 text-[12px] text-[color:var(--ink-dim)]">
           <span className="truncate flex-1">{file.name}</span>
-          <button type="button" onClick={() => setFile(null)} className="text-white/40">הסר</button>
+          <button type="button" onClick={() => setFile(null)} className="text-[color:var(--ink-faint)]">הסר</button>
         </div>
       )}
       {micError && <p className="mb-2 mx-1 text-[12px] text-rose-400">{micError}</p>}
-      {recording ? (
-        <div className="flex items-center gap-3 try-glass try-dock px-3 h-12">
-          <span className="w-2 h-2 rounded-full bg-rose-400 animate-pulse shrink-0" />
-          <RecordMeter stream={liveStream} />
-          <span className="text-[12px] text-white/70">מקליט</span>
-          <button type="button" onClick={() => stopRecording(false)} className="text-white/50 mr-auto text-[12px]">
-            ביטול
-          </button>
-          <SendDisc onClick={() => stopRecording(true)} />
-        </div>
-      ) : (
-        <div className="flex items-end gap-0.5 try-glass try-dock p-1 pl-1.5">
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,application/pdf,audio/*"
-            className="hidden"
-            onChange={(e) => {
-              const next = e.target.files?.[0];
-              if (next) setFile(next);
-              e.target.value = '';
+      <div className="try-glass try-composer">
+        <div
+          className="absolute inset-0 pointer-events-none overflow-hidden rounded-[inherit]"
+          aria-hidden
+        >
+          <div
+            className="absolute w-[60%] h-[300%] -top-full right-[8%] opacity-60"
+            style={{
+              background: 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.15), transparent 58%)',
+              animation: 'try-inner 21s ease-in-out infinite reverse',
             }}
           />
-          <IconButton onClick={() => fileRef.current?.click()} label="צרף קובץ">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-            </svg>
-          </IconButton>
+        </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,application/pdf,audio/*"
+          className="hidden"
+          onChange={(e) => {
+            const next = e.target.files?.[0];
+            if (next) setFile(next);
+            e.target.value = '';
+          }}
+        />
+        <button
+          type="button"
+          disabled={recording}
+          onClick={() => fileRef.current?.click()}
+          className="try-icon"
+          aria-label="צרף קובץ"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+            <path d="M12 6v12M6 12h12" />
+          </svg>
+        </button>
+        {recording ? (
+          <div className="relative flex-1 min-w-0 flex items-center gap-3 py-2">
+            <RecordMeter stream={liveStream} />
+            <span className="text-[12px] text-[color:var(--ink-dim)]">מקליט</span>
+            <button type="button" onClick={() => stopRecording(false)} className="ms-auto text-[12px] text-[color:var(--ink-faint)]">
+              ביטול
+            </button>
+          </div>
+        ) : (
           <textarea
             ref={ref}
             rows={1}
@@ -181,65 +197,40 @@ export function TryComposer({
             onChange={(e) => onChange(e.target.value)}
             onFocus={() => window.scrollTo(0, 0)}
             onKeyDown={onKey}
-            placeholder={file ? 'כיתוב (אופציונלי)' : 'הודעה'}
+            placeholder={file ? 'כיתוב (אופציונלי)' : 'כתוב הודעה…'}
             enterKeyHint="send"
-            className="flex-1 max-h-[120px] min-h-[40px] resize-none bg-transparent px-2 py-2.5 text-[16px] leading-5 placeholder:text-white/35 outline-none focus:outline-none focus-visible:outline-none"
+            className="relative flex-1 min-w-0 max-h-[120px] min-h-[42px] resize-none bg-transparent px-1.5 py-3 text-[16px] leading-5 text-[color:var(--ink)] placeholder:text-[color:var(--ink-faint)] outline-none"
           />
-          {!canSend && (
-            <IconButton onClick={() => void startRecording()} label="הקלט">
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 14a3 3 0 003-3V7a3 3 0 10-6 0v4a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 0014 0h-2z" />
-              </svg>
-            </IconButton>
+        )}
+        <button
+          type="button"
+          onClick={() => (recording ? stopRecording(true) : void startRecording())}
+          className={`try-icon relative overflow-hidden ${recording ? 'is-rec' : ''}`}
+          aria-label={recording ? 'שלח הקלטה' : 'הקלט'}
+        >
+          {recording && (
+            <span
+              className="absolute inset-0 rounded-full border border-[var(--acc)]"
+              style={{ animation: 'try-ring 1.8s ease-out infinite' }}
+            />
           )}
-          {canSend && <SendDisc submit />}
-        </div>
-      )}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+            <rect x="9" y="3" width="6" height="11" rx="3" />
+            <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+          </svg>
+        </button>
+        <button
+          type={recording ? 'button' : 'submit'}
+          onClick={recording ? () => stopRecording(true) : undefined}
+          disabled={!canSend && !recording}
+          className="try-send"
+          aria-label="שלח"
+        >
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 20V5M6 11l6-6 6 6" />
+          </svg>
+        </button>
+      </div>
     </form>
-  );
-}
-
-function SendDisc({
-  submit,
-  onClick,
-}: {
-  submit?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type={submit ? 'submit' : 'button'}
-      onClick={onClick}
-      className="try-send w-10 h-10 bg-white/[0.88] text-[#16141a] grid place-items-center shrink-0 active:scale-95 transition-transform"
-      aria-label="שלח"
-    >
-      <svg className="w-[18px] h-[18px] -rotate-90" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-      </svg>
-    </button>
-  );
-}
-
-function IconButton({
-  children,
-  onClick,
-  label,
-  disabled,
-}: {
-  children: ReactNode;
-  onClick: () => void;
-  label: string;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className="try-pebble w-10 h-10 grid place-items-center shrink-0 text-white/70 disabled:opacity-35"
-      aria-label={label}
-    >
-      {children}
-    </button>
   );
 }

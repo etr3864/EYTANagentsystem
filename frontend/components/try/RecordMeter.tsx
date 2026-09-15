@@ -34,7 +34,7 @@ export function RecordMeter({ stream }: { stream: MediaStream | null }) {
       {levels.map((level, i) => (
         <span
           key={i}
-          className="w-[3px] rounded-full bg-white/75 try-wave-bar"
+          className="w-[3px] rounded-full bg-[var(--acc)] try-wave-bar"
           style={{ height: `${8 + level * 18}px`, animationDelay: `${i * 80}ms` }}
         />
       ))}
