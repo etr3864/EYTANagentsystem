@@ -23,6 +23,8 @@ export function useVisualViewportHeight(): ViewportFrame | null {
     };
     html.style.overflow = 'hidden';
     body.style.overflow = 'hidden';
+    html.style.overflowX = 'hidden';
+    body.style.overflowX = 'hidden';
     html.style.height = '100%';
     body.style.height = '100%';
 

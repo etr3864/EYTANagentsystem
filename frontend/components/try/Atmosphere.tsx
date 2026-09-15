@@ -30,7 +30,7 @@ export function Atmosphere() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden>
       <div
-        className="absolute inset-0"
+        className="try-atmo-blobs absolute inset-0"
         style={{
           background:
             'radial-gradient(85% 60% at 20% 6%, oklch(0.34 0.08 296 / 0.58), transparent 62%), radial-gradient(80% 60% at 86% 94%, oklch(0.27 0.07 300 / 0.62), transparent 64%), radial-gradient(60% 45% at 62% 46%, oklch(0.22 0.055 298 / 0.48), transparent 70%)',

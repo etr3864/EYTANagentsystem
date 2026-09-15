@@ -35,6 +35,48 @@ function fileType(file: File): TryBubble['message_type'] {
   return 'document';
 }
 
+function ThemeToggle({
+  theme,
+  onToggle,
+  labeled = false,
+}: {
+  theme: 'dark' | 'light';
+  onToggle: () => void;
+  labeled?: boolean;
+}) {
+  const label = theme === 'light' ? 'בהיר' : 'כהה';
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={labeled
+        ? 'try-chip relative flex items-center gap-2 rounded-full py-2 px-4 text-[12px]'
+        : 'try-icon try-header-theme relative'}
+      aria-label={label}
+    >
+      {theme === 'light' ? <SunMark /> : <MoonMark />}
+      {labeled ? label : null}
+    </button>
+  );
+}
+
+function MoonMark() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+      <path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z" />
+    </svg>
+  );
+}
+
+function SunMark() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 3v2M12 19v2M5 12H3M21 12h-2M6.2 6.2l1.4 1.4M16.4 16.4l1.4 1.4M6.2 17.8l1.4-1.4M16.4 7.6l1.4-1.4" />
+    </svg>
+  );
+}
+
 export function TryApp({ token }: { token: string }) {
   const frame = useVisualViewportHeight();
   const height = frame?.height ?? null;
@@ -254,12 +296,7 @@ export function TryApp({ token }: { token: string }) {
       <Atmosphere />
       {phase !== 'chat' && (
         <div className="relative z-[1] flex justify-end px-5 pt-[max(12px,env(safe-area-inset-top))] max-w-[1080px] w-full mx-auto">
-          <button type="button" onClick={toggleTheme} className="try-chip flex items-center gap-2 rounded-full py-2 px-4 text-[12px]">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-              <path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9Z" />
-            </svg>
-            {theme === 'light' ? 'בהיר' : 'כהה'}
-          </button>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} labeled />
         </div>
       )}
       <div className={`try-stage ${phase === 'chat' ? 'px-[clamp(12px,4vw,16px)] pt-[max(8px,env(safe-area-inset-top))]' : ''}`}>
@@ -280,7 +317,7 @@ export function TryApp({ token }: { token: string }) {
         )}
         {phase === 'chat' && (
           <>
-            <header className="try-glass relative shrink-0 flex items-center gap-3.5 px-5 py-3.5 rounded-[28px] overflow-hidden">
+            <header className={`try-glass try-header relative shrink-0 flex items-center overflow-hidden${keyboardOpen ? ' is-keys' : ''}`}>
               <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-[inherit]" aria-hidden>
                 <div
                   className="absolute inset-0"
@@ -294,16 +331,17 @@ export function TryApp({ token }: { token: string }) {
                   }}
                 />
               </div>
-              <Orb size={keyboardOpen ? 36 : 46} />
+              <Orb className="try-header-orb" />
               <div className="relative min-w-0 flex-1">
-                <div className="text-[16px] font-bold truncate">{agentName}</div>
-                {locked && <p className="text-[12px] text-[color:var(--ink-faint)] truncate">השיחה הסתיימה</p>}
+                <div className="try-header-name truncate">{agentName}</div>
+                {locked && <p className="text-[11px] text-[color:var(--ink-faint)] truncate">השיחה הסתיימה</p>}
               </div>
+              <ThemeToggle theme={theme} onToggle={toggleTheme} />
               <button
                 type="button"
                 disabled={locked}
                 onClick={resetChat}
-                className="relative try-chip rounded-full py-2 px-4 text-[12px] disabled:opacity-40"
+                className="relative try-chip try-header-reset rounded-full disabled:opacity-40"
               >
                 שיחה חדשה
               </button>

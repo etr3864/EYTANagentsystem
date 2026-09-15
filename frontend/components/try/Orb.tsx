@@ -2,15 +2,20 @@ export function Orb({
   size,
   bob = false,
   ornate = false,
+  className,
 }: {
-  size: number;
+  size?: number;
   bob?: boolean;
   ornate?: boolean;
+  className?: string;
 }) {
   return (
     <div
-      className="try-orb"
-      style={{ width: size, height: size, animation: bob ? 'try-bob 3s ease-in-out infinite' : undefined }}
+      className={['try-orb', className].filter(Boolean).join(' ')}
+      style={{
+        ...(size != null ? { width: size, height: size } : {}),
+        animation: bob ? 'try-bob 3s ease-in-out infinite' : undefined,
+      }}
       aria-hidden
     >
       <span className="try-orb-sheen" />

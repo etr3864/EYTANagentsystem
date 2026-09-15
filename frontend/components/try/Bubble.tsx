@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { TryBubble } from '@/lib/api/try';
 import { dateLabel, formatTime } from './dates';
 
@@ -39,6 +39,8 @@ export function Bubble({
 }) {
   const mine = msg.role === 'user';
   const startX = useRef<number | null>(null);
+  const startY = useRef<number | null>(null);
+  const hitRef = useRef<HTMLButtonElement>(null);
   const [drag, setDrag] = useState(0);
   const kind = msg.message_type || 'text';
   const text = visibleText(msg);
@@ -52,20 +54,38 @@ export function Bubble({
 
   function onTouchStart(e: React.TouchEvent) {
     startX.current = e.touches[0].clientX;
-  }
-  function onTouchMove(e: React.TouchEvent) {
-    if (startX.current == null) return;
-    setDrag(Math.max(-72, Math.min(72, e.touches[0].clientX - startX.current)));
+    startY.current = e.touches[0].clientY;
   }
   function onTouchEnd() {
     const moved = Math.abs(drag) > 56;
     startX.current = null;
+    startY.current = null;
     setDrag(0);
     if (moved) reply();
   }
 
+  function onTouchCancel() {
+    startX.current = null;
+    startY.current = null;
+    setDrag(0);
+  }
+
+  useEffect(() => {
+    const el = hitRef.current;
+    if (!el) return;
+    const onMove = (e: TouchEvent) => {
+      if (startX.current == null || startY.current == null) return;
+      const dx = e.touches[0].clientX - startX.current;
+      const dy = e.touches[0].clientY - startY.current;
+      if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) e.preventDefault();
+      setDrag(Math.max(-72, Math.min(72, dx)));
+    };
+    el.addEventListener('touchmove', onMove, { passive: false });
+    return () => el.removeEventListener('touchmove', onMove);
+  }, []);
+
   return (
-    <div className={animate ? 'try-drop' : undefined}>
+    <div className={animate ? 'try-drop min-w-0' : 'min-w-0'}>
       {showDate && label && (
         <div className="flex justify-center mb-1">
           <span className="text-[11px] tracking-[0.16em] text-[color:var(--ink-faint)] px-3.5 py-1 rounded-full bg-[var(--glass)] border border-[var(--edge)]">
@@ -73,7 +93,7 @@ export function Bubble({
           </span>
         </div>
       )}
-      <div className={`flex items-end gap-1.5 ${mine ? 'justify-end' : 'justify-start'}`}>
+      <div className={`flex items-end gap-1.5 w-full min-w-0 ${mine ? 'justify-end' : 'justify-start'}`}>
         {!mine && (
           <span className="w-4 shrink-0 text-[color:var(--ink-dim)]" style={{ opacity: replyHint }} aria-hidden>
             <ReplyMark />
@@ -85,11 +105,12 @@ export function Bubble({
         >
           <span className="try-bubble-shine" />
           <button
+            ref={hitRef}
             type="button"
             onDoubleClick={reply}
             onTouchStart={onTouchStart}
-            onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
+            onTouchCancel={onTouchCancel}
           >
             {msg.reply_to && (
               <div className="relative mb-1.5 pr-2 border-r border-white/20 text-[12px] leading-4 line-clamp-2 text-[color:var(--ink-dim)]">
@@ -107,7 +128,7 @@ export function Bubble({
               <video src={msg.media_url} controls className="relative rounded-[14px] max-h-56 mb-1.5 max-w-full" preload="metadata" />
             )}
             {msg.media_url && kind === 'voice' && (
-              <audio src={msg.media_url} controls preload="metadata" className="relative w-full max-w-[240px] h-10 mb-1.5" />
+              <audio src={msg.media_url} controls preload="metadata" className="relative w-full max-w-full h-10 mb-1.5" />
             )}
             {msg.media_url && kind === 'document' && (
               <a
