@@ -76,8 +76,8 @@ function HomePage() {
           </div>
         ) : agents.length === 0 ? (
           <Card className="text-center py-16">
-            <h2 className="text-xl font-semibold text-white mb-2">אין סוכנים עדיין</h2>
-            <p className="text-slate-400 mb-6">צור את הסוכן הראשון שלך כדי להתחיל</p>
+            <h2 className="text-xl font-semibold text-[var(--ink)] mb-2">אין סוכנים עדיין</h2>
+            <p className="text-[var(--text-secondary)] mb-6">צור את הסוכן הראשון שלך כדי להתחיל</p>
             <Link href="/new">
               <Button variant="success" size="lg" icon={<PlusIcon />}>
                 צור סוכן חדש
@@ -88,7 +88,7 @@ function HomePage() {
           <div className="flex flex-col min-h-0 flex-1 gap-4">
             {/* Search */}
             <div className="relative shrink-0">
-              <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-secondary)] pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <input
@@ -101,7 +101,7 @@ function HomePage() {
               {search && (
                 <button
                   onClick={() => setSearch('')}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--ink)] transition"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -113,25 +113,25 @@ function HomePage() {
             {/* Stats Bar */}
             <div className="grid grid-cols-3 gap-2 md:gap-4 shrink-0">
               <Card padding="sm" className="text-center">
-                <div className="text-2xl font-bold text-white">{agents.length}</div>
-                <div className="text-xs text-slate-400">סוכנים</div>
+                <div className="text-2xl font-bold text-[var(--ink)]">{agents.length}</div>
+                <div className="text-xs text-[var(--text-secondary)]">סוכנים</div>
               </Card>
               <Card padding="sm" className="text-center">
                 <div className="text-2xl font-bold text-emerald-400">
                   {agents.filter(a => a.is_active).length}
                 </div>
-                <div className="text-xs text-slate-400">פעילים</div>
+                <div className="text-xs text-[var(--text-secondary)]">פעילים</div>
               </Card>
               <Card padding="sm" className="text-center">
                 <div className="text-2xl font-bold text-red-400">
                   {agents.filter(a => !a.is_active).length}
                 </div>
-                <div className="text-xs text-slate-400">מושבתים</div>
+                <div className="text-xs text-[var(--text-secondary)]">מושבתים</div>
               </Card>
             </div>
 
             {filtered.length === 0 && search ? (
-              <div className="text-center py-8 text-slate-500 text-sm">
+              <div className="text-center py-8 text-[var(--text-muted)] text-sm">
                 לא נמצאו סוכנים עבור &quot;{search}&quot;
               </div>
             ) : (
@@ -159,27 +159,27 @@ function HomePage() {
                   <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className={`status-dot ${agent.is_active ? 'active' : 'inactive'}`} />
-                        <span className="text-base md:text-lg font-semibold text-white truncate">{agent.name}</span>
+                        <span className="text-base md:text-lg font-semibold text-[var(--ink)] truncate">{agent.name}</span>
                         {/* Channel Badges */}
                         {(agent.active_channel_types ?? []).length > 0 ? (
                           (agent.active_channel_types ?? []).map((ct) => (
                             <span
                               key={ct}
                               title={CHANNEL_DISPLAY_NAMES[ct as ChannelType] ?? ct}
-                              className="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300"
+                              className="inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded bg-[var(--glass-2)] border border-[var(--edge)] text-[var(--text-secondary)]"
                             >
                               <ChannelIcon channelType={ct} size={14} />
                               {CHANNEL_DISPLAY_NAMES[ct as ChannelType] ?? ct}
                             </span>
                           ))
                         ) : (
-                          <span className="text-xs px-2 py-0.5 rounded bg-slate-700/50 text-slate-500">
+                          <span className="text-xs px-2 py-0.5 rounded bg-[var(--glass-2)] text-[var(--text-muted)]">
                             לא מחובר
                           </span>
                         )}
                       </div>
                       <div className="flex items-center gap-3 mt-1">
-                        <span className="text-xs text-slate-500 bg-slate-700/50 px-2 py-0.5 rounded hidden sm:inline">
+                        <span className="text-xs text-[var(--text-muted)] bg-[var(--glass-2)] px-2 py-0.5 rounded hidden sm:inline">
                           {agent.model.split('-').slice(0, 2).join(' ')}
                         </span>
                       </div>
@@ -195,7 +195,7 @@ function HomePage() {
                         }}
                         className={`
                           relative w-12 h-6 rounded-full transition-colors duration-200
-                          ${agent.is_active ? 'bg-emerald-500' : 'bg-slate-600'}
+                          ${agent.is_active ? 'bg-emerald-500' : 'bg-[var(--bg-tertiary)]'}
                         `}
                         title={agent.is_active ? 'לחץ להשבתה' : 'לחץ להפעלה'}
                       >
@@ -233,7 +233,7 @@ function HomePage() {
         )}
       </main>
 
-      <footer className="shrink-0 py-4 border-t border-slate-800">
+      <footer className="shrink-0 py-4 border-t border-[var(--edge)]">
         <LegalFooter />
       </footer>
     </div>

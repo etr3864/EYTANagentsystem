@@ -23,12 +23,12 @@ const variants = {
   `,
   success: `
     bg-emerald-600 hover:bg-emerald-500
-    text-white
+    text-[var(--ink)]
     active:scale-[0.98]
   `,
   danger: `
     bg-red-600 hover:bg-red-500
-    text-white
+    text-[var(--ink)]
     active:scale-[0.98]
   `,
   ghost: `

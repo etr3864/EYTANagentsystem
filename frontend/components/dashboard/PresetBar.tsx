@@ -22,8 +22,8 @@ export function PresetBar({ preset, activeDates, onPresetChange, onCustomRange }
             onClick={() => onPresetChange(p.id)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
               preset === p.id
-                ? 'bg-purple-600 text-white'
-                : 'bg-white/5 text-slate-300 hover:bg-white/10'
+                ? 'bg-[var(--ink)] text-[var(--bg)]'
+                : 'bg-[var(--glass-2)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
             }`}
           >
             {p.label}

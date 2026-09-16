@@ -26,10 +26,10 @@ export function Destinations({
   };
 
   return (
-    <div className="space-y-3 rounded-lg border border-white/10 bg-white/[0.02] p-3">
+    <div className="space-y-3 rounded-lg border border-[var(--edge)] bg-[var(--glass)] p-3">
       <div>
-        <p className="text-sm font-medium text-white">לאן לשלוח</p>
-        <p className="text-xs text-slate-500 mt-1">
+        <p className="text-sm font-medium text-[var(--ink)]">לאן לשלוח</p>
+        <p className="text-xs text-[var(--text-muted)] mt-1">
           טלפון צוות, webhook, או שניהם. מספר בכל פורמט — 05, +972, או 972.
         </p>
       </div>

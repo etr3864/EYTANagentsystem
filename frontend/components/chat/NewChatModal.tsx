@@ -40,14 +40,14 @@ export function NewChatModal({ agentId, inbox, onClose, onOpened }: NewChatModal
         <p className="text-sm text-amber-300">אין ערוץ וואטסאפ פעיל לסוכן הזה.</p>
       ) : (
         <div className="space-y-3">
-          <p className="text-xs text-slate-400">וואטסאפ בלבד. הזן מספר ושלח הודעה.</p>
+          <p className="text-xs text-[var(--text-secondary)]">וואטסאפ בלבד. הזן מספר ושלח הודעה.</p>
           <input
             type="tel"
             value={phone}
             onChange={e => setPhone(e.target.value)}
             placeholder="052-0000000 או 972..."
             dir="ltr"
-            className="w-full px-4 py-2.5 rounded-xl bg-slate-700/50 border border-slate-600/50 text-white placeholder-slate-400 text-left"
+            className="w-full px-4 py-2.5 rounded-xl bg-[var(--glass-2)] border border-[var(--edge-strong)] text-[var(--ink)] placeholder:text-[var(--text-muted)] text-left"
           />
           {phone.trim() ? (
             <Composer
@@ -72,7 +72,7 @@ export function NewChatModal({ agentId, inbox, onClose, onOpened }: NewChatModal
               })}
             />
           ) : (
-            <p className="text-xs text-slate-500">הזן מספר כדי להמשיך</p>
+            <p className="text-xs text-[var(--text-muted)]">הזן מספר כדי להמשיך</p>
           )}
         </div>
       )}

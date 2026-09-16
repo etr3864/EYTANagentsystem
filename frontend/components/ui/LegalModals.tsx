@@ -154,7 +154,7 @@ const PRIVACY: Record<Lang, Doc> = {
       {
         title: 'Google API Services User Data Policy',
         blocks: [
-          { html: 'Our use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy" class="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer">Google API Services User Data Policy</a>, including the Limited Use requirements.' },
+          { html: 'Our use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy" class="text-[var(--acc)] hover:underline" target="_blank" rel="noopener noreferrer">Google API Services User Data Policy</a>, including the Limited Use requirements.' },
         ],
       },
       {
@@ -168,7 +168,7 @@ const PRIVACY: Record<Lang, Doc> = {
       title: 'Contact Us',
       blocks: [
         'For questions about this Privacy Policy or to exercise your rights, please contact us:',
-        { html: `<ul class="list-none space-y-1 mt-2"><li>📧 Email: <a href="mailto:${CONTACT_EMAIL}" class="text-blue-400 hover:underline">${CONTACT_EMAIL}</a></li><li>📞 Phone: <a href="tel:${CONTACT_PHONE}" class="text-blue-400 hover:underline">${CONTACT_PHONE}</a></li></ul>` },
+        { html: `<ul class="list-none space-y-1 mt-2"><li>📧 Email: <a href="mailto:${CONTACT_EMAIL}" class="text-[var(--acc)] hover:underline">${CONTACT_EMAIL}</a></li><li>📞 Phone: <a href="tel:${CONTACT_PHONE}" class="text-[var(--acc)] hover:underline">${CONTACT_PHONE}</a></li></ul>` },
       ],
     },
   },
@@ -306,7 +306,7 @@ const PRIVACY: Record<Lang, Doc> = {
       {
         title: 'Google API Services User Data Policy',
         blocks: [
-          { html: 'השימוש שלנו במידע מ-Google APIs וההעברה שלו עומדים ב-<a href="https://developers.google.com/terms/api-services-user-data-policy" class="text-blue-400 hover:underline" target="_blank" rel="noopener noreferrer">Google API Services User Data Policy</a>, כולל דרישות Limited Use.' },
+          { html: 'השימוש שלנו במידע מ-Google APIs וההעברה שלו עומדים ב-<a href="https://developers.google.com/terms/api-services-user-data-policy" class="text-[var(--acc)] hover:underline" target="_blank" rel="noopener noreferrer">Google API Services User Data Policy</a>, כולל דרישות Limited Use.' },
         ],
       },
       {
@@ -320,7 +320,7 @@ const PRIVACY: Record<Lang, Doc> = {
       title: 'יצירת קשר',
       blocks: [
         'לשאלות לגבי מדיניות פרטיות זו או למימוש זכויותיך, אנא צור קשר:',
-        { html: `<ul class="list-none space-y-1 mt-2"><li>📧 אימייל: <a href="mailto:${CONTACT_EMAIL}" class="text-blue-400 hover:underline">${CONTACT_EMAIL}</a></li><li>📞 טלפון: <a href="tel:${CONTACT_PHONE}" class="text-blue-400 hover:underline">${CONTACT_PHONE}</a></li></ul>` },
+        { html: `<ul class="list-none space-y-1 mt-2"><li>📧 אימייל: <a href="mailto:${CONTACT_EMAIL}" class="text-[var(--acc)] hover:underline">${CONTACT_EMAIL}</a></li><li>📞 טלפון: <a href="tel:${CONTACT_PHONE}" class="text-[var(--acc)] hover:underline">${CONTACT_PHONE}</a></li></ul>` },
       ],
     },
   },
@@ -442,7 +442,7 @@ const TERMS: Record<Lang, Doc> = {
       title: 'Contact',
       blocks: [
         'For questions about these Terms, please contact us:',
-        { html: `<ul class="list-none space-y-1 mt-2"><li>📧 Email: <a href="mailto:${CONTACT_EMAIL}" class="text-blue-400 hover:underline">${CONTACT_EMAIL}</a></li><li>📞 Phone: <a href="tel:${CONTACT_PHONE}" class="text-blue-400 hover:underline">${CONTACT_PHONE}</a></li></ul>` },
+        { html: `<ul class="list-none space-y-1 mt-2"><li>📧 Email: <a href="mailto:${CONTACT_EMAIL}" class="text-[var(--acc)] hover:underline">${CONTACT_EMAIL}</a></li><li>📞 Phone: <a href="tel:${CONTACT_PHONE}" class="text-[var(--acc)] hover:underline">${CONTACT_PHONE}</a></li></ul>` },
       ],
     },
   },
@@ -560,7 +560,7 @@ const TERMS: Record<Lang, Doc> = {
       title: 'יצירת קשר',
       blocks: [
         'לשאלות לגבי תנאים אלה, אנא צור קשר:',
-        { html: `<ul class="list-none space-y-1 mt-2"><li>📧 אימייל: <a href="mailto:${CONTACT_EMAIL}" class="text-blue-400 hover:underline">${CONTACT_EMAIL}</a></li><li>📞 טלפון: <a href="tel:${CONTACT_PHONE}" class="text-blue-400 hover:underline">${CONTACT_PHONE}</a></li></ul>` },
+        { html: `<ul class="list-none space-y-1 mt-2"><li>📧 אימייל: <a href="mailto:${CONTACT_EMAIL}" class="text-[var(--acc)] hover:underline">${CONTACT_EMAIL}</a></li><li>📞 טלפון: <a href="tel:${CONTACT_PHONE}" class="text-[var(--acc)] hover:underline">${CONTACT_PHONE}</a></li></ul>` },
       ],
     },
   },
@@ -594,12 +594,12 @@ function DocBody({ doc, lang }: { doc: Doc; lang: Lang }) {
       <p><strong>{labelLastUpdated}</strong> {doc.lastUpdated}</p>
       {doc.sections.map((s, i) => (
         <section key={i} className="space-y-2">
-          <h3 className="text-white font-semibold">{i + 1}. {s.title}</h3>
+          <h3 className="text-[var(--ink)] font-semibold">{i + 1}. {s.title}</h3>
           {s.blocks.map((b, j) => <BlockView key={j} block={b} />)}
         </section>
       ))}
       <section className="space-y-2 pt-2">
-        <h3 className="text-white font-semibold">{doc.sections.length + 1}. {doc.contact.title}</h3>
+        <h3 className="text-[var(--ink)] font-semibold">{doc.sections.length + 1}. {doc.contact.title}</h3>
         {doc.contact.blocks.map((b, j) => <BlockView key={j} block={b} />)}
       </section>
     </div>
@@ -665,15 +665,15 @@ export function LegalModal({
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col">
         <div className="flex justify-between items-center p-4 border-b border-gray-700 gap-3">
-          <h2 className="text-lg font-semibold text-white">{title}</h2>
+          <h2 className="text-lg font-semibold text-[var(--ink)]">{title}</h2>
           <div className="flex items-center gap-2">
             <button
               onClick={() => onLangChange(lang === 'he' ? 'en' : 'he')}
-              className="px-2.5 py-1 text-xs rounded border border-white/10 text-slate-300 hover:text-white hover:border-white/20 transition"
+              className="px-2.5 py-1 text-xs rounded border border-[var(--edge)] text-[var(--text-secondary)] hover:text-[var(--ink)] hover:border-[var(--edge-strong)] transition"
             >
               {lang === 'he' ? 'EN' : 'עב'}
             </button>
-            <button onClick={onClose} className="text-gray-400 hover:text-white transition p-1">
+            <button onClick={onClose} className="text-gray-400 hover:text-[var(--ink)] transition p-1">
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -684,7 +684,7 @@ export function LegalModal({
           {type === 'privacy' ? <PrivacyContent lang={lang} /> : <TermsContent lang={lang} />}
         </div>
         <div className="p-4 border-t border-gray-700">
-          <button onClick={onClose} className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
+          <button onClick={onClose} className="w-full py-2 bg-[var(--ink)] hover:opacity-90 text-[var(--bg)] rounded-lg transition">
             {closeLabel}
           </button>
         </div>

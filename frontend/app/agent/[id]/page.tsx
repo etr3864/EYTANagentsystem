@@ -472,8 +472,8 @@ function AgentPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card className="text-center py-12 px-8">
-          <h2 className="text-xl font-semibold text-white mb-2">סוכן לא נמצא</h2>
-          <p className="text-slate-400 mb-6">הסוכן שחיפשת לא קיים במערכת</p>
+          <h2 className="text-xl font-semibold text-[var(--ink)] mb-2">סוכן לא נמצא</h2>
+          <p className="text-[var(--text-secondary)] mb-6">הסוכן שחיפשת לא קיים במערכת</p>
           <Link href="/">
             <Button variant="primary">חזרה לדף הבית</Button>
           </Link>
@@ -546,7 +546,7 @@ function AgentPage() {
             </div>
           </div>
         ) : tab === 'playground' ? (
-          <div className="h-full max-w-5xl mx-auto px-3 md:px-6 py-4 flex flex-col min-h-0 animate-fade-in">
+          <div className="h-full max-w-5xl mx-auto px-2 md:px-6 py-2 md:py-4 flex flex-col min-h-0 min-w-0 overflow-hidden animate-fade-in pb-[max(0.5rem,env(safe-area-inset-bottom))]">
             <PlaygroundLinksTab agentId={agentId} />
           </div>
         ) : (

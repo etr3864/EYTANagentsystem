@@ -102,7 +102,7 @@ export function FunctionEditor({
     <div className="space-y-5 min-w-0">
       {error && <p className="text-sm text-red-400">{error}</p>}
 
-      <p className="text-sm text-slate-400">
+      <p className="text-sm text-[var(--text-secondary)]">
         שמור, בדוק יבש ואז אמיתי, ורק אז הפעל.
       </p>
 
@@ -159,10 +159,10 @@ export function FunctionEditor({
       />
 
       {hasBody && (
-        <div className="space-y-2 rounded-lg border border-purple-500/10 p-3">
+        <div className="space-y-2 rounded-lg border border-[var(--edge)] p-3">
           <div>
-            <p className="text-sm font-medium text-white">גוף הבקשה (JSON)</p>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-sm font-medium text-[var(--ink)]">גוף הבקשה (JSON)</p>
+            <p className="text-xs text-[var(--text-muted)] mt-1">
               {'{{phone}}'} בערך הופך לפרמטר. «סדר JSON» רק מעצב.
             </p>
           </div>
@@ -184,7 +184,7 @@ export function FunctionEditor({
       )}
 
       {paramNames.length > 0 && (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-[var(--text-muted)]">
           פרמטרים: {paramNames.join(', ')}. ברירת מחדל — הבוט שואל.
           {hasBody
             ? ' מקור אחר במתקדם.'
@@ -192,17 +192,17 @@ export function FunctionEditor({
         </p>
       )}
 
-      <div className="rounded-lg border border-purple-500/10 p-3">
+      <div className="rounded-lg border border-[var(--edge)] p-3">
         <button
           type="button"
-          className="text-sm font-medium text-white"
+          className="text-sm font-medium text-[var(--ink)]"
           onClick={() => setAdvancedOpen((open) => !open)}
         >
           {advancedOpen ? 'הסתר מתקדם' : 'הצג מתקדם'}
         </button>
         {advancedOpen && (
           <>
-        <p className="text-xs text-slate-500 mt-1 mb-4">
+        <p className="text-xs text-[var(--text-muted)] mt-1 mb-4">
           מתי לא להשתמש, מקורות פרמטר, שמירת פלט, headers, timeout, טריגר אירוע.
         </p>
         <div className="space-y-5">
@@ -316,18 +316,18 @@ function ParamsEditor({
   };
 
   return (
-    <div className="space-y-3 rounded-lg border border-purple-500/10 p-3">
+    <div className="space-y-3 rounded-lg border border-[var(--edge)] p-3">
       <div>
-        <p className="text-sm font-medium text-white">פרמטרים</p>
-        <p className="text-xs text-slate-500 mt-1">
+        <p className="text-sm font-medium text-[var(--ink)]">פרמטרים</p>
+        <p className="text-xs text-[var(--text-muted)] mt-1">
           נוצרים מ-{'{{name}}'} בכתובת או ב-JSON. כאן משנים מקור ותיאור. להסיר מהתבנית — מחק את {'{{name}}'} משם.
         </p>
       </div>
       {params.length === 0 && (
-        <p className="text-xs text-slate-500">אין פרמטרים עדיין.</p>
+        <p className="text-xs text-[var(--text-muted)]">אין פרמטרים עדיין.</p>
       )}
       {params.map((param, index) => (
-        <div key={index} className="rounded-lg bg-white/[0.03] border border-purple-500/10 p-3 space-y-3 min-w-0">
+        <div key={index} className="rounded-lg bg-[var(--glass)] border border-[var(--edge)] p-3 space-y-3 min-w-0">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input
               label="שם באנגלית"
@@ -368,7 +368,7 @@ function ParamsEditor({
             hint="הבוט רואה את זה כשהוא צריך למלא את הפרמטר. בעברית, משפט קצר."
           />
           <div className="flex items-center justify-between gap-3">
-            <label className="text-sm text-slate-300 flex items-center gap-2">
+            <label className="text-sm text-[var(--text-secondary)] flex items-center gap-2">
               <input
                 type="checkbox"
                 checked={param.required}
@@ -422,18 +422,18 @@ function HeadersEditor({
   };
 
   return (
-    <div className="space-y-3 rounded-lg border border-purple-500/10 p-3">
+    <div className="space-y-3 rounded-lg border border-[var(--edge)] p-3">
       <div>
-        <p className="text-sm font-medium text-white">Headers נוספים</p>
-        <p className="text-xs text-slate-500 mt-1">
+        <p className="text-sm font-medium text-[var(--ink)]">Headers נוספים</p>
+        <p className="text-xs text-[var(--text-muted)] mt-1">
           מלבד הטוקן. לרוב לא צריך. שם באנגלית כמו ב-HTTP.
         </p>
       </div>
       {rows.length === 0 && (
-        <p className="text-xs text-slate-500">אין headers נוספים.</p>
+        <p className="text-xs text-[var(--text-muted)]">אין headers נוספים.</p>
       )}
       {rows.map(([key, value], index) => (
-        <div key={`${key}-${index}`} className="space-y-2 rounded-lg bg-white/[0.03] border border-purple-500/10 p-3">
+        <div key={`${key}-${index}`} className="space-y-2 rounded-lg bg-[var(--glass)] border border-[var(--edge)] p-3">
           <Input
             label="שם ה-header"
             placeholder="X-Api-Key"
@@ -487,18 +487,18 @@ function OutputsEditor({
   };
 
   return (
-    <div className="space-y-3 rounded-lg border border-purple-500/10 p-3">
+    <div className="space-y-3 rounded-lg border border-[var(--edge)] p-3">
       <div>
-        <p className="text-sm font-medium text-white">שמירת תשובה מה-API</p>
-        <p className="text-xs text-slate-500 mt-1">
+        <p className="text-sm font-medium text-[var(--ink)]">שמירת תשובה מה-API</p>
+        <p className="text-xs text-[var(--text-muted)] mt-1">
           אם ה-API מחזיר למשל {`{ "id": "123" }`} אפשר לשמור את id בשם crm_id, ואז פונקציה אחרת תשתמש בו דרך &quot;ערך שנשמר מפונקציה&quot;. לא חובה.
         </p>
       </div>
       {outputs.length === 0 && (
-        <p className="text-xs text-slate-500">לא שומרים כלום מהתשובה.</p>
+        <p className="text-xs text-[var(--text-muted)]">לא שומרים כלום מהתשובה.</p>
       )}
       {outputs.map((item, index) => (
-        <div key={index} className="space-y-3 rounded-lg bg-white/[0.03] border border-purple-500/10 p-3">
+        <div key={index} className="space-y-3 rounded-lg bg-[var(--glass)] border border-[var(--edge)] p-3">
           <Input
             label="שדה ב-JSON של התשובה"
             placeholder="id או data.crm_id"

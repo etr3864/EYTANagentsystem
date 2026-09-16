@@ -62,8 +62,8 @@ export function EscalationTab({ agentId }: { agentId: number }) {
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-medium text-white">אסקלציה</h2>
-          <p className="text-sm text-slate-400 mt-1">
+          <h2 className="text-lg font-medium text-[var(--ink)]">אסקלציה</h2>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">
             כשהסוכן מזהה מקרה — שולחים לצוות ו/או ל-webhook. הלקוח לא רואה שזה קרה.
             טלפון, שם, פגישות ומידע שמור על הלקוח מתמלאים גם אם לא נכתבו בשיחה.
           </p>
@@ -77,11 +77,11 @@ export function EscalationTab({ agentId }: { agentId: number }) {
         </Button>
       </div>
 
-      {loading && <p className="text-slate-400 text-sm">טוען…</p>}
+      {loading && <p className="text-[var(--text-secondary)] text-sm">טוען…</p>}
       {!loading && items.length === 0 && (
-        <div className="rounded-lg border border-white/10 bg-white/[0.02] px-4 py-8 text-center">
-          <p className="text-slate-300 text-sm">אין סיבות עדיין.</p>
-          <p className="text-slate-500 text-xs mt-1">יוצרים אחת, ממלאים שדות ויעד, ואז מדליקים.</p>
+        <div className="rounded-lg border border-[var(--edge)] bg-[var(--glass)] px-4 py-8 text-center">
+          <p className="text-[var(--text-secondary)] text-sm">אין סיבות עדיין.</p>
+          <p className="text-[var(--text-muted)] text-xs mt-1">יוצרים אחת, ממלאים שדות ויעד, ואז מדליקים.</p>
         </div>
       )}
 

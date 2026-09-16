@@ -132,7 +132,7 @@ export function SummaryTab({ agentId }: SummaryTabProps) {
   if (loading || !config) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-[var(--acc)] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -159,7 +159,7 @@ export function SummaryTab({ agentId }: SummaryTabProps) {
       {/* Enable/Disable */}
       <Card>
         <CardHeader>סיכומי שיחות אוטומטיים</CardHeader>
-        <p className="text-sm text-slate-400 mb-4">
+        <p className="text-sm text-[var(--text-secondary)] mb-4">
           הפעל יצירת סיכומים אוטומטיים לשיחות ושליחתם ל-Webhook חיצוני
         </p>
         
@@ -168,14 +168,14 @@ export function SummaryTab({ agentId }: SummaryTabProps) {
             onClick={toggleEnabled}
             disabled={saving}
             className={`relative w-12 h-6 rounded-full transition-colors ${
-              config.enabled ? 'bg-emerald-500' : 'bg-slate-600'
+              config.enabled ? 'bg-emerald-500' : 'bg-[var(--bg-tertiary)]'
             }`}
           >
             <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${
               config.enabled ? 'right-1' : 'left-1'
             }`} />
           </button>
-          <span className="text-sm text-slate-300">
+          <span className="text-sm text-[var(--text-secondary)]">
             {config.enabled ? 'סיכומים מופעלים' : 'סיכומים מושבתים'}
           </span>
         </div>
@@ -185,13 +185,13 @@ export function SummaryTab({ agentId }: SummaryTabProps) {
       {config.enabled && (
         <Card>
           <CardHeader>הגדרות זמן</CardHeader>
-          <p className="text-sm text-slate-400 mb-4">
+          <p className="text-sm text-[var(--text-secondary)] mb-4">
             מתי ליצור סיכום שיחה
           </p>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
                 זמן המתנה מההודעה האחרונה (דקות)
               </label>
               <input
@@ -200,15 +200,15 @@ export function SummaryTab({ agentId }: SummaryTabProps) {
                 max={1440}
                 value={config.delay_minutes}
                 onChange={(e) => updateConfig({ delay_minutes: parseInt(e.target.value) || 30 })}
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white"
+                className="w-full px-3 py-2 bg-[var(--glass-2)] border border-[var(--edge)] rounded-lg text-[var(--ink)]"
               />
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-[var(--text-muted)] mt-1">
                 סיכום יווצר {config.delay_minutes} דקות אחרי ההודעה האחרונה של הלקוח
               </p>
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
                 מינימום הודעות לסיכום
               </label>
               <input
@@ -217,16 +217,16 @@ export function SummaryTab({ agentId }: SummaryTabProps) {
                 max={100}
                 value={config.min_messages}
                 onChange={(e) => updateConfig({ min_messages: parseInt(e.target.value) || 5 })}
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white"
+                className="w-full px-3 py-2 bg-[var(--glass-2)] border border-[var(--edge)] rounded-lg text-[var(--ink)]"
               />
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-[var(--text-muted)] mt-1">
                 רק שיחות עם לפחות {config.min_messages} הודעות יקבלו סיכום
               </p>
             </div>
           </div>
 
           <div className="mt-4">
-            <label className="block text-sm font-medium text-slate-300 mb-2">
+            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
               מקסימום הודעות לסיכום
             </label>
             <input
@@ -235,9 +235,9 @@ export function SummaryTab({ agentId }: SummaryTabProps) {
               max={500}
               value={config.max_messages}
               onChange={(e) => updateConfig({ max_messages: parseInt(e.target.value) || 100 })}
-              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white"
+              className="w-full px-3 py-2 bg-[var(--glass-2)] border border-[var(--edge)] rounded-lg text-[var(--ink)]"
             />
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-[var(--text-muted)] mt-1">
               כמה הודעות אחרונות לכלול בסיכום (ברירת מחדל: 100)
             </p>
           </div>
@@ -248,7 +248,7 @@ export function SummaryTab({ agentId }: SummaryTabProps) {
       {config.enabled && (
         <Card>
           <CardHeader>הגדרות Webhook</CardHeader>
-          <p className="text-sm text-slate-400 mb-4">
+          <p className="text-sm text-[var(--text-secondary)] mb-4">
             URL לשליחת סיכומי השיחות
           </p>
           
@@ -266,7 +266,7 @@ export function SummaryTab({ agentId }: SummaryTabProps) {
                 <button
                   onClick={testWebhook}
                   disabled={testingWebhook || hasChanges}
-                  className="mt-2 text-sm text-blue-400 hover:text-blue-300 disabled:text-slate-500"
+                  className="mt-2 text-sm text-[var(--acc)] hover:text-[var(--acc)] disabled:text-[var(--text-muted)]"
                   title={hasChanges ? 'שמור קודם לפני בדיקה' : undefined}
                 >
                   {testingWebhook ? 'שולח...' : 'בדוק חיבור'}
@@ -276,7 +276,7 @@ export function SummaryTab({ agentId }: SummaryTabProps) {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
                   מספר ניסיונות חוזרים
                 </label>
                 <input
@@ -285,12 +285,12 @@ export function SummaryTab({ agentId }: SummaryTabProps) {
                   max={10}
                   value={config.webhook_retry_count}
                   onChange={(e) => updateConfig({ webhook_retry_count: parseInt(e.target.value) || 3 })}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white"
+                  className="w-full px-3 py-2 bg-[var(--glass-2)] border border-[var(--edge)] rounded-lg text-[var(--ink)]"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
                   השהייה בין ניסיונות (שניות)
                 </label>
                 <input
@@ -299,14 +299,14 @@ export function SummaryTab({ agentId }: SummaryTabProps) {
                   max={3600}
                   value={config.webhook_retry_delay}
                   onChange={(e) => updateConfig({ webhook_retry_delay: parseInt(e.target.value) || 60 })}
-                  className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white"
+                  className="w-full px-3 py-2 bg-[var(--glass-2)] border border-[var(--edge)] rounded-lg text-[var(--ink)]"
                 />
               </div>
             </div>
             
-            <div className="p-3 bg-slate-800/50 border border-slate-700 rounded-lg">
-              <h4 className="text-sm font-medium text-slate-300 mb-2">מבנה ה-JSON שנשלח:</h4>
-              <pre className="text-xs text-slate-400 overflow-x-auto" dir="ltr">
+            <div className="p-3 bg-[var(--glass-2)] border border-[var(--edge)] rounded-lg">
+              <h4 className="text-sm font-medium text-[var(--text-secondary)] mb-2">מבנה ה-JSON שנשלח:</h4>
+              <pre className="text-xs text-[var(--text-secondary)] overflow-x-auto" dir="ltr">
 {`{
   "event": "conversation_summary",
   "timestamp": "2024-01-01T12:00:00Z",
@@ -328,7 +328,7 @@ export function SummaryTab({ agentId }: SummaryTabProps) {
       {config.enabled && (
         <Card>
           <CardHeader>הנחיות לסיכום</CardHeader>
-          <p className="text-sm text-slate-400 mb-4">
+          <p className="text-sm text-[var(--text-secondary)] mb-4">
             הנחיות ל-AI ליצירת הסיכום
           </p>
           
@@ -339,7 +339,7 @@ export function SummaryTab({ agentId }: SummaryTabProps) {
             placeholder="סכם את השיחה בצורה תמציתית..."
             className="font-mono text-sm"
           />
-          <p className="text-xs text-slate-500 mt-2">
+          <p className="text-xs text-[var(--text-muted)] mt-2">
             ה-AI יקבל את כל השיחה ויסכם אותה לפי ההנחיות שלך
           </p>
         </Card>

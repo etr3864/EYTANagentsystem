@@ -53,10 +53,10 @@ const AVAILABLE_VARIABLES = [
 function StatsBar({ stats }: { stats: FollowupStats | null }) {
   if (!stats) return null;
   const items = [
-    { label: 'סה"כ', value: stats.total, color: 'text-slate-300' },
+    { label: 'סה"כ', value: stats.total, color: 'text-[var(--text-secondary)]' },
     { label: 'ממתינים', value: stats.pending, color: 'text-yellow-400' },
     { label: 'נשלחו', value: stats.sent, color: 'text-green-400' },
-    { label: 'דולגו', value: stats.skipped, color: 'text-slate-400' },
+    { label: 'דולגו', value: stats.skipped, color: 'text-[var(--text-secondary)]' },
     { label: 'בוטלו', value: stats.cancelled, color: 'text-red-400' },
   ];
   return (
@@ -98,25 +98,25 @@ function SequenceBuilder({
 
   return (
     <div className="space-y-3">
-      <label className="text-sm font-medium text-slate-300">רצף מעקב</label>
-      <p className="text-xs text-slate-500">
+      <label className="text-sm font-medium text-[var(--text-secondary)]">רצף מעקב</label>
+      <p className="text-xs text-[var(--text-muted)]">
         כל שלב מוגדר עם זמן המתנה והנחיה ל-AI. אם הלקוח חוזר לדבר, הרצף מתאפס.
       </p>
 
       {sequence.map((step, idx) => (
-        <div key={idx} className="p-3 bg-slate-800/50 border border-slate-700 rounded-lg space-y-2">
+        <div key={idx} className="p-3 bg-[var(--glass-2)] border border-[var(--edge)] rounded-lg space-y-2">
           <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-blue-400 min-w-[60px]">שלב {idx + 1}</span>
-            <span className="text-xs text-slate-400">אחרי</span>
+            <span className="text-sm font-medium text-[var(--acc)] min-w-[60px]">שלב {idx + 1}</span>
+            <span className="text-xs text-[var(--text-secondary)]">אחרי</span>
             <input
               type="number"
               min={0.5}
               step={0.5}
               value={step.delay_hours}
               onChange={e => updateStep(idx, 'delay_hours', parseFloat(e.target.value) || 1)}
-              className="w-20 px-2 py-1 bg-slate-800 border border-slate-600/50 rounded text-sm text-white text-center"
+              className="w-20 px-2 py-1 bg-[var(--glass-2)] border border-[var(--edge-strong)] rounded text-sm text-[var(--ink)] text-center"
             />
-            <span className="text-xs text-slate-400">שעות ({formatDelay(step.delay_hours)})</span>
+            <span className="text-xs text-[var(--text-secondary)]">שעות ({formatDelay(step.delay_hours)})</span>
             <div className="flex-1" />
             {sequence.length > 1 && (
               <button
@@ -132,14 +132,14 @@ function SequenceBuilder({
             onChange={e => updateStep(idx, 'instruction', e.target.value)}
             rows={2}
             placeholder="הנחיה ל-AI לשלב הזה (אופציונלי). לדוגמה: שאל אם יש שאלות נוספות..."
-            className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600/30 rounded text-sm text-white placeholder-slate-500 resize-none focus:outline-none focus:border-blue-500/50"
+            className="w-full px-3 py-2 bg-[var(--glass)] border border-[var(--edge-strong)]/30 rounded text-sm text-[var(--ink)] placeholder:text-[var(--text-muted)] resize-none focus:outline-none focus:border-[var(--acc)]/50"
           />
         </div>
       ))}
 
       <button
         onClick={addStep}
-        className="text-xs text-blue-400 hover:text-blue-300"
+        className="text-xs text-[var(--acc)] hover:text-[var(--acc)]"
       >
         + הוסף שלב
       </button>
@@ -197,10 +197,10 @@ function MetaTemplateSelector({
 
   return (
     <div className="space-y-3">
-      <label className="text-sm font-medium text-slate-300">
+      <label className="text-sm font-medium text-[var(--text-secondary)]">
         Templates ל-Meta (חלון 24+ שעות)
       </label>
-      <p className="text-xs text-slate-400">
+      <p className="text-xs text-[var(--text-secondary)]">
         כשעברו 24 שעות מההודעה האחרונה של הלקוח, ה-AI יבחר מתוך הרשימה הזאת.
       </p>
 
@@ -211,12 +211,12 @@ function MetaTemplateSelector({
         const paramCount = tpl.params.length;
 
         return (
-          <div key={idx} className="p-3 bg-slate-800/50 border border-slate-700 rounded-lg space-y-2">
+          <div key={idx} className="p-3 bg-[var(--glass-2)] border border-[var(--edge)] rounded-lg space-y-2">
             <div className="flex items-center gap-2">
               <select
                 value={key}
                 onChange={e => handleSelect(idx, e.target.value)}
-                className="flex-1 px-2 py-1.5 bg-slate-800 border border-slate-600/50 rounded text-sm text-white"
+                className="flex-1 px-2 py-1.5 bg-[var(--glass-2)] border border-[var(--edge-strong)] rounded text-sm text-[var(--ink)]"
               >
                 {approvedTemplates.map(t => (
                   <option key={`${t.name}|${t.language}`} value={`${t.name}|${t.language}`}>
@@ -233,17 +233,17 @@ function MetaTemplateSelector({
             </div>
 
             {bodyText && (
-              <div className="text-xs text-slate-400 bg-slate-900/50 p-2 rounded" dir="rtl">
+              <div className="text-xs text-[var(--text-secondary)] bg-[var(--glass)] p-2 rounded" dir="rtl">
                 {bodyText}
               </div>
             )}
 
             {paramCount > 0 && (
               <div className="space-y-1">
-                <span className="text-xs text-slate-400">מיפוי פרמטרים:</span>
+                <span className="text-xs text-[var(--text-secondary)]">מיפוי פרמטרים:</span>
                 {tpl.params.map((param, pIdx) => (
                   <div key={pIdx} className="flex items-center gap-2 text-xs">
-                    <span className="text-slate-400 w-16">{`{{${pIdx + 1}}}`}</span>
+                    <span className="text-[var(--text-secondary)] w-16">{`{{${pIdx + 1}}}`}</span>
                     <select
                       value={param}
                       onChange={e => {
@@ -251,7 +251,7 @@ function MetaTemplateSelector({
                         newParams[pIdx] = e.target.value;
                         updateTemplate(idx, { ...tpl, params: newParams });
                       }}
-                      className="flex-1 px-2 py-1 bg-slate-800 border border-slate-600/50 rounded text-white"
+                      className="flex-1 px-2 py-1 bg-[var(--glass-2)] border border-[var(--edge-strong)] rounded text-[var(--ink)]"
                     >
                       <option value="">בחר משתנה...</option>
                       {AVAILABLE_VARIABLES.map(v => (
@@ -268,7 +268,7 @@ function MetaTemplateSelector({
 
       <button
         onClick={addTemplate}
-        className="text-xs text-blue-400 hover:text-blue-300"
+        className="text-xs text-[var(--acc)] hover:text-[var(--acc)]"
       >
         + הוסף Template
       </button>
@@ -335,7 +335,7 @@ export default function FollowUpTab({ agentId, provider }: FollowUpTabProps) {
   }
 
   if (loading) {
-    return <div className="text-center py-8 text-slate-400">טוען...</div>;
+    return <div className="text-center py-8 text-[var(--text-secondary)]">טוען...</div>;
   }
 
   if (!config) {
@@ -347,17 +347,17 @@ export default function FollowUpTab({ agentId, provider }: FollowUpTabProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-white">Follow-Up אוטומטי</h3>
-          <p className="text-sm text-slate-400 mt-1">
+          <h3 className="text-lg font-semibold text-[var(--ink)]">Follow-Up אוטומטי</h3>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">
             הודעות מעקב אוטומטיות ללקוחות שהפסיקו להגיב
           </p>
         </div>
         <label className="flex items-center gap-2 cursor-pointer">
-          <span className="text-sm text-slate-300">{config.enabled ? 'פעיל' : 'כבוי'}</span>
+          <span className="text-sm text-[var(--text-secondary)]">{config.enabled ? 'פעיל' : 'כבוי'}</span>
           <div
             dir="ltr"
             onClick={() => updateField('enabled', !config.enabled)}
-            className={`w-11 h-6 rounded-full transition-colors cursor-pointer relative ${config.enabled ? 'bg-blue-500' : 'bg-slate-600'}`}
+            className={`w-11 h-6 rounded-full transition-colors cursor-pointer relative ${config.enabled ? 'bg-[var(--acc)]' : 'bg-[var(--bg-tertiary)]'}`}
           >
             <div className={`w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-all ${config.enabled ? 'left-[22px]' : 'left-0.5'}`} />
           </div>
@@ -367,7 +367,7 @@ export default function FollowUpTab({ agentId, provider }: FollowUpTabProps) {
       <StatsBar stats={stats} />
 
       {!config.enabled && (
-        <div className="p-3 bg-slate-800/30 border border-slate-700 rounded-lg text-sm text-slate-400 text-center">
+        <div className="p-3 bg-[var(--glass)] border border-[var(--edge)] rounded-lg text-sm text-[var(--text-secondary)] text-center">
           הפעל את ה-Follow-up כדי להתחיל לשלוח הודעות מעקב אוטומטיות
         </div>
       )}
@@ -376,15 +376,15 @@ export default function FollowUpTab({ agentId, provider }: FollowUpTabProps) {
         <div className="space-y-6">
           {/* General AI instruction */}
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-300">הנחיות כלליות ל-AI</label>
+            <label className="text-sm font-medium text-[var(--text-secondary)]">הנחיות כלליות ל-AI</label>
             <textarea
               value={config.general_instruction || ''}
               onChange={e => updateField('general_instruction', e.target.value)}
               rows={3}
               placeholder="הנחיות שיחולו על כל שלבי המעקב. לדוגמה: תתמקד במכירת קורס X, אל תציע הנחות..."
-              className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600/50 rounded-lg text-sm text-white placeholder-slate-500 resize-none focus:outline-none focus:border-blue-500"
+              className="w-full px-3 py-2 bg-[var(--glass-2)] border border-[var(--edge-strong)] rounded-lg text-sm text-[var(--ink)] placeholder:text-[var(--text-muted)] resize-none focus:outline-none focus:border-[var(--acc)]"
             />
-            <p className="text-xs text-slate-500">אופציונלי. אם ריק, ה-AI עובד לפי היסטוריית השיחה ואישיות הסוכן בלבד.</p>
+            <p className="text-xs text-[var(--text-muted)]">אופציונלי. אם ריק, ה-AI עובד לפי היסטוריית השיחה ואישיות הסוכן בלבד.</p>
           </div>
 
           {/* Sequence builder */}
@@ -395,49 +395,49 @@ export default function FollowUpTab({ agentId, provider }: FollowUpTabProps) {
 
           {/* Active hours */}
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-300">שעות פעילות</label>
+            <label className="text-sm font-medium text-[var(--text-secondary)]">שעות פעילות</label>
             <div className="flex items-center gap-3">
               <input
                 type="time"
                 value={config.active_hours?.start || '09:00'}
                 onChange={e => updateField('active_hours', { ...config.active_hours, start: e.target.value })}
-                className="px-3 py-2 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
+                className="px-3 py-2 bg-[var(--glass-2)] border border-[var(--edge-strong)] rounded-lg text-[var(--ink)] text-sm focus:outline-none focus:border-[var(--acc)]"
               />
-              <span className="text-slate-400">עד</span>
+              <span className="text-[var(--text-secondary)]">עד</span>
               <input
                 type="time"
                 value={config.active_hours?.end || '21:00'}
                 onChange={e => updateField('active_hours', { ...config.active_hours, end: e.target.value })}
-                className="px-3 py-2 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
+                className="px-3 py-2 bg-[var(--glass-2)] border border-[var(--edge-strong)] rounded-lg text-[var(--ink)] text-sm focus:outline-none focus:border-[var(--acc)]"
               />
             </div>
-            <p className="text-xs text-slate-500">שליחת follow-ups רק בתוך שעות אלו</p>
+            <p className="text-xs text-[var(--text-muted)]">שליחת follow-ups רק בתוך שעות אלו</p>
           </div>
 
           {/* Min messages */}
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-slate-300">מינימום הודעות בשיחה</label>
+            <label className="text-sm font-medium text-[var(--text-secondary)]">מינימום הודעות בשיחה</label>
             <input
               type="number"
               min={1}
               max={50}
               value={config.min_messages}
               onChange={e => updateField('min_messages', parseInt(e.target.value) || 5)}
-              className="w-32 px-3 py-2 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white text-sm focus:outline-none focus:border-blue-500"
+              className="w-32 px-3 py-2 bg-[var(--glass-2)] border border-[var(--edge-strong)] rounded-lg text-[var(--ink)] text-sm focus:outline-none focus:border-[var(--acc)]"
             />
-            <p className="text-xs text-slate-500">מינימום הודעות לפני ששולחים follow-up</p>
+            <p className="text-xs text-[var(--text-muted)]">מינימום הודעות לפני ששולחים follow-up</p>
           </div>
 
           {/* Advanced toggle */}
           <button
             onClick={() => setShowAdvanced(!showAdvanced)}
-            className="text-xs text-slate-400 hover:text-slate-300 transition-colors"
+            className="text-xs text-[var(--text-secondary)] hover:text-[var(--ink)] transition-colors"
           >
             {showAdvanced ? '▼' : '▶'} הגדרות מתקדמות
           </button>
 
           {showAdvanced && (
-            <div className="space-y-6 pl-2 border-r-2 border-slate-700 pr-4">
+            <div className="space-y-6 pl-2 border-r-2 border-[var(--edge)] pr-4">
               <ModelSelect
                 label="מודל AI ליצירת Follow-up"
                 value={config.model}
@@ -461,7 +461,7 @@ export default function FollowUpTab({ agentId, provider }: FollowUpTabProps) {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white rounded-lg transition-colors text-sm font-medium"
+          className="px-6 py-2.5 bg-[var(--ink)] hover:opacity-90 disabled:opacity-50 text-[var(--bg)] rounded-lg transition-colors text-sm font-medium"
         >
           {saving ? 'שומר...' : 'שמור הגדרות'}
         </button>

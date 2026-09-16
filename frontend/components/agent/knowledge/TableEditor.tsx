@@ -107,11 +107,11 @@ export function TableEditor({
     <Card padding="sm">
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="font-medium text-white">עריכת טבלה</h3>
+          <h3 className="font-medium text-[var(--ink)]">עריכת טבלה</h3>
           <Button variant="ghost" size="sm" onClick={onClose}>חזרה</Button>
         </div>
 
-        {loading && <p className="text-sm text-slate-400">טוען…</p>}
+        {loading && <p className="text-sm text-[var(--text-secondary)]">טוען…</p>}
 
         {!loading && (
           <>
@@ -122,24 +122,24 @@ export function TableEditor({
               disabled={!canEdit}
             />
 
-            <div className="overflow-auto max-h-[60vh] border border-slate-700 rounded-lg">
+            <div className="overflow-auto max-h-[60vh] border border-[var(--edge)] rounded-lg">
               <table className="min-w-full text-sm border-collapse">
-                <thead className="sticky top-0 bg-slate-900 z-10">
+                <thead className="sticky top-0 bg-[var(--bg-secondary)] z-10">
                   <tr>
-                    <th className="w-10 px-2 py-2 text-slate-500 font-normal">#</th>
+                    <th className="w-10 px-2 py-2 text-[var(--text-muted)] font-normal">#</th>
                     {columns.map((col, i) => (
-                      <th key={`${col}-${i}`} className="border border-slate-700 p-1 min-w-[140px]">
+                      <th key={`${col}-${i}`} className="border border-[var(--edge)] p-1 min-w-[140px]">
                         <input
                           defaultValue={col}
                           disabled={!canEdit}
                           onBlur={(e) => onHeaderChange(i, e.target.value)}
-                          className="w-full bg-transparent text-white px-2 py-1 font-medium"
+                          className="w-full bg-transparent text-[var(--ink)] px-2 py-1 font-medium"
                         />
                         {canEdit && columns.length > 1 && (
                           <button
                             type="button"
                             onClick={() => removeColumn(i)}
-                            className="text-[11px] text-slate-500 hover:text-red-400 px-2 pb-1"
+                            className="text-[11px] text-[var(--text-muted)] hover:text-red-400 px-2 pb-1"
                           >
                             מחק עמודה
                           </button>
@@ -148,7 +148,7 @@ export function TableEditor({
                     ))}
                     {canEdit && (
                       <th className="w-10 p-1">
-                        <button type="button" onClick={addColumn} className="text-slate-400 hover:text-white px-2">+</button>
+                        <button type="button" onClick={addColumn} className="text-[var(--text-secondary)] hover:text-[var(--ink)] px-2">+</button>
                       </th>
                     )}
                   </tr>
@@ -156,16 +156,16 @@ export function TableEditor({
                 <tbody>
                   {rows.length === 0 && (
                     <tr>
-                      <td colSpan={columns.length + 2} className="text-center text-slate-500 py-6">
+                      <td colSpan={columns.length + 2} className="text-center text-[var(--text-muted)] py-6">
                         אין שורות. הוסף שורה או הדבק מ-Excel.
                       </td>
                     </tr>
                   )}
                   {rows.map((row, rowIndex) => (
-                    <tr key={rowIndex} className="odd:bg-slate-800/20">
-                      <td className="px-2 text-slate-500 text-center">{rowIndex + 1}</td>
+                    <tr key={rowIndex} className="odd:bg-[var(--glass-2)]/20">
+                      <td className="px-2 text-[var(--text-muted)] text-center">{rowIndex + 1}</td>
                       {columns.map((col, colIndex) => (
-                        <td key={col} className="border border-slate-800 p-0">
+                        <td key={col} className="border border-[var(--edge)] p-0">
                           <input
                             value={row[col] ?? ''}
                             disabled={!canEdit}
@@ -177,9 +177,9 @@ export function TableEditor({
                               e.preventDefault();
                               onPaste(rowIndex, colIndex, text);
                             }}
-                            className={`w-full bg-transparent text-white px-2 py-1.5 ${
+                            className={`w-full bg-transparent text-[var(--ink)] px-2 py-1.5 ${
                               active?.row === rowIndex && active?.col === colIndex
-                                ? 'outline outline-1 outline-purple-500'
+                                ? 'outline outline-1 outline-[var(--acc)]'
                                 : ''
                             }`}
                           />
@@ -190,7 +190,7 @@ export function TableEditor({
                           <button
                             type="button"
                             onClick={() => removeRow(rowIndex)}
-                            className="text-slate-500 hover:text-red-400 px-1"
+                            className="text-[var(--text-muted)] hover:text-red-400 px-1"
                           >
                             ×
                           </button>
@@ -206,7 +206,7 @@ export function TableEditor({
               <div className="flex flex-wrap items-center gap-2">
                 <Button variant="secondary" size="sm" onClick={addRow}>+ שורה</Button>
                 <Button variant="secondary" size="sm" onClick={addColumn}>+ עמודה</Button>
-                <span className="text-xs text-slate-500">אפשר להדביק ישירות מ-Excel</span>
+                <span className="text-xs text-[var(--text-muted)]">אפשר להדביק ישירות מ-Excel</span>
               </div>
             )}
 

@@ -37,8 +37,8 @@ export function AdminBubble({ msg }: { msg: PlaygroundAdminMessage }) {
     <div className={`flex ${centered ? 'justify-center' : isUser ? 'justify-start' : 'justify-end'}`}>
       <div className={isFunction
         ? 'w-fit max-w-[min(90%,28rem)]'
-        : `max-w-[75%] px-4 py-2.5 rounded-2xl ${
-            isUser ? 'bg-emerald-600/20 text-emerald-50' : 'bg-slate-700/50 text-slate-100'
+        : `min-w-0 max-w-[min(88%,28rem)] px-3.5 py-2.5 md:px-4 rounded-2xl break-words [overflow-wrap:anywhere] ${
+            isUser ? 'bg-[var(--mine)] text-[var(--ink)]' : 'bg-[var(--glass-2)] text-[var(--ink)]'
           }`
       }>
         {isEscalation && <EscalationNote content={display} />}
@@ -54,7 +54,7 @@ export function AdminBubble({ msg }: { msg: PlaygroundAdminMessage }) {
           <div className="text-sm whitespace-pre-wrap leading-relaxed">{display}</div>
         )}
         {at && !isFunction && (
-          <div className="text-[10px] mt-1.5 text-slate-500">
+          <div className="text-[10px] mt-1.5 text-[var(--text-muted)]">
             {at.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
           </div>
         )}
@@ -70,7 +70,7 @@ export function SessionDivider({ at, live }: { at: string | null; live: boolean 
     : `איפוס שיחה · ${date ? date.toLocaleString('he-IL') : ''}`;
   return (
     <div className="flex items-center justify-center my-4">
-      <span className="text-[11px] text-slate-400 bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700">
+      <span className="text-[11px] text-[var(--text-secondary)] bg-[var(--glass-2)] px-3 py-1 rounded-full border border-[var(--edge)] max-w-full text-center truncate">
         {label}
       </span>
     </div>
@@ -86,7 +86,7 @@ export function ExportButton({
 }) {
   return (
     <div className="flex justify-end mb-2">
-      <Button variant="secondary" size="sm" disabled={busy} onClick={onClick}>
+      <Button variant="secondary" size="sm" className="w-full md:w-auto min-h-11" disabled={busy} onClick={onClick}>
         ייצוא שיחה
       </Button>
     </div>

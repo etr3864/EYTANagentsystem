@@ -57,12 +57,12 @@ function MonthGrid({
 
   return (
     <div className="w-[280px]">
-      <div className="text-center text-sm font-semibold text-white mb-3">
+      <div className="text-center text-sm font-semibold text-[var(--ink)] mb-3">
         {hebrewMonth(month)} {year}
       </div>
       <div className="grid grid-cols-7 gap-0">
         {DAY_NAMES.map((n) => (
-          <div key={n} className="text-center text-xs text-slate-500 py-1">{n}</div>
+          <div key={n} className="text-center text-xs text-[var(--text-muted)] py-1">{n}</div>
         ))}
         {cells.map((cell, i) => {
           if (!cell) return <div key={`e-${i}`} />;
@@ -73,8 +73,8 @@ function MonthGrid({
           const isFuture = cell > today;
 
           let bg = '';
-          if (isStart || isEnd) bg = 'bg-purple-600 text-white rounded-full';
-          else if (inRange) bg = 'bg-purple-600/20 text-purple-300';
+          if (isStart || isEnd) bg = 'bg-[var(--ink)] text-[var(--bg)] rounded-full';
+          else if (inRange) bg = 'bg-[var(--acc)]/20 text-[var(--acc)]';
 
           return (
             <button
@@ -83,10 +83,10 @@ function MonthGrid({
               onClick={() => onDayClick(cell)}
               className={`
                 h-9 w-full text-sm text-center transition-colors
-                ${isFuture ? 'text-slate-700 cursor-not-allowed' : 'hover:bg-slate-600/50 cursor-pointer'}
-                ${isToday && !isStart && !isEnd ? 'font-bold text-purple-400' : ''}
+                ${isFuture ? 'text-[var(--text-muted)] cursor-not-allowed' : 'hover:bg-[var(--bg-hover)] cursor-pointer'}
+                ${isToday && !isStart && !isEnd ? 'font-bold text-[var(--acc)]' : ''}
                 ${bg}
-                ${!bg && !isFuture ? 'text-slate-300' : ''}
+                ${!bg && !isFuture ? 'text-[var(--text-secondary)]' : ''}
               `}
             >
               {cell.getDate()}
@@ -177,17 +177,17 @@ export function DateRangePicker({ from, to, isCustom = false, onChange }: DateRa
       <button
         onClick={() => setOpen(!open)}
         className={`
-          flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-white transition-colors
+          flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-[var(--ink)] transition-colors
           ${isCustom
-            ? 'bg-purple-600/15 border border-purple-500/50 hover:border-purple-400/70'
-            : 'bg-white/5 border border-purple-500/10 hover:border-purple-500/25'
+            ? 'bg-[var(--acc)]/15 border border-[var(--acc)]/50 hover:border-[var(--acc)]'
+            : 'bg-[var(--glass-2)] border border-[var(--edge)] hover:border-[var(--acc)]/40'
           }
         `}
       >
-        <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-4 h-4 text-[var(--text-secondary)] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
-        <span className={isCustom ? 'text-purple-300' : 'text-slate-300'}>
+        <span className={isCustom ? 'text-[var(--acc)]' : 'text-[var(--text-secondary)]'}>
           {formatLabel(from, to)}
         </span>
       </button>
@@ -195,22 +195,22 @@ export function DateRangePicker({ from, to, isCustom = false, onChange }: DateRa
       {open && (
         <div
           className={`
-            absolute z-50 bg-[#0F0B1F] border border-purple-500/15 rounded-xl shadow-2xl p-4
+            absolute z-50 bg-[var(--bg-secondary)] border border-[var(--edge)] rounded-xl shadow-2xl p-4
             right-0 md:right-auto md:left-0
             ${dropUp ? 'bottom-full mb-2' : 'top-full mt-2'}
           `}
           style={{ maxWidth: 'calc(100vw - 24px)' }}
         >
           {selecting && (
-            <p className="text-xs text-purple-400 text-center mb-2">בחר את תאריך הסיום</p>
+            <p className="text-xs text-[var(--acc)] text-center mb-2">בחר את תאריך הסיום</p>
           )}
           <div className="flex items-center justify-between mb-2 px-1">
-            <button onClick={goForward} className="p-1 rounded hover:bg-white/10 text-slate-400">
+            <button onClick={goForward} className="p-1 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)]">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <button onClick={goBack} className="p-1 rounded hover:bg-white/10 text-slate-400">
+            <button onClick={goBack} className="p-1 rounded hover:bg-[var(--bg-hover)] text-[var(--text-secondary)]">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
               </svg>

@@ -21,7 +21,7 @@ export function ListPager({
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-      <p className="text-sm text-slate-400">
+      <p className="text-sm text-[var(--text-secondary)]">
         {from}–{to} מתוך {total}
       </p>
       {totalPages > 1 && (
@@ -35,7 +35,7 @@ export function ListPager({
           >
             הקודם
           </Button>
-          <span className="text-sm text-slate-400 min-w-[3.5rem] text-center tabular-nums">
+          <span className="text-sm text-[var(--text-secondary)] min-w-[3.5rem] text-center tabular-nums">
             {page} / {totalPages}
           </span>
           <Button

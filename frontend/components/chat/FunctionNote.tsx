@@ -57,7 +57,7 @@ export function FunctionNote({ content }: { content: string }) {
         <span className="text-[9px] opacity-50 transition-transform group-open:rotate-180">▾</span>
       </summary>
       <pre
-        className="mt-1.5 max-h-40 overflow-auto rounded-md border border-white/10 bg-black/40 p-2 text-[10px] leading-relaxed text-slate-300 whitespace-pre-wrap text-left"
+        className="mt-1.5 max-h-40 overflow-auto rounded-md border border-[var(--edge)] bg-black/40 p-2 text-[10px] leading-relaxed text-[var(--text-secondary)] whitespace-pre-wrap text-left"
         dir="ltr"
       >
         {note.error ? `error: ${note.error}\n\n` : ''}

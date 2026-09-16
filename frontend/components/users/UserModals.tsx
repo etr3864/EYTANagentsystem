@@ -141,7 +141,7 @@ export function ResetPasswordModal({ user: userItem, type, onClose }: {
       {success ? (
         <div className="text-center py-4">
           <div className="text-emerald-400 text-lg mb-2">הסיסמה אופסה בהצלחה</div>
-          <p className="text-slate-400 text-sm">סוגר...</p>
+          <p className="text-[var(--text-secondary)] text-sm">סוגר...</p>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -203,18 +203,18 @@ export function AgentAssignmentModal({ admin, onClose, onUpdated }: {
   return (
     <Modal onClose={onClose} title={`סוכנים של ${admin.name}`} wide>
       {loading ? (
-        <div className="text-center py-8 text-slate-400">טוען...</div>
+        <div className="text-center py-8 text-[var(--text-secondary)]">טוען...</div>
       ) : (
         <div className="space-y-6">
           <div>
-            <h3 className="text-sm font-medium text-slate-300 mb-3">סוכנים משויכים</h3>
+            <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-3">סוכנים משויכים</h3>
             {assignedAgents.length === 0 ? (
-              <p className="text-slate-500 text-sm">אין סוכנים משויכים</p>
+              <p className="text-[var(--text-muted)] text-sm">אין סוכנים משויכים</p>
             ) : (
               <div className="space-y-2">
                 {assignedAgents.map(agent => (
-                  <div key={agent.id} className="flex justify-between items-center bg-slate-800 rounded-lg p-3">
-                    <span className="text-white">{agent.name}</span>
+                  <div key={agent.id} className="flex justify-between items-center bg-[var(--glass-2)] rounded-lg p-3">
+                    <span className="text-[var(--ink)]">{agent.name}</span>
                     <Button variant="ghost" size="sm" onClick={() => handleUnassign(agent.id)} disabled={actionLoading === agent.id} className="text-red-400 hover:text-red-300">
                       {actionLoading === agent.id ? '...' : 'הסר'}
                     </Button>
@@ -226,11 +226,11 @@ export function AgentAssignmentModal({ admin, onClose, onUpdated }: {
 
           {unassignedAgents.length > 0 && (
             <div>
-              <h3 className="text-sm font-medium text-slate-300 mb-3">סוכנים זמינים לשיוך</h3>
+              <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-3">סוכנים זמינים לשיוך</h3>
               <div className="space-y-2">
                 {unassignedAgents.map(agent => (
-                  <div key={agent.id} className="flex justify-between items-center bg-slate-700/50 rounded-lg p-3">
-                    <span className="text-slate-300">{agent.name}</span>
+                  <div key={agent.id} className="flex justify-between items-center bg-[var(--glass-2)] rounded-lg p-3">
+                    <span className="text-[var(--text-secondary)]">{agent.name}</span>
                     <Button variant="primary" size="sm" onClick={() => handleAssign(agent.id)} disabled={actionLoading === agent.id}>
                       {actionLoading === agent.id ? '...' : 'שייך'}
                     </Button>

@@ -83,55 +83,55 @@ function DataDeletionInner() {
   const dir = lang === 'he' ? 'rtl' : 'ltr';
 
   return (
-    <div dir={dir} className="min-h-screen bg-slate-900 text-slate-200 py-12 px-4">
+    <div dir={dir} className="min-h-screen bg-[var(--bg-secondary)] text-[var(--ink)] py-12 px-4">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <Link href="/home" className="text-sm text-slate-400 hover:text-white transition">
+          <Link href="/home" className="text-sm text-[var(--text-secondary)] hover:text-[var(--ink)] transition">
             ← {t.backHome}
           </Link>
           <button
             onClick={() => setLang(lang === 'he' ? 'en' : 'he')}
-            className="px-3 py-1 text-xs rounded border border-white/10 text-slate-300 hover:text-white hover:border-white/20 transition"
+            className="px-3 py-1 text-xs rounded border border-[var(--edge)] text-[var(--text-secondary)] hover:text-[var(--ink)] hover:border-[var(--edge-strong)] transition"
           >
             {lang === 'he' ? 'EN' : 'עב'}
           </button>
         </div>
 
-        <h1 className="text-3xl font-bold text-white mb-2">{t.title}</h1>
-        <p className="text-slate-400 mb-8">{t.subtitle}</p>
+        <h1 className="text-3xl font-bold text-[var(--ink)] mb-2">{t.title}</h1>
+        <p className="text-[var(--text-secondary)] mb-8">{t.subtitle}</p>
 
         {code && (
           <div className="mb-8 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-5">
             <p className="text-emerald-300 font-semibold">{t.statusBox}</p>
-            <p className="text-sm text-slate-300 mt-2">
-              {t.statusBoxSub} <code className="px-2 py-0.5 rounded bg-slate-800 text-emerald-300">{code}</code>
+            <p className="text-sm text-[var(--text-secondary)] mt-2">
+              {t.statusBoxSub} <code className="px-2 py-0.5 rounded bg-[var(--glass-2)] text-emerald-300">{code}</code>
             </p>
-            <p className="text-xs text-slate-400 mt-3 leading-relaxed">{t.statusInfo}</p>
+            <p className="text-xs text-[var(--text-secondary)] mt-3 leading-relaxed">{t.statusInfo}</p>
           </div>
         )}
 
         <section className="mb-8">
-          <h2 className="text-xl font-semibold text-white mb-4">{t.methodsTitle}</h2>
+          <h2 className="text-xl font-semibold text-[var(--ink)] mb-4">{t.methodsTitle}</h2>
           <div className="space-y-3">
             {t.methods.map((m, i) => (
-              <div key={i} className="rounded-xl border border-white/10 bg-white/[0.02] p-5">
-                <h3 className="text-white font-semibold mb-1">{m.title}</h3>
-                <p className="text-sm text-slate-400 leading-relaxed">{m.body}</p>
+              <div key={i} className="rounded-xl border border-[var(--edge)] bg-[var(--glass)] p-5">
+                <h3 className="text-[var(--ink)] font-semibold mb-1">{m.title}</h3>
+                <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{m.body}</p>
               </div>
             ))}
           </div>
         </section>
 
         <section className="mb-8">
-          <h2 className="text-xl font-semibold text-white mb-4">{t.scopeTitle}</h2>
-          <ul className="list-disc list-inside space-y-1 text-sm text-slate-300 rtl:pr-4 ltr:pl-4">
+          <h2 className="text-xl font-semibold text-[var(--ink)] mb-4">{t.scopeTitle}</h2>
+          <ul className="list-disc list-inside space-y-1 text-sm text-[var(--text-secondary)] rtl:pr-4 ltr:pl-4">
             {t.scope.map((s, i) => <li key={i}>{s}</li>)}
           </ul>
         </section>
 
-        <p className="text-xs text-slate-500 mb-6 leading-relaxed">{t.timeline}</p>
+        <p className="text-xs text-[var(--text-muted)] mb-6 leading-relaxed">{t.timeline}</p>
 
-        <Link href="/privacy" className="text-sm text-blue-400 hover:underline">
+        <Link href="/privacy" className="text-sm text-[var(--acc)] hover:underline">
           {t.privacy}
         </Link>
       </div>
@@ -141,7 +141,7 @@ function DataDeletionInner() {
 
 export default function DataDeletionPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-900" />}>
+    <Suspense fallback={<div className="min-h-screen bg-[var(--bg-secondary)]" />}>
       <DataDeletionInner />
     </Suspense>
   );

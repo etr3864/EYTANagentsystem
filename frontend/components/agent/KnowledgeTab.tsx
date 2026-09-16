@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, Card, TrashIcon } from '@/components/ui';
+import { Button, Card, TrashIcon, ListPager } from '@/components/ui';
 import type { Document, DataTable } from '@/lib/types';
 import {
   bulkDeleteDocuments,
@@ -18,6 +18,7 @@ import { TableEditor } from './knowledge/TableEditor';
 import { TitleDialog } from './knowledge/TitleDialog';
 import { suggestedTitle } from './knowledge/grid';
 import { FILE_TOO_HEAVY, MAX_UPLOAD_BYTES } from './knowledge/limits';
+import { usePagedList } from '@/lib/usePagedList';
 
 interface KnowledgeTabProps {
   agentId: number;
@@ -47,6 +48,8 @@ export function KnowledgeTab({ agentId, canUpload = true }: KnowledgeTabProps) {
   const [uploadStatus, setUploadStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const pagedDocs = usePagedList(documents, 'documents');
+  const pagedTables = usePagedList(tables, 'tables');
 
   const docInputRef = useRef<HTMLInputElement>(null);
   const tableInputRef = useRef<HTMLInputElement>(null);
@@ -227,8 +230,8 @@ export function KnowledgeTab({ agentId, canUpload = true }: KnowledgeTabProps) {
             onClick={() => setSection(tab.id)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               section === tab.id
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
+                ? 'bg-[var(--ink)] text-[var(--bg)]'
+                : 'bg-[var(--glass-2)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
             }`}
           >
             {tab.label}
@@ -245,16 +248,16 @@ export function KnowledgeTab({ agentId, canUpload = true }: KnowledgeTabProps) {
       )}
 
       {uploading && (
-        <Card className="!bg-blue-500/10 border-blue-500/30">
+        <Card className="!bg-[var(--acc)]/10 border-[var(--acc)]/30">
           <div className="flex items-center gap-4">
-            <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-3 border-[var(--acc)] border-t-transparent rounded-full animate-spin" />
             <div className="flex-1">
-              <div className="text-sm text-blue-300 mb-2">{uploadStatus}</div>
-              <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-                <div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+              <div className="text-sm text-[var(--acc)] mb-2">{uploadStatus}</div>
+              <div className="h-2 bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
+                <div className="h-full bg-[var(--acc)] transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
               </div>
             </div>
-            <span className="text-blue-400 font-medium">{uploadProgress}%</span>
+            <span className="text-[var(--acc)] font-medium">{uploadProgress}%</span>
           </div>
         </Card>
       )}
@@ -263,7 +266,7 @@ export function KnowledgeTab({ agentId, canUpload = true }: KnowledgeTabProps) {
         {section === 'documents' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-3 flex-wrap">
-              <h3 className="font-medium text-white">מסמכים</h3>
+              <h3 className="font-medium text-[var(--ink)]">מסמכים</h3>
               <div className="flex gap-2 flex-wrap">
                 {selected.length > 0 && (
                   <Button variant="danger" size="sm" onClick={removeSelected}>
@@ -300,44 +303,52 @@ export function KnowledgeTab({ agentId, canUpload = true }: KnowledgeTabProps) {
               </div>
             </div>
 
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[var(--text-secondary)]">
               PDF, DOCX או TXT. עד 10MB או כ-100 עמודים. קובץ גדול יותר — פצל למסמכים נפרדים.
               לכל קובץ בוחרים כותרת לפני ההעלאה. אפשר גם לכתוב מסמך ידנית.
             </p>
 
             {loading ? (
-              <p className="text-sm text-slate-400">טוען…</p>
+              <p className="text-sm text-[var(--text-secondary)]">טוען…</p>
             ) : documents.length === 0 ? (
-              <div className="text-center py-8 text-slate-400">אין מסמכים עדיין</div>
+              <div className="text-center py-8 text-[var(--text-secondary)]">אין מסמכים עדיין</div>
             ) : (
               <div className="space-y-2">
-                {documents.map((doc) => (
-                  <div key={doc.id} className="bg-slate-800/30 rounded-lg p-3 flex items-center gap-3">
+                {pagedDocs.items.map((doc) => (
+                  <div key={doc.id} className="bg-[var(--glass)] rounded-lg p-3 flex items-center gap-3">
                     <input
                       type="checkbox"
                       checked={selected.includes(doc.id)}
                       onChange={() => toggleSelected(doc.id)}
-                      className="accent-purple-500"
+                      className="accent-[var(--acc)]"
                     />
                     <button
                       type="button"
                       onClick={() => setOpenDoc(doc.id)}
                       className="flex-1 min-w-0 text-right"
                     >
-                      <div className="font-medium text-white truncate">{doc.filename}</div>
-                      <div className="text-xs text-slate-400">
+                      <div className="font-medium text-[var(--ink)] truncate">{doc.filename}</div>
+                      <div className="text-xs text-[var(--text-secondary)]">
                         {doc.file_type.toUpperCase()} • {formatFileSize(doc.file_size)} • {doc.chunk_count} חלקים
                         {doc.has_source ? '' : ' • בלי תצוגת מקור'}
                       </div>
                     </button>
                     <button
                       onClick={() => removeDocument(doc.id)}
-                      className="text-slate-500 hover:text-red-400 p-1"
+                      className="text-[var(--text-muted)] hover:text-red-400 p-1"
                     >
                       <TrashIcon />
                     </button>
                   </div>
                 ))}
+                <ListPager
+                  page={pagedDocs.page}
+                  totalPages={pagedDocs.totalPages}
+                  from={pagedDocs.from}
+                  to={pagedDocs.to}
+                  total={pagedDocs.total}
+                  onPage={pagedDocs.setPage}
+                />
               </div>
             )}
           </div>
@@ -346,7 +357,7 @@ export function KnowledgeTab({ agentId, canUpload = true }: KnowledgeTabProps) {
         {section === 'tables' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between gap-3 flex-wrap">
-              <h3 className="font-medium text-white">טבלאות</h3>
+              <h3 className="font-medium text-[var(--ink)]">טבלאות</h3>
               {canUpload && (
                 <div className="flex gap-2">
                   <input
@@ -367,36 +378,44 @@ export function KnowledgeTab({ agentId, canUpload = true }: KnowledgeTabProps) {
               )}
             </div>
 
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-[var(--text-secondary)]">
               צפייה ועריכת תאים במסך. שמירה מעדכנת את החיפוש. אפשר להדביק מ-Excel.
             </p>
 
             {loading ? (
-              <p className="text-sm text-slate-400">טוען…</p>
+              <p className="text-sm text-[var(--text-secondary)]">טוען…</p>
             ) : tables.length === 0 ? (
-              <div className="text-center py-8 text-slate-400">אין טבלאות עדיין</div>
+              <div className="text-center py-8 text-[var(--text-secondary)]">אין טבלאות עדיין</div>
             ) : (
               <div className="space-y-2">
-                {tables.map((table) => (
-                  <div key={table.id} className="bg-slate-800/30 rounded-lg p-3 flex items-center gap-3">
+                {pagedTables.items.map((table) => (
+                  <div key={table.id} className="bg-[var(--glass)] rounded-lg p-3 flex items-center gap-3">
                     <button
                       type="button"
                       onClick={() => setOpenTable(table.id)}
                       className="flex-1 min-w-0 text-right"
                     >
-                      <div className="font-medium text-white truncate">{table.name}</div>
-                      <div className="text-xs text-slate-400">
+                      <div className="font-medium text-[var(--ink)] truncate">{table.name}</div>
+                      <div className="text-xs text-[var(--text-secondary)]">
                         {table.row_count} שורות • {Object.keys(table.columns).length} עמודות
                       </div>
                     </button>
                     <button
                       onClick={() => removeTable(table.id)}
-                      className="text-slate-500 hover:text-red-400 p-1"
+                      className="text-[var(--text-muted)] hover:text-red-400 p-1"
                     >
                       <TrashIcon />
                     </button>
                   </div>
                 ))}
+                <ListPager
+                  page={pagedTables.page}
+                  totalPages={pagedTables.totalPages}
+                  from={pagedTables.from}
+                  to={pagedTables.to}
+                  total={pagedTables.total}
+                  onPage={pagedTables.setPage}
+                />
               </div>
             )}
           </div>

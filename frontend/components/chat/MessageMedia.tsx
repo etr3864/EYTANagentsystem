@@ -39,7 +39,7 @@ function DownloadLink({ url, label }: { url: string; label: string }) {
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-300 hover:text-blue-200 underline underline-offset-2"
+      className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--acc)] hover:text-[var(--acc)] underline underline-offset-2"
     >
       <DownloadIcon className="w-3.5 h-3.5" />
       {label}
@@ -81,7 +81,7 @@ export function MessageMedia({ msg, displayContent }: MessageMediaProps) {
   if (isVoice) {
     return (
       <div className="mb-2">
-        <div className="flex items-center gap-2 text-purple-400 text-xs mb-2 pb-2 border-b border-purple-500/20">
+        <div className="flex items-center gap-2 text-[var(--acc)] text-xs mb-2 pb-2 border-b border-[var(--acc)]/20">
           <VoiceIcon />
           <span>הודעה קולית</span>
         </div>
@@ -118,7 +118,7 @@ export function MessageMedia({ msg, displayContent }: MessageMediaProps) {
   return (
     <div className="mb-2">
       <div className={`flex items-center gap-2 text-xs mb-2 pb-2 border-b ${
-        isVideo ? 'text-pink-400 border-pink-500/20' : 'text-indigo-400 border-indigo-500/20'
+        isVideo ? 'text-pink-400 border-pink-500/20' : 'text-[var(--acc)] border-[var(--acc)]/20'
       }`}>
         {isVideo ? <VideoIcon /> : <ImageIcon />}
         <span>{isVideo ? 'סרטון' : 'תמונה'}</span>

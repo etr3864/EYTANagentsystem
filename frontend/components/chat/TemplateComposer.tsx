@@ -88,20 +88,20 @@ export function TemplateComposer({
       <select
         value={templateId}
         onChange={e => setTemplateId(Number(e.target.value))}
-        className="w-full px-3 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white text-sm"
+        className="w-full px-3 py-2 rounded-lg bg-[var(--glass-2)] border border-[var(--edge-strong)] text-[var(--ink)] text-sm"
       >
         {approved.map(t => (
           <option key={t.id} value={t.id}>{t.name} ({t.language})</option>
         ))}
       </select>
       {needsHeader && (
-        <label className="block text-xs text-slate-300 space-y-1">
+        <label className="block text-xs text-[var(--text-secondary)] space-y-1">
           <span>קובץ כותרת ({headerFmt === 'IMAGE' ? 'תמונה' : headerFmt === 'VIDEO' ? 'וידאו' : 'קובץ'})</span>
           <input
             type="file"
             accept={headerFmt === 'IMAGE' ? 'image/*' : headerFmt === 'VIDEO' ? 'video/*' : '*/*'}
             onChange={e => setHeaderFile(e.target.files?.[0] || null)}
-            className="block w-full text-xs text-slate-400"
+            className="block w-full text-xs text-[var(--text-secondary)]"
           />
         </label>
       )}
@@ -116,11 +116,11 @@ export function TemplateComposer({
             setParams(next);
           }}
           placeholder={`משתנה {{${i + 1}}}`}
-          className="w-full px-3 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white text-sm placeholder-slate-400"
+          className="w-full px-3 py-2 rounded-lg bg-[var(--glass-2)] border border-[var(--edge-strong)] text-[var(--ink)] text-sm placeholder:text-[var(--text-muted)]"
         />
       ))}
       {tpl && (
-        <div className="rounded-lg bg-slate-900/50 border border-slate-700 px-3 py-2 text-sm text-slate-200 whitespace-pre-wrap">
+        <div className="rounded-lg bg-[var(--glass)] border border-[var(--edge)] px-3 py-2 text-sm text-[var(--ink)] whitespace-pre-wrap">
           {(headerFile || tpl.header_media_url) && needsHeader && headerFmt === 'IMAGE' && (
             <img
               src={headerFile ? URL.createObjectURL(headerFile) : tpl.header_media_url || ''}
@@ -128,15 +128,15 @@ export function TemplateComposer({
               className="max-h-28 rounded mb-2 object-cover"
             />
           )}
-          {preview || <span className="text-slate-500">תצוגה מקדימה</span>}
-          {footer && <div className="text-[11px] text-slate-500 mt-2">{footer}</div>}
+          {preview || <span className="text-[var(--text-muted)]">תצוגה מקדימה</span>}
+          {footer && <div className="text-[11px] text-[var(--text-muted)] mt-2">{footer}</div>}
         </div>
       )}
       <button
         type="button"
         onClick={() => void handleSend()}
         disabled={sending}
-        className="w-full px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 text-white font-medium"
+        className="w-full px-4 py-2.5 rounded-xl bg-[var(--ink)] hover:opacity-90 disabled:bg-[var(--bg-tertiary)] text-[var(--bg)] font-medium"
       >
         {sending ? 'שולח...' : 'שלח תבנית'}
       </button>

@@ -156,7 +156,7 @@ export default function HomePage() {
   const dir = lang === 'he' ? 'rtl' : 'ltr';
 
   return (
-    <div dir={dir} className="min-h-screen bg-[var(--bg-primary)] text-white overflow-hidden">
+    <div dir={dir} className="min-h-screen bg-[var(--bg-primary)] text-[var(--ink)] overflow-hidden">
       <div className="relative z-10">
         {/* ───── Navbar ───── */}
         <nav className="border-b border-[var(--edge)] backdrop-blur-md bg-[var(--bg)]/55 sticky top-0 z-50">
@@ -167,7 +167,7 @@ export default function HomePage() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setLang(lang === 'he' ? 'en' : 'he')}
-                className="px-3 py-1.5 text-sm rounded-lg border border-white/10 text-slate-300 hover:text-white hover:border-white/20 transition"
+                className="px-3 py-1.5 text-sm rounded-lg border border-[var(--edge)] text-[var(--text-secondary)] hover:text-[var(--ink)] hover:border-[var(--edge-strong)] transition"
               >
                 {lang === 'he' ? 'EN' : 'עב'}
               </button>
@@ -183,7 +183,7 @@ export default function HomePage() {
 
         {/* ───── Hero ───── */}
         <section className="max-w-5xl mx-auto px-5 pt-24 pb-20 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 text-sm text-slate-300 mb-8">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[var(--edge)] bg-[var(--glass-2)] text-sm text-[var(--text-secondary)] mb-8">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             Optive AI Platform
           </div>
@@ -191,19 +191,19 @@ export default function HomePage() {
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold leading-tight tracking-tight">
             {t.heroTitle}
             <br />
-            <span className="bg-gradient-to-r from-purple-400 via-violet-500 to-purple-600 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-[var(--acc)] to-[var(--acc2)] bg-clip-text text-transparent">
               {t.heroTitleAccent}
             </span>
           </h1>
 
-          <p className="mt-6 text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
+          <p className="mt-6 text-lg sm:text-xl text-[var(--text-secondary)] max-w-2xl mx-auto leading-relaxed">
             {t.heroSub}
           </p>
 
           <div className="mt-10">
             <Link
               href="/login"
-              className="inline-flex items-center gap-2 px-8 py-3.5 text-base font-medium rounded-xl bg-purple-600 hover:bg-purple-500 transition shadow-xl shadow-purple-600/25"
+              className="inline-flex items-center gap-2 px-8 py-3.5 text-base font-medium rounded-xl bg-[var(--ink)] text-[var(--bg)] hover:opacity-90 transition shadow-xl shadow-[var(--acc)]/20"
             >
               {t.login}
               <svg className={`w-4 h-4 ${lang === 'he' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -223,11 +223,11 @@ export default function HomePage() {
             {t.features.map((f, i) => (
               <div
                 key={i}
-                className="group p-6 rounded-2xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/10 transition-all duration-300"
+                className="group p-6 rounded-2xl border border-[var(--edge)] bg-[var(--glass)] hover:bg-[var(--glass)] hover:border-[var(--edge)] transition-all duration-300"
               >
                 <div className="text-3xl mb-4">{f.icon}</div>
-                <h3 className="text-lg font-semibold text-white mb-2">{f.title}</h3>
-                <p className="text-sm text-slate-400 leading-relaxed">{f.desc}</p>
+                <h3 className="text-lg font-semibold text-[var(--ink)] mb-2">{f.title}</h3>
+                <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{f.desc}</p>
               </div>
             ))}
           </div>
@@ -236,16 +236,16 @@ export default function HomePage() {
         {/* ───── Multi-Channel Section ───── */}
         <section className="max-w-6xl mx-auto px-5 py-20">
           <h2 className="text-3xl sm:text-4xl font-bold text-center mb-4">{t.channelsTitle}</h2>
-          <p className="text-slate-400 text-center max-w-2xl mx-auto mb-12">{t.channelsDesc}</p>
+          <p className="text-[var(--text-secondary)] text-center max-w-2xl mx-auto mb-12">{t.channelsDesc}</p>
           <div className="grid sm:grid-cols-3 gap-5">
             {t.channels.map((c, i) => (
               <div
                 key={i}
-                className="p-6 rounded-2xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/10 transition-all duration-300"
+                className="p-6 rounded-2xl border border-[var(--edge)] bg-[var(--glass)] hover:bg-[var(--glass)] hover:border-[var(--edge)] transition-all duration-300"
               >
                 <div className="text-3xl mb-3">{c.icon}</div>
-                <h3 className="text-lg font-semibold text-white mb-2">{c.name}</h3>
-                <p className="text-sm text-slate-400 leading-relaxed">{c.desc}</p>
+                <h3 className="text-lg font-semibold text-[var(--ink)] mb-2">{c.name}</h3>
+                <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{c.desc}</p>
               </div>
             ))}
           </div>
@@ -253,17 +253,17 @@ export default function HomePage() {
 
         {/* ───── Google Calendar Section ───── */}
         <section className="max-w-5xl mx-auto px-5 py-20">
-          <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-8 sm:p-12">
+          <div className="rounded-2xl border border-[var(--edge)] bg-[var(--glass)] p-8 sm:p-12">
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center shrink-0">
-                <svg className="w-6 h-6 text-purple-400" viewBox="0 0 24 24" fill="currentColor">
+              <div className="w-12 h-12 rounded-xl bg-[var(--acc)]/10 flex items-center justify-center shrink-0">
+                <svg className="w-6 h-6 text-[var(--acc)]" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 002 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM5 8V6h14v2H5zm2 4h5v5H7v-5z" />
                 </svg>
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold">{t.calendarTitle}</h2>
             </div>
 
-            <p className="text-slate-400 leading-relaxed mb-6 max-w-3xl">
+            <p className="text-[var(--text-secondary)] leading-relaxed mb-6 max-w-3xl">
               {t.calendarDesc}
             </p>
 
@@ -273,7 +273,7 @@ export default function HomePage() {
                   <svg className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  <span className="text-slate-300 text-sm">{point}</span>
+                  <span className="text-[var(--text-secondary)] text-sm">{point}</span>
                 </li>
               ))}
             </ul>
@@ -282,7 +282,7 @@ export default function HomePage() {
 
         {/* ───── Compliance Section ───── */}
         <section className="max-w-5xl mx-auto px-5 py-20">
-          <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-8 sm:p-12">
+          <div className="rounded-2xl border border-[var(--edge)] bg-[var(--glass)] p-8 sm:p-12">
             <div className="flex items-center gap-4 mb-6">
               <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
                 <svg className="w-6 h-6 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -291,14 +291,14 @@ export default function HomePage() {
               </div>
               <h2 className="text-2xl sm:text-3xl font-bold">{t.complianceTitle}</h2>
             </div>
-            <p className="text-slate-400 leading-relaxed mb-6 max-w-3xl">{t.complianceDesc}</p>
+            <p className="text-[var(--text-secondary)] leading-relaxed mb-6 max-w-3xl">{t.complianceDesc}</p>
             <ul className="space-y-3">
               {t.compliancePoints.map((point, i) => (
                 <li key={i} className="flex items-start gap-3">
                   <svg className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  <span className="text-slate-300 text-sm">{point}</span>
+                  <span className="text-[var(--text-secondary)] text-sm">{point}</span>
                 </li>
               ))}
             </ul>
@@ -308,34 +308,34 @@ export default function HomePage() {
         {/* ───── About ───── */}
         <section className="max-w-5xl mx-auto px-5 py-20 text-center">
           <h2 className="text-3xl sm:text-4xl font-bold mb-6">{t.companyTitle}</h2>
-          <p className="text-slate-400 leading-relaxed max-w-2xl mx-auto">
+          <p className="text-[var(--text-secondary)] leading-relaxed max-w-2xl mx-auto">
             {t.companyDesc}
           </p>
         </section>
 
         {/* ───── Footer ───── */}
-        <footer className="border-t border-white/5 bg-[#0B0914]/80 backdrop-blur-sm">
+        <footer className="border-t border-[var(--edge)] bg-[var(--bg)]/80 backdrop-blur-sm">
           <div className="max-w-6xl mx-auto px-5 py-8">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <BrandMark size={28} />
-                <span className="text-sm text-slate-500">{t.rights}</span>
+                <span className="text-sm text-[var(--text-muted)]">{t.rights}</span>
               </div>
 
               <div className="flex items-center gap-4 text-sm flex-wrap justify-center">
-                <Link href="/privacy" className="text-slate-400 hover:text-white transition">
+                <Link href="/privacy" className="text-[var(--text-secondary)] hover:text-[var(--ink)] transition">
                   {t.privacy}
                 </Link>
-                <span className="text-slate-700">|</span>
-                <Link href="/terms" className="text-slate-400 hover:text-white transition">
+                <span className="text-[var(--text-muted)]">|</span>
+                <Link href="/terms" className="text-[var(--text-secondary)] hover:text-[var(--ink)] transition">
                   {t.terms}
                 </Link>
-                <span className="text-slate-700">|</span>
-                <Link href="/data-deletion" className="text-slate-400 hover:text-white transition">
+                <span className="text-[var(--text-muted)]">|</span>
+                <Link href="/data-deletion" className="text-[var(--text-secondary)] hover:text-[var(--ink)] transition">
                   {t.dataDeletion}
                 </Link>
-                <span className="text-slate-700">|</span>
-                <a href="mailto:support@0ptive.com" className="text-slate-400 hover:text-white transition">
+                <span className="text-[var(--text-muted)]">|</span>
+                <a href="mailto:support@0ptive.com" className="text-[var(--text-secondary)] hover:text-[var(--ink)] transition">
                   {t.contact}
                 </a>
               </div>

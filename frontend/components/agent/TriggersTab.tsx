@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Card, CardHeader } from '@/components/ui';
+import { Button, Card, CardHeader, ListPager } from '@/components/ui';
 import {
   API_URL,
   createAgentTrigger,
@@ -11,6 +11,7 @@ import {
   type AgentTrigger,
   type TriggerKind,
 } from '@/lib/api';
+import { usePagedList } from '@/lib/usePagedList';
 
 interface TriggersTabProps {
   agentId: number;
@@ -65,6 +66,7 @@ export function TriggersTab({ agentId, canSendMessage }: TriggersTabProps) {
   const [openId, setOpenId] = useState<number | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [draftNames, setDraftNames] = useState<Record<number, string>>({});
+  const paged = usePagedList(items);
 
   const reload = useCallback(async (): Promise<AgentTrigger[]> => {
     setLoading(true);
@@ -146,8 +148,8 @@ export function TriggersTab({ agentId, canSendMessage }: TriggersTabProps) {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-medium text-white">טריגרים פנימיים</h2>
-        <p className="text-sm text-slate-400 mt-1">
+        <h2 className="text-lg font-medium text-[var(--ink)]">טריגרים פנימיים</h2>
+        <p className="text-sm text-[var(--text-secondary)] mt-1">
           בוחרים סוג, מעתיקים שלושה דברים לאוטומציה. כיביתם או מחקתם — הקריאה נחסמת.
         </p>
       </div>
@@ -169,13 +171,13 @@ export function TriggersTab({ agentId, canSendMessage }: TriggersTabProps) {
       </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
-      {loading && <p className="text-slate-400 text-sm">טוען…</p>}
+      {loading && <p className="text-[var(--text-secondary)] text-sm">טוען…</p>}
       {!loading && items.length === 0 && (
-        <p className="text-slate-400 text-sm">עוד לא הוקם טריגר — אין כתובת לחבר.</p>
+        <p className="text-[var(--text-secondary)] text-sm">עוד לא הוקם טריגר — אין כתובת לחבר.</p>
       )}
 
       <div className="space-y-2">
-        {items.map((item) => (
+        {paged.items.map((item) => (
           <Card key={item.id}>
             <div className="flex items-center justify-between gap-3">
               <div className="flex-1 min-w-0 text-right">
@@ -186,11 +188,11 @@ export function TriggersTab({ agentId, canSendMessage }: TriggersTabProps) {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
                   }}
-                  className="w-full bg-transparent text-white font-medium text-base border-b border-transparent hover:border-slate-600 focus:border-blue-500 focus:outline-none py-0.5"
+                  className="w-full bg-transparent text-[var(--ink)] font-medium text-base border-b border-transparent hover:border-[var(--acc)] focus:border-[var(--acc)] focus:outline-none py-0.5"
                 />
                 <button
                   type="button"
-                  className="text-xs text-slate-400 mt-0.5"
+                  className="text-xs text-[var(--text-secondary)] mt-0.5"
                   onClick={() => setOpenId(openId === item.id ? null : item.id)}
                 >
                   {KIND_META[item.kind].title} · {openId === item.id ? 'הסתר חיבור' : 'הצג חיבור'}
@@ -204,6 +206,14 @@ export function TriggersTab({ agentId, canSendMessage }: TriggersTabProps) {
             )}
           </Card>
         ))}
+        <ListPager
+          page={paged.page}
+          totalPages={paged.totalPages}
+          from={paged.from}
+          to={paged.to}
+          total={paged.total}
+          onPage={paged.setPage}
+        />
       </div>
     </div>
   );
@@ -230,12 +240,12 @@ function CreateCard({
       onClick={onCreate}
       className={`text-right rounded-xl border p-4 transition-colors ${
         disabled
-          ? 'border-slate-800 bg-slate-900/40 opacity-50 cursor-not-allowed'
-          : 'border-slate-700 bg-slate-900/60 hover:border-blue-500/50'
+          ? 'border-[var(--edge)] bg-[var(--glass)] opacity-50 cursor-not-allowed'
+          : 'border-[var(--edge)] bg-[var(--glass)] hover:border-[var(--acc)]'
       }`}
     >
-      <div className="text-white font-medium">{busy ? 'יוצר…' : `+ ${meta.title}`}</div>
-      <p className="text-xs text-slate-400 mt-1">{disabled ? blockedReason : meta.hint}</p>
+      <div className="text-[var(--ink)] font-medium">{busy ? 'יוצר…' : `+ ${meta.title}`}</div>
+      <p className="text-xs text-[var(--text-secondary)] mt-1">{disabled ? blockedReason : meta.hint}</p>
     </button>
   );
 }
@@ -243,12 +253,12 @@ function CreateCard({
 function EnableSwitch({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) {
   return (
     <div className="flex items-center gap-2 shrink-0">
-      <span className="text-sm text-slate-300">{enabled ? 'פעיל' : 'כבוי'}</span>
+      <span className="text-sm text-[var(--text-secondary)]">{enabled ? 'פעיל' : 'כבוי'}</span>
       <button
         type="button"
         dir="ltr"
         onClick={onToggle}
-        className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${enabled ? 'bg-emerald-500' : 'bg-slate-600'}`}
+        className={`w-11 h-6 rounded-full transition-colors relative cursor-pointer ${enabled ? 'bg-emerald-500' : 'bg-[var(--bg-tertiary)]'}`}
       >
         <span className={`w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-all ${enabled ? 'left-[22px]' : 'left-0.5'}`} />
       </button>
@@ -270,17 +280,17 @@ function TriggerDocs({
   const id = String(item.id);
 
   return (
-    <div className="mt-4 space-y-4 border-t border-slate-700/60 pt-4">
+    <div className="mt-4 space-y-4 border-t border-[var(--edge)]/60 pt-4">
       {!item.enabled && (
         <p className="text-xs text-amber-400">הטריגר כבוי. מדליקים למעלה כדי שהאוטומציה תעבוד.</p>
       )}
 
-      <div className="text-sm text-slate-300 space-y-2 bg-slate-800/50 rounded-lg px-3 py-3">
-        <p className="font-medium text-white">איך מחברים מכל מערכת</p>
-        <ol className="list-decimal pr-5 space-y-1 text-slate-400 text-xs">
-          <li>יוצרים בקשת HTTP. שיטה: <strong className="text-slate-200">POST</strong></li>
+      <div className="text-sm text-[var(--text-secondary)] space-y-2 bg-[var(--glass-2)] rounded-lg px-3 py-3">
+        <p className="font-medium text-[var(--ink)]">איך מחברים מכל מערכת</p>
+        <ol className="list-decimal pr-5 space-y-1 text-[var(--text-secondary)] text-xs">
+          <li>יוצרים בקשת HTTP. שיטה: <strong className="text-[var(--ink)]">POST</strong></li>
           <li>מדביקים את הכתובת בשדה URL</li>
-          <li>בכותרות: שם <code className="text-green-400">X-API-Key</code> וערך = המפתח. ועוד אחת: <code className="text-slate-200">Content-Type</code> = <code className="text-slate-200">application/json</code></li>
+          <li>בכותרות: שם <code className="text-green-400">X-API-Key</code> וערך = המפתח. ועוד אחת: <code className="text-[var(--ink)]">Content-Type</code> = <code className="text-[var(--ink)]">application/json</code></li>
           <li>בגוף הבקשה מדביקים את הדוגמה, מחליפים טלפון וערכים, שולחים</li>
         </ol>
       </div>
@@ -289,27 +299,27 @@ function TriggerDocs({
       <CopyRow label="המפתח (הערך של X-API-Key)" value={item.token} tone="green" copied={copied === `key-${id}`} onCopy={() => onCopy(item.token, `key-${id}`)} />
       <div>
         <div className="flex items-center justify-between mb-1">
-          <label className="text-xs text-slate-400">דוגמה ל-Body — להדביק ולהחליף ערכים</label>
+          <label className="text-xs text-[var(--text-secondary)]">דוגמה ל-Body — להדביק ולהחליף ערכים</label>
           <Button variant="secondary" size="sm" onClick={() => onCopy(body, `body-${id}`)}>
             {copied === `body-${id}` ? '✓' : 'העתק'}
           </Button>
         </div>
-        <pre className="bg-slate-800 text-slate-300 text-xs px-3 py-2 rounded font-mono overflow-x-auto whitespace-pre-wrap">{body}</pre>
+        <pre className="bg-[var(--glass-2)] text-[var(--text-secondary)] text-xs px-3 py-2 rounded font-mono overflow-x-auto whitespace-pre-wrap">{body}</pre>
       </div>
 
       {item.kind === 'push' ? (
-        <div className="text-xs text-slate-400 space-y-2">
-          <p><strong className="text-slate-200">phone</strong> — מספר הלקוח. רק ספרות, בלי + וליווים. לדוגמה 972501234567</p>
-          <p><strong className="text-slate-200">persist</strong> — האם לזכור לתמיד או רק עכשיו:</p>
+        <div className="text-xs text-[var(--text-secondary)] space-y-2">
+          <p><strong className="text-[var(--ink)]">phone</strong> — מספר הלקוח. רק ספרות, בלי + וליווים. לדוגמה 972501234567</p>
+          <p><strong className="text-[var(--ink)]">persist</strong> — האם לזכור לתמיד או רק עכשיו:</p>
           <p className="pr-3">true — הסוכן יזכור גם מחר, בכל שיחה. מתאים לחבילה, מנוי, שם ב-CRM</p>
           <p className="pr-3">false — רק בשיחה הפתוחה. מתאים ל״עכשיו בתשלום״ / ״נקבע תור להיום״</p>
-          <p><strong className="text-slate-200">data</strong> — השדות עצמם. כותבים איזה מפתח שרוצים: plan, city, status…</p>
-          <p><strong className="text-slate-200">message</strong> — לא חובה. אם ממלאים, הלקוח מקבל את הטקסט בוואטסאפ (רק חיבור לא רשמי)</p>
+          <p><strong className="text-[var(--ink)]">data</strong> — השדות עצמם. כותבים איזה מפתח שרוצים: plan, city, status…</p>
+          <p><strong className="text-[var(--ink)]">message</strong> — לא חובה. אם ממלאים, הלקוח מקבל את הטקסט בוואטסאפ (רק חיבור לא רשמי)</p>
         </div>
       ) : (
-        <div className="text-xs text-slate-400 space-y-2">
-          <p><strong className="text-slate-200">phone</strong> — מספר הלקוח. רק ספרות, בלי +</p>
-          <p><strong className="text-slate-200">message</strong> — מה שהלקוח יראה. עובד רק בוואטסאפ הלא רשמי</p>
+        <div className="text-xs text-[var(--text-secondary)] space-y-2">
+          <p><strong className="text-[var(--ink)]">phone</strong> — מספר הלקוח. רק ספרות, בלי +</p>
+          <p><strong className="text-[var(--ink)]">message</strong> — מה שהלקוח יראה. עובד רק בוואטסאפ הלא רשמי</p>
         </div>
       )}
     </div>
@@ -325,12 +335,12 @@ function CopyRow({
   copied: boolean;
   onCopy: () => void;
 }) {
-  const color = tone === 'green' ? 'text-green-400' : 'text-blue-400';
+  const color = tone === 'green' ? 'text-green-400' : 'text-[var(--acc)]';
   return (
     <div>
-      <label className="block text-xs text-slate-400 mb-1">{label}</label>
+      <label className="block text-xs text-[var(--text-secondary)] mb-1">{label}</label>
       <div className="flex items-center gap-2">
-        <code className={`flex-1 bg-slate-800 ${color} text-xs px-3 py-2 rounded font-mono break-all`}>{value}</code>
+        <code className={`flex-1 bg-[var(--glass-2)] ${color} text-xs px-3 py-2 rounded font-mono break-all`}>{value}</code>
         <Button variant="secondary" size="sm" onClick={onCopy}>{copied ? '✓' : 'העתק'}</Button>
       </div>
     </div>

@@ -60,9 +60,9 @@ export default function NewAgentPage() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header className="border-b border-purple-500/10 bg-[#0B0914]/80 backdrop-blur-sm sticky top-16 z-40">
+      <header className="border-b border-[var(--edge)] bg-[var(--bg)]/80 backdrop-blur-sm sticky top-16 z-40">
         <div className="max-w-3xl mx-auto px-3 md:px-6 py-3 md:py-4">
-          <h1 className="font-semibold text-white text-sm md:text-base">יצירת סוכן חדש</h1>
+          <h1 className="font-semibold text-[var(--ink)] text-sm md:text-base">יצירת סוכן חדש</h1>
         </div>
       </header>
 
@@ -99,14 +99,14 @@ export default function NewAgentPage() {
               </div>
               {getModel(model).thinkingOptions.length > 0 && (
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-1.5">רמת חשיבה</label>
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">רמת חשיבה</label>
                   <select
                     value={getModel(model).thinkingOptions.includes(thinkingLevel) ? thinkingLevel : getModel(model).defaultThinking}
                     onChange={e => setThinkingLevel(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white appearance-none cursor-pointer focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                    className="w-full px-4 py-2.5 bg-[var(--glass-2)] border border-[var(--edge-strong)] rounded-lg text-[var(--ink)] appearance-none cursor-pointer focus:outline-none focus:border-[var(--acc)] focus:ring-2 focus:ring-[var(--acc)]/20"
                   >
                     {getModel(model).thinkingOptions.map((opt) => (
-                      <option key={opt} value={opt} className="bg-slate-800">
+                      <option key={opt} value={opt} className="bg-[var(--glass-2)]">
                         {THINKING_LABELS[opt] || opt}
                       </option>
                     ))}
@@ -135,10 +135,10 @@ export default function NewAgentPage() {
             onClick={() => setShowAdvanced(!showAdvanced)}
             className="
               w-full py-3 px-4
-              bg-slate-800/30 hover:bg-slate-800/50
-              border border-slate-700/50 rounded-lg
+              bg-[var(--glass)] hover:bg-[var(--glass-2)]
+              border border-[var(--edge)] rounded-lg
               flex items-center justify-between
-              text-slate-300 hover:text-white
+              text-[var(--text-secondary)] hover:text-[var(--ink)]
               transition-colors
             "
           >
@@ -161,7 +161,7 @@ export default function NewAgentPage() {
               {/* Message Batching */}
               <Card>
                 <CardHeader>📦 איחוד הודעות</CardHeader>
-                <p className="text-sm text-slate-400 mb-4">
+                <p className="text-sm text-[var(--text-secondary)] mb-4">
                   הסוכן יחכה לקבל מספר הודעות ברצף לפני שיענה
                 </p>
                 
@@ -193,7 +193,7 @@ export default function NewAgentPage() {
               {/* History */}
               <Card>
                 <CardHeader>📜 היסטוריית שיחה</CardHeader>
-                <p className="text-sm text-slate-400 mb-4">
+                <p className="text-sm text-[var(--text-secondary)] mb-4">
                   כמה הודעות אחורה הסוכן יזכור (משפיע על צריכת tokens)
                 </p>
                 

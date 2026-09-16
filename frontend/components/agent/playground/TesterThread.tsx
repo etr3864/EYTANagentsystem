@@ -46,20 +46,33 @@ export function TesterThread({
   const canExportAll = Boolean(data && data.conversations.length > 0);
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <Button variant="ghost" size="sm" onClick={onBack}>← התכתבויות</Button>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-white truncate">{data?.tester.label || 'בודק'}</p>
-            {data && (
-              <p className="text-xs text-slate-400">{data.conversations.length} שיחות</p>
-            )}
-          </div>
+    <div className="space-y-3 md:space-y-4 min-w-0 overflow-x-hidden">
+      <div className="flex items-center gap-2 min-w-0">
+        <Button variant="ghost" size="sm" className="shrink-0 min-h-11" onClick={onBack}>
+          ← חזרה
+        </Button>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-[var(--ink)] truncate">{data?.tester.label || 'בודק'}</p>
+          {data && (
+            <p className="text-xs text-[var(--text-secondary)] truncate">{data.conversations.length} שיחות</p>
+          )}
         </div>
+        <div className="hidden md:block shrink-0">
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={!canExportAll || busy != null}
+            onClick={() => runExport('all', () => downloadPlaygroundTesterExport(agentId, linkId, userId))}
+          >
+            ייצוא JSON
+          </Button>
+        </div>
+      </div>
+      <div className="md:hidden">
         <Button
           variant="secondary"
           size="sm"
+          className="w-full min-h-11"
           disabled={!canExportAll || busy != null}
           onClick={() => runExport('all', () => downloadPlaygroundTesterExport(agentId, linkId, userId))}
         >
@@ -68,12 +81,12 @@ export function TesterThread({
       </div>
       {error && <p className="text-sm text-red-400">{error}</p>}
       {!data ? (
-        <p className="text-sm text-slate-400">טוען…</p>
+        <p className="text-sm text-[var(--text-secondary)]">טוען…</p>
       ) : data.conversations.length === 0 ? (
-        <p className="text-sm text-slate-400">אין שיחות לבודק הזה</p>
+        <p className="text-sm text-[var(--text-secondary)]">אין שיחות לבודק הזה</p>
       ) : (
         data.conversations.map((conv) => (
-          <Card key={conv.id} padding="sm">
+          <Card key={conv.id} padding="sm" className="!p-3 md:!p-4 min-w-0 overflow-hidden">
             <SessionDivider at={conv.archived_at || conv.created_at} live={!conv.archived_at} />
             <ExportButton
               busy={busy != null}
@@ -81,7 +94,7 @@ export function TesterThread({
             />
             <div className="space-y-3">
               {conv.messages.length === 0 ? (
-                <p className="text-sm text-slate-500 text-center py-4">אין הודעות</p>
+                <p className="text-sm text-[var(--text-muted)] text-center py-4">אין הודעות</p>
               ) : (
                 conv.messages.map((msg) => <AdminBubble key={msg.id} msg={msg} />)
               )}

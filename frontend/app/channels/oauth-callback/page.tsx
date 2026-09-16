@@ -148,13 +148,13 @@ function OAuthCallbackInner() {
   const channelType = session?.channel_type ?? '';
 
   return (
-    <div className="min-h-screen bg-[#0e0b1a] flex items-center justify-center p-4" dir="rtl">
-      <div className="bg-[#131020] border border-slate-700 rounded-2xl p-6 w-full max-w-lg shadow-2xl">
+    <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center p-4" dir="rtl">
+      <div className="bg-[var(--bg-secondary)] border border-[var(--edge)] rounded-2xl p-6 w-full max-w-lg shadow-2xl">
 
         {loading && (
           <div className="flex flex-col items-center gap-4 py-8">
-            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-slate-400 text-sm">טוען נתוני חיבור...</p>
+            <div className="w-8 h-8 border-2 border-[var(--acc)] border-t-transparent rounded-full animate-spin" />
+            <p className="text-[var(--text-secondary)] text-sm">טוען נתוני חיבור...</p>
           </div>
         )}
 
@@ -165,7 +165,7 @@ function OAuthCallbackInner() {
             </div>
             <button
               onClick={() => router.back()}
-              className="w-full py-2 rounded-lg bg-slate-700 text-slate-300 text-sm hover:bg-slate-600 transition-colors"
+              className="w-full py-2 rounded-lg bg-[var(--bg-tertiary)] text-[var(--text-secondary)] text-sm hover:bg-[var(--bg-hover)] transition-colors"
             >
               ← חזרה
             </button>
@@ -177,8 +177,8 @@ function OAuthCallbackInner() {
             <div className="flex items-center gap-3 mb-6">
               {channelType && <ChannelIcon channelType={channelType} size={32} />}
               <div>
-                <h1 className="text-lg font-semibold text-white">בחר חשבון {channelName}</h1>
-                <p className="text-xs text-slate-400">
+                <h1 className="text-lg font-semibold text-[var(--ink)]">בחר חשבון {channelName}</h1>
+                <p className="text-xs text-[var(--text-secondary)]">
                   לסוכן #{session.agent_id}
                 </p>
               </div>
@@ -196,14 +196,14 @@ function OAuthCallbackInner() {
                 </div>
                 <button
                   onClick={() => router.back()}
-                  className="w-full py-2 rounded-lg bg-slate-700 text-slate-300 text-sm hover:bg-slate-600 transition-colors"
+                  className="w-full py-2 rounded-lg bg-[var(--bg-tertiary)] text-[var(--text-secondary)] text-sm hover:bg-[var(--bg-hover)] transition-colors"
                 >
                   ← חזרה
                 </button>
               </div>
             ) : (
               <div className="space-y-3">
-                <p className="text-sm text-slate-400 mb-3">
+                <p className="text-sm text-[var(--text-secondary)] mb-3">
                   {session.pages.length === 1
                     ? 'נמצא חשבון אחד — לחץ לחבר:'
                     : `נמצאו ${session.pages.length} חשבונות. בחר את הנכון:`}
@@ -219,23 +219,23 @@ function OAuthCallbackInner() {
                         onClick={() => setSelectedPageId(page.id)}
                         className={`w-full text-right p-3 rounded-xl border transition-all ${
                           isSelected
-                            ? 'border-blue-500 bg-blue-500/10'
-                            : 'border-slate-700 bg-slate-800/50 hover:border-slate-500'
+                            ? 'border-[var(--acc)] bg-[var(--acc)]/10'
+                            : 'border-[var(--edge)] bg-[var(--glass-2)] hover:border-[var(--acc)]'
                         }`}
                       >
                         <div className="flex items-center gap-2">
                           <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
-                            isSelected ? 'border-blue-500 bg-blue-500' : 'border-slate-500'
+                            isSelected ? 'border-[var(--acc)] bg-[var(--acc)]' : 'border-[var(--edge-strong)]'
                           }`} />
                           <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-white truncate">
+                            <div className="text-sm font-medium text-[var(--ink)] truncate">
                               {session.channel_type === 'instagram' && ig
                                 ? `@${ig.username || ig.name}`
                                 : session.channel_type === 'whatsapp_meta' && page.display_phone_number
                                   ? page.display_phone_number
                                   : page.name}
                             </div>
-                            <div className="text-xs text-slate-400 truncate">
+                            <div className="text-xs text-[var(--text-secondary)] truncate">
                               {session.channel_type === 'instagram' && ig
                                 ? `דף Facebook: ${page.name}`
                                 : session.channel_type === 'whatsapp_meta'
@@ -259,14 +259,14 @@ function OAuthCallbackInner() {
                   <button
                     onClick={() => router.back()}
                     disabled={submitting}
-                    className="flex-1 py-2.5 rounded-xl bg-slate-700 text-slate-300 text-sm hover:bg-slate-600 transition-colors disabled:opacity-50"
+                    className="flex-1 py-2.5 rounded-xl bg-[var(--bg-tertiary)] text-[var(--text-secondary)] text-sm hover:bg-[var(--bg-hover)] transition-colors disabled:opacity-50"
                   >
                     ביטול
                   </button>
                   <button
                     onClick={handleConnect}
                     disabled={!selectedPageId || submitting}
-                    className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-all disabled:opacity-40"
+                    className="flex-1 py-2.5 rounded-xl bg-[var(--ink)] hover:opacity-90 text-[var(--bg)] text-sm font-medium transition-all disabled:opacity-40"
                   >
                     {submitting ? (
                       <span className="flex items-center justify-center gap-2">
@@ -288,8 +288,8 @@ function OAuthCallbackInner() {
 export default function OAuthCallbackPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-[#0e0b1a] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-[var(--acc)] border-t-transparent rounded-full animate-spin" />
       </div>
     }>
       <OAuthCallbackInner />

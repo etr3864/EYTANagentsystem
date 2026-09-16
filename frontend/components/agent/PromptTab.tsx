@@ -17,7 +17,7 @@ export function PromptTab({ value, onChange, onSave, saving }: PromptTabProps) {
   return (
     <Card>
       <CardHeader action={
-        <div className="text-xs text-slate-500">
+        <div className="text-xs text-[var(--text-muted)]">
           {charCount} תווים • {wordCount} מילים
         </div>
       }>
@@ -25,7 +25,7 @@ export function PromptTab({ value, onChange, onSave, saving }: PromptTabProps) {
       </CardHeader>
       
       <div className="space-y-4">
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-[var(--text-secondary)]">
           הגדר את האופי והתפקיד של הסוכן. הפרומפט הזה יתווסף לכל שיחה.
         </p>
         
@@ -38,7 +38,7 @@ export function PromptTab({ value, onChange, onSave, saving }: PromptTabProps) {
         />
 
         <div className="flex items-center justify-between pt-2">
-          <div className="text-xs text-slate-500">
+          <div className="text-xs text-[var(--text-muted)]">
             💡 טיפ: כתוב הנחיות ברורות ותן דוגמאות לתגובות רצויות
           </div>
           <Button 

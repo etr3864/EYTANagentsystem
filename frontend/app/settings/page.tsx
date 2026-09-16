@@ -164,11 +164,11 @@ function SettingsPage() {
       <ListViewport>
       <div className="max-w-3xl mx-auto px-3 md:px-6 py-6 pb-16 space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-white flex items-center gap-2">
-          <SettingsIcon className="w-6 h-6 text-purple-300" />
+        <h1 className="text-2xl font-semibold text-[var(--ink)] flex items-center gap-2">
+          <SettingsIcon className="w-6 h-6 text-[var(--acc)]" />
           הגדרות
         </h1>
-        <p className="text-slate-400 mt-1">
+        <p className="text-[var(--text-secondary)] mt-1">
           טוקני MCP למנהל ראשי. מי שיש לו טוקן פעיל פועל בשמך בדשבורד, ב-API וב-MCP.
           אין תפוגה. השהה כדי לחתוך גישה זמנית, או מחק כדי לבטל לצמיתות.
         </p>
@@ -181,21 +181,21 @@ function SettingsPage() {
       )}
 
       <Card>
-        <h2 className="text-lg font-medium text-white mb-2">מה זה MCP</h2>
-        <p className="text-slate-300 text-sm leading-relaxed">
+        <h2 className="text-lg font-medium text-[var(--ink)] mb-2">מה זה MCP</h2>
+        <p className="text-[var(--text-secondary)] text-sm leading-relaxed">
           MCP מחבר לאופטיב כל כלי שתומך בפרוטוקול, כולל Cursor, Claude Desktop, Claude Code,
           VS Code ו-Windsurf. אחרי החיבור אפשר לבנות סוכנים, לנהל לקוחות ועובדים,
           ולראות עלויות וביצועים לפי סוכן כמו בדשבורד.
         </p>
-        <p className="text-slate-400 text-sm mt-3">
+        <p className="text-[var(--text-secondary)] text-sm mt-3">
           שליחת הודעה ללקוח, מחיקות ואיפוס סיסמה דורשים מהמודל confirm=true.
           חיבור WhatsApp או יומן גוגל נפתח בדפדפן. ה-MCP רק מחזיר קישור.
         </p>
       </Card>
 
       <Card>
-        <h2 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
-          <KeyIcon className="w-5 h-5 text-purple-300" />
+        <h2 className="text-lg font-medium text-[var(--ink)] mb-4 flex items-center gap-2">
+          <KeyIcon className="w-5 h-5 text-[var(--acc)]" />
           טוקנים
         </h2>
 
@@ -217,13 +217,13 @@ function SettingsPage() {
         {loading ? (
           <div className="h-20 rounded-lg skeleton" />
         ) : tokens.length === 0 ? (
-          <p className="text-slate-400 text-sm">אין טוקנים עדיין. צור אחד כדי לחבר כלי MCP.</p>
+          <p className="text-[var(--text-secondary)] text-sm">אין טוקנים עדיין. צור אחד כדי לחבר כלי MCP.</p>
         ) : (
-          <ul className="divide-y divide-purple-500/10">
+          <ul className="divide-y divide-[var(--edge)]">
             {tokens.map((token) => (
               <li key={token.id} className="py-3 flex items-center justify-between gap-3">
                 <div className={`min-w-0 ${token.paused ? 'opacity-50' : ''}`}>
-                  <p className="text-white text-sm font-medium truncate flex items-center gap-2">
+                  <p className="text-[var(--ink)] text-sm font-medium truncate flex items-center gap-2">
                     {token.name}
                     {token.paused && (
                       <span className="shrink-0 text-[10px] uppercase tracking-wide rounded px-1.5 py-0.5 bg-amber-500/20 text-amber-200">
@@ -231,7 +231,7 @@ function SettingsPage() {
                       </span>
                     )}
                   </p>
-                  <p className="text-slate-500 text-xs mt-0.5">
+                  <p className="text-[var(--text-muted)] text-xs mt-0.5">
                     {token.prefix}… · {formatWhen(token.last_used_at)}
                   </p>
                 </div>
@@ -264,19 +264,19 @@ function SettingsPage() {
       </Card>
 
       <Card>
-        <h2 className="text-lg font-medium text-white mb-3">חיבור לכלי MCP</h2>
-        <p className="text-slate-300 text-sm leading-relaxed">
+        <h2 className="text-lg font-medium text-[var(--ink)] mb-3">חיבור לכלי MCP</h2>
+        <p className="text-[var(--text-secondary)] text-sm leading-relaxed">
           צור טוקן. יופיע JSON מוכן עם הטוקן בפנים. מדביקים אותו בהגדרות MCP של הכלי
           (Cursor, Claude, VS Code, Windsurf וכו') ומפעילים את השרת optive.
           הטוקן מוצג פעם אחת ולא נשמר אצלנו אחרי רענון.
         </p>
-        <p className="text-slate-500 text-xs mt-3">
+        <p className="text-[var(--text-muted)] text-xs mt-3">
           שמור את הקובץ אצלך, לא בריפו משותף. מי שיש לו את הטוקן פועל בשמך.
         </p>
 
         <div className="mt-4">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs text-slate-400">URL</span>
+            <span className="text-xs text-[var(--text-secondary)]">URL</span>
             <Button
               type="button"
               variant="secondary"
@@ -288,7 +288,7 @@ function SettingsPage() {
               {copied === 'url' ? 'הועתק' : 'העתק URL'}
             </Button>
           </div>
-          <code className="block text-xs md:text-sm break-all bg-black/40 rounded-lg px-3 py-2 text-slate-200 text-left" dir="ltr">
+          <code className="block text-xs md:text-sm break-all bg-black/40 rounded-lg px-3 py-2 text-[var(--ink)] text-left" dir="ltr">
             {displayUrl}
           </code>
         </div>
@@ -335,14 +335,14 @@ function SettingsPage() {
                     {copied === 'cli' ? 'הועתק' : 'העתק פקודה'}
                   </Button>
                 </div>
-                <pre className="text-xs overflow-x-auto bg-black/40 rounded-lg p-3 text-slate-200 text-left" dir="ltr">
+                <pre className="text-xs overflow-x-auto bg-black/40 rounded-lg p-3 text-[var(--ink)] text-left" dir="ltr">
                   {readyCli}
                 </pre>
               </div>
             )}
           </div>
         ) : (
-          <p className="text-slate-500 text-sm mt-4">
+          <p className="text-[var(--text-muted)] text-sm mt-4">
             אחרי יצירת טוקן יופיע כאן JSON מוכן. אחרי רענון אי אפשר לשחזר את הסוד.
           </p>
         )}

@@ -72,7 +72,7 @@ export function Atmosphere({ fixed = false }: { fixed?: boolean }) {
         </svg>
       </div>
       <div
-        className="absolute inset-0"
+        className="try-atmo-cursor absolute inset-0"
         style={{
           background: 'radial-gradient(circle 340px at var(--mx) var(--my), oklch(0.80 0.125 225 / 0.10), transparent 70%)',
           transition: 'background 300ms linear',

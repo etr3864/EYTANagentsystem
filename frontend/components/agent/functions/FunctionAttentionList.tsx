@@ -1,7 +1,8 @@
 'use client';
 
-import { Button } from '@/components/ui';
+import { Button, ListPager } from '@/components/ui';
 import type { FunctionAttention } from '@/lib/agentFunctions';
+import { usePagedList } from '@/lib/usePagedList';
 
 export function FunctionAttentionList({
   items,
@@ -12,16 +13,17 @@ export function FunctionAttentionList({
   onDone: (id: number) => void;
   onRetry: (id: number) => void;
 }) {
+  const paged = usePagedList(items);
   if (items.length === 0) return null;
   return (
     <div className="border border-amber-500/30 bg-amber-500/10 rounded-lg p-3 space-y-2">
       <p className="text-sm text-amber-200">כתיבות שדורשות טיפול — אל תניחו שהצליחו אצל הלקוח.</p>
-      {items.map((item) => (
-        <div key={item.id} className="flex items-center justify-between gap-2 text-sm text-slate-200">
+      {paged.items.map((item) => (
+        <div key={item.id} className="flex items-center justify-between gap-2 text-sm text-[var(--ink)]">
           <div>
             <span className="font-medium">{item.function_name}</span>
-            <span className="text-slate-400"> · {item.status}{item.stale ? ' (ישן)' : ''}</span>
-            {item.error && <span className="text-slate-500"> · {item.error}</span>}
+            <span className="text-[var(--text-secondary)]"> · {item.status}{item.stale ? ' (ישן)' : ''}</span>
+            {item.error && <span className="text-[var(--text-muted)]"> · {item.error}</span>}
           </div>
           <div className="flex gap-2 shrink-0">
             <Button size="sm" variant="secondary" onClick={() => onDone(item.id)}>סמן כהצלחה</Button>
@@ -36,6 +38,14 @@ export function FunctionAttentionList({
           </div>
         </div>
       ))}
+      <ListPager
+        page={paged.page}
+        totalPages={paged.totalPages}
+        from={paged.from}
+        to={paged.to}
+        total={paged.total}
+        onPage={paged.setPage}
+      />
     </div>
   );
 }

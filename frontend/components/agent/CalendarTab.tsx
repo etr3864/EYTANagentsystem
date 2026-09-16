@@ -145,9 +145,9 @@ function TestButton({ agentId, index }: { agentId: number; index: number }) {
   }
 
   return (
-    <div className="border-t border-slate-700 pt-3">
+    <div className="border-t border-[var(--edge)] pt-3">
       {!showTest ? (
-        <button type="button" onClick={() => setShowTest(true)} className="text-sm text-blue-400 hover:text-blue-300">
+        <button type="button" onClick={() => setShowTest(true)} className="text-sm text-[var(--acc)] hover:text-[var(--acc)]">
           שלח הודעת טסט
         </button>
       ) : (
@@ -157,15 +157,15 @@ function TestButton({ agentId, index }: { agentId: number; index: number }) {
             value={testPhone}
             onChange={(e) => setTestPhone(e.target.value.replace(/\D/g, ''))}
             placeholder="972521234567"
-            className="flex-1 px-3 py-1.5 text-sm bg-slate-700 border border-slate-600 rounded text-white placeholder-slate-400"
+            className="flex-1 px-3 py-1.5 text-sm bg-[var(--bg-tertiary)] border border-[var(--edge-strong)] rounded text-[var(--ink)] placeholder:text-[var(--text-muted)]"
             dir="ltr"
           />
           <button type="button" onClick={handleSendTest} disabled={sending || !testPhone}
-            className="px-3 py-1.5 text-sm bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 text-white rounded">
+            className="px-3 py-1.5 text-sm bg-[var(--ink)] hover:opacity-90 disabled:bg-[var(--bg-tertiary)] text-[var(--bg)] rounded">
             {sending ? '...' : 'שלח'}
           </button>
           <button type="button" onClick={() => { setShowTest(false); setTestResult(null); }}
-            className="px-2 py-1.5 text-sm text-slate-400 hover:text-slate-300">ביטול</button>
+            className="px-2 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--ink)]">ביטול</button>
         </div>
       )}
       {testResult && (
@@ -247,21 +247,21 @@ function MetaTemplateEditor({
       {selectedTpl && (
         <>
           {/* Body preview */}
-          <div className="p-3 bg-slate-900/50 border border-slate-700 rounded text-sm text-slate-300" dir="rtl">
+          <div className="p-3 bg-[var(--glass)] border border-[var(--edge)] rounded text-sm text-[var(--text-secondary)]" dir="rtl">
             {bodyText || '(ללא טקסט body)'}
           </div>
 
           {/* Parameter mapping */}
           {paramCount > 0 && (
             <div className="space-y-2">
-              <p className="text-xs text-slate-400">מיפוי פרמטרים ({paramCount}):</p>
+              <p className="text-xs text-[var(--text-secondary)]">מיפוי פרמטרים ({paramCount}):</p>
               {Array.from({ length: paramCount }).map((_, i) => (
                 <div key={i} className="flex items-center gap-3">
-                  <span className="text-xs text-slate-500 w-12 shrink-0">{`{{${i + 1}}}`}</span>
+                  <span className="text-xs text-[var(--text-muted)] w-12 shrink-0">{`{{${i + 1}}}`}</span>
                   <select
                     value={mapping[i] || ''}
                     onChange={(e) => handleParamChange(i, e.target.value)}
-                    className="flex-1 bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm text-white"
+                    className="flex-1 bg-[var(--glass-2)] border border-[var(--edge)] rounded px-2 py-1.5 text-sm text-[var(--ink)]"
                   >
                     {PARAM_VARIABLES.map(v => (
                       <option key={v.key} value={v.key}>{v.label}</option>
@@ -306,15 +306,15 @@ function WaSenderContentEditor({
           <input type="radio" name={`content-type-${index}`}
             checked={rule.content_type === 'template'}
             onChange={() => onChange({ ...rule, content_type: 'template' })}
-            className="w-4 h-4 bg-slate-700 border-slate-600" />
-          <span className="text-sm text-slate-300">תבנית קבועה</span>
+            className="w-4 h-4 bg-[var(--bg-tertiary)] border-[var(--edge-strong)]" />
+          <span className="text-sm text-[var(--text-secondary)]">תבנית קבועה</span>
         </label>
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="radio" name={`content-type-${index}`}
             checked={rule.content_type === 'ai'}
             onChange={() => onChange({ ...rule, content_type: 'ai' })}
-            className="w-4 h-4 bg-slate-700 border-slate-600" />
-          <span className="text-sm text-slate-300">ניסוח AI</span>
+            className="w-4 h-4 bg-[var(--bg-tertiary)] border-[var(--edge-strong)]" />
+          <span className="text-sm text-[var(--text-secondary)]">ניסוח AI</span>
         </label>
       </div>
 
@@ -324,7 +324,7 @@ function WaSenderContentEditor({
             onChange={(e) => setLocalTemplate(e.target.value)}
             onBlur={() => onChange({ ...rule, template: localTemplate })}
             rows={3} placeholder="שלום {customer_name}, תזכורת לפגישה..." className="text-sm" dir="rtl" />
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-[var(--text-muted)] mt-1">
             משתנים זמינים: {'{customer_name}'}, {'{title}'}, {'{date}'}, {'{time}'}, {'{day}'}, {'{duration}'}, {'{agent_name}'}
           </p>
         </div>
@@ -334,7 +334,7 @@ function WaSenderContentEditor({
             onChange={(e) => setLocalAiPrompt(e.target.value)}
             onBlur={() => onChange({ ...rule, ai_prompt: localAiPrompt })}
             rows={2} placeholder="כתוב תזכורת חמה וידידותית..." className="text-sm" dir="rtl" />
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-[var(--text-muted)] mt-1">
             ה-AI יקבל את פרטי הפגישה, אישיות הסוכן והשיחה האחרונה - וינסח תזכורת מותאמת
           </p>
         </div>
@@ -358,9 +358,9 @@ function ReminderRuleEditor({
   const isMeta = provider === 'meta';
 
   return (
-    <div className="p-4 bg-slate-800/50 border border-slate-700 rounded-lg space-y-3">
+    <div className="p-4 bg-[var(--glass-2)] border border-[var(--edge)] rounded-lg space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-slate-300">תזכורת {index + 1}</span>
+        <span className="text-sm font-medium text-[var(--text-secondary)]">תזכורת {index + 1}</span>
         <button onClick={onDelete} className="text-xs text-red-400 hover:text-red-300">מחק</button>
       </div>
 
@@ -371,7 +371,7 @@ function ReminderRuleEditor({
         options={MINUTES_OPTIONS.map(o => ({ value: o.value.toString(), label: o.label }))}
       />
 
-      <div className="border-t border-slate-700 pt-3">
+      <div className="border-t border-[var(--edge)] pt-3">
         {isMeta ? (
           <MetaTemplateEditor rule={rule} index={index} onChange={onChange} approvedTemplates={approvedTemplates} />
         ) : (
@@ -534,7 +534,7 @@ export function CalendarTab({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-[var(--acc)] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -560,7 +560,7 @@ export function CalendarTab({
                   onClick={handleConnect}
                   disabled={connecting}
                   loading={connecting}
-                  className="mr-auto text-blue-400 hover:text-blue-300"
+                  className="mr-auto text-[var(--acc)] hover:text-[var(--acc)]"
                 >
                   התחבר מחדש
                 </Button>
@@ -595,7 +595,7 @@ export function CalendarTab({
           </div>
         ) : (
           <div className="text-center py-6">
-            <p className="text-slate-400 mb-4">
+            <p className="text-[var(--text-secondary)] mb-4">
               חבר את Google Calendar כדי לאפשר תיאום פגישות
             </p>
             <Button 
@@ -613,7 +613,7 @@ export function CalendarTab({
       {isConnected && (
         <Card>
           <CardHeader>שעות פעילות</CardHeader>
-          <p className="text-sm text-slate-400 mb-4">
+          <p className="text-sm text-[var(--text-secondary)] mb-4">
             הגדר את שעות הפעילות לתיאום פגישות
           </p>
           
@@ -626,7 +626,7 @@ export function CalendarTab({
                 <div key={key} className="flex items-center gap-4 py-2">
                   <button
                     onClick={() => toggleDay(key)}
-                    className={`w-20 text-sm font-medium text-right ${isActive ? 'text-white' : 'text-slate-500'}`}
+                    className={`w-20 text-sm font-medium text-right ${isActive ? 'text-[var(--ink)]' : 'text-[var(--text-muted)]'}`}
                   >
                     {label}
                   </button>
@@ -637,18 +637,18 @@ export function CalendarTab({
                         type="time"
                         value={dayHours.start}
                         onChange={(e) => handleWorkingHoursChange(key, 'start', e.target.value)}
-                        className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm text-white"
+                        className="bg-[var(--glass-2)] border border-[var(--edge)] rounded px-2 py-1 text-sm text-[var(--ink)]"
                       />
-                      <span className="text-slate-500">-</span>
+                      <span className="text-[var(--text-muted)]">-</span>
                       <input
                         type="time"
                         value={dayHours.end}
                         onChange={(e) => handleWorkingHoursChange(key, 'end', e.target.value)}
-                        className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm text-white"
+                        className="bg-[var(--glass-2)] border border-[var(--edge)] rounded px-2 py-1 text-sm text-[var(--ink)]"
                       />
                       <button
                         onClick={() => toggleDay(key)}
-                        className="text-xs text-slate-500 hover:text-red-400 mr-2"
+                        className="text-xs text-[var(--text-muted)] hover:text-red-400 mr-2"
                       >
                         השבת
                       </button>
@@ -656,7 +656,7 @@ export function CalendarTab({
                   ) : (
                     <button
                       onClick={() => toggleDay(key)}
-                      className="text-slate-500 text-sm hover:text-emerald-400"
+                      className="text-[var(--text-muted)] text-sm hover:text-emerald-400"
                     >
                       יום מנוחה (לחץ להפעלה)
                     </button>
@@ -672,7 +672,7 @@ export function CalendarTab({
       {canShowAdvanced && isConnected && (
         <Card>
           <CardHeader>פגישות מרובות</CardHeader>
-          <p className="text-sm text-slate-400 mb-4">
+          <p className="text-sm text-[var(--text-secondary)] mb-4">
             אפשר קביעת כמה פגישות על אותו זמן (למשל: שיעורי קבוצה, מספר מטפלים במקביל)
           </p>
           
@@ -680,14 +680,14 @@ export function CalendarTab({
             <button
               onClick={() => saveConfig({ ...config, allow_double_booking: !config.allow_double_booking })}
               className={`relative w-12 h-6 rounded-full transition-colors ${
-                config.allow_double_booking ? 'bg-emerald-500' : 'bg-slate-600'
+                config.allow_double_booking ? 'bg-emerald-500' : 'bg-[var(--bg-tertiary)]'
               }`}
             >
               <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${
                 config.allow_double_booking ? 'right-1' : 'left-1'
               }`} />
             </button>
-            <span className="text-sm text-slate-300">
+            <span className="text-sm text-[var(--text-secondary)]">
               {config.allow_double_booking ? 'מופעל — ניתן לתאם כמה פגישות על אותו זמן' : 'כבוי — זמן תפוס חוסם קביעה נוספת'}
             </span>
           </div>
@@ -704,7 +704,7 @@ export function CalendarTab({
       {canShowAdvanced && isConnected && (
         <Card>
           <CardHeader>Webhook לאירועי פגישות</CardHeader>
-          <p className="text-sm text-slate-400 mb-4">
+          <p className="text-sm text-[var(--text-secondary)] mb-4">
             URL שיקבל התראות JSON בעת יצירה, שינוי או ביטול של פגישות (אופציונלי)
           </p>
           
@@ -720,7 +720,7 @@ export function CalendarTab({
           <div className={`mt-4 p-3 rounded-lg border text-sm ${
             summaryEnabled
               ? 'bg-emerald-500/5 border-emerald-500/20 text-emerald-400'
-              : 'bg-slate-700/30 border-slate-600/30 text-slate-400'
+              : 'bg-[var(--bg-tertiary)]/30 border-[var(--edge-strong)]/30 text-[var(--text-secondary)]'
           }`}>
             <span className="font-medium">סיכום שיחה:</span>{' '}
             {summaryEnabled ? (
@@ -736,7 +736,7 @@ export function CalendarTab({
       {canShowAdvanced && isConnected && (
         <Card>
           <CardHeader>תזכורות לפגישות</CardHeader>
-          <p className="text-sm text-slate-400 mb-4">
+          <p className="text-sm text-[var(--text-secondary)] mb-4">
             שלח תזכורות אוטומטיות ללקוח לפני הפגישה
             {isMeta && ' (דרך תבניות WhatsApp מאושרות)'}
           </p>
@@ -749,14 +749,14 @@ export function CalendarTab({
                 saveConfig({ ...config, reminders: { ...reminders, enabled: !reminders.enabled } });
               }}
               className={`relative w-12 h-6 rounded-full transition-colors ${
-                config.reminders?.enabled ? 'bg-emerald-500' : 'bg-slate-600'
+                config.reminders?.enabled ? 'bg-emerald-500' : 'bg-[var(--bg-tertiary)]'
               }`}
             >
               <span className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${
                 config.reminders?.enabled ? 'right-1' : 'left-1'
               }`} />
             </button>
-            <span className="text-sm text-slate-300">
+            <span className="text-sm text-[var(--text-secondary)]">
               {config.reminders?.enabled ? 'תזכורות מופעלות' : 'תזכורות מושבתות'}
             </span>
           </div>
@@ -765,7 +765,7 @@ export function CalendarTab({
             <div className="space-y-4">
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-sm font-medium text-slate-300">חוקי תזכורת</h4>
+                  <h4 className="text-sm font-medium text-[var(--text-secondary)]">חוקי תזכורת</h4>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -789,7 +789,7 @@ export function CalendarTab({
                 )}
 
                 {(!config.reminders?.rules || config.reminders.rules.length === 0) ? (
-                  <p className="text-sm text-slate-500 text-center py-4">
+                  <p className="text-sm text-[var(--text-muted)] text-center py-4">
                     אין חוקי תזכורת. לחץ &quot;הוסף תזכורת&quot; להוספת חוק חדש.
                   </p>
                 ) : (
@@ -825,7 +825,7 @@ export function CalendarTab({
         <>
           <Card>
             <CardHeader>הנחיות לתיאום פגישות</CardHeader>
-            <p className="text-sm text-slate-400 mb-4">
+            <p className="text-sm text-[var(--text-secondary)] mb-4">
               הנחיות נוספות לסוכן בנוגע לתיאום פגישות (סוג פגישה, משך, מיקום וכו')
             </p>
             

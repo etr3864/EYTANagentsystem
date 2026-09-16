@@ -109,7 +109,7 @@ export function PlaygroundLinksTab({ agentId }: { agentId: number }) {
 
   if (openLink && openTesterId != null) {
     return (
-      <div className="h-full min-h-0 overflow-y-auto overscroll-contain">
+      <div className="h-full min-h-0 min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain touch-pan-y">
         <TesterThread
           agentId={agentId}
           linkId={openLink.id}
@@ -122,8 +122,8 @@ export function PlaygroundLinksTab({ agentId }: { agentId: number }) {
 
   if (openLink) {
     return (
-      <div className="h-full min-h-0 overflow-y-auto overscroll-contain">
-        {error && <p className="text-sm text-red-400">{error}</p>}
+      <div className="h-full min-h-0 min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain touch-pan-y">
+        {error && <p className="text-sm text-red-400 px-0.5">{error}</p>}
         <TestersPanel
           agentId={agentId}
           link={openLink}
@@ -139,17 +139,17 @@ export function PlaygroundLinksTab({ agentId }: { agentId: number }) {
   const paged = paginate(rows, page);
 
   return (
-    <div className="h-full min-h-0 flex flex-col gap-4">
-      <Card padding="md" className="shrink-0">
-        <h2 className="text-base font-semibold text-white">קישורי בדיקה</h2>
-        <p className="text-sm text-slate-400 mt-1 mb-5">
+    <div className="h-full min-h-0 min-w-0 flex flex-col gap-3 md:gap-4 overflow-x-hidden">
+      <Card padding="sm" className="shrink-0 !p-3 md:!p-5">
+        <h2 className="text-sm md:text-base font-semibold text-[var(--ink)]">קישורי בדיקה</h2>
+        <p className="text-xs md:text-sm text-[var(--text-secondary)] mt-1 mb-3 md:mb-5 leading-relaxed">
           הפונקציות רצות באמת עם המספר שהבודק יקליד. תיאום פגישות נשאר בשיחה ולא נכתב ליומן גוגל.
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-[11rem_minmax(0,1fr)_auto] gap-3 items-end">
-          <label className="text-xs text-slate-400">
+        <div className="grid grid-cols-1 md:grid-cols-[11rem_minmax(0,1fr)_auto] gap-3 items-stretch md:items-end">
+          <label className="text-xs text-[var(--text-secondary)]">
             תוקף
             <select
-              className="mt-1.5 block w-full px-3 py-2.5 bg-slate-800/50 border border-slate-600/50 rounded-lg text-sm text-white"
+              className="mt-1.5 block w-full min-h-11 px-3 py-2.5 bg-[var(--glass-2)] border border-[var(--edge-strong)] rounded-2xl text-base md:text-sm text-[var(--ink)]"
               value={ttl}
               onChange={(e) => setTtl(Number(e.target.value))}
             >
@@ -159,29 +159,33 @@ export function PlaygroundLinksTab({ agentId }: { agentId: number }) {
             </select>
           </label>
           <TokenLimitField value={tokenDraft} onChange={setTokenDraft} />
-          <Button disabled={busy} onClick={() => {
-            const parsed = parseTokenLimit(tokenDraft);
-            const limitErr = tokenLimitError(parsed);
-            if (limitErr || parsed == null) {
-              setError(limitErr || 'תקרת טוקנים לא תקינה');
-              return;
-            }
-            setPage(1);
-            return run(() => createPlaygroundLink(agentId, ttl, parsed));
-          }}>
+          <Button
+            className="w-full md:w-auto min-h-11"
+            disabled={busy}
+            onClick={() => {
+              const parsed = parseTokenLimit(tokenDraft);
+              const limitErr = tokenLimitError(parsed);
+              if (limitErr || parsed == null) {
+                setError(limitErr || 'תקרת טוקנים לא תקינה');
+                return;
+              }
+              setPage(1);
+              return run(() => createPlaygroundLink(agentId, ttl, parsed));
+            }}
+          >
             צור קישור
           </Button>
         </div>
-        <p className="text-xs text-slate-500 mt-5 mb-2">בחירה מהירה</p>
+        <p className="text-xs text-[var(--text-muted)] mt-4 mb-2">בחירה מהירה</p>
         <TokenLimitPresets value={tokenDraft} onChange={setTokenDraft} />
         <TokenLimitHint value={tokenDraft} />
       </Card>
 
       {error && <p className="text-sm text-red-400 shrink-0">{error}</p>}
       {loading ? (
-        <p className="text-sm text-slate-400">טוען…</p>
+        <p className="text-sm text-[var(--text-secondary)]">טוען…</p>
       ) : rows.length === 0 ? (
-        <p className="text-sm text-slate-400 px-1">אין קישורים עדיין — צור אחד למעלה</p>
+        <p className="text-sm text-[var(--text-secondary)] px-1">אין קישורים עדיין — צור אחד למעלה</p>
       ) : (
         <ListViewport
           footer={(
@@ -228,14 +232,14 @@ function TokenLimitField({
 }) {
   const parsed = parseTokenLimit(value);
   return (
-    <label className="text-xs text-slate-400 min-w-0">
+    <label className="text-xs text-[var(--text-secondary)] min-w-0">
       תקרת טוקנים — הקלדה ידנית
       <input
         dir="ltr"
         inputMode="numeric"
         autoComplete="off"
         placeholder="1,000,000"
-        className="mt-1.5 block w-full px-3 py-2.5 bg-slate-800/50 border border-slate-600/50 rounded-lg text-sm text-white text-left tabular-nums"
+        className="mt-1.5 block w-full min-h-11 px-3 py-2.5 bg-[var(--glass-2)] border border-[var(--edge-strong)] rounded-2xl text-base md:text-sm text-[var(--ink)] text-left tabular-nums"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onBlur={() => {
@@ -250,7 +254,7 @@ function TokenLimitHint({ value }: { value: string }) {
   const parsed = parseTokenLimit(value);
   const err = tokenLimitError(parsed);
   return (
-    <p className={`mt-3 text-sm ${err ? 'text-red-400' : 'text-slate-400'}`}>
+    <p className={`mt-2 md:mt-3 text-xs md:text-sm ${err ? 'text-red-400' : 'text-[var(--text-secondary)]'}`}>
       {err || (parsed != null ? messagesApproxLabel(parsed) : '')}
     </p>
   );
@@ -273,14 +277,14 @@ function TokenLimitPresets({
             key={opt.tokens}
             type="button"
             onClick={() => onChange(formatTokenLimit(opt.tokens))}
-            className={`rounded-xl border px-3 py-3 text-right transition-colors ${
+            className={`rounded-2xl border px-3 py-2.5 md:py-3 text-right min-h-11 transition-colors ${
               selected
-                ? 'border-purple-500/50 bg-purple-500/15 text-white'
-                : 'border-white/[0.08] bg-white/[0.03] text-slate-300 hover:border-white/20'
+                ? 'border-[var(--acc)]/50 bg-[var(--acc)]/15 text-[var(--ink)]'
+                : 'border-[var(--edge)] bg-[var(--glass)] text-[var(--text-secondary)] hover:border-[var(--edge-strong)]'
             }`}
           >
             <span className="block text-sm font-medium">{opt.label}</span>
-            <span className="block text-xs text-slate-500 mt-1">
+            <span className="block text-xs text-[var(--text-muted)] mt-1">
               ~{estimateMessages(opt.tokens).toLocaleString('he-IL')} הודעות
             </span>
           </button>
@@ -311,43 +315,47 @@ function LinkRow({
 }) {
   const usage = tokensLabel(row.tokens_used, row.token_limit);
   return (
-    <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] px-4 py-3">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <button type="button" onClick={onOpen} className="min-w-0 text-right flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={`text-[11px] px-2 py-0.5 rounded-full border ${statusBadge(row.status)}`}>
-              {LINK_STATUS[row.status] || row.status}
-            </span>
-            <span className="text-sm text-white">
-              {row.tester_count} בודקים · {row.conversation_count} שיחות
-            </span>
-          </div>
-          <p className="text-xs text-slate-400 mt-1.5">
-            {[
-              whenLabel(row.expires_at, row.status === 'expired' ? 'פג' : 'עד'),
-              usage,
-            ].filter(Boolean).join(' · ')}
-          </p>
-        </button>
-        <div className="flex flex-wrap gap-2">
-          {row.url && (
-            <Button variant="secondary" size="sm" disabled={busy} onClick={onCopy}>
-              {copied ? 'הועתק' : 'העתק קישור'}
-            </Button>
-          )}
-          <Button variant="secondary" size="sm" onClick={onOpen}>
-            התכתבויות
-          </Button>
-          {row.status === 'active' && (
-            <Button variant="ghost" size="sm" disabled={busy} onClick={onStop}>עצור</Button>
-          )}
-          {(row.status === 'stopped' || row.status === 'expired') && (
-            <Button variant="ghost" size="sm" disabled={busy} onClick={onRestore}>שחזר</Button>
-          )}
-          {row.status !== 'deleted' && (
-            <Button variant="ghost" size="sm" disabled={busy} onClick={onDelete}>הסתר</Button>
-          )}
+    <div className="rounded-[22px] border border-[var(--edge)] bg-[var(--glass)] p-3 md:px-4 md:py-3 min-w-0 overflow-hidden">
+      <button type="button" onClick={onOpen} className="w-full min-w-0 text-right">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={`text-[11px] px-2 py-0.5 rounded-full border shrink-0 ${statusBadge(row.status)}`}>
+            {LINK_STATUS[row.status] || row.status}
+          </span>
+          <span className="text-sm text-[var(--ink)] truncate">
+            {row.tester_count} בודקים · {row.conversation_count} שיחות
+          </span>
         </div>
+        <p className="text-xs text-[var(--text-secondary)] mt-1.5 truncate">
+          {[
+            whenLabel(row.expires_at, row.status === 'expired' ? 'פג' : 'עד'),
+            usage,
+          ].filter(Boolean).join(' · ')}
+        </p>
+      </button>
+      <div className="mt-3 grid grid-cols-2 gap-2 md:flex md:flex-wrap">
+        {row.url && (
+          <Button variant="secondary" size="sm" className="min-h-11 w-full md:w-auto" disabled={busy} onClick={onCopy}>
+            {copied ? 'הועתק' : (
+              <>
+                <span className="md:hidden">העתק</span>
+                <span className="hidden md:inline">העתק קישור</span>
+              </>
+            )}
+          </Button>
+        )}
+        <Button variant="secondary" size="sm" className="min-h-11 w-full md:w-auto" onClick={onOpen}>
+          <span className="md:hidden">שיחות</span>
+          <span className="hidden md:inline">התכתבויות</span>
+        </Button>
+        {row.status === 'active' && (
+          <Button variant="ghost" size="sm" className="min-h-11 w-full md:w-auto" disabled={busy} onClick={onStop}>עצור</Button>
+        )}
+        {(row.status === 'stopped' || row.status === 'expired') && (
+          <Button variant="ghost" size="sm" className="min-h-11 w-full md:w-auto" disabled={busy} onClick={onRestore}>שחזר</Button>
+        )}
+        {row.status !== 'deleted' && (
+          <Button variant="ghost" size="sm" className="min-h-11 w-full md:w-auto" disabled={busy} onClick={onDelete}>הסתר</Button>
+        )}
       </div>
     </div>
   );

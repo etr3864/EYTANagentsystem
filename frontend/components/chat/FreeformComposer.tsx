@@ -124,7 +124,7 @@ export function FreeformComposer({
       {file && (
         <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] bg-[var(--glass-2)] rounded-2xl px-3 py-2">
           <span className="truncate flex-1">{file.name}</span>
-          <button type="button" onClick={() => setFile(null)} className="text-slate-400 hover:text-white">
+          <button type="button" onClick={() => setFile(null)} className="text-[var(--text-secondary)] hover:text-[var(--ink)]">
             <XIcon className="w-4 h-4" />
           </button>
         </div>
@@ -133,7 +133,7 @@ export function FreeformComposer({
         <div className="flex items-center gap-2 text-xs text-rose-300">
           <span className="w-2 h-2 rounded-full bg-rose-400 animate-pulse" />
           מקליט...
-          <button type="button" onClick={cancelRecording} className="text-slate-400 hover:text-white mr-auto">
+          <button type="button" onClick={cancelRecording} className="text-[var(--text-secondary)] hover:text-[var(--ink)] mr-auto">
             ביטול
           </button>
         </div>

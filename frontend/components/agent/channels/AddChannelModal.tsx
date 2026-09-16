@@ -79,12 +79,12 @@ export function AddChannelModal({ agentId, channelType, onClose, onAdded }: AddC
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="bg-[#131020] border border-slate-700 rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl">
+      <div className="bg-[var(--bg-secondary)] border border-[var(--edge)] rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-semibold text-white">
+          <h2 className="text-lg font-semibold text-[var(--ink)]">
             חיבור {CHANNEL_LABELS[channelType] || channelType}
           </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-white text-xl">✕</button>
+          <button onClick={onClose} className="text-[var(--text-secondary)] hover:text-[var(--ink)] text-xl">✕</button>
         </div>
 
         {error && (
@@ -97,70 +97,70 @@ export function AddChannelModal({ agentId, channelType, onClose, onAdded }: AddC
         {step === 'wasender_form' && (
           <div className="space-y-4">
             {/* Webhook URL — copy this into WaSender dashboard */}
-            <div className="p-3 bg-slate-800/80 border border-slate-700 rounded-xl space-y-1.5">
-              <p className="text-xs font-medium text-slate-300">🔗 Webhook URL להכנסה ב-WaSender</p>
+            <div className="p-3 bg-[var(--glass-2)] border border-[var(--edge)] rounded-xl space-y-1.5">
+              <p className="text-xs font-medium text-[var(--text-secondary)]">🔗 Webhook URL להכנסה ב-WaSender</p>
               <div className="flex items-center gap-2">
-                <code className="flex-1 text-xs text-emerald-400 bg-slate-900 px-2 py-1.5 rounded-lg font-mono truncate select-all">
+                <code className="flex-1 text-xs text-emerald-400 bg-[var(--bg-secondary)] px-2 py-1.5 rounded-lg font-mono truncate select-all">
                   {wasenderWebhookUrl}
                 </code>
                 <button
                   type="button"
                   onClick={() => navigator.clipboard.writeText(wasenderWebhookUrl)}
-                  className="flex-shrink-0 px-2 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs transition-colors"
+                  className="flex-shrink-0 px-2 py-1.5 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] text-xs transition-colors"
                   title="העתק"
                 >
                   העתק
                 </button>
               </div>
-              <p className="text-xs text-slate-500">הכנס כ-Webhook URL ב-WaSender Dashboard שלך</p>
+              <p className="text-xs text-[var(--text-muted)]">הכנס כ-Webhook URL ב-WaSender Dashboard שלך</p>
             </div>
 
             {/* API Key */}
             <div>
-              <label className="text-xs text-slate-400 mb-1 block">
+              <label className="text-xs text-[var(--text-secondary)] mb-1 block">
                 API Key <span className="text-red-400">*</span>
               </label>
               <input
                 type="password"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
+                className="w-full bg-[var(--glass-2)] border border-[var(--edge)] rounded-lg px-3 py-2 text-sm text-[var(--ink)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--acc)]"
                 value={wsApiKey}
                 onChange={e => setWsApiKey(e.target.value)}
                 placeholder="ey..."
                 autoComplete="off"
               />
-              <p className="text-xs text-slate-500 mt-1">מ-WaSender Dashboard → Settings → API Key</p>
+              <p className="text-xs text-[var(--text-muted)] mt-1">מ-WaSender Dashboard → Settings → API Key</p>
             </div>
 
             {/* Session */}
             <div>
-              <label className="text-xs text-slate-400 mb-1 block">Session ID</label>
+              <label className="text-xs text-[var(--text-secondary)] mb-1 block">Session ID</label>
               <input
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
+                className="w-full bg-[var(--glass-2)] border border-[var(--edge)] rounded-lg px-3 py-2 text-sm text-[var(--ink)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--acc)]"
                 value={wsSession}
                 onChange={e => setWsSession(e.target.value)}
                 placeholder="default"
               />
-              <p className="text-xs text-slate-500 mt-1">שם ה-session ב-WaSender (ברירת מחדל: default)</p>
+              <p className="text-xs text-[var(--text-muted)] mt-1">שם ה-session ב-WaSender (ברירת מחדל: default)</p>
             </div>
 
             {/* Webhook Secret */}
             <div>
-              <label className="text-xs text-slate-400 mb-1 block">
-                Webhook Secret <span className="text-slate-500">(אופציונלי)</span>
+              <label className="text-xs text-[var(--text-secondary)] mb-1 block">
+                Webhook Secret <span className="text-[var(--text-muted)]">(אופציונלי)</span>
               </label>
               <input
                 type="password"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
+                className="w-full bg-[var(--glass-2)] border border-[var(--edge)] rounded-lg px-3 py-2 text-sm text-[var(--ink)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--acc)]"
                 value={wsSecret}
                 onChange={e => setWsSecret(e.target.value)}
                 placeholder="מחרוזת סודית לאימות"
                 autoComplete="off"
               />
-              <p className="text-xs text-slate-500 mt-1">אם הגדרת Webhook Secret ב-WaSender — הכנס כאן</p>
+              <p className="text-xs text-[var(--text-muted)] mt-1">אם הגדרת Webhook Secret ב-WaSender — הכנס כאן</p>
             </div>
 
             <div className="flex gap-3 pt-1">
-              <button onClick={onClose} className="flex-1 py-2 rounded-lg bg-slate-700 text-slate-300 text-sm hover:bg-slate-600 transition-colors">ביטול</button>
+              <button onClick={onClose} className="flex-1 py-2 rounded-lg bg-[var(--bg-tertiary)] text-[var(--text-secondary)] text-sm hover:bg-[var(--bg-hover)] transition-colors">ביטול</button>
               <button
                 onClick={handleAddWaSender}
                 disabled={loading || !wsApiKey.trim()}
@@ -175,20 +175,20 @@ export function AddChannelModal({ agentId, channelType, onClose, onAdded }: AddC
         {/* Meta OAuth */}
         {step === 'choose' && (
           <div className="space-y-4">
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-[var(--text-secondary)]">
               יש להתחבר לחשבון Meta שלך כדי לחבר {CHANNEL_LABELS[channelType]}.
             </p>
-            <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-700 text-sm text-slate-300 space-y-2">
+            <div className="p-4 bg-[var(--glass-2)] rounded-xl border border-[var(--edge)] text-sm text-[var(--text-secondary)] space-y-2">
               <p>✓ תתחבר לחשבון Facebook/Instagram שלך</p>
               <p>✓ תבחר את הדף / חשבון העסקי הרלוונטי</p>
               <p>✓ הסוכן יתחיל לענות אוטומטית</p>
             </div>
             <div className="flex gap-3">
-              <button onClick={onClose} className="flex-1 py-2 rounded-lg bg-slate-700 text-slate-300 text-sm">ביטול</button>
+              <button onClick={onClose} className="flex-1 py-2 rounded-lg bg-[var(--bg-tertiary)] text-[var(--text-secondary)] text-sm">ביטול</button>
               <button
                 onClick={handleOAuth}
                 disabled={loading}
-                className="flex-1 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-all"
+                className="flex-1 py-2 rounded-lg bg-[var(--ink)] hover:opacity-90 text-[var(--bg)] text-sm font-medium transition-all"
               >
                 {loading ? 'מפנה...' : 'התחבר עם Meta →'}
               </button>

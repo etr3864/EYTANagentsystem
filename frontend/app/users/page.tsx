@@ -160,12 +160,12 @@ function UsersPage() {
 
   return (
     <div className={`flex flex-col ${BELOW_NAV_CLASS}`}>
-      <header className="shrink-0 border-b border-purple-500/10 bg-[#0B0914]/80 backdrop-blur-sm">
+      <header className="shrink-0 border-b border-[var(--edge)] bg-[var(--bg)]/80 backdrop-blur-sm">
         <div className="max-w-6xl mx-auto px-3 md:px-6 py-3 md:py-4">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-base md:text-xl font-bold text-white">ניהול משתמשים</h1>
-              <p className="text-xs text-slate-400 hidden sm:block">
+              <h1 className="text-base md:text-xl font-bold text-[var(--ink)]">ניהול משתמשים</h1>
+              <p className="text-xs text-[var(--text-secondary)] hidden sm:block">
                 {isSuperAdmin(user) ? 'ניהול לקוחות ועובדים' : 'ניהול עובדים'}
               </p>
             </div>
@@ -182,7 +182,7 @@ function UsersPage() {
         {isSuperAdmin(user) && (
           <div className="mb-4 flex max-h-[32%] min-h-0 shrink-0 flex-col">
             <div className="flex items-center justify-between mb-3 shrink-0">
-              <h2 className="text-lg font-bold text-white">מנהלי מערכת</h2>
+              <h2 className="text-lg font-bold text-[var(--ink)]">מנהלי מערכת</h2>
               <Button variant="secondary" size="sm" icon={<PlusIcon />} onClick={() => setShowCreateSA(true)}>
                 מנהל מערכת חדש
               </Button>
@@ -190,7 +190,7 @@ function UsersPage() {
 
             {superAdmins.length === 0 ? (
               <Card className="text-center py-6">
-                <p className="text-slate-400 text-sm">אין מנהלי מערכת נוספים</p>
+                <p className="text-[var(--text-secondary)] text-sm">אין מנהלי מערכת נוספים</p>
               </Card>
             ) : (
               <ListViewport
@@ -214,8 +214,8 @@ function UsersPage() {
                           <KeyIcon />
                         </div>
                         <div className="min-w-0">
-                          <span className="text-white font-medium text-sm md:text-base">{sa.name}</span>
-                          <div className="text-xs md:text-sm text-slate-400 truncate">{sa.email}</div>
+                          <span className="text-[var(--ink)] font-medium text-sm md:text-base">{sa.name}</span>
+                          <div className="text-xs md:text-sm text-[var(--text-secondary)] truncate">{sa.email}</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
@@ -238,7 +238,7 @@ function UsersPage() {
                           </Button>
                         )}
                         {sa.id === user?.id && (
-                          <span className="text-xs text-slate-500 px-2">אתה</span>
+                          <span className="text-xs text-[var(--text-muted)] px-2">אתה</span>
                         )}
                       </div>
                     </div>
@@ -251,33 +251,33 @@ function UsersPage() {
             {/* Create Super Admin Modal */}
             {showCreateSA && (
               <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShowCreateSA(false)}>
-                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
-                  <h3 className="text-lg font-bold text-white mb-4">מנהל מערכת חדש</h3>
+                <div className="bg-[var(--glass-2)] border border-[var(--edge)] rounded-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+                  <h3 className="text-lg font-bold text-[var(--ink)] mb-4">מנהל מערכת חדש</h3>
                   <div className="space-y-4">
                     <div>
-                      <label className="text-sm text-slate-400 block mb-1">שם</label>
+                      <label className="text-sm text-[var(--text-secondary)] block mb-1">שם</label>
                       <input
-                        className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm"
+                        className="w-full bg-[var(--bg-secondary)] border border-[var(--edge-strong)] rounded-lg px-3 py-2 text-[var(--ink)] text-sm"
                         value={saForm.name}
                         onChange={e => setSaForm(f => ({ ...f, name: e.target.value }))}
                         placeholder="שם מנהל המערכת"
                       />
                     </div>
                     <div>
-                      <label className="text-sm text-slate-400 block mb-1">אימייל</label>
+                      <label className="text-sm text-[var(--text-secondary)] block mb-1">אימייל</label>
                       <input
                         type="email"
-                        className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm"
+                        className="w-full bg-[var(--bg-secondary)] border border-[var(--edge-strong)] rounded-lg px-3 py-2 text-[var(--ink)] text-sm"
                         value={saForm.email}
                         onChange={e => setSaForm(f => ({ ...f, email: e.target.value }))}
                         placeholder="email@example.com"
                       />
                     </div>
                     <div>
-                      <label className="text-sm text-slate-400 block mb-1">סיסמה</label>
+                      <label className="text-sm text-[var(--text-secondary)] block mb-1">סיסמה</label>
                       <input
                         type="password"
-                        className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm"
+                        className="w-full bg-[var(--bg-secondary)] border border-[var(--edge-strong)] rounded-lg px-3 py-2 text-[var(--ink)] text-sm"
                         value={saForm.password}
                         onChange={e => setSaForm(f => ({ ...f, password: e.target.value }))}
                         placeholder="לפחות 8 תווים"
@@ -297,14 +297,14 @@ function UsersPage() {
             {/* Reset Super Admin Password Modal */}
             {resetSAPassword && (
               <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setResetSAPassword(null)}>
-                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
-                  <h3 className="text-lg font-bold text-white mb-2">איפוס סיסמה</h3>
-                  <p className="text-sm text-slate-400 mb-4">{resetSAPassword.name} ({resetSAPassword.email})</p>
+                <div className="bg-[var(--glass-2)] border border-[var(--edge)] rounded-2xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+                  <h3 className="text-lg font-bold text-[var(--ink)] mb-2">איפוס סיסמה</h3>
+                  <p className="text-sm text-[var(--text-secondary)] mb-4">{resetSAPassword.name} ({resetSAPassword.email})</p>
                   <div>
-                    <label className="text-sm text-slate-400 block mb-1">סיסמה חדשה</label>
+                    <label className="text-sm text-[var(--text-secondary)] block mb-1">סיסמה חדשה</label>
                     <input
                       type="password"
-                      className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm"
+                      className="w-full bg-[var(--bg-secondary)] border border-[var(--edge-strong)] rounded-lg px-3 py-2 text-[var(--ink)] text-sm"
                       value={saNewPassword}
                       onChange={e => setSaNewPassword(e.target.value)}
                       placeholder="לפחות 8 תווים"
@@ -320,7 +320,7 @@ function UsersPage() {
               </div>
             )}
 
-            <hr className="border-slate-700/50 mt-3 shrink-0" />
+            <hr className="border-[var(--edge)] mt-3 shrink-0" />
           </div>
         )}
 
@@ -330,8 +330,8 @@ function UsersPage() {
               onClick={() => setActiveTab('admins')}
               className={`px-4 py-2 rounded-lg font-medium transition ${
                 activeTab === 'admins'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-white/5 text-slate-400 hover:text-white'
+                  ? 'bg-[var(--ink)] text-[var(--bg)]'
+                  : 'bg-[var(--glass-2)] text-[var(--text-secondary)] hover:text-[var(--ink)]'
               }`}
             >
               לקוחות ({admins.length})
@@ -340,8 +340,8 @@ function UsersPage() {
               onClick={() => setActiveTab('employees')}
               className={`px-4 py-2 rounded-lg font-medium transition ${
                 activeTab === 'employees'
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-white/5 text-slate-400 hover:text-white'
+                  ? 'bg-[var(--ink)] text-[var(--bg)]'
+                  : 'bg-[var(--glass-2)] text-[var(--text-secondary)] hover:text-[var(--ink)]'
               }`}
             >
               עובדים ({employees.length})
@@ -361,12 +361,12 @@ function UsersPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={activeTab === 'admins' ? 'חיפוש לקוח...' : 'חיפוש עובד...'}
-                className="w-full shrink-0 bg-white/[0.03] border border-purple-500/10 rounded-xl py-2.5 px-4 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/40 transition"
+                className="w-full shrink-0 bg-[var(--glass)] border border-[var(--edge)] rounded-xl py-2.5 px-4 text-sm text-[var(--ink)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--acc)]/40 transition"
               />
             )}
             {(activeTab === 'admins' ? admins : employees).length === 0 ? (
               <Card className="text-center py-12">
-                <p className="text-slate-400 mb-4">
+                <p className="text-[var(--text-secondary)] mb-4">
                   {activeTab === 'admins' ? 'אין לקוחות עדיין' : 'אין עובדים עדיין'}
                 </p>
                 <Button variant="success" onClick={() => setShowCreateModal(true)}>
@@ -376,7 +376,7 @@ function UsersPage() {
             ) : activeTab === 'admins' ? (
               <>
               {pagedAdmins.total === 0 ? (
-                <p className="text-center py-8 text-slate-500 text-sm">לא נמצאו לקוחות עבור החיפוש</p>
+                <p className="text-center py-8 text-[var(--text-muted)] text-sm">לא נמצאו לקוחות עבור החיפוש</p>
               ) : (
               <ListViewport
                 footer={
@@ -397,17 +397,17 @@ function UsersPage() {
                     <div className="flex items-center gap-3 md:gap-4 min-w-0">
                       <div className={`
                         w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center text-lg md:text-xl shrink-0
-                        ${adminItem.is_active ? 'bg-purple-500/10 text-purple-400' : 'bg-slate-700/50 text-slate-400'}
+                        ${adminItem.is_active ? 'bg-[var(--acc)]/10 text-[var(--acc)]' : 'bg-[var(--glass-2)] text-[var(--text-secondary)]'}
                       `}>
                         <UserIcon />
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           <span className={`status-dot ${adminItem.is_active ? 'active' : 'inactive'}`} />
-                          <span className="text-base md:text-lg font-semibold text-white truncate">{adminItem.name}</span>
+                          <span className="text-base md:text-lg font-semibold text-[var(--ink)] truncate">{adminItem.name}</span>
                         </div>
-                        <div className="text-xs md:text-sm text-slate-400 truncate">{adminItem.email}</div>
-                        <div className="text-xs text-slate-500 mt-1">
+                        <div className="text-xs md:text-sm text-[var(--text-secondary)] truncate">{adminItem.email}</div>
+                        <div className="text-xs text-[var(--text-muted)] mt-1">
                           {adminItem.agent_ids.length} סוכנים משויכים
                         </div>
                       </div>
@@ -422,7 +422,7 @@ function UsersPage() {
                         }}
                         className={`
                           relative w-12 h-6 rounded-full transition-colors duration-200
-                          ${adminItem.is_active ? 'bg-emerald-500' : 'bg-slate-600'}
+                          ${adminItem.is_active ? 'bg-emerald-500' : 'bg-[var(--bg-tertiary)]'}
                         `}
                         title={adminItem.is_active ? 'לחץ להשבתה' : 'לחץ להפעלה'}
                       >
@@ -480,7 +480,7 @@ function UsersPage() {
             ) : (
               <>
               {pagedEmployees.total === 0 ? (
-                <p className="text-center py-8 text-slate-500 text-sm">לא נמצאו עובדים עבור החיפוש</p>
+                <p className="text-center py-8 text-[var(--text-muted)] text-sm">לא נמצאו עובדים עבור החיפוש</p>
               ) : (
               <ListViewport
                 footer={
@@ -501,21 +501,21 @@ function UsersPage() {
                     <div className="flex items-center gap-3 md:gap-4 min-w-0">
                       <div className={`
                         w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center text-lg md:text-xl shrink-0
-                        ${empItem.is_active ? 'bg-purple-500/10 text-purple-400' : 'bg-slate-700/50 text-slate-400'}
+                        ${empItem.is_active ? 'bg-[var(--acc)]/10 text-[var(--acc)]' : 'bg-[var(--glass-2)] text-[var(--text-secondary)]'}
                       `}>
                         <UserIcon />
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className={`status-dot ${empItem.is_active ? 'active' : 'inactive'}`} />
-                          <span className="text-base md:text-lg font-semibold text-white truncate">{empItem.name}</span>
+                          <span className="text-base md:text-lg font-semibold text-[var(--ink)] truncate">{empItem.name}</span>
                           {isSuperAdmin(user) && empItem.parent_name && (
-                            <span className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-300">
+                            <span className="text-xs px-2 py-0.5 rounded bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">
                               עובד של {empItem.parent_name}
                             </span>
                           )}
                         </div>
-                        <div className="text-xs md:text-sm text-slate-400 truncate">{empItem.email}</div>
+                        <div className="text-xs md:text-sm text-[var(--text-secondary)] truncate">{empItem.email}</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 md:gap-3 self-end sm:self-center shrink-0">
@@ -528,7 +528,7 @@ function UsersPage() {
                         }}
                         className={`
                           relative w-12 h-6 rounded-full transition-colors duration-200
-                          ${empItem.is_active ? 'bg-emerald-500' : 'bg-slate-600'}
+                          ${empItem.is_active ? 'bg-emerald-500' : 'bg-[var(--bg-tertiary)]'}
                         `}
                         title={empItem.is_active ? 'לחץ להשבתה' : 'לחץ להפעלה'}
                       >

@@ -79,13 +79,13 @@ export function DocumentEditor({
     <Card>
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="font-medium text-white">
+          <h3 className="font-medium text-[var(--ink)]">
             {isNew ? 'מסמך חדש' : 'עריכת מסמך'}
           </h3>
           <Button variant="ghost" size="sm" onClick={onClose}>חזרה</Button>
         </div>
 
-        {loading && <p className="text-sm text-slate-400">טוען…</p>}
+        {loading && <p className="text-sm text-[var(--text-secondary)]">טוען…</p>}
 
         {!loading && (
           <>
@@ -106,7 +106,7 @@ export function DocumentEditor({
                 hint={`הטקסט הזה הוא מה שנשמר במאגר. שמירה מחדש תעדכן את החיפוש. ${content.length.toLocaleString()} / ${MAX_SOURCE_CHARS.toLocaleString()} תווים.`}
               />
             ) : (
-              <div className="text-sm text-slate-400 bg-slate-800/40 rounded-lg p-3">
+              <div className="text-sm text-[var(--text-secondary)] bg-[var(--glass)] rounded-lg p-3">
                 המסמך הועלה לפני שהתחלנו לשמור את הטקסט המלא. אין תצוגה או עריכת תוכן —
                 העלה אותו מחדש עם כותרת כדי לקבל את זה.
               </div>

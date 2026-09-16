@@ -66,7 +66,7 @@ export function ChannelsTab({ agentId, canEdit }: ChannelsTabProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-[var(--acc)] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
@@ -90,8 +90,8 @@ export function ChannelsTab({ agentId, canEdit }: ChannelsTabProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-white">ערוצי תקשורת</h2>
-          <p className="text-sm text-slate-400 mt-0.5">
+          <h2 className="text-lg font-semibold text-[var(--ink)]">ערוצי תקשורת</h2>
+          <p className="text-sm text-[var(--text-secondary)] mt-0.5">
             נהל את הערוצים שדרכם הסוכן מגיב להודעות
           </p>
         </div>
@@ -108,7 +108,7 @@ export function ChannelsTab({ agentId, canEdit }: ChannelsTabProps) {
             {!msChannel && (
               <button
                 onClick={() => setAddingChannelType('messenger')}
-                className="px-3 py-1.5 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 text-sm transition-all"
+                className="px-3 py-1.5 rounded-lg bg-[var(--acc)]/10 hover:bg-[var(--acc)]/20 text-[var(--acc)] border border-[var(--acc)]/20 text-sm transition-all"
               >
                 + Messenger
               </button>
@@ -119,7 +119,7 @@ export function ChannelsTab({ agentId, canEdit }: ChannelsTabProps) {
 
       {/* WhatsApp card (with mutex UI) */}
       <div>
-        <h3 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">WhatsApp</h3>
+        <h3 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-3">WhatsApp</h3>
         <WhatsAppChannelCard
           agentId={agentId}
           wasenderChannel={wasenderChannel}
@@ -134,7 +134,7 @@ export function ChannelsTab({ agentId, canEdit }: ChannelsTabProps) {
       {/* Other channels */}
       {nonWaChannels.length > 0 && (
         <div>
-          <h3 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">ערוצים נוספים</h3>
+          <h3 className="text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider mb-3">ערוצים נוספים</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {nonWaChannels.map(ch => (
               <ChannelCard
@@ -150,9 +150,9 @@ export function ChannelsTab({ agentId, canEdit }: ChannelsTabProps) {
 
       {/* Empty non-WA state */}
       {nonWaChannels.length === 0 && canEdit && (
-        <div className="rounded-xl border border-dashed border-slate-700 p-8 text-center">
+        <div className="rounded-xl border border-dashed border-[var(--edge)] p-8 text-center">
           <div className="text-3xl mb-2">📡</div>
-          <p className="text-slate-400 text-sm mb-4">אין ערוצים נוספים. חבר Instagram או Messenger להרחבת הסוכן.</p>
+          <p className="text-[var(--text-secondary)] text-sm mb-4">אין ערוצים נוספים. חבר Instagram או Messenger להרחבת הסוכן.</p>
           <div className="flex justify-center gap-3">
             {!igChannel && (
               <button
@@ -165,7 +165,7 @@ export function ChannelsTab({ agentId, canEdit }: ChannelsTabProps) {
             {!msChannel && (
               <button
                 onClick={() => setAddingChannelType('messenger')}
-                className="px-4 py-2 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 text-sm transition-all"
+                className="px-4 py-2 rounded-lg bg-[var(--acc)]/10 hover:bg-[var(--acc)]/20 text-[var(--acc)] border border-[var(--acc)]/20 text-sm transition-all"
               >
                 💬 Messenger
               </button>
@@ -183,7 +183,7 @@ export function ChannelsTab({ agentId, canEdit }: ChannelsTabProps) {
                 <span>🛡️</span>
                 Business Assistant Mode
               </div>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-[var(--text-secondary)] mt-1">
                 מצב תאימות Meta 2026 — מוסיף disclaimer אוטומטי שהסוכן הוא AI. חובה לפני הגשת App Review.
               </p>
             </div>
@@ -192,7 +192,7 @@ export function ChannelsTab({ agentId, canEdit }: ChannelsTabProps) {
               disabled={savingMode}
               dir="ltr"
               className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${
-                businessAssistantMode ? 'bg-amber-500' : 'bg-slate-700'
+                businessAssistantMode ? 'bg-amber-500' : 'bg-[var(--bg-tertiary)]'
               } ${savingMode ? 'opacity-50 cursor-not-allowed' : ''}`}
               aria-label="Toggle Business Assistant Mode"
             >

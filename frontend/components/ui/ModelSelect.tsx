@@ -10,13 +10,13 @@ interface ModelSelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>,
 
 const inputBaseStyles = `
   w-full px-4 py-2.5
-  bg-slate-800/50 
-  border border-slate-600/50 
+  bg-[var(--glass-2)] 
+  border border-[var(--edge-strong)] 
   rounded-lg
-  text-white placeholder-slate-400
+  text-[var(--ink)] placeholder:text-[var(--text-muted)]
   transition-all duration-200
-  focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20
-  hover:border-slate-500
+  focus:outline-none focus:border-[var(--acc)] focus:ring-2 focus:ring-[var(--acc)]/20
+  hover:border-[var(--acc)]
   disabled:opacity-50 disabled:cursor-not-allowed
 `;
 
@@ -29,7 +29,7 @@ export const ModelSelect = forwardRef<HTMLSelectElement, ModelSelectProps>(
     return (
       <div className="space-y-1.5">
         {label && (
-          <label className="block text-sm font-medium text-slate-300">
+          <label className="block text-sm font-medium text-[var(--text-secondary)]">
             {label}
           </label>
         )}
@@ -46,7 +46,7 @@ export const ModelSelect = forwardRef<HTMLSelectElement, ModelSelectProps>(
             {...props}
           >
             {leftover && (
-              <option value={displayValue} className="bg-slate-800 text-white">
+              <option value={displayValue} className="bg-[var(--glass-2)] text-[var(--ink)]">
                 {String(displayValue)}
               </option>
             )}
@@ -56,13 +56,13 @@ export const ModelSelect = forwardRef<HTMLSelectElement, ModelSelectProps>(
                 <optgroup 
                   key={provider} 
                   label={`${icon} ${provider}`}
-                  className="bg-slate-800 text-white"
+                  className="bg-[var(--glass-2)] text-[var(--ink)]"
                 >
                   {models.map(model => (
                     <option 
                       key={model.key} 
                       value={model.key}
-                      className="bg-slate-800 text-white"
+                      className="bg-[var(--glass-2)] text-[var(--ink)]"
                     >
                       {model.label} — {model.description} · {formatModelPrice(model)}
                     </option>
@@ -71,7 +71,7 @@ export const ModelSelect = forwardRef<HTMLSelectElement, ModelSelectProps>(
               );
             })}
           </select>
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-secondary)]">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>

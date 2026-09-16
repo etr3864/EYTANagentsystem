@@ -83,8 +83,8 @@ export function ReasonCard({ agentId, item, defaultOpen, onChanged, onDeleted }:
     <Card>
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0 text-right">
-          <p className="text-white font-medium truncate">{item.name}</p>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-[var(--ink)] font-medium truncate">{item.name}</p>
+          <p className="text-xs text-[var(--text-muted)] mt-0.5">
             {item.enabled ? 'פעיל' : 'כבוי'}
             {' · '}
             {item.fields.length} שדות
@@ -96,7 +96,7 @@ export function ReasonCard({ agentId, item, defaultOpen, onChanged, onDeleted }:
           <button
             type="button"
             onClick={() => save({ enabled: !item.enabled })}
-            className={`w-11 h-6 rounded-full relative ${item.enabled ? 'bg-emerald-500' : 'bg-slate-600'}`}
+            className={`w-11 h-6 rounded-full relative ${item.enabled ? 'bg-emerald-500' : 'bg-[var(--bg-tertiary)]'}`}
             aria-label={item.enabled ? 'כבה' : 'הפעל'}
           >
             <span className={`w-5 h-5 bg-white rounded-full absolute top-0.5 ${item.enabled ? 'left-[22px]' : 'left-0.5'}`} />
@@ -111,7 +111,7 @@ export function ReasonCard({ agentId, item, defaultOpen, onChanged, onDeleted }:
       </div>
 
       {open && (
-        <div className="mt-4 space-y-4 border-t border-white/10 pt-4">
+        <div className="mt-4 space-y-4 border-t border-[var(--edge)] pt-4">
           <Input
             label="שם הסיבה"
             value={name}

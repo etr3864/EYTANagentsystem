@@ -104,8 +104,8 @@ export function AdminDashboard() {
               onClick={() => handlePresetChange(p.id)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                 activePreset === p.id
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-white/5 text-slate-300 hover:bg-white/10'
+                  ? 'bg-[var(--ink)] text-[var(--bg)]'
+                  : 'bg-[var(--glass-2)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
               }`}
             >
               {p.label}
@@ -124,7 +124,7 @@ export function AdminDashboard() {
           <select
             value={selectedAgentId ?? ''}
             onChange={(e) => setSelectedAgentId(e.target.value ? Number(e.target.value) : undefined)}
-            className="bg-white/5 border border-purple-500/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-purple-500"
+            className="bg-[var(--glass-2)] border border-[var(--edge)] rounded-lg px-3 py-1.5 text-sm text-[var(--ink)] focus:outline-none focus:border-[var(--acc)]"
           >
             <option value="">כל הסוכנים</option>
             {agents.map((a) => (
@@ -145,8 +145,8 @@ export function AdminDashboard() {
                 onClick={() => setSelectedChannel(tab.key)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                   active
-                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
-                    : 'bg-white/5 text-slate-400 border border-transparent hover:bg-white/10 hover:text-slate-200'
+                    ? 'bg-[var(--acc)]/20 text-[var(--acc)] border border-[var(--acc)]/40'
+                    : 'bg-[var(--glass-2)] text-[var(--text-secondary)] border border-transparent hover:bg-[var(--bg-hover)] hover:text-[var(--ink)]'
                 }`}
               >
                 {tab.key && <ChannelIcon channelType={tab.key} size={14} />}

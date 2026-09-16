@@ -2,8 +2,9 @@
 
 import { useState, useRef } from 'react';
 import imageCompression from 'browser-image-compression';
-import { Card, Button } from '@/components/ui';
+import { Card, Button, ListPager } from '@/components/ui';
 import type { AgentMedia, MediaConfig } from '@/lib/types';
+import { usePagedList } from '@/lib/usePagedList';
 
 // Image compression options
 const COMPRESSION_OPTIONS = {
@@ -100,6 +101,9 @@ export function MediaTab({
   const videos = media.filter(m => m.media_type === 'video');
   const documents = media.filter(m => m.media_type === 'document');
   const config = mediaConfig || DEFAULT_CONFIG;
+  const sectionItems =
+    section === 'images' ? images : section === 'videos' ? videos : section === 'documents' ? documents : [];
+  const paged = usePagedList(sectionItems, section);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>, mediaType: 'image' | 'video' | 'document') => {
     const files = e.target.files;
@@ -269,14 +273,14 @@ export function MediaTab({
     const isDocument = item.media_type === 'document';
     
     return (
-      <div key={item.id} className="bg-slate-800/30 rounded-lg p-3">
+      <div key={item.id} className="bg-[var(--glass)] rounded-lg p-3">
         <div className="flex gap-3">
           {/* Preview - clickable to open */}
           <a 
             href={item.file_url} 
             target="_blank" 
             rel="noopener noreferrer"
-            className="w-16 h-16 rounded-lg overflow-hidden bg-slate-700 flex-shrink-0 hover:opacity-80 transition-opacity cursor-pointer"
+            className="w-16 h-16 rounded-lg overflow-hidden bg-[var(--bg-tertiary)] flex-shrink-0 hover:opacity-80 transition-opacity cursor-pointer"
             title="לחץ לפתיחה"
           >
             {item.media_type === 'image' ? (
@@ -304,7 +308,7 @@ export function MediaTab({
                   type="text"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="w-full px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm"
+                  className="w-full px-2 py-1 bg-[var(--bg-tertiary)] border border-[var(--edge-strong)] rounded text-[var(--ink)] text-sm"
                   placeholder="שם"
                 />
                 {isDocument && (
@@ -312,7 +316,7 @@ export function MediaTab({
                     type="text"
                     value={editFilename}
                     onChange={(e) => setEditFilename(e.target.value)}
-                    className="w-full px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm"
+                    className="w-full px-2 py-1 bg-[var(--bg-tertiary)] border border-[var(--edge-strong)] rounded text-[var(--ink)] text-sm"
                     placeholder="שם קובץ בווצאפ (למשל: מחירון.pdf)"
                   />
                 )}
@@ -320,14 +324,14 @@ export function MediaTab({
                   type="text"
                   value={editDescription}
                   onChange={(e) => setEditDescription(e.target.value)}
-                  className="w-full px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm"
+                  className="w-full px-2 py-1 bg-[var(--bg-tertiary)] border border-[var(--edge-strong)] rounded text-[var(--ink)] text-sm"
                   placeholder="תיאור (לחיפוש)"
                 />
                 <input
                   type="text"
                   value={editCaption}
                   onChange={(e) => setEditCaption(e.target.value)}
-                  className="w-full px-2 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm"
+                  className="w-full px-2 py-1 bg-[var(--bg-tertiary)] border border-[var(--edge-strong)] rounded text-[var(--ink)] text-sm"
                   placeholder="כיתוב ברירת מחדל"
                 />
                 <div className="flex gap-2">
@@ -337,17 +341,17 @@ export function MediaTab({
               </div>
             ) : (
               <>
-                <div className="font-medium text-white truncate">{item.name}</div>
+                <div className="font-medium text-[var(--ink)] truncate">{item.name}</div>
                 {isDocument && item.filename && (
                   <div className="text-xs text-amber-400 truncate">📎 {item.filename}</div>
                 )}
                 {item.description && (
-                  <div className="text-xs text-slate-400 truncate">{item.description}</div>
+                  <div className="text-xs text-[var(--text-secondary)] truncate">{item.description}</div>
                 )}
                 {item.default_caption && (
-                  <div className="text-xs text-blue-400 truncate">💬 {item.default_caption}</div>
+                  <div className="text-xs text-[var(--acc)] truncate">💬 {item.default_caption}</div>
                 )}
-                <div className="text-xs text-slate-500 mt-1">
+                <div className="text-xs text-[var(--text-muted)] mt-1">
                   {formatFileSize(item.file_size)}
                   {item.original_size && item.original_size > item.file_size && (
                     <span className="text-green-400 mr-2">
@@ -366,7 +370,7 @@ export function MediaTab({
                 href={item.file_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-slate-500 hover:text-green-400 transition-colors p-1"
+                className="text-[var(--text-muted)] hover:text-green-400 transition-colors p-1"
                 title="פתח בטאב חדש"
               >
                 🔗
@@ -374,7 +378,7 @@ export function MediaTab({
               {canEdit && (
                 <button
                   onClick={() => startEdit(item)}
-                  className="text-slate-500 hover:text-blue-400 transition-colors p-1"
+                  className="text-[var(--text-muted)] hover:text-[var(--acc)] transition-colors p-1"
                   title="ערוך"
                 >
                   ✏️
@@ -383,7 +387,7 @@ export function MediaTab({
               {canEdit && (
                 <button
                   onClick={() => handleDelete(item.id, item.name)}
-                  className="text-slate-500 hover:text-red-400 transition-colors p-1"
+                  className="text-[var(--text-muted)] hover:text-red-400 transition-colors p-1"
                   title="מחק"
                 >
                   🗑️
@@ -412,8 +416,8 @@ export function MediaTab({
             className={`
               px-4 py-2 rounded-lg text-sm font-medium transition-colors
               ${section === tab.id
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-700/50 text-slate-300 hover:bg-slate-700'
+                ? 'bg-[var(--ink)] text-[var(--bg)]'
+                : 'bg-[var(--glass-2)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'
               }
             `}
           >
@@ -435,31 +439,31 @@ export function MediaTab({
 
       {/* Upload Progress */}
       {uploading && (
-        <Card className="!bg-blue-500/10 border-blue-500/30">
+        <Card className="!bg-[var(--acc)]/10 border-[var(--acc)]/30">
           <div className="flex items-center gap-4">
-            <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-3 border-[var(--acc)] border-t-transparent rounded-full animate-spin" />
             <div className="flex-1">
-              <div className="text-sm text-blue-300 mb-2">
+              <div className="text-sm text-[var(--acc)] mb-2">
                 {uploadQueue.total > 1 && (
-                  <span className="text-white font-medium ml-2">
+                  <span className="text-[var(--ink)] font-medium ml-2">
                     [{uploadQueue.current}/{uploadQueue.total}]
                   </span>
                 )}
                 {uploadStatus}
                 {originalSize && uploadStatus.includes('דוחס') && (
-                  <span className="text-slate-400 mr-2">
+                  <span className="text-[var(--text-secondary)] mr-2">
                     ({formatFileSize(originalSize)})
                   </span>
                 )}
               </div>
-              <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+              <div className="h-2 bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
                 <div 
-                  className="h-full bg-blue-500 transition-all duration-300"
+                  className="h-full bg-[var(--acc)] transition-all duration-300"
                   style={{ width: `${uploadProgress}%` }}
                 />
               </div>
             </div>
-            <span className="text-blue-400 font-medium">{uploadProgress}%</span>
+            <span className="text-[var(--acc)] font-medium">{uploadProgress}%</span>
           </div>
         </Card>
       )}
@@ -470,7 +474,7 @@ export function MediaTab({
         {section === 'images' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
-              <h3 className="font-medium text-white">תמונות</h3>
+              <h3 className="font-medium text-[var(--ink)]">תמונות</h3>
               {canUpload && (
                 <div className="flex gap-2 items-center">
                   <input
@@ -495,7 +499,7 @@ export function MediaTab({
             </div>
 
             {canUpload && (
-              <div className="text-xs text-slate-400 bg-slate-800/30 rounded-lg p-3">
+              <div className="text-xs text-[var(--text-secondary)] bg-[var(--glass)] rounded-lg p-3">
                 🖼️ פורמטים: JPG, PNG (דחיסה אוטומטית אם מעל 1MB)
                 <br />
                 🤖 שם, תיאור וכיתוב נוצרים אוטומטית בעזרת AI. לחץ על ✏️ לעריכה
@@ -503,13 +507,21 @@ export function MediaTab({
             )}
 
             {images.length === 0 ? (
-              <div className="text-center py-8 text-slate-400">
+              <div className="text-center py-8 text-[var(--text-secondary)]">
                 <div className="text-4xl mb-2">🖼️</div>
                 <div>אין תמונות עדיין</div>
               </div>
             ) : (
               <div className="space-y-2">
-                {images.map(renderMediaItem)}
+                {paged.items.map(renderMediaItem)}
+                <ListPager
+                  page={paged.page}
+                  totalPages={paged.totalPages}
+                  from={paged.from}
+                  to={paged.to}
+                  total={paged.total}
+                  onPage={paged.setPage}
+                />
               </div>
             )}
           </div>
@@ -519,7 +531,7 @@ export function MediaTab({
         {section === 'videos' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
-              <h3 className="font-medium text-white">סרטונים</h3>
+              <h3 className="font-medium text-[var(--ink)]">סרטונים</h3>
               {canUpload && (
                 <div className="flex gap-2 items-center">
                   <input
@@ -544,7 +556,7 @@ export function MediaTab({
             </div>
 
             {canUpload && (
-              <div className="text-xs text-slate-400 bg-slate-800/30 rounded-lg p-3">
+              <div className="text-xs text-[var(--text-secondary)] bg-[var(--glass)] rounded-lg p-3">
                 🎬 פורמט: MP4 (עד 16MB לסרטון)
                 <br />
                 ניתן לבחור מספר סרטונים בבת אחת. לחץ על ✏️ להוספת תיאור לחיפוש סמנטי
@@ -552,13 +564,21 @@ export function MediaTab({
             )}
 
             {videos.length === 0 ? (
-              <div className="text-center py-8 text-slate-400">
+              <div className="text-center py-8 text-[var(--text-secondary)]">
                 <div className="text-4xl mb-2">🎬</div>
                 <div>אין סרטונים עדיין</div>
               </div>
             ) : (
               <div className="space-y-2">
-                {videos.map(renderMediaItem)}
+                {paged.items.map(renderMediaItem)}
+                <ListPager
+                  page={paged.page}
+                  totalPages={paged.totalPages}
+                  from={paged.from}
+                  to={paged.to}
+                  total={paged.total}
+                  onPage={paged.setPage}
+                />
               </div>
             )}
           </div>
@@ -568,7 +588,7 @@ export function MediaTab({
         {section === 'documents' && (
           <div className="space-y-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
-              <h3 className="font-medium text-white">קבצים</h3>
+              <h3 className="font-medium text-[var(--ink)]">קבצים</h3>
               {canUpload && (
                 <div className="flex gap-2 items-center">
                   <input
@@ -593,7 +613,7 @@ export function MediaTab({
             </div>
 
             {canUpload && (
-              <div className="text-xs text-slate-400 bg-slate-800/30 rounded-lg p-3">
+              <div className="text-xs text-[var(--text-secondary)] bg-[var(--glass)] rounded-lg p-3">
                 📄 פורמטים: PDF, Word, Excel, PowerPoint, TXT (עד 25MB)
                 <br />
                 הסוכן ישלח קבצים לפי התיאור והקשר השיחה. לחץ על ✏️ לעריכת שם הקובץ בווצאפ
@@ -601,13 +621,21 @@ export function MediaTab({
             )}
 
             {documents.length === 0 ? (
-              <div className="text-center py-8 text-slate-400">
+              <div className="text-center py-8 text-[var(--text-secondary)]">
                 <div className="text-4xl mb-2">📄</div>
                 <div>אין קבצים עדיין</div>
               </div>
             ) : (
               <div className="space-y-2">
-                {documents.map(renderMediaItem)}
+                {paged.items.map(renderMediaItem)}
+                <ListPager
+                  page={paged.page}
+                  totalPages={paged.totalPages}
+                  from={paged.from}
+                  to={paged.to}
+                  total={paged.total}
+                  onPage={paged.setPage}
+                />
               </div>
             )}
           </div>
@@ -616,7 +644,7 @@ export function MediaTab({
         {/* === Settings === */}
         {section === 'settings' && (
           <div className="space-y-4">
-            <h3 className="font-medium text-white">הגדרות מדיה</h3>
+            <h3 className="font-medium text-[var(--ink)]">הגדרות מדיה</h3>
 
             <div className="space-y-4">
               {/* Enabled */}
@@ -625,14 +653,14 @@ export function MediaTab({
                   type="checkbox"
                   checked={config.enabled}
                   onChange={(e) => onConfigChange({ ...config, enabled: e.target.checked })}
-                  className="w-5 h-5 rounded bg-slate-700 border-slate-600 text-blue-500 focus:ring-blue-500"
+                  className="w-5 h-5 rounded bg-[var(--bg-tertiary)] border-[var(--edge-strong)] text-[var(--acc)] focus:ring-[var(--acc)]"
                 />
-                <span className="text-white">אפשר לסוכן לשלוח מדיה</span>
+                <span className="text-[var(--ink)]">אפשר לסוכן לשלוח מדיה</span>
               </label>
 
               {/* Max per message */}
               <div>
-                <label className="block text-sm text-slate-400 mb-1">
+                <label className="block text-sm text-[var(--text-secondary)] mb-1">
                   מקסימום פריטי מדיה ברצף (בתגובה אחת)
                 </label>
                 <input
@@ -641,7 +669,7 @@ export function MediaTab({
                   max={10}
                   value={config.max_per_message}
                   onChange={(e) => onConfigChange({ ...config, max_per_message: parseInt(e.target.value) || 1 })}
-                  className="w-20 px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white"
+                  className="w-20 px-3 py-2 bg-[var(--glass-2)] border border-[var(--edge-strong)] rounded-lg text-[var(--ink)]"
                 />
               </div>
 
@@ -651,21 +679,21 @@ export function MediaTab({
                   type="checkbox"
                   checked={config.allow_duplicate_in_conversation}
                   onChange={(e) => onConfigChange({ ...config, allow_duplicate_in_conversation: e.target.checked })}
-                  className="w-5 h-5 rounded bg-slate-700 border-slate-600 text-blue-500 focus:ring-blue-500"
+                  className="w-5 h-5 rounded bg-[var(--bg-tertiary)] border-[var(--edge-strong)] text-[var(--acc)] focus:ring-[var(--acc)]"
                 />
-                <span className="text-white">אפשר שליחת אותה מדיה פעמיים באותה שיחה</span>
+                <span className="text-[var(--ink)]">אפשר שליחת אותה מדיה פעמיים באותה שיחה</span>
               </label>
 
               {/* Instructions */}
               <div>
-                <label className="block text-sm text-slate-400 mb-1">
+                <label className="block text-sm text-[var(--text-secondary)] mb-1">
                   הנחיות לסוכן (מתי לשלוח מדיה)
                 </label>
                 <textarea
                   value={config.instructions}
                   onChange={(e) => onConfigChange({ ...config, instructions: e.target.value })}
                   placeholder="לדוגמה: שלח תמונות כשהלקוח מבקש לראות מוצר, או כשאתה רוצה להמחיש משהו"
-                  className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 text-sm resize-none"
+                  className="w-full px-3 py-2 bg-[var(--glass-2)] border border-[var(--edge-strong)] rounded-lg text-[var(--ink)] placeholder:text-[var(--text-muted)] text-sm resize-none"
                   rows={3}
                 />
               </div>

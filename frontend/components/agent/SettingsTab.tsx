@@ -58,25 +58,25 @@ export function SettingsTab({
           </div>
           {thinkingOptions.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">רמת חשיבה</label>
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">רמת חשיבה</label>
               <select
                 value={thinkingOptions.includes(thinkingLevel) ? thinkingLevel : modelDef.defaultThinking}
                 onChange={e => onThinkingLevelChange(e.target.value)}
-                className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white appearance-none cursor-pointer focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                className="w-full px-4 py-2.5 bg-[var(--glass-2)] border border-[var(--edge-strong)] rounded-lg text-[var(--ink)] appearance-none cursor-pointer focus:outline-none focus:border-[var(--acc)] focus:ring-2 focus:ring-[var(--acc)]/20"
               >
                 {thinkingOptions.map((opt) => (
-                  <option key={opt} value={opt} className="bg-slate-800">
+                  <option key={opt} value={opt} className="bg-[var(--glass-2)]">
                     {THINKING_LABELS[opt] || opt}
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-[var(--text-muted)] mt-1">
                 חשיבה בינונית משפרת תשובות מורכבות ומעלה עלות. אם הספק עמוס, המערכת יורדת אוטומטית לרמה הנמוכה.
               </p>
             </div>
           )}
           {isOpenAI && (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-[var(--text-muted)]">
               חשיבה מורחבת לא זמינה במסלול הכלים של WhatsApp למודלי OpenAI.
             </p>
           )}
@@ -87,8 +87,8 @@ export function SettingsTab({
       <Card>
         <div className="flex items-center justify-between gap-4">
           <div>
-            <div className="text-sm font-medium text-white mb-1">📡 ערוצי תקשורת</div>
-            <p className="text-sm text-slate-400">
+            <div className="text-sm font-medium text-[var(--ink)] mb-1">📡 ערוצי תקשורת</div>
+            <p className="text-sm text-[var(--text-secondary)]">
               חיבור WhatsApp (WaSender או Meta רשמי), Instagram ו-Messenger נעשה בטאב הייעודי
             </p>
           </div>
@@ -103,7 +103,7 @@ export function SettingsTab({
       {/* Message Batching */}
       <Card>
         <CardHeader>📦 איחוד הודעות</CardHeader>
-        <p className="text-sm text-slate-400 mb-4">
+        <p className="text-sm text-[var(--text-secondary)] mb-4">
           כשלקוח שולח כמה הודעות ברצף, הסוכן יחכה ויענה על כולן בתשובה אחת
         </p>
         
@@ -137,7 +137,7 @@ export function SettingsTab({
       {/* Conversation History */}
       <Card>
         <CardHeader>📜 היסטוריית שיחה</CardHeader>
-        <p className="text-sm text-slate-400 mb-4">
+        <p className="text-sm text-[var(--text-secondary)] mb-4">
           כמה הודעות אחורה הסוכן יזכור בכל שיחה (משפיע על צריכת tokens ועלויות)
         </p>
         
@@ -158,7 +158,7 @@ export function SettingsTab({
 
       <Card>
         <CardHeader>שרשור כלים</CardHeader>
-        <p className="text-sm text-slate-400 mb-4">
+        <p className="text-sm text-[var(--text-secondary)] mb-4">
           כמה קריאות כלים ברצף להודעה אחת — כולל יומן ופונקציות API
         </p>
         <div className="max-w-xs">
@@ -175,16 +175,16 @@ export function SettingsTab({
       {/* Context Summary (Long Conversation Memory) */}
       <Card>
         <CardHeader>🧠 זיכרון שיחה ארוכה</CardHeader>
-        <p className="text-sm text-slate-400 mb-4">
+        <p className="text-sm text-[var(--text-secondary)] mb-4">
           כשהשיחה ארוכה, הסוכן יסכם את ההודעות הישנות כדי לזכור יותר בפחות מקום
         </p>
 
         <label className="flex items-center gap-2 mb-5 cursor-pointer">
-          <span className="text-sm text-slate-300">{contextSummaryConfig.enabled ? 'פעיל' : 'כבוי'}</span>
+          <span className="text-sm text-[var(--text-secondary)]">{contextSummaryConfig.enabled ? 'פעיל' : 'כבוי'}</span>
           <div
             dir="ltr"
             onClick={() => onContextSummaryConfigChange({ ...contextSummaryConfig, enabled: !contextSummaryConfig.enabled })}
-            className={`w-11 h-6 rounded-full transition-colors cursor-pointer relative ${contextSummaryConfig.enabled ? 'bg-blue-500' : 'bg-slate-600'}`}
+            className={`w-11 h-6 rounded-full transition-colors cursor-pointer relative ${contextSummaryConfig.enabled ? 'bg-[var(--acc)]' : 'bg-[var(--bg-tertiary)]'}`}
           >
             <div className={`w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-all ${contextSummaryConfig.enabled ? 'left-[22px]' : 'left-0.5'}`} />
           </div>
@@ -232,7 +232,7 @@ export function SettingsTab({
       {/* Custom API Keys */}
       <Card>
         <CardHeader>🔑 מפתחות API מותאמים</CardHeader>
-        <p className="text-sm text-slate-400 mb-4">
+        <p className="text-sm text-[var(--text-secondary)] mb-4">
           השאר ריק כדי להשתמש במפתחות המערכת
         </p>
         <div className="grid gap-4">

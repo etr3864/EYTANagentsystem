@@ -202,7 +202,7 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-lg font-medium text-white">פונקציות API</h2>
+        <h2 className="text-lg font-medium text-[var(--ink)]">פונקציות API</h2>
         <Button size="sm" onClick={openNew}>פונקציה חדשה</Button>
       </div>
       {error && <p className="text-sm text-red-400">{error}</p>}
@@ -211,9 +211,9 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
         onDone={(id) => resolveAttention(id, 'done')}
         onRetry={(id) => resolveAttention(id, 'retry')}
       />
-      {loading && <p className="text-slate-400 text-sm">טוען…</p>}
+      {loading && <p className="text-[var(--text-secondary)] text-sm">טוען…</p>}
       {!loading && items.length === 0 && !showEditor && (
-        <p className="text-slate-400 text-sm">אין פונקציות. פונקציה פעילה עם טריגר שיחה רצה בשיחות אחרי טסט.</p>
+        <p className="text-[var(--text-secondary)] text-sm">אין פונקציות. פונקציה פעילה עם טריגר שיחה רצה בשיחות אחרי טסט.</p>
       )}
       <div className="space-y-2">
         {paged.items.map((item) => (
@@ -221,7 +221,7 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
             <div className="flex items-center justify-between gap-3">
               <button type="button" className="text-right flex-1 min-w-0" onClick={() => openEdit(item)}>
                 <CardHeader>{item.name}</CardHeader>
-                <p className="text-xs text-slate-400">{item.method} {item.allowed_host} · {item.trigger}</p>
+                <p className="text-xs text-[var(--text-secondary)]">{item.method} {item.allowed_host} · {item.trigger}</p>
               </button>
               <EnableSwitch
                 enabled={item.enabled}
@@ -274,13 +274,13 @@ export function FunctionsTab({ agentId }: { agentId: number }) {
             }}
             error={null}
           />
-          <div className="space-y-3 mt-6 p-3 rounded-lg border border-purple-500/15 bg-white/[0.03]">
-            <p className="text-sm text-slate-300">בדיקה — בלי זה הסוכן לא יריץ את הפונקציה בשיחה</p>
-            <p className="text-xs text-slate-500">
+          <div className="space-y-3 mt-6 p-3 rounded-lg border border-[var(--edge)] bg-[var(--glass)]">
+            <p className="text-sm text-[var(--text-secondary)]">בדיקה — בלי זה הסוכן לא יריץ את הפונקציה בשיחה</p>
+            <p className="text-xs text-[var(--text-muted)]">
               ערכי בדיקה לפרמטרים. JSON, למשל {`{"phone":"97250..."}`}. ב-GET בלי {`{{ }}`} בכתובת — ממלאים כאן והם יישלחו כ-query. יבש = בלי רשת. שלח באמת = לכתובת למעלה.
             </p>
             <textarea
-              className="w-full bg-white/[0.04] border border-purple-500/10 rounded-lg p-2 text-sm text-white font-mono text-left"
+              className="w-full bg-[var(--glass)] border border-[var(--edge)] rounded-lg p-2 text-sm text-[var(--ink)] font-mono text-left"
               dir="ltr"
               rows={3}
               value={sampleValues}
@@ -322,7 +322,7 @@ function EnableSwitch({
   const blocked = !enabled && !canEnable;
   return (
     <div className={`flex items-center gap-2 shrink-0 ${blocked ? 'opacity-50' : ''}`}>
-      <span className="text-sm text-slate-300">{enabled ? 'פעיל' : 'כבוי'}</span>
+      <span className="text-sm text-[var(--text-secondary)]">{enabled ? 'פעיל' : 'כבוי'}</span>
       <button
         type="button"
         dir="ltr"
@@ -331,7 +331,7 @@ function EnableSwitch({
         onClick={onToggle}
         className={`w-11 h-6 rounded-full transition-colors relative ${
           blocked ? 'cursor-not-allowed' : 'cursor-pointer'
-        } ${enabled ? 'bg-emerald-500' : 'bg-slate-600'}`}
+        } ${enabled ? 'bg-emerald-500' : 'bg-[var(--bg-tertiary)]'}`}
       >
         <span className={`w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-all ${enabled ? 'left-[22px]' : 'left-0.5'}`} />
       </button>

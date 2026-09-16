@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui';
+import { Button, ListPager } from '@/components/ui';
 import { parseUTCDate } from '@/lib/dates';
 import { downloadPlaygroundTesterExport, type PlaygroundLinkRow, type PlaygroundTester } from '@/lib/api/playground';
 import { LINK_STATUS, publicUrl, statusBadge } from './labels';
+import { usePagedList } from '@/lib/usePagedList';
 
 export function TestersPanel({
   agentId,
@@ -24,6 +25,7 @@ export function TestersPanel({
   const [copied, setCopied] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const paged = usePagedList(testers);
 
   async function copyUrl() {
     const url = publicUrl(link.url);
@@ -46,64 +48,83 @@ export function TestersPanel({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <Button variant="ghost" size="sm" onClick={onBack}>← קישורים</Button>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className={`text-[11px] px-2 py-0.5 rounded-full border ${statusBadge(link.status)}`}>
-                {LINK_STATUS[link.status] || link.status}
-              </span>
-              <h2 className="text-sm font-semibold text-white">התכתבויות</h2>
-            </div>
-            <p className="text-xs text-slate-400 mt-0.5">
-              {link.conversation_count} שיחות · {link.tester_count} בודקים
-            </p>
+    <div className="space-y-3 md:space-y-4 min-w-0 overflow-x-hidden">
+      <div className="flex items-center gap-2 min-w-0">
+        <Button variant="ghost" size="sm" className="shrink-0 min-h-11" onClick={onBack}>
+          ← קישורים
+        </Button>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className={`text-[11px] px-2 py-0.5 rounded-full border shrink-0 ${statusBadge(link.status)}`}>
+              {LINK_STATUS[link.status] || link.status}
+            </span>
+            <h2 className="text-sm font-semibold text-[var(--ink)] truncate">התכתבויות</h2>
           </div>
+          <p className="text-xs text-[var(--text-secondary)] mt-0.5 truncate">
+            {link.conversation_count} שיחות · {link.tester_count} בודקים
+          </p>
         </div>
         {link.url && (
-          <Button variant="secondary" size="sm" onClick={copyUrl}>
-            {copied ? 'הועתק' : 'העתק קישור'}
-          </Button>
+          <div className="hidden md:block shrink-0">
+            <Button variant="secondary" size="sm" onClick={copyUrl}>
+              {copied ? 'הועתק' : 'העתק קישור'}
+            </Button>
+          </div>
         )}
       </div>
+      {link.url && (
+        <div className="md:hidden">
+          <Button variant="secondary" size="sm" className="w-full min-h-11" onClick={copyUrl}>
+            {copied ? 'הועתק' : 'העתק קישור'}
+          </Button>
+        </div>
+      )}
       {error && <p className="text-sm text-red-400">{error}</p>}
       {loading ? (
-        <p className="text-sm text-slate-400">טוען…</p>
+        <p className="text-sm text-[var(--text-secondary)]">טוען…</p>
       ) : testers.length === 0 ? (
-        <p className="text-sm text-slate-400">עדיין אין בודקים בקישור הזה</p>
+        <p className="text-sm text-[var(--text-secondary)]">עדיין אין בודקים בקישור הזה</p>
       ) : (
         <div className="space-y-2">
-          {testers.map((tester) => (
+          {paged.items.map((tester) => (
             <div
               key={tester.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] px-4 py-3"
+              className="rounded-[22px] border border-[var(--edge)] bg-[var(--glass)] p-3 min-w-0 overflow-hidden"
             >
-              <button type="button" onClick={() => onOpen(tester.id)} className="min-w-0 flex-1 text-right">
-                <div className="text-sm text-white">{tester.label}</div>
-                <div className="text-xs text-slate-400 mt-1">
+              <button type="button" onClick={() => onOpen(tester.id)} className="w-full min-w-0 text-right">
+                <div className="text-sm text-[var(--ink)] truncate">{tester.label}</div>
+                <div className="text-xs text-[var(--text-secondary)] mt-1 truncate">
                   {tester.conversation_count} שיחות
                   {tester.last_activity
                     ? ` · ${parseUTCDate(tester.last_activity)?.toLocaleString('he-IL') ?? ''}`
                     : ''}
                 </div>
               </button>
-              <div className="flex gap-2">
+              <div className="mt-3 grid grid-cols-2 gap-2 md:flex md:flex-wrap">
                 <Button
                   variant="secondary"
                   size="sm"
+                  className="min-h-11 w-full md:w-auto"
                   disabled={busyId === tester.id || tester.conversation_count === 0}
                   onClick={() => exportAll(tester.id)}
                 >
-                  ייצוא JSON
+                  <span className="md:hidden">ייצוא</span>
+                  <span className="hidden md:inline">ייצוא JSON</span>
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => onOpen(tester.id)}>
+                <Button variant="ghost" size="sm" className="min-h-11 w-full md:w-auto" onClick={() => onOpen(tester.id)}>
                   פתח
                 </Button>
               </div>
             </div>
           ))}
+          <ListPager
+            page={paged.page}
+            totalPages={paged.totalPages}
+            from={paged.from}
+            to={paged.to}
+            total={paged.total}
+            onPage={paged.setPage}
+          />
         </div>
       )}
     </div>

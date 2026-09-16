@@ -48,8 +48,8 @@ export function ProviderSelector({
             flex-1 py-3 px-4 rounded-lg border-2 transition-all
             flex items-center justify-center gap-2
             ${provider === 'meta' 
-              ? 'border-blue-500 bg-blue-500/10 text-white' 
-              : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600'
+              ? 'border-[var(--acc)] bg-[var(--acc)]/10 text-[var(--ink)]' 
+              : 'border-[var(--edge)] bg-[var(--glass-2)] text-[var(--text-secondary)] hover:border-[var(--acc)]'
             }
           `}
         >
@@ -63,8 +63,8 @@ export function ProviderSelector({
             flex-1 py-3 px-4 rounded-lg border-2 transition-all
             flex items-center justify-center gap-2
             ${provider === 'wasender' 
-              ? 'border-emerald-500 bg-emerald-500/10 text-white' 
-              : 'border-slate-700 bg-slate-800/50 text-slate-400 hover:border-slate-600'
+              ? 'border-emerald-500 bg-emerald-500/10 text-[var(--ink)]' 
+              : 'border-[var(--edge)] bg-[var(--glass-2)] text-[var(--text-secondary)] hover:border-[var(--acc)]'
             }
           `}
         >
@@ -155,10 +155,10 @@ export function ProviderSelector({
 
           {/* Webhook URL - only show for existing agents */}
           {agentId && (
-            <div className="mt-4 p-4 bg-slate-800/50 rounded-lg border border-slate-700">
-              <div className="text-sm text-slate-400 mb-2">כתובת Webhook להגדרה ב-WA Sender:</div>
+            <div className="mt-4 p-4 bg-[var(--glass-2)] rounded-lg border border-[var(--edge)]">
+              <div className="text-sm text-[var(--text-secondary)] mb-2">כתובת Webhook להגדרה ב-WA Sender:</div>
               <div className="flex items-center gap-2">
-                <code className="flex-1 text-xs bg-slate-900 px-3 py-2 rounded text-emerald-400 break-all">
+                <code className="flex-1 text-xs bg-[var(--bg-secondary)] px-3 py-2 rounded text-emerald-400 break-all">
                   {API_URL}/webhook/wasender/{agentId}
                 </code>
                 <button
@@ -166,7 +166,7 @@ export function ProviderSelector({
                   onClick={() => {
                     navigator.clipboard.writeText(`${API_URL}/webhook/wasender/${agentId}`);
                   }}
-                  className="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-sm transition-colors"
+                  className="px-3 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] rounded text-sm transition-colors"
                   title="העתק"
                 >
                   📋

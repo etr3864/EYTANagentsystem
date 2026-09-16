@@ -195,7 +195,7 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete, onN
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="hover:text-indigo-400 transition-colors"
+                        className="hover:text-[var(--acc)] transition-colors"
                         title={conv.channel_username}
                       >
                         {conv.channel_username}
@@ -217,7 +217,7 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete, onN
                 }}
                 className="
                   p-1.5 rounded-lg
-                  text-slate-500 hover:text-red-400 
+                  text-[var(--text-muted)] hover:text-red-400 
                   hover:bg-red-500/10
                   transition-colors
                 "

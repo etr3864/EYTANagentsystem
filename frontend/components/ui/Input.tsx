@@ -43,7 +43,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           <p className="text-sm text-red-400">{error}</p>
         )}
         {hint && !error && (
-          <p className="text-xs text-slate-500">{hint}</p>
+          <p className="text-xs text-[var(--text-muted)]">{hint}</p>
         )}
       </div>
     );
@@ -82,7 +82,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           <p className="text-sm text-red-400">{error}</p>
         )}
         {hint && !error && (
-          <p className="text-xs text-slate-500">{hint}</p>
+          <p className="text-xs text-[var(--text-muted)]">{hint}</p>
         )}
       </div>
     );
@@ -123,7 +123,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-secondary)]">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
@@ -133,7 +133,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           <p className="text-sm text-red-400">{error}</p>
         )}
         {hint && !error && (
-          <p className="text-xs text-slate-500">{hint}</p>
+          <p className="text-xs text-[var(--text-muted)]">{hint}</p>
         )}
       </div>
     );
@@ -166,7 +166,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
             transition-all duration-200
           ">
             <svg 
-              className="w-5 h-5 text-white opacity-0 peer-checked:opacity-100 transition-opacity" 
+              className="w-5 h-5 text-[var(--ink)] opacity-0 peer-checked:opacity-100 transition-opacity" 
               viewBox="0 0 24 24" 
               fill="none" 
               stroke="currentColor" 
@@ -219,7 +219,7 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
           {...props} 
         />
         {hint && (
-          <p className="text-xs text-slate-500">{hint}</p>
+          <p className="text-xs text-[var(--text-muted)]">{hint}</p>
         )}
       </div>
     );
@@ -263,7 +263,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-300 transition-colors focus:outline-none"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--ink)] transition-colors focus:outline-none"
             tabIndex={-1}
           >
             {showPassword ? (
@@ -277,7 +277,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
           <p className="text-sm text-red-400">{error}</p>
         )}
         {hint && !error && (
-          <p className="text-xs text-slate-500">{hint}</p>
+          <p className="text-xs text-[var(--text-muted)]">{hint}</p>
         )}
       </div>
     );

@@ -1,4 +1,4 @@
-export const LIST_PAGE_SIZE = 10;
+export const LIST_PAGE_SIZE = 8;
 
 export function paginate<T>(items: T[], page: number, pageSize = LIST_PAGE_SIZE) {
   const total = items.length;

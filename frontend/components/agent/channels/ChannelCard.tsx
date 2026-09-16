@@ -14,9 +14,9 @@ const STATUS_COLORS: Record<string, string> = {
   healthy: 'text-emerald-400',
   degraded: 'text-yellow-400',
   error: 'text-red-400',
-  unknown: 'text-slate-400',
+  unknown: 'text-[var(--text-secondary)]',
   deauthorized: 'text-red-400',
-  not_checked: 'text-slate-400',
+  not_checked: 'text-[var(--text-secondary)]',
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -80,8 +80,8 @@ export function ChannelCard({ channel, canEdit, onChanged }: ChannelCardProps) {
     <div className={`
       relative rounded-xl border p-4 transition-all
       ${channel.is_active
-        ? 'bg-slate-800/60 border-slate-700'
-        : 'bg-slate-900/40 border-slate-800 opacity-60'
+        ? 'bg-[var(--glass-2)] border-[var(--edge)]'
+        : 'bg-[var(--glass)] border-[var(--edge)] opacity-60'
       }
     `}>
       {/* Header */}
@@ -89,29 +89,29 @@ export function ChannelCard({ channel, canEdit, onChanged }: ChannelCardProps) {
         <div className="flex items-center gap-2">
           <ChannelIcon channelType={channel.channel_type} size={28} />
           <div>
-            <div className="font-semibold text-white text-sm">{displayName}</div>
+            <div className="font-semibold text-[var(--ink)] text-sm">{displayName}</div>
             {channel.account_name && (
-              <div className="text-xs text-slate-300 truncate max-w-[180px]">
+              <div className="text-xs text-[var(--text-secondary)] truncate max-w-[180px]">
                 {channel.account_name}
               </div>
             )}
-            <div className="text-[10px] text-slate-500 truncate max-w-[160px]">
+            <div className="text-[10px] text-[var(--text-muted)] truncate max-w-[160px]">
               {channel.external_account_id}
             </div>
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <span className={`text-xs font-medium ${STATUS_COLORS[channel.health_status] ?? 'text-slate-400'}`}>
+          <span className={`text-xs font-medium ${STATUS_COLORS[channel.health_status] ?? 'text-[var(--text-secondary)]'}`}>
             {STATUS_LABELS[channel.health_status] ?? channel.health_status}
           </span>
-          <span className={`w-2 h-2 rounded-full ${channel.is_active ? 'bg-emerald-400' : 'bg-slate-600'}`} />
+          <span className={`w-2 h-2 rounded-full ${channel.is_active ? 'bg-emerald-400' : 'bg-[var(--bg-tertiary)]'}`} />
         </div>
       </div>
 
       {/* Capabilities */}
       <div className="flex flex-wrap gap-1 mb-4">
         {capBadges.map(label => (
-          <span key={label} className="text-xs bg-slate-700/60 text-slate-300 px-2 py-0.5 rounded-full">
+          <span key={label} className="text-xs bg-[var(--glass-2)] text-[var(--text-secondary)] px-2 py-0.5 rounded-full">
             {label}
           </span>
         ))}
@@ -131,7 +131,7 @@ export function ChannelCard({ channel, canEdit, onChanged }: ChannelCardProps) {
             className={`
               flex-1 py-1.5 px-3 rounded-lg text-xs font-medium transition-all
               ${channel.is_active
-                ? 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                ? 'bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)]'
                 : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
               }
             `}

@@ -114,10 +114,10 @@ export function WhatsAppChannelCard({
   }
 
   return (
-    <div className="rounded-xl border border-slate-700 bg-slate-800/60 p-4">
+    <div className="rounded-xl border border-[var(--edge)] bg-[var(--glass-2)] p-4">
       <div className="flex items-center gap-2 mb-4">
         <span className="text-xl">📱</span>
-        <h3 className="font-semibold text-white text-sm">WhatsApp</h3>
+        <h3 className="font-semibold text-[var(--ink)] text-sm">WhatsApp</h3>
         {activeWa && (
           <span className="ml-auto text-xs text-emerald-400 flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-emerald-400" />
@@ -135,20 +135,20 @@ export function WhatsAppChannelCard({
 
       <div className="grid grid-cols-2 gap-2">
         {/* WaSender */}
-        <div className={`rounded-lg border p-3 ${wasenderChannel?.is_active ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-slate-700 bg-slate-900/40'}`}>
-          <div className="text-xs font-medium text-white mb-1">WaSender</div>
+        <div className={`rounded-lg border p-3 ${wasenderChannel?.is_active ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-[var(--edge)] bg-[var(--glass)]'}`}>
+          <div className="text-xs font-medium text-[var(--ink)] mb-1">WaSender</div>
           {wasenderChannel ? (
             <>
-              <div className="text-xs text-slate-500 truncate mb-2">{wasenderChannel.external_account_id}</div>
+              <div className="text-xs text-[var(--text-muted)] truncate mb-2">{wasenderChannel.external_account_id}</div>
               {wasenderChannel.is_active && (
-                <div className="mb-2 p-2 bg-slate-900/60 border border-slate-700/50 rounded-lg">
-                  <div className="text-[10px] text-slate-400 mb-1">🔗 Webhook URL</div>
+                <div className="mb-2 p-2 bg-[var(--glass)] border border-[var(--edge)] rounded-lg">
+                  <div className="text-[10px] text-[var(--text-secondary)] mb-1">🔗 Webhook URL</div>
                   <div className="flex items-center gap-1.5">
                     <code className="flex-1 text-[10px] text-emerald-400 font-mono truncate select-all">{wasenderWebhookUrl}</code>
                     <button
                       type="button"
                       onClick={() => { navigator.clipboard.writeText(wasenderWebhookUrl); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-                      className="flex-shrink-0 px-1.5 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-[10px] text-slate-300 transition-colors"
+                      className="flex-shrink-0 px-1.5 py-0.5 rounded bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] text-[10px] text-[var(--text-secondary)] transition-colors"
                     >
                       {copied ? '✓' : 'העתק'}
                     </button>
@@ -158,31 +158,31 @@ export function WhatsAppChannelCard({
 
               {/* Edit form */}
               {editing && (
-                <div className="mb-2 p-2 bg-slate-900/60 border border-slate-700/50 rounded-lg space-y-2">
+                <div className="mb-2 p-2 bg-[var(--glass)] border border-[var(--edge)] rounded-lg space-y-2">
                   <div>
-                    <label className="text-[10px] text-slate-400 block mb-0.5">API Key (השאר ריק = ללא שינוי)</label>
+                    <label className="text-[10px] text-[var(--text-secondary)] block mb-0.5">API Key (השאר ריק = ללא שינוי)</label>
                     <input type="password" value={editApiKey} onChange={e => setEditApiKey(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
+                      className="w-full bg-[var(--glass-2)] border border-[var(--edge)] rounded px-2 py-1 text-xs text-[var(--ink)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--acc)]"
                       placeholder="ey..." autoComplete="off" />
                   </div>
                   <div>
-                    <label className="text-[10px] text-slate-400 block mb-0.5">Session</label>
+                    <label className="text-[10px] text-[var(--text-secondary)] block mb-0.5">Session</label>
                     <input value={editSession} onChange={e => setEditSession(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
+                      className="w-full bg-[var(--glass-2)] border border-[var(--edge)] rounded px-2 py-1 text-xs text-[var(--ink)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--acc)]"
                       placeholder="default" />
                   </div>
                   <div>
-                    <label className="text-[10px] text-slate-400 block mb-0.5">Webhook Secret (השאר ריק = ללא שינוי)</label>
+                    <label className="text-[10px] text-[var(--text-secondary)] block mb-0.5">Webhook Secret (השאר ריק = ללא שינוי)</label>
                     <input type="password" value={editSecret} onChange={e => setEditSecret(e.target.value)}
-                      className="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
+                      className="w-full bg-[var(--glass-2)] border border-[var(--edge)] rounded px-2 py-1 text-xs text-[var(--ink)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--acc)]"
                       placeholder="סודי" autoComplete="off" />
                   </div>
                   {editError && <p className="text-[10px] text-red-400">{editError}</p>}
                   <div className="flex gap-1.5">
                     <button onClick={() => setEditing(false)} disabled={saving}
-                      className="flex-1 py-1 rounded text-[10px] bg-slate-700 hover:bg-slate-600 text-slate-300 transition-colors">ביטול</button>
+                      className="flex-1 py-1 rounded text-[10px] bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] transition-colors">ביטול</button>
                     <button onClick={saveEdit} disabled={saving}
-                      className="flex-1 py-1 rounded text-[10px] bg-blue-600 hover:bg-blue-500 text-white font-medium transition-colors disabled:opacity-50">
+                      className="flex-1 py-1 rounded text-[10px] bg-[var(--ink)] hover:opacity-90 text-[var(--bg)] font-medium transition-colors disabled:opacity-50">
                       {saving ? '...' : 'שמור'}</button>
                   </div>
                 </div>
@@ -193,7 +193,7 @@ export function WhatsAppChannelCard({
                   {!editing && (
                     <button
                       onClick={startEdit}
-                      className="py-1 px-2 rounded text-xs bg-slate-700/50 hover:bg-slate-700 text-slate-400 transition-all"
+                      className="py-1 px-2 rounded text-xs bg-[var(--glass-2)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] transition-all"
                     >
                       ✏️ ערוך
                     </button>
@@ -203,7 +203,7 @@ export function WhatsAppChannelCard({
                     disabled={loading || (!wasenderChannel.is_active && !!metaChannel?.is_active)}
                     className={`flex-1 py-1 px-2 rounded text-xs font-medium transition-all
                       ${wasenderChannel.is_active
-                        ? 'bg-slate-700 hover:bg-slate-600 text-slate-300'
+                        ? 'bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)]'
                         : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 disabled:opacity-40 disabled:cursor-not-allowed'
                       }`}
                   >
@@ -224,7 +224,7 @@ export function WhatsAppChannelCard({
               <button
                 onClick={onAddWaSender}
                 disabled={!!metaChannel?.is_active}
-                className="w-full py-1 px-2 rounded text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full py-1 px-2 rounded text-xs bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 + חבר
               </button>
@@ -233,11 +233,11 @@ export function WhatsAppChannelCard({
         </div>
 
         {/* WhatsApp Meta */}
-        <div className={`rounded-lg border p-3 ${metaChannel?.is_active ? 'border-blue-500/40 bg-blue-500/5' : 'border-slate-700 bg-slate-900/40'}`}>
-          <div className="text-xs font-medium text-white mb-1">Meta (רשמי)</div>
+        <div className={`rounded-lg border p-3 ${metaChannel?.is_active ? 'border-[var(--acc)]/40 bg-[var(--acc)]/5' : 'border-[var(--edge)] bg-[var(--glass)]'}`}>
+          <div className="text-xs font-medium text-[var(--ink)] mb-1">Meta (רשמי)</div>
           {metaChannel ? (
             <>
-              <div className="text-xs text-slate-500 truncate mb-2">{metaChannel.external_account_id}</div>
+              <div className="text-xs text-[var(--text-muted)] truncate mb-2">{metaChannel.external_account_id}</div>
               {canEdit && (
                 <div className="flex gap-1.5">
                   <button
@@ -245,8 +245,8 @@ export function WhatsAppChannelCard({
                     disabled={loading || (!metaChannel.is_active && !!wasenderChannel?.is_active)}
                     className={`flex-1 py-1 px-2 rounded text-xs font-medium transition-all
                       ${metaChannel.is_active
-                        ? 'bg-slate-700 hover:bg-slate-600 text-slate-300'
-                        : 'bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 disabled:opacity-40 disabled:cursor-not-allowed'
+                        ? 'bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)]'
+                        : 'bg-[var(--acc)]/10 hover:bg-[var(--acc)]/20 text-[var(--acc)] border border-[var(--acc)]/30 disabled:opacity-40 disabled:cursor-not-allowed'
                       }`}
                   >
                     {metaChannel.is_active ? 'השבת' : 'הפעל'}
@@ -266,7 +266,7 @@ export function WhatsAppChannelCard({
               <button
                 onClick={onAddMeta}
                 disabled={!!wasenderChannel?.is_active}
-                className="w-full py-1 px-2 rounded text-xs bg-slate-700 hover:bg-slate-600 text-slate-300 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full py-1 px-2 rounded text-xs bg-[var(--bg-tertiary)] hover:bg-[var(--bg-hover)] text-[var(--text-secondary)] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 + חבר
               </button>

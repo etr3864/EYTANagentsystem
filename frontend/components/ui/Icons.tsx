@@ -294,9 +294,9 @@ export function ChannelIcon({ channelType, size = 16, className }: ChannelIconPr
   })();
 
   const badge = channelType === 'whatsapp_meta'
-    ? <span className="absolute -bottom-0.5 -right-0.5 bg-blue-500 text-white rounded-full flex items-center justify-center" style={{ width: size * 0.45, height: size * 0.45, fontSize: size * 0.3 }}>✓</span>
+    ? <span className="absolute -bottom-0.5 -right-0.5 bg-[var(--acc)] text-[var(--ink)] rounded-full flex items-center justify-center" style={{ width: size * 0.45, height: size * 0.45, fontSize: size * 0.3 }}>✓</span>
     : channelType === 'whatsapp_wasender'
-    ? <span className="absolute -bottom-0.5 -right-0.5 bg-amber-500 text-white rounded-full flex items-center justify-center font-bold" style={{ width: size * 0.45, height: size * 0.45, fontSize: size * 0.25 }}>S</span>
+    ? <span className="absolute -bottom-0.5 -right-0.5 bg-amber-500 text-[var(--ink)] rounded-full flex items-center justify-center font-bold" style={{ width: size * 0.45, height: size * 0.45, fontSize: size * 0.25 }}>S</span>
     : null;
 
   return (

@@ -17,7 +17,7 @@ interface Props {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3 mt-5 first:mt-2">
+    <h4 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] mb-3 mt-5 first:mt-2">
       {children}
     </h4>
   );
@@ -70,8 +70,8 @@ export function AgentAccordionDetail({ agentId, fromDate, toDate, activeChannels
                 onClick={() => setSelectedChannel(tab.key)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                   active
-                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
-                    : 'bg-white/5 text-slate-400 border border-transparent hover:bg-white/10 hover:text-slate-200'
+                    ? 'bg-[var(--acc)]/20 text-[var(--acc)] border border-[var(--acc)]/40'
+                    : 'bg-[var(--glass-2)] text-[var(--text-secondary)] border border-transparent hover:bg-[var(--bg-hover)] hover:text-[var(--ink)]'
                 }`}
               >
                 {tab.key && <ChannelIcon channelType={tab.key} size={14} />}

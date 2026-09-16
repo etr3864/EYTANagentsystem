@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Card } from '@/components/ui';
+import { Card, ListPager } from '@/components/ui';
 import { getTemplates, syncTemplates, createTemplate, updateTemplate, deleteTemplate } from '@/lib/api';
 import type { WhatsAppTemplate, TemplateCategory, TemplateStatus } from '@/lib/types';
 import { TemplateBuilder } from './TemplateBuilder';
+import { usePagedList } from '@/lib/usePagedList';
 
 interface TemplatesTabProps {
   agentId: number;
@@ -107,15 +108,16 @@ export function TemplatesTab({ agentId }: TemplatesTabProps) {
   };
 
   const filtered = filterCategory === 'ALL' ? templates : templates.filter(t => t.category === filterCategory);
+  const paged = usePagedList(filtered, filterCategory);
 
-  if (loading) return <div className="text-slate-400 text-center py-12">טוען...</div>;
+  if (loading) return <div className="text-[var(--text-secondary)] text-center py-12">טוען...</div>;
   if (error) return <div className="text-red-400 text-center py-12">{error}</div>;
 
   return (
     <div className="space-y-6 relative">
       {/* Toast */}
       {toast && (
-        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-lg shadow-lg text-white text-sm font-medium animate-slide-down
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-lg shadow-lg text-[var(--ink)] text-sm font-medium animate-slide-down
           ${toast.type === 'success' ? 'bg-emerald-600' : 'bg-red-600'}`}>
           {toast.msg}
         </div>
@@ -124,10 +126,10 @@ export function TemplatesTab({ agentId }: TemplatesTabProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          <h2 className="text-xl font-bold text-[var(--ink)] flex items-center gap-2">
             <span className="text-green-500">WhatsApp</span> ניהול Templates
           </h2>
-          <p className="text-sm text-slate-400 mt-1">יצירה, מעקב ואישור תבניות WhatsApp Business API</p>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">יצירה, מעקב ואישור תבניות WhatsApp Business API</p>
         </div>
         <div className="flex gap-2">
           {view === 'list' ? (
@@ -135,14 +137,14 @@ export function TemplatesTab({ agentId }: TemplatesTabProps) {
               <button
                 onClick={handleSync}
                 disabled={syncing}
-                className="px-4 py-2 border border-slate-600 rounded-lg text-slate-300 hover:bg-slate-700 transition-colors flex items-center gap-2 text-sm"
+                className="px-4 py-2 border border-[var(--edge-strong)] rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors flex items-center gap-2 text-sm"
               >
                 <span className={syncing ? 'animate-spin' : ''}>⟳</span>
                 רענן סטטוסים
               </button>
               <button
                 onClick={() => setView('create')}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-white font-medium transition-colors text-sm"
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg text-[var(--ink)] font-medium transition-colors text-sm"
               >
                 + Template חדש
               </button>
@@ -150,7 +152,7 @@ export function TemplatesTab({ agentId }: TemplatesTabProps) {
           ) : (
             <button
               onClick={() => { setView('list'); setEditingTemplate(null); }}
-              className="px-4 py-2 border border-slate-600 rounded-lg text-slate-300 hover:bg-slate-700 transition-colors text-sm"
+              className="px-4 py-2 border border-[var(--edge-strong)] rounded-lg text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors text-sm"
             >
               ← חזרה לרשימה
             </button>
@@ -202,14 +204,14 @@ export function TemplatesTab({ agentId }: TemplatesTabProps) {
 
           {/* Table */}
           {filtered.length === 0 ? (
-            <Card className="text-center py-12 text-slate-400">
+            <Card className="text-center py-12 text-[var(--text-secondary)]">
               {templates.length === 0 ? 'אין templates. לחץ "רענן סטטוסים" לסנכרן מ-Meta או צור חדש.' : 'אין תוצאות לפילטר הנבחר.'}
             </Card>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-slate-400 border-b border-slate-700">
+                  <tr className="text-[var(--text-secondary)] border-b border-[var(--edge)]">
                     <th className="text-right py-3 px-3 font-medium">שם</th>
                     <th className="text-right py-3 px-3 font-medium">קטגוריה</th>
                     <th className="text-right py-3 px-3 font-medium">סטטוס</th>
@@ -219,7 +221,7 @@ export function TemplatesTab({ agentId }: TemplatesTabProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map(tmpl => (
+                  {paged.items.map(tmpl => (
                     <TemplateRow
                       key={tmpl.id}
                       template={tmpl}
@@ -229,6 +231,16 @@ export function TemplatesTab({ agentId }: TemplatesTabProps) {
                   ))}
                 </tbody>
               </table>
+              <div className="pt-3">
+                <ListPager
+                  page={paged.page}
+                  totalPages={paged.totalPages}
+                  from={paged.from}
+                  to={paged.to}
+                  total={paged.total}
+                  onPage={paged.setPage}
+                />
+              </div>
             </div>
           )}
         </>
@@ -242,15 +254,15 @@ export function TemplatesTab({ agentId }: TemplatesTabProps) {
 
 function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
   const colorMap: Record<string, string> = {
-    slate: 'text-slate-300 border-slate-700',
+    slate: 'text-[var(--text-secondary)] border-[var(--edge)]',
     emerald: 'text-emerald-400 border-emerald-800',
     yellow: 'text-yellow-400 border-yellow-800',
     red: 'text-red-400 border-red-800',
   };
   return (
-    <div className={`bg-slate-800/40 border rounded-lg p-4 text-center ${colorMap[color] || colorMap.slate}`}>
+    <div className={`bg-[var(--glass)] border rounded-lg p-4 text-center ${colorMap[color] || colorMap.slate}`}>
       <div className="text-2xl font-bold">{value}</div>
-      <div className="text-xs text-slate-400 mt-1">{label}</div>
+      <div className="text-xs text-[var(--text-secondary)] mt-1">{label}</div>
     </div>
   );
 }
@@ -258,16 +270,16 @@ function StatCard({ label, value, color }: { label: string; value: number; color
 function FilterChip({ active, onClick, label, color }: { active: boolean; onClick: () => void; label: string; color?: string }) {
   const activeColors: Record<string, string> = {
     pink: 'bg-pink-500/20 border-pink-500 text-pink-300',
-    blue: 'bg-blue-500/20 border-blue-500 text-blue-300',
+    blue: 'bg-[var(--acc)]/20 border-[var(--acc)] text-[var(--acc)]',
     green: 'bg-emerald-500/20 border-emerald-500 text-emerald-300',
   };
-  const activeClass = color && activeColors[color] ? activeColors[color] : 'bg-slate-600/40 border-slate-500 text-white';
+  const activeClass = color && activeColors[color] ? activeColors[color] : 'bg-[var(--bg-tertiary)]/40 border-[var(--edge-strong)] text-[var(--ink)]';
 
   return (
     <button
       onClick={onClick}
       className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${
-        active ? activeClass : 'border-slate-700 text-slate-400 hover:border-slate-600'
+        active ? activeClass : 'border-[var(--edge)] text-[var(--text-secondary)] hover:border-[var(--acc)]'
       }`}
     >
       {label}
@@ -283,22 +295,22 @@ function TemplateRow({ template: t, onEdit, onDelete }: { template: WhatsAppTemp
 
   const catColorMap: Record<string, string> = {
     pink: 'bg-pink-500/10 text-pink-400',
-    blue: 'bg-blue-500/10 text-blue-400',
+    blue: 'bg-[var(--acc)]/10 text-[var(--acc)]',
     green: 'bg-emerald-500/10 text-emerald-400',
   };
   const statusColorMap: Record<string, string> = {
     emerald: 'bg-emerald-500/10 text-emerald-400',
     yellow: 'bg-yellow-500/10 text-yellow-400',
     red: 'bg-red-500/10 text-red-400',
-    slate: 'bg-slate-500/10 text-slate-400',
+    slate: 'bg-[var(--glass-2)] text-[var(--text-secondary)]',
   };
 
   const canEdit = t.status !== 'PENDING';
 
   return (
-    <tr className="border-b border-slate-800 hover:bg-slate-800/30 transition-colors">
+    <tr className="border-b border-[var(--edge)] hover:bg-[var(--glass)] transition-colors">
       <td className="py-3 px-3">
-        <code className="text-xs bg-slate-800 px-2 py-1 rounded text-slate-200">{t.name}</code>
+        <code className="text-xs bg-[var(--glass-2)] px-2 py-1 rounded text-[var(--ink)]">{t.name}</code>
       </td>
       <td className="py-3 px-3">
         <span className={`text-xs px-2 py-1 rounded ${catColorMap[cat.color] || ''}`}>
@@ -315,14 +327,14 @@ function TemplateRow({ template: t, onEdit, onDelete }: { template: WhatsAppTemp
           </div>
         )}
       </td>
-      <td className="py-3 px-3 text-slate-400 text-xs">{t.language}</td>
+      <td className="py-3 px-3 text-[var(--text-secondary)] text-xs">{t.language}</td>
       <td className="py-3 px-3">
-        <span className="text-xs text-slate-300 max-w-[250px] truncate block">{bodyText}</span>
+        <span className="text-xs text-[var(--text-secondary)] max-w-[250px] truncate block">{bodyText}</span>
       </td>
       <td className="py-3 px-3">
         <div className="flex gap-1">
           {canEdit && (
-            <button onClick={onEdit} className="text-xs px-2 py-1 bg-blue-500/10 text-blue-400 rounded hover:bg-blue-500/20 transition-colors">
+            <button onClick={onEdit} className="text-xs px-2 py-1 bg-[var(--acc)]/10 text-[var(--acc)] rounded hover:bg-[var(--acc)]/20 transition-colors">
               עריכה
             </button>
           )}
