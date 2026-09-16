@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --bg-primary: #06050a;
-  --bg-secondary: #0b0912;
+  --bg-primary: #02010a;
+  --bg-secondary: #07050e;
   --bg-tertiary: oklch(0.22 0.04 298);
   --bg-card: rgba(255, 255, 255, 0.022);
   --bg-hover: rgba(255, 255, 255, 0.06);
@@ -84,8 +84,38 @@ html:not([data-theme="light"]) .theme-mark-sun { display: none; }
 html[data-theme="light"] .try-atmo-blobs {
   opacity: 0.32;
 }
-html:not([data-theme="light"]) .optive-atmosphere.fixed .try-atmo-cursor {
+html:not([data-theme="light"]) .optive-atmosphere.fixed .try-atmo-dim {
+  filter: brightness(0.34) saturate(1);
+}
+html:not([data-theme="light"]) .optive-atmosphere.fixed .try-atmo-net {
+  opacity: 0.26;
+}
+html:not([data-theme="light"]) .optive-atmosphere.fixed .try-atmo-dots {
+  opacity: 0.14;
+}
+html:not([data-theme="light"]) .optive-atmosphere.fixed .try-atmo-vignette {
+  box-shadow:
+    inset 0 0 320px 120px var(--bg),
+    inset 0 0 120px 40px rgba(0, 0, 0, 0.72);
+}
+.try-atmo-cursor {
+  pointer-events: none;
+  transition: background 300ms linear;
+}
+html:not([data-theme="light"]) .try-atmo-cursor {
+  background: radial-gradient(
+    circle 110px at var(--mx) var(--my),
+    oklch(0.80 0.125 225 / 0.038),
+    transparent 68%
+  );
+}
+html[data-theme="light"] .optive-atmosphere.fixed .try-atmo-cursor {
   display: none;
+}
+@media (hover: none), (pointer: coarse) {
+  .try-atmo-cursor {
+    display: none;
+  }
 }
 
 html[data-theme="light"] .text-white,

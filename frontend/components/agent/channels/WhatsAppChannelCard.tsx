@@ -114,7 +114,7 @@ export function WhatsAppChannelCard({
   }
 
   return (
-    <div className="rounded-xl border border-[var(--edge)] bg-[var(--glass-2)] p-4">
+    <div className="rounded-[22px] border border-[var(--edge)] bg-[var(--bg)]/80 backdrop-blur-xl p-4">
       <div className="flex items-center gap-2 mb-4">
         <span className="text-xl">📱</span>
         <h3 className="font-semibold text-[var(--ink)] text-sm">WhatsApp</h3>
@@ -135,7 +135,7 @@ export function WhatsAppChannelCard({
 
       <div className="grid grid-cols-2 gap-2">
         {/* WaSender */}
-        <div className={`rounded-lg border p-3 ${wasenderChannel?.is_active ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-[var(--edge)] bg-[var(--glass)]'}`}>
+        <div className={`rounded-xl border p-3 ${wasenderChannel?.is_active ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-[var(--edge)] bg-[var(--bg)]/55'}`}>
           <div className="text-xs font-medium text-[var(--ink)] mb-1">WaSender</div>
           {wasenderChannel ? (
             <>
@@ -233,7 +233,7 @@ export function WhatsAppChannelCard({
         </div>
 
         {/* WhatsApp Meta */}
-        <div className={`rounded-lg border p-3 ${metaChannel?.is_active ? 'border-[var(--acc)]/40 bg-[var(--acc)]/5' : 'border-[var(--edge)] bg-[var(--glass)]'}`}>
+        <div className={`rounded-xl border p-3 ${metaChannel?.is_active ? 'border-[var(--acc)]/40 bg-[var(--acc)]/10' : 'border-[var(--edge)] bg-[var(--bg)]/55'}`}>
           <div className="text-xs font-medium text-[var(--ink)] mb-1">Meta (רשמי)</div>
           {metaChannel ? (
             <>

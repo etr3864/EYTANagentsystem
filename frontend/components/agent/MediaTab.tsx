@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import imageCompression from 'browser-image-compression';
-import { Card, Button, ListPager } from '@/components/ui';
+import { Card, Button, ListPager, ListViewport } from '@/components/ui';
 import type { AgentMedia, MediaConfig } from '@/lib/types';
 import { usePagedList } from '@/lib/usePagedList';
 
@@ -400,10 +400,21 @@ export function MediaTab({
     );
   };
 
+  const listPager = (
+    <ListPager
+      page={paged.page}
+      totalPages={paged.totalPages}
+      from={paged.from}
+      to={paged.to}
+      total={paged.total}
+      onPage={paged.setPage}
+    />
+  );
+
   return (
-    <div className="space-y-4">
+    <div className="h-full min-h-0 flex flex-col gap-3 md:gap-4 overflow-hidden">
       {/* Section Tabs */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="shrink-0 flex gap-2 flex-wrap">
         {[
           { id: 'images' as Section, label: '🖼️ תמונות', count: images.length, show: true },
           { id: 'videos' as Section, label: '🎬 סרטונים', count: videos.length, show: true },
@@ -431,7 +442,7 @@ export function MediaTab({
 
       {/* Error */}
       {error && (
-        <div className="bg-red-500/20 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg flex items-center justify-between">
+        <div className="shrink-0 bg-red-500/20 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg flex items-center justify-between">
           <span>{error}</span>
           <button onClick={() => setError(null)} className="text-red-400 hover:text-red-300">✕</button>
         </div>
@@ -439,7 +450,7 @@ export function MediaTab({
 
       {/* Upload Progress */}
       {uploading && (
-        <Card className="!bg-[var(--acc)]/10 border-[var(--acc)]/30">
+        <Card className="shrink-0 !bg-[var(--acc)]/10 border-[var(--acc)]/30">
           <div className="flex items-center gap-4">
             <div className="w-8 h-8 border-3 border-[var(--acc)] border-t-transparent rounded-full animate-spin" />
             <div className="flex-1">
@@ -469,11 +480,11 @@ export function MediaTab({
       )}
 
       {/* Content */}
-      <Card>
+      <Card className="flex-1 min-h-0 flex flex-col overflow-hidden">
         {/* === Images === */}
         {section === 'images' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex flex-col flex-1 min-h-0 gap-3">
+            <div className="shrink-0 flex items-center justify-between flex-wrap gap-2">
               <h3 className="font-medium text-[var(--ink)]">תמונות</h3>
               {canUpload && (
                 <div className="flex gap-2 items-center">
@@ -499,7 +510,7 @@ export function MediaTab({
             </div>
 
             {canUpload && (
-              <div className="text-xs text-[var(--text-secondary)] bg-[var(--glass)] rounded-lg p-3">
+              <div className="shrink-0 text-xs text-[var(--text-secondary)] bg-[var(--glass)] rounded-lg p-3">
                 🖼️ פורמטים: JPG, PNG (דחיסה אוטומטית אם מעל 1MB)
                 <br />
                 🤖 שם, תיאור וכיתוב נוצרים אוטומטית בעזרת AI. לחץ על ✏️ לעריכה
@@ -507,30 +518,24 @@ export function MediaTab({
             )}
 
             {images.length === 0 ? (
-              <div className="text-center py-8 text-[var(--text-secondary)]">
-                <div className="text-4xl mb-2">🖼️</div>
-                <div>אין תמונות עדיין</div>
+              <div className="flex-1 flex items-center justify-center text-center py-8 text-[var(--text-secondary)]">
+                <div>
+                  <div className="text-4xl mb-2">🖼️</div>
+                  <div>אין תמונות עדיין</div>
+                </div>
               </div>
             ) : (
-              <div className="space-y-2">
-                {paged.items.map(renderMediaItem)}
-                <ListPager
-                  page={paged.page}
-                  totalPages={paged.totalPages}
-                  from={paged.from}
-                  to={paged.to}
-                  total={paged.total}
-                  onPage={paged.setPage}
-                />
-              </div>
+              <ListViewport footer={listPager} className="min-h-[14rem]">
+                <div className="space-y-2 pr-0.5">{paged.items.map(renderMediaItem)}</div>
+              </ListViewport>
             )}
           </div>
         )}
 
         {/* === Videos === */}
         {section === 'videos' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex flex-col flex-1 min-h-0 gap-3">
+            <div className="shrink-0 flex items-center justify-between flex-wrap gap-2">
               <h3 className="font-medium text-[var(--ink)]">סרטונים</h3>
               {canUpload && (
                 <div className="flex gap-2 items-center">
@@ -556,7 +561,7 @@ export function MediaTab({
             </div>
 
             {canUpload && (
-              <div className="text-xs text-[var(--text-secondary)] bg-[var(--glass)] rounded-lg p-3">
+              <div className="shrink-0 text-xs text-[var(--text-secondary)] bg-[var(--glass)] rounded-lg p-3">
                 🎬 פורמט: MP4 (עד 16MB לסרטון)
                 <br />
                 ניתן לבחור מספר סרטונים בבת אחת. לחץ על ✏️ להוספת תיאור לחיפוש סמנטי
@@ -564,30 +569,24 @@ export function MediaTab({
             )}
 
             {videos.length === 0 ? (
-              <div className="text-center py-8 text-[var(--text-secondary)]">
-                <div className="text-4xl mb-2">🎬</div>
-                <div>אין סרטונים עדיין</div>
+              <div className="flex-1 flex items-center justify-center text-center py-8 text-[var(--text-secondary)]">
+                <div>
+                  <div className="text-4xl mb-2">🎬</div>
+                  <div>אין סרטונים עדיין</div>
+                </div>
               </div>
             ) : (
-              <div className="space-y-2">
-                {paged.items.map(renderMediaItem)}
-                <ListPager
-                  page={paged.page}
-                  totalPages={paged.totalPages}
-                  from={paged.from}
-                  to={paged.to}
-                  total={paged.total}
-                  onPage={paged.setPage}
-                />
-              </div>
+              <ListViewport footer={listPager} className="min-h-[14rem]">
+                <div className="space-y-2 pr-0.5">{paged.items.map(renderMediaItem)}</div>
+              </ListViewport>
             )}
           </div>
         )}
 
         {/* === Documents === */}
         {section === 'documents' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex flex-col flex-1 min-h-0 gap-3">
+            <div className="shrink-0 flex items-center justify-between flex-wrap gap-2">
               <h3 className="font-medium text-[var(--ink)]">קבצים</h3>
               {canUpload && (
                 <div className="flex gap-2 items-center">
@@ -613,7 +612,7 @@ export function MediaTab({
             </div>
 
             {canUpload && (
-              <div className="text-xs text-[var(--text-secondary)] bg-[var(--glass)] rounded-lg p-3">
+              <div className="shrink-0 text-xs text-[var(--text-secondary)] bg-[var(--glass)] rounded-lg p-3">
                 📄 פורמטים: PDF, Word, Excel, PowerPoint, TXT (עד 25MB)
                 <br />
                 הסוכן ישלח קבצים לפי התיאור והקשר השיחה. לחץ על ✏️ לעריכת שם הקובץ בווצאפ
@@ -621,29 +620,23 @@ export function MediaTab({
             )}
 
             {documents.length === 0 ? (
-              <div className="text-center py-8 text-[var(--text-secondary)]">
-                <div className="text-4xl mb-2">📄</div>
-                <div>אין קבצים עדיין</div>
+              <div className="flex-1 flex items-center justify-center text-center py-8 text-[var(--text-secondary)]">
+                <div>
+                  <div className="text-4xl mb-2">📄</div>
+                  <div>אין קבצים עדיין</div>
+                </div>
               </div>
             ) : (
-              <div className="space-y-2">
-                {paged.items.map(renderMediaItem)}
-                <ListPager
-                  page={paged.page}
-                  totalPages={paged.totalPages}
-                  from={paged.from}
-                  to={paged.to}
-                  total={paged.total}
-                  onPage={paged.setPage}
-                />
-              </div>
+              <ListViewport footer={listPager} className="min-h-[14rem]">
+                <div className="space-y-2 pr-0.5">{paged.items.map(renderMediaItem)}</div>
+              </ListViewport>
             )}
           </div>
         )}
 
         {/* === Settings === */}
         {section === 'settings' && (
-          <div className="space-y-4">
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-4">
             <h3 className="font-medium text-[var(--ink)]">הגדרות מדיה</h3>
 
             <div className="space-y-4">

@@ -549,6 +549,22 @@ function AgentPage() {
           <div className="h-full max-w-5xl mx-auto px-2 md:px-6 py-2 md:py-4 flex flex-col min-h-0 min-w-0 overflow-hidden animate-fade-in pb-[max(0.5rem,env(safe-area-inset-bottom))]">
             <PlaygroundLinksTab agentId={agentId} />
           </div>
+        ) : tab === 'media' ? (
+          <div className="h-full max-w-5xl mx-auto px-2 md:px-6 py-2 md:py-4 flex flex-col min-h-0 min-w-0 overflow-hidden animate-fade-in pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+            <MediaTab
+              media={media}
+              mediaConfig={mediaConfig}
+              onUpload={handleUploadMedia}
+              onUpdate={handleUpdateMedia}
+              onDelete={handleDeleteMedia}
+              onConfigChange={setMediaConfig}
+              onSaveConfig={handleSaveMediaConfig}
+              saving={saving}
+              canUpload={isSuperAdmin(user)}
+              canEdit={isSuperAdmin(user) || isAdmin(user)}
+              canShowConfig={isSuperAdmin(user)}
+            />
+          </div>
         ) : (
         <div className="h-full overflow-y-auto">
         <div className="max-w-5xl mx-auto px-3 md:px-6 py-4 md:py-6 animate-fade-in">
@@ -564,22 +580,6 @@ function AgentPage() {
             <KnowledgeTab
               agentId={agentId}
               canUpload={isSuperAdmin(user)}
-            />
-          )}
-
-          {tab === 'media' && (
-            <MediaTab
-              media={media}
-              mediaConfig={mediaConfig}
-              onUpload={handleUploadMedia}
-              onUpdate={handleUpdateMedia}
-              onDelete={handleDeleteMedia}
-              onConfigChange={setMediaConfig}
-              onSaveConfig={handleSaveMediaConfig}
-              saving={saving}
-              canUpload={isSuperAdmin(user)}
-              canEdit={isSuperAdmin(user) || isAdmin(user)}
-              canShowConfig={isSuperAdmin(user)}
             />
           )}
 
