@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --bg-primary: #06050a;
-  --bg-secondary: #0b0912;
+  --bg-primary: #04030a;
+  --bg-secondary: #090710;
   --bg-tertiary: oklch(0.22 0.04 298);
   --bg-card: rgba(255, 255, 255, 0.022);
   --bg-hover: rgba(255, 255, 255, 0.06);
@@ -83,6 +83,20 @@ html[data-theme="light"] .theme-mark-moon { display: none; }
 html:not([data-theme="light"]) .theme-mark-sun { display: none; }
 html[data-theme="light"] .try-atmo-blobs {
   opacity: 0.32;
+}
+html:not([data-theme="light"]) .optive-atmosphere.fixed .try-atmo-dim {
+  filter: brightness(0.67) saturate(1);
+}
+html:not([data-theme="light"]) .optive-atmosphere.fixed .try-atmo-net {
+  opacity: 0.58;
+}
+html:not([data-theme="light"]) .optive-atmosphere.fixed .try-atmo-dots {
+  opacity: 0.24;
+}
+html:not([data-theme="light"]) .optive-atmosphere.fixed .try-atmo-vignette {
+  box-shadow:
+    inset 0 0 290px 100px var(--bg),
+    inset 0 0 95px 20px rgba(0, 0, 0, 0.585);
 }
 .try-atmo-cursor {
   pointer-events: none;
