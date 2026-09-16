@@ -10,9 +10,9 @@ function DashboardContent() {
   const isSuperAdmin = user?.role === 'super_admin';
 
   return (
-    <div className="min-h-screen text-white overflow-x-hidden">
+    <div className="min-h-screen overflow-x-hidden">
       <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 space-y-6">
-        <h1 className="text-2xl font-bold text-white">
+        <h1 className="text-2xl font-bold text-[var(--ink)]">
           {isSuperAdmin ? 'דאשבורד מערכת' : 'דאשבורד'}
         </h1>
         {isSuperAdmin ? <SuperAdminDashboard /> : <AdminDashboard />}

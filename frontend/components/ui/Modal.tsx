@@ -11,11 +11,11 @@ interface ModalProps {
 
 export function Modal({ children, onClose, title, wide = false }: ModalProps) {
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className={`bg-slate-800 rounded-xl shadow-xl ${wide ? 'w-full max-w-2xl' : 'w-full max-w-md'}`}>
-        <div className="flex justify-between items-center p-4 border-b border-slate-700">
-          <h2 className="text-lg font-semibold text-white">{title}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-white">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className={`try-glass ${wide ? 'w-full max-w-2xl' : 'w-full max-w-md'} rounded-[26px] overflow-hidden text-[var(--text-primary)]`}>
+        <div className="flex justify-between items-center p-4 border-b border-[var(--edge)]">
+          <h2 className="text-lg font-semibold">{title}</h2>
+          <button type="button" onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)]">
             <XIcon />
           </button>
         </div>

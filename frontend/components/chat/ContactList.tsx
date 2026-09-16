@@ -26,7 +26,7 @@ function ChannelBadge({ channelType }: { channelType: string | null | undefined 
   if (!channelType) return null;
   const name = CHANNEL_DISPLAY_NAMES[channelType as keyof typeof CHANNEL_DISPLAY_NAMES] ?? channelType;
   return (
-    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-slate-700/50" title={name}>
+    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-[var(--glass-2)] border border-[var(--edge)]" title={name}>
       <ChannelIcon channelType={channelType} size={14} />
     </span>
   );
@@ -72,32 +72,32 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete, onN
   }, [conversations, search, channelFilter]);
 
   return (
-    <div className="h-full border-l border-slate-700 flex flex-col bg-slate-800/30">
-      <div className="p-4 border-b border-slate-700">
+    <div className="h-full border-l border-[var(--edge)] flex flex-col min-w-0 overflow-hidden">
+      <div className="p-3 md:p-4 border-b border-[var(--edge)]">
         <div className="flex items-center justify-between gap-2">
-          <div className="text-sm font-medium text-white">שיחות</div>
+          <div className="text-sm font-medium text-[var(--ink)]">שיחות</div>
           {onNewChat && (
             <button
               type="button"
               onClick={onNewChat}
               title="צ׳אט חדש"
-              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-500 text-white"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-[var(--ink)] text-[var(--bg)]"
             >
               <PlusIcon className="w-3.5 h-3.5" />
               חדש
             </button>
           )}
         </div>
-        <div className="text-xs text-slate-400">
+        <div className="text-xs text-[var(--text-secondary)]">
           {search || channelFilter !== 'all'
             ? `${filtered.length} מתוך ${conversations.length}`
             : `${conversations.length} פעילות`}
         </div>
       </div>
 
-      <div className="px-3 py-2 border-b border-slate-700/50 space-y-2">
+      <div className="px-3 py-2 border-b border-[var(--edge)] space-y-2">
         <div className="relative">
-          <svg className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
           <input
@@ -106,10 +106,10 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete, onN
             onChange={e => setSearch(e.target.value)}
             placeholder="חיפוש לפי שם או מספר..."
             dir="rtl"
-            className="w-full pr-8 pl-8 py-1.5 text-sm bg-slate-700/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+            className="w-full pr-8 pl-8 py-2 text-sm bg-[var(--glass-2)] border border-[var(--edge-strong)] rounded-2xl text-[var(--ink)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--acc)]"
           />
           {search && (
-            <button onClick={() => setSearch('')} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
+            <button type="button" onClick={() => setSearch('')} className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)]">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -122,7 +122,7 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete, onN
             <button
               onClick={() => setChannelFilter('all')}
               title="כל הערוצים"
-              className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${channelFilter === 'all' ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-700/60 text-slate-300 hover:bg-slate-600/80'}`}
+              className={`flex-1 py-1.5 rounded-full text-xs font-medium transition-all ${channelFilter === 'all' ? 'bg-[var(--ink)] text-[var(--bg)]' : 'bg-[var(--glass-2)] text-[var(--text-secondary)] border border-[var(--edge)]'}`}
             >
               הכל
             </button>
@@ -133,7 +133,7 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete, onN
                   key={ct}
                   onClick={() => setChannelFilter(ct === channelFilter ? 'all' : ct)}
                   title={name}
-                  className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center justify-center ${channelFilter === ct ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-700/60 text-slate-300 hover:bg-slate-600/80'}`}
+                  className={`flex-1 py-1.5 rounded-full text-xs font-medium transition-all flex items-center justify-center ${channelFilter === ct ? 'bg-[var(--ink)] text-[var(--bg)]' : 'bg-[var(--glass-2)] text-[var(--text-secondary)] border border-[var(--edge)]'}`}
                 >
                   <ChannelIcon channelType={ct} size={18} />
                 </button>
@@ -143,9 +143,9 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete, onN
         )}
       </div>
 
-      <div className="overflow-y-auto flex-1">
+      <div className="overflow-y-auto flex-1 min-h-0 overscroll-contain">
         {filtered.length === 0 && (
-          <div className="p-6 text-center text-sm text-slate-400">
+          <div className="p-6 text-center text-sm text-[var(--text-secondary)]">
             {conversations.length === 0 ? 'אין שיחות עדיין. אפשר לפתוח צ׳אט חדש.' : 'לא נמצאו תוצאות'}
           </div>
         )}
@@ -153,15 +153,7 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete, onN
           <div
             key={conv.id}
             onClick={() => onSelect(conv.id)}
-            className={`
-              p-4 cursor-pointer
-              border-b border-slate-700/50
-              transition-colors duration-150
-              ${selectedId === conv.id 
-                ? 'bg-blue-500/10 border-r-2 border-r-blue-500' 
-                : 'hover:bg-slate-700/30'
-              }
-            `}
+            className={`ops-row ${selectedId === conv.id ? 'is-on' : ''}`}
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
@@ -180,12 +172,12 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete, onN
                 <div className={`
                   w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0
                   ${conv.channel_profile_pic ? 'hidden' : ''}
-                  ${selectedId === conv.id ? 'bg-blue-500/20' : 'bg-slate-700/50'}
+                  ${selectedId === conv.id ? 'bg-[oklch(0.80_0.125_225_/_0.18)]' : 'bg-[var(--glass-2)]'}
                 `}>
                   {getGenderIcon(conv.user_gender)}
                 </div>
                 <div>
-                  <div className="font-medium text-white text-sm flex items-center gap-1.5">
+                  <div className="font-medium text-[var(--ink)] text-sm flex items-center gap-1.5 min-w-0">
                     {conv.channel_username && conv.channel_type === 'instagram' ? (
                       <a
                         href={`https://instagram.com/${conv.channel_username}`}
@@ -213,7 +205,7 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete, onN
                     )}
                     {showChannelBadges && <ChannelBadge channelType={conv.channel_type} />}
                   </div>
-                  <div className="text-xs text-slate-400 font-mono">
+                  <div className="text-xs text-[var(--text-muted)] font-mono">
                     {conv.user_phone}
                   </div>
                 </div>
@@ -243,7 +235,7 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete, onN
         <div ref={sentinelRef} className="h-1" />
         {loadingMore && (
           <div className="flex justify-center py-4">
-            <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-[var(--acc)] border-t-transparent rounded-full animate-spin" />
           </div>
         )}
       </div>

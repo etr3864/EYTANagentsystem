@@ -1,3 +1,7 @@
+'use client';
+
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+
 export type AgentTabGroup = 'ops' | 'content' | 'auto' | 'system';
 
 export interface AgentTabItem {
@@ -21,6 +25,13 @@ interface AgentTabsProps<T extends string> {
 }
 
 export function AgentTabs<T extends string>({ tabs, current, onChange }: AgentTabsProps<T>) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const buttonsRef = useRef(new Map<string, HTMLButtonElement>());
+  const firstReveal = useRef(true);
+  const [pill, setPill] = useState({ x: 0, w: 0 });
+  const [ready, setReady] = useState(false);
+
   const groups = GROUP_ORDER
     .map((id) => ({
       id,
@@ -29,41 +40,91 @@ export function AgentTabs<T extends string>({ tabs, current, onChange }: AgentTa
     }))
     .filter((group) => group.items.length > 0);
 
+  const placePill = useCallback(() => {
+    const inner = innerRef.current;
+    const btn = buttonsRef.current.get(current);
+    if (!inner || !btn) return;
+    const track = inner.getBoundingClientRect();
+    const box = btn.getBoundingClientRect();
+    setPill({ x: box.left - track.left, w: box.width });
+    setReady(true);
+  }, [current]);
+
+  const revealActive = useCallback((smooth: boolean) => {
+    const scroller = scrollerRef.current;
+    const btn = buttonsRef.current.get(current);
+    if (!scroller || !btn) return;
+    const view = scroller.getBoundingClientRect();
+    const box = btn.getBoundingClientRect();
+    const pad = 24;
+    let dx = 0;
+    if (box.right > view.right - pad) dx = box.right - view.right + pad;
+    else if (box.left < view.left + pad) dx = box.left - view.left - pad;
+    if (dx) scroller.scrollBy({ left: dx, behavior: smooth ? 'smooth' : 'auto' });
+  }, [current]);
+
+  useLayoutEffect(() => {
+    placePill();
+    if (!buttonsRef.current.get(current)) return;
+    const smooth = !firstReveal.current;
+    firstReveal.current = false;
+    revealActive(smooth);
+  }, [current, tabs, placePill, revealActive]);
+
+  useLayoutEffect(() => {
+    const inner = innerRef.current;
+    const scroller = scrollerRef.current;
+    if (!inner) return;
+    let alive = true;
+    const ro = new ResizeObserver(placePill);
+    ro.observe(inner);
+    if (scroller) ro.observe(scroller);
+    window.addEventListener('resize', placePill);
+    void document.fonts?.ready.then(() => {
+      if (alive) placePill();
+    });
+    return () => {
+      alive = false;
+      ro.disconnect();
+      window.removeEventListener('resize', placePill);
+    };
+  }, [placePill]);
+
   return (
-    <nav className="flex flex-col gap-3 md:flex-row md:items-stretch md:gap-0">
-      {groups.map((group, index) => (
-        <div
-          key={group.id}
-          className={`
-            flex flex-col gap-1.5 min-w-0
-            ${index > 0 ? 'md:ps-4 md:ms-4 md:border-s md:border-white/10' : ''}
-          `}
-        >
-          <span className="text-[10px] font-medium tracking-wide text-slate-500">
-            {group.label}
-          </span>
-          <div className="flex flex-wrap gap-1">
-            {group.items.map((item) => {
-              const active = current === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => onChange(item.id as T)}
-                  className={`
-                    px-2.5 py-1 text-xs md:text-sm font-medium rounded-md
-                    ${active
-                      ? 'bg-white/10 text-white'
-                      : 'text-slate-400 hover:text-white hover:bg-white/5'}
-                  `}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
+    <nav className="ops-tabs try-glass" role="tablist" aria-label="לשוניות סוכן">
+      <div ref={scrollerRef} className="ops-tabs-scroll scrollbar-hide">
+        <div ref={innerRef} className="ops-tabs-inner">
+          <span
+            className={`ops-tabs-pill${ready ? ' is-ready' : ''}`}
+            style={{ width: pill.w, transform: `translateX(${pill.x}px)` }}
+            aria-hidden
+          />
+          {groups.map((group, index) => (
+            <div key={group.id} role="group" aria-label={group.label} className="ops-tabs-group">
+              {index > 0 && <span className="ops-tabs-split" aria-hidden />}
+              {group.items.map((item) => {
+                const active = current === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    ref={(node) => {
+                      if (node) buttonsRef.current.set(item.id, node);
+                      else buttonsRef.current.delete(item.id);
+                    }}
+                    onClick={() => onChange(item.id as T)}
+                    className={`ops-tab${active ? ' is-on' : ''}`}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </div>
-      ))}
+      </div>
     </nav>
   );
 }

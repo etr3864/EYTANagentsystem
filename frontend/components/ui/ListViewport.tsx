@@ -16,7 +16,7 @@ export function ListViewport({
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         {children}
       </div>
-      {footer ? <div className="shrink-0 border-t border-purple-500/10 pt-3 mt-3">{footer}</div> : null}
+      {footer ? <div className="shrink-0 border-t border-[var(--edge)] pt-3 mt-3">{footer}</div> : null}
     </div>
   );
 }

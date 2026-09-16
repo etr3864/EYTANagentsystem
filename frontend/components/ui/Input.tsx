@@ -11,13 +11,13 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 
 const inputBaseStyles = `
   w-full px-4 py-2.5
-  bg-white/[0.04] 
-  border border-purple-500/10 
-  rounded-lg
-  text-white placeholder-slate-400
+  bg-[var(--glass-2)]
+  border border-[var(--edge-strong)]
+  rounded-2xl
+  text-[var(--text-primary)] placeholder:text-[var(--text-muted)]
   transition-all duration-200
-  focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20
-  hover:border-purple-500/20
+  focus:outline-none focus:border-[var(--acc)]
+  hover:border-[var(--acc)]
   disabled:opacity-50 disabled:cursor-not-allowed
 `;
 
@@ -26,7 +26,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="space-y-1.5">
         {label && (
-          <label className="block text-sm font-medium text-slate-300">
+          <label className="block text-sm font-medium text-[var(--text-secondary)]">
             {label}
           </label>
         )}
@@ -64,7 +64,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
     return (
       <div className="space-y-1.5">
         {label && (
-          <label className="block text-sm font-medium text-slate-300">
+          <label className="block text-sm font-medium text-[var(--text-secondary)]">
             {label}
           </label>
         )}
@@ -104,7 +104,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
     return (
       <div className="space-y-1.5">
         {label && (
-          <label className="block text-sm font-medium text-slate-300">
+          <label className="block text-sm font-medium text-[var(--text-secondary)]">
             {label}
           </label>
         )}
@@ -160,9 +160,9 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
           />
           <div className="
             w-5 h-5 rounded
-            bg-slate-700 border border-slate-600
-            peer-checked:bg-purple-600 peer-checked:border-purple-600
-            peer-focus:ring-2 peer-focus:ring-purple-500/20
+            bg-[var(--glass-2)] border border-[var(--edge-strong)]
+            peer-checked:bg-[var(--acc)] peer-checked:border-[var(--acc)]
+            peer-focus:ring-2 peer-focus:ring-[var(--acc)]/30
             transition-all duration-200
           ">
             <svg 
@@ -176,7 +176,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
             </svg>
           </div>
         </div>
-        <span className="text-sm text-slate-300 group-hover:text-white transition-colors">
+        <span className="text-sm text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">
           {label}
         </span>
       </label>
@@ -197,7 +197,7 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
     return (
       <div className="space-y-1.5">
         {label && (
-          <label className="block text-sm font-medium text-slate-300">
+          <label className="block text-sm font-medium text-[var(--text-secondary)]">
             {label}
           </label>
         )}
@@ -206,13 +206,13 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
           type="number"
           className={`
             w-full px-4 py-2.5
-            bg-white/[0.04] 
-            border border-purple-500/10 
-            rounded-lg
-            text-white
+            bg-[var(--glass-2)]
+            border border-[var(--edge-strong)]
+            rounded-2xl
+            text-[var(--text-primary)]
             transition-all duration-200
-            focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20
-            hover:border-purple-500/20
+            focus:outline-none focus:border-[var(--acc)]
+            hover:border-[var(--acc)]
             [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
             ${className}
           `} 
@@ -244,7 +244,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
     return (
       <div className="space-y-1.5">
         {label && (
-          <label className="block text-sm font-medium text-slate-300">
+          <label className="block text-sm font-medium text-[var(--text-secondary)]">
             {label}
           </label>
         )}

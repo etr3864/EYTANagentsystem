@@ -461,8 +461,8 @@ function AgentPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-slate-400">טוען...</p>
+          <div className="w-12 h-12 border-4 border-[var(--acc)] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-[var(--text-secondary)]">טוען...</p>
         </div>
       </div>
     );
@@ -484,11 +484,11 @@ function AgentPage() {
 
   return (
     <div className={`flex flex-col ${BELOW_NAV_CLASS}`}>
-      <header className="shrink-0 border-b border-purple-500/10 bg-[#0B0914]/80 backdrop-blur-sm">
-        <div className={`${tab === 'conversations' ? 'max-w-[90rem]' : 'max-w-5xl'} mx-auto px-3 md:px-6 py-3 md:py-4 space-y-3`}>
+      <header className="shrink-0 border-b border-[var(--edge)] bg-[var(--bg)]/40 backdrop-blur-md">
+        <div className={`${tab === 'conversations' ? 'max-w-[90rem]' : 'max-w-5xl'} mx-auto px-3 md:px-6 py-2.5 md:py-4 space-y-2.5`}>
           <div className="flex items-center justify-between gap-3">
-            <h1 className="font-semibold text-white text-sm md:text-base truncate">{agent.name}</h1>
-            <div className="flex items-center gap-2 text-xs text-slate-400 shrink-0">
+            <h1 className="font-semibold text-[var(--ink)] text-sm md:text-base truncate">{agent.name}</h1>
+            <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] shrink-0">
               <span className={`status-dot ${agent.is_active ? 'active' : 'inactive'}`} />
               <span>{agent.is_active ? 'פעיל' : 'מושבת'}</span>
             </div>
@@ -515,7 +515,7 @@ function AgentPage() {
 
       <main className="flex-1 min-h-0">
         {tab === 'conversations' ? (
-          <div className="h-full max-w-[90rem] mx-auto px-3 md:px-6 py-3 flex flex-col min-h-0 animate-fade-in">
+          <div className="h-full max-w-[90rem] mx-auto px-2 md:px-6 py-2 md:py-3 flex flex-col min-h-0 min-w-0 overflow-hidden animate-fade-in">
             <div className="flex-1 min-h-0">
             <ConversationsTab
               conversations={conversations}

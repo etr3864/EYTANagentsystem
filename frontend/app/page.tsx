@@ -96,7 +96,7 @@ function HomePage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="חיפוש סוכן..."
-                className="w-full bg-white/[0.03] border border-purple-500/10 rounded-xl py-2.5 pr-10 pl-10 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500/40 transition"
+                className="w-full bg-[var(--glass)] border border-[var(--edge)] rounded-2xl py-2.5 pr-10 pl-10 text-sm text-[var(--ink)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--acc)] transition"
               />
               {search && (
                 <button

@@ -27,11 +27,13 @@ export function Card({
   return (
     <div 
       className={`
-        bg-white/[0.03] 
-        border border-purple-500/10 
-        rounded-xl
+        bg-[var(--glass)]
+        border border-[var(--edge)]
+        text-[var(--text-primary)]
+        rounded-[22px]
+        backdrop-blur-[30px]
         ${paddingSizes[padding]}
-        ${hover ? 'transition-all duration-200 hover:bg-white/[0.05] hover:border-purple-500/20 hover:shadow-lg cursor-pointer' : ''}
+        ${hover ? 'transition-all duration-200 hover:border-[var(--acc)] cursor-pointer' : ''}
         ${className}
       `}
       style={style}
@@ -50,8 +52,8 @@ interface CardHeaderProps {
 
 export function CardHeader({ children, className = '', action }: CardHeaderProps) {
   return (
-    <div className={`flex items-center justify-between pb-4 mb-4 border-b border-purple-500/10 ${className}`}>
-      <div className="font-semibold text-lg text-white">{children}</div>
+    <div className={`flex items-center justify-between pb-4 mb-4 border-b border-[var(--edge)] ${className}`}>
+      <div className="font-semibold text-lg text-[var(--text-primary)]">{children}</div>
       {action && <div>{action}</div>}
     </div>
   );
@@ -66,8 +68,8 @@ interface CardTitleProps {
 
 export function CardTitle({ children, icon, className = '' }: CardTitleProps) {
   return (
-    <h3 className={`flex items-center gap-2 text-lg font-semibold text-white ${className}`}>
-      {icon && <span className="text-purple-400">{icon}</span>}
+    <h3 className={`flex items-center gap-2 text-lg font-semibold text-[var(--text-primary)] ${className}`}>
+      {icon && <span className="text-[var(--acc)]">{icon}</span>}
       {children}
     </h3>
   );
@@ -76,6 +78,6 @@ export function CardTitle({ children, icon, className = '' }: CardTitleProps) {
 // Card Description
 export function CardDescription({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <p className={`text-sm text-slate-400 ${className}`}>{children}</p>
+    <p className={`text-sm text-[var(--text-secondary)] ${className}`}>{children}</p>
   );
 }

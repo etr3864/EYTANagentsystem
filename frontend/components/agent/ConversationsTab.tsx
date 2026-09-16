@@ -34,9 +34,9 @@ export function ConversationsTab({
   const selectedConv = conversations.find(c => c.id === selectedId);
 
   return (
-    <Card padding="none" className="h-full overflow-hidden">
-      <div className="flex h-full">
-        <div className={`w-full md:w-96 md:block shrink-0 ${selectedId ? 'hidden' : 'block'}`}>
+    <Card padding="none" className="h-full ops-shell try-glass !rounded-[22px] md:!rounded-[28px]">
+      <div className="flex h-full min-w-0 overflow-hidden">
+        <div className={`w-full md:w-96 md:block shrink-0 min-w-0 ${selectedId ? 'hidden' : 'block'}`}>
           <ContactList
             conversations={conversations}
             selectedId={selectedId}
@@ -49,36 +49,37 @@ export function ConversationsTab({
           />
         </div>
 
-        <div className={`flex-1 flex flex-col min-h-0 border-r border-slate-700 ${selectedId ? 'flex' : 'hidden md:flex'}`}>
+        <div className={`flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden border-r border-[var(--edge)] ${selectedId ? 'flex' : 'hidden md:flex'}`}>
           {selectedId ? (
             <>
               {onDeselectConversation && (
                 <button
+                  type="button"
                   onClick={onDeselectConversation}
-                  className="md:hidden flex items-center gap-2 px-4 py-2.5 border-b border-slate-700 text-sm text-slate-300 hover:bg-slate-700/30"
+                  className="md:hidden flex items-center gap-2 px-3 py-2.5 border-b border-[var(--edge)] text-sm text-[var(--ink)] shrink-0"
                 >
                   <span>→</span>
                   {selectedConv?.channel_profile_pic && (
                     <img src={selectedConv.channel_profile_pic} alt="" className="w-6 h-6 rounded-full" />
                   )}
-                  <span className="font-medium">
+                  <span className="font-medium truncate">
                     {selectedConv?.channel_username
                       ? `@${selectedConv.channel_username}`
                       : selectedConv?.user_name || 'חזרה לשיחות'}
                   </span>
                 </button>
               )}
-              <div className="hidden md:flex items-center gap-3 px-4 py-2 border-b border-slate-700 bg-slate-800/30">
+              <div className="hidden md:flex items-center gap-3 px-4 py-2.5 border-b border-[var(--edge)] shrink-0">
                 {selectedConv?.channel_profile_pic && (
                   <img src={selectedConv.channel_profile_pic} alt="" className="w-8 h-8 rounded-full object-cover" />
                 )}
-                <div className="text-sm font-medium text-white">
+                <div className="text-sm font-medium text-[var(--ink)] truncate">
                   {selectedConv?.channel_username && selectedConv?.channel_type === 'instagram' ? (
                     <a
                       href={`https://instagram.com/${selectedConv.channel_username}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="hover:text-pink-400 transition-colors"
+                      className="hover:text-[var(--acc)] transition-colors"
                     >
                       @{selectedConv.channel_username}
                     </a>
@@ -87,7 +88,7 @@ export function ConversationsTab({
                       href={`https://facebook.com/${selectedConv.user_phone}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="hover:text-indigo-400 transition-colors"
+                      className="hover:text-[var(--acc)] transition-colors"
                     >
                       {selectedConv.channel_username}
                     </a>
@@ -96,7 +97,7 @@ export function ConversationsTab({
                   )}
                 </div>
               </div>
-              <ChatView 
+              <ChatView
                 messages={messages}
                 conversationId={selectedId}
                 isPaused={selectedConv?.is_paused}
@@ -111,9 +112,9 @@ export function ConversationsTab({
               />
             </>
           ) : (
-            <div className="flex-1 flex items-center justify-center bg-slate-800/30">
-              <div className="text-center">
-                <div className="text-slate-400">בחר שיחה מהרשימה או פתח צ׳אט חדש</div>
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center text-[var(--text-secondary)] px-6">
+                בחר שיחה מהרשימה או פתח צ׳אט חדש
               </div>
             </div>
           )}

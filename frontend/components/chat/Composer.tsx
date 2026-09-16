@@ -39,12 +39,12 @@ export function Composer({
   const [error, setError] = useState<string | null>(null);
 
   return (
-    <div className="p-3 border-t border-slate-700 bg-slate-800/50 space-y-2">
+    <div className="p-3 border-t border-[var(--edge)] space-y-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
       {mode === 'template' && onSwitchToFreeform && allowSwitchToFreeform && (
         <button
           type="button"
           onClick={onSwitchToFreeform}
-          className="text-xs text-slate-400 hover:text-white"
+          className="text-xs text-[var(--text-muted)] hover:text-[var(--ink)]"
         >
           הלקוח כתב ב-24 השעות האחרונות? שלח הודעה רגילה
         </button>
@@ -53,7 +53,7 @@ export function Composer({
         <button
           type="button"
           onClick={onSwitchToTemplate}
-          className="text-xs text-slate-400 hover:text-white"
+          className="text-xs text-[var(--text-muted)] hover:text-[var(--ink)]"
         >
           שלח תבנית במקום
         </button>

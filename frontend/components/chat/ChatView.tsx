@@ -67,28 +67,29 @@ export function ChatView({
   return (
     <div className="flex-1 flex flex-col h-full min-h-0">
       {onTogglePause && (
-        <div className="px-4 py-2 border-b border-slate-700 bg-slate-800/50 flex items-center justify-between">
+        <div className="px-3 py-2 border-b border-[var(--edge)] flex items-center justify-between gap-2 shrink-0">
           <div className="flex items-center gap-2">
             {isPaused ? (
-              <span className="text-amber-400 text-xs flex items-center gap-1">
+              <span className="text-amber-500 text-xs flex items-center gap-1">
                 <PauseIcon />
                 AI מושהה
               </span>
             ) : (
-              <span className="text-emerald-400 text-xs flex items-center gap-1">
+              <span className="text-emerald-500 text-xs flex items-center gap-1">
                 <PlayIcon />
                 AI פעיל
               </span>
             )}
           </div>
           <button
+            type="button"
             onClick={onTogglePause}
             className={`
-              px-3 py-1.5 rounded-lg text-xs font-medium
-              transition-colors duration-200 flex items-center gap-1.5
-              ${isPaused 
-                ? 'bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/30' 
-                : 'bg-amber-600/20 text-amber-400 hover:bg-amber-600/30 border border-amber-500/30'
+              px-3 py-1.5 rounded-full text-xs font-medium
+              transition-colors duration-200 flex items-center gap-1.5 border
+              ${isPaused
+                ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30'
+                : 'bg-amber-500/15 text-amber-500 border-amber-500/30'
               }
             `}
           >
@@ -99,21 +100,21 @@ export function ChatView({
       )}
       
       {isPaused && (
-        <div className="px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-amber-300 text-xs text-center">
+        <div className="px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-amber-500 text-xs text-center">
           הודעות נשמרות אך ה-AI לא מגיב. לחץ &quot;הפעל AI&quot; כדי לחדש.
         </div>
       )}
 
       {needsTemplate && (
-        <div className="px-4 py-2 bg-blue-500/10 border-b border-blue-500/20 text-blue-200 text-xs text-center">
+        <div className="px-4 py-2 bg-[oklch(0.80_0.125_225_/_0.12)] border-b border-[var(--edge)] text-[var(--ink)] text-xs text-center">
           חלון 24 שעות סגור. אפשר לשלוח רק תבנית מאושרת.
         </div>
       )}
       
-      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 bg-slate-900/30">
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 md:p-4 space-y-3">
         {messages.length === 0 ? (
           <div className="h-full flex items-center justify-center">
-            <div className="text-slate-400">אין הודעות בשיחה זו</div>
+            <div className="text-[var(--text-secondary)]">אין הודעות בשיחה זו</div>
           </div>
         ) : (
         messages.map((msg, i) => {
@@ -122,10 +123,8 @@ export function ChatView({
         const showDate = msgDate && (!prevDate || msgDate.toDateString() !== prevDate.toDateString());
         
         const isUser = msg.role === 'user';
-        const isVoice = msg.message_type === 'voice';
         const isImage = msg.message_type === 'image';
         const isVideo = msg.message_type === 'video';
-        const isDocument = msg.message_type === 'document';
         const isManual = msg.message_type === 'manual';
         const isExternal = msg.message_type === 'external';
         const isTriggerData = msg.message_type === 'trigger_data';
@@ -139,24 +138,18 @@ export function ChatView({
         const captionUnderMedia = tooLarge || ((isImage || isVideo) && hasMediaUrl);
         
         const getBubbleStyle = () => {
-          if (!isUser) {
-            if (isEscalation) return 'bg-rose-600/10 text-rose-50 rounded-tl-sm border border-rose-500/30';
-            if (isTriggerData) return 'bg-amber-600/10 text-amber-50 rounded-tl-sm border border-amber-500/30';
-            if (isExternal) return 'bg-orange-600/15 text-orange-50 rounded-tl-sm border border-orange-500/30';
-            if (hasMediaUrl) return 'bg-indigo-600/20 text-indigo-50 rounded-tl-sm border border-indigo-500/30';
-            return 'bg-slate-700/50 text-slate-100 rounded-tl-sm';
-          }
-          if (isVoice) return 'bg-purple-600/20 text-purple-50 rounded-tr-sm border border-purple-500/30';
-          if (isImage || isVideo) return 'bg-cyan-600/20 text-cyan-50 rounded-tr-sm border border-cyan-500/30';
-          if (isDocument || tooLarge) return 'bg-amber-600/20 text-amber-50 rounded-tr-sm border border-amber-500/30';
-          return 'bg-emerald-600/20 text-emerald-50 rounded-tr-sm';
+          if (isEscalation) return 'ops-bubble ops-bubble-agent border-rose-500/40';
+          if (isTriggerData) return 'ops-bubble ops-bubble-agent border-amber-500/40';
+          if (isExternal) return 'ops-bubble ops-bubble-agent border-orange-500/40';
+          if (isUser) return 'ops-bubble ops-bubble-user';
+          return 'ops-bubble ops-bubble-agent';
         };
         
         return (
           <div key={i}>
             {showDate && msgDate && (
               <div className="flex items-center justify-center my-6">
-                <div className="bg-slate-700/50 text-slate-300 text-xs px-4 py-1.5 rounded-full">
+                <div className="bg-[var(--glass)] border border-[var(--edge)] text-[var(--text-muted)] text-[11px] tracking-[0.12em] px-3.5 py-1 rounded-full">
                   {msgDate.toLocaleDateString('he-IL', { 
                     weekday: 'long', 
                     day: 'numeric', 
@@ -169,7 +162,7 @@ export function ChatView({
             <div className={`flex ${isCenteredNote ? 'justify-center' : isUser ? 'justify-start' : 'justify-end'}`}>
               <div className={isFunction
                 ? 'w-fit max-w-[min(90%,28rem)]'
-                : `${isCenteredNote ? 'max-w-[90%]' : 'max-w-[75%]'} px-4 py-2.5 rounded-2xl ${getBubbleStyle()}`
+                : `${isCenteredNote ? 'max-w-[90%]' : ''} ${getBubbleStyle()}`
               }>
                 {isEscalation && <EscalationNote content={displayContent} />}
                 {isFunction && <FunctionNote content={msg.content} />}
@@ -193,17 +186,7 @@ export function ChatView({
                 )}
                 
                 {msgDate && !isFunction && (
-                  <div className={`
-                    text-[10px] mt-1.5 flex items-center gap-1
-                    ${isUser 
-                      ? isVoice 
-                        ? 'text-purple-400/70' 
-                        : isImage 
-                          ? 'text-cyan-400/70'
-                          : 'text-emerald-400/70' 
-                      : 'text-slate-500'
-                    }
-                  `}>
+                  <div className="text-[10px] mt-1.5 flex items-center gap-1 text-[var(--text-muted)]">
                     {msgDate.toLocaleTimeString('he-IL', { 
                       hour: '2-digit', 
                       minute: '2-digit' 

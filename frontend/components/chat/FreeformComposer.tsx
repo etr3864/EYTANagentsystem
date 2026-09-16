@@ -122,7 +122,7 @@ export function FreeformComposer({
   return (
     <div className="space-y-2">
       {file && (
-        <div className="flex items-center gap-2 text-xs text-slate-300 bg-slate-700/40 rounded-lg px-3 py-2">
+        <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] bg-[var(--glass-2)] rounded-2xl px-3 py-2">
           <span className="truncate flex-1">{file.name}</span>
           <button type="button" onClick={() => setFile(null)} className="text-slate-400 hover:text-white">
             <XIcon className="w-4 h-4" />
@@ -138,7 +138,7 @@ export function FreeformComposer({
           </button>
         </div>
       )}
-      <div className="flex gap-2 items-end">
+      <div className="try-glass try-composer">
         {canAttach && (
           <>
             <input
@@ -157,7 +157,7 @@ export function FreeformComposer({
               title="צרף קובץ"
               onClick={() => fileRef.current?.click()}
               disabled={sending || recording}
-              className="p-2.5 rounded-xl bg-slate-700/50 text-slate-300 hover:text-white disabled:opacity-40"
+              className="try-icon"
             >
               <PaperclipIcon className="w-5 h-5" />
             </button>
@@ -175,7 +175,7 @@ export function FreeformComposer({
           }}
           placeholder={file ? 'כיתוב (אופציונלי)...' : 'כתוב הודעה...'}
           disabled={sending || recording}
-          className="flex-1 px-4 py-2.5 rounded-xl bg-slate-700/50 border border-slate-600/50 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:opacity-50"
+          className="relative flex-1 min-w-0 bg-transparent px-1.5 py-2.5 text-[16px] text-[var(--ink)] placeholder:text-[var(--text-muted)] outline-none disabled:opacity-50"
         />
         {allowVoice && !text.trim() && !file && !recording && (
           <button
@@ -183,7 +183,7 @@ export function FreeformComposer({
             title="הקלט הודעה קולית"
             onClick={() => void startRecording()}
             disabled={sending}
-            className="p-2.5 rounded-xl bg-slate-700/50 text-slate-300 hover:text-white disabled:opacity-40"
+            className="try-icon"
           >
             <VoiceIcon className="w-5 h-5" />
           </button>
@@ -192,7 +192,7 @@ export function FreeformComposer({
           <button
             type="button"
             onClick={finishRecording}
-            className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-medium"
+            className="try-send"
           >
             שלח
           </button>
@@ -201,14 +201,14 @@ export function FreeformComposer({
             type="button"
             onClick={() => void handleSend()}
             disabled={sending || (!text.trim() && !file)}
-            className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:bg-slate-600 disabled:cursor-not-allowed text-white font-medium flex items-center gap-2"
+            className="try-send"
+            aria-label="שלח"
           >
             {sending ? (
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <div className="w-5 h-5 border-2 border-current/30 border-t-current rounded-full animate-spin" />
             ) : (
               <SendIcon />
             )}
-            <span>שלח</span>
           </button>
         )}
       </div>
