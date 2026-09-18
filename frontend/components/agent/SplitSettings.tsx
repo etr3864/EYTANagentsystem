@@ -64,7 +64,7 @@ export function SplitSettings({
               delay_seconds: Math.max(0, Math.min(4, Number.isNaN(parsed) ? 1 : parsed)),
             });
           }}
-          hint="0 = בלי המתנה. עדיין בודק אם הלקוח כתב באמצע."
+          hint="0 = הקלדה בין בועות בלי המתנה נוספת"
         />
       </div>
 

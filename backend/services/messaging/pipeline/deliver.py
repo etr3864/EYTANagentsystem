@@ -47,7 +47,10 @@ async def send(ctx: TurnContext, reply: ModelReply) -> None:
         return
     cfg = for_agent(ctx.agent)
     parts = parse(text, cfg.max_parts) if cfg.enabled else [_plain(text)]
-    await send_parts(ctx, parts, cfg, lambda part: _send_text(ctx, part))
+    await send_parts(
+        ctx, parts, cfg,
+        lambda part: _send_text(ctx, part, show_typing=False),
+    )
 
 
 def _plain(text: str) -> str:
@@ -176,7 +179,7 @@ async def dispatch_media(ctx: TurnContext, actions: list[dict]) -> int:
     return sent
 
 
-async def _send_text(ctx: TurnContext, text: str) -> bool:
+async def _send_text(ctx: TurnContext, text: str, *, show_typing: bool = True) -> bool:
     meta = None
     try:
         saved = _persist_assistant(ctx, text)
@@ -190,7 +193,8 @@ async def _send_text(ctx: TurnContext, text: str) -> bool:
     except Exception as error:
         log_error(ctx.provider, f"text persist failed: {str(error)[:80]}")
 
-    await ctx.outbound.emit_status(ctx.phone, "מקליד")
+    if show_typing:
+        await ctx.outbound.emit_status(ctx.phone, "מקליד")
     delivered = await ctx.outbound.send_message(ctx.phone, text, meta=meta)
     if not delivered:
         log_error(ctx.provider, f"send failed to {ctx.display_name}")

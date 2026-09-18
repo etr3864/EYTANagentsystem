@@ -6,6 +6,7 @@ from typing import Awaitable, Callable, Protocol, runtime_checkable
 
 MediaSendCallback = Callable[[str, str, str, str | None, str | None], Awaitable[bool]]
 TextSendCallback = Callable[[str, str], Awaitable[bool]]
+TypingCallback = Callable[[str], Awaitable[None]]
 
 
 @dataclass(frozen=True)
@@ -36,9 +37,11 @@ class CallbackOutbound:
         self,
         send_message: TextSendCallback,
         send_media: MediaSendCallback | None = None,
+        send_typing: TypingCallback | None = None,
     ):
         self._send = send_message
         self._media = send_media
+        self._typing = send_typing
 
     async def send_message(self, to: str, text: str, meta: dict | None = None) -> bool:
         return await self._send(to, text)
@@ -51,10 +54,12 @@ class CallbackOutbound:
         return await self._media(to, url, media_type, caption, filename)
 
     async def send_typing(self, to: str) -> None:
-        return None
+        if self._typing:
+            await self._typing(to)
 
     async def emit_status(self, to: str, status: str | None) -> None:
-        return None
+        if status == "מקליד":
+            await self.send_typing(to)
 
     def capabilities(self) -> OutboundCaps:
         return OutboundCaps()

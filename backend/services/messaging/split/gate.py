@@ -5,9 +5,11 @@ from backend.services.messaging import buffer
 from backend.services.messaging.pipeline.context import TurnContext
 
 
-async def should_stop(ctx: TurnContext) -> bool:
+async def should_stop(ctx: TurnContext, *, full: bool = True) -> bool:
     if await buffer.peek_count(ctx.agent_id, ctx.phone) > 0:
         return True
+    if not full:
+        return False
     return chat_halted(ctx)
 
 

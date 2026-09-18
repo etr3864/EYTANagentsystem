@@ -309,10 +309,14 @@ async def handle_wasender_message(agent_id: int, msg_data: dict):
                 return await wasender.send_document(creds.api_key, creds.session, to, url, filename or "file", caption)
             return await wasender.send_media(creds.api_key, creds.session, to, url, mt, caption)
 
+        async def typing_fn(to: str) -> None:
+            await wasender.send_typing(creds.api_key, to)
+
         if debounce == 0:
             await process_batched_messages(
                 agent.id, phone, name, [pending], send_fn, "wasender", send_media_fn,
                 channel_id=channel_id, channel_user_id=channel_user_id,
+                send_typing=typing_fn,
             )
             return
 
@@ -320,6 +324,7 @@ async def handle_wasender_message(agent_id: int, msg_data: dict):
             await process_batched_messages(
                 agent.id, phone, name, pending_msgs, send_fn, "wasender", send_media_fn,
                 channel_id=channel_id, channel_user_id=channel_user_id,
+                send_typing=typing_fn,
             )
 
         await message_buffer.add_message(

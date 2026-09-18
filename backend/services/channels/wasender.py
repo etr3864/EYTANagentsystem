@@ -5,6 +5,21 @@ from typing import Optional
 from backend.core.logger import log_error
 
 _BASE_URL = "https://www.wasenderapi.com/api"
+_http: httpx.AsyncClient | None = None
+
+
+def _client() -> httpx.AsyncClient:
+    global _http
+    if _http is None or _http.is_closed:
+        _http = httpx.AsyncClient()
+    return _http
+
+
+def _auth(api_key: str) -> dict:
+    return {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
 
 
 def verify_signature(signature: str | None, webhook_secret: str) -> bool:
@@ -58,20 +73,16 @@ async def send_message(api_key: str, session: str, to: str, text: str, max_retri
     
     for attempt in range(max_retries):
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    url,
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json"
-                    },
-                    json={
-                        "session": session,
-                        "to": format_jid(to),
-                        "text": text
-                    },
-                    timeout=30,
-                )
+            response = await _client().post(
+                url,
+                headers=_auth(api_key),
+                json={
+                    "session": session,
+                    "to": format_jid(to),
+                    "text": text
+                },
+                timeout=30,
+            )
             
             if response.status_code == 429:
                 # Rate limited - wait and retry
@@ -99,6 +110,19 @@ async def send_message(api_key: str, session: str, to: str, text: str, max_retri
             return False
     
     return False
+
+
+async def send_typing(api_key: str, to: str) -> None:
+    """Show composing on the chat. Failures must not block the next bubble."""
+    try:
+        await _client().post(
+            f"{_BASE_URL}/send-presence-update",
+            headers=_auth(api_key),
+            json={"jid": format_jid(to), "type": "composing"},
+            timeout=5,
+        )
+    except Exception as error:
+        log_error("wasender", f"typing: {str(error)[:60]}")
 
 
 async def send_media(
@@ -169,16 +193,12 @@ async def _send_with_retry(
     """Send request with retry on rate limit."""
     for attempt in range(max_retries):
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    url,
-                    headers={
-                        "Authorization": f"Bearer {api_key}",
-                        "Content-Type": "application/json"
-                    },
-                    json=payload,
-                    timeout=timeout,
-                )
+            response = await _client().post(
+                url,
+                headers=_auth(api_key),
+                json=payload,
+                timeout=timeout,
+            )
             
             if response.status_code == 429:
                 wait_time = (attempt + 1) * 2

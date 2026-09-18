@@ -21,6 +21,7 @@ async def process_batched_messages(
     channel_id: Optional[int] = None,
     channel_user_id: Optional[int] = None,
     outbound: OutboundChannel | None = None,
+    send_typing: Callable[[str], Awaitable[None]] | None = None,
 ) -> None:
     """Process one batch of buffered inbound messages.
 
@@ -42,7 +43,7 @@ async def process_batched_messages(
             user_phone=user_phone,
             user_name=user_name,
             pending=pending_msgs,
-            outbound=outbound or CallbackOutbound(send_message, send_media),
+            outbound=outbound or CallbackOutbound(send_message, send_media, send_typing),
             provider=provider,
             channel_id=channel_id,
             channel_user_id=channel_user_id,
