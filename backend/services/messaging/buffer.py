@@ -91,7 +91,7 @@ class _DebounceTimer:
 _processing_tasks: dict[str, _DebounceTimer] = {}
 
 
-async def redis() -> Optional[redis.Redis]:
+async def redis_client() -> Optional[redis.Redis]:
     """Public Redis handle for split leftover / lock refresh."""
     return await _get_redis()
 

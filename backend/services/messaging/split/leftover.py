@@ -30,7 +30,7 @@ async def save(agent_id: int, phone: str, parts: list[str]) -> None:
         await clear(agent_id, phone)
         return
     key = _key(agent_id, phone)
-    r = await buffer.redis()
+    r = await buffer.redis_client()
     if r is None:
         _memory[key] = _Entry(kept, time.monotonic() + TTL_SECONDS)
         return
@@ -40,7 +40,7 @@ async def save(agent_id: int, phone: str, parts: list[str]) -> None:
 async def peek(agent_id: int, phone: str) -> list[str]:
     """Read leftover without consuming it — regenerate may need the same draft."""
     key = _key(agent_id, phone)
-    r = await buffer.redis()
+    r = await buffer.redis_client()
     if r is None:
         return _from_memory(key)
     raw = await r.get(key)
@@ -57,7 +57,7 @@ async def take(agent_id: int, phone: str) -> list[str]:
 async def clear(agent_id: int, phone: str) -> None:
     key = _key(agent_id, phone)
     _memory.pop(key, None)
-    r = await buffer.redis()
+    r = await buffer.redis_client()
     if r is None:
         return
     await r.delete(key)
