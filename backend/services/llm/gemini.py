@@ -33,6 +33,10 @@ GEMINI_TOOL_SUFFIX = """
 - בסיום שימוש בכלי - חובה להמשיך ולענות למשתמש!
 """
 
+# Sync google.genai.Client is not safe under concurrent to_thread calls in one
+# process (especially with WEB_CONCURRENCY=1). Serialize all model RPC.
+_gemini_call_lock = asyncio.Lock()
+
 
 class GeminiProvider:
     """Google Gemini API provider with tool support and retry logic."""
@@ -62,7 +66,8 @@ class GeminiProvider:
         for attempt in range(self.MAX_RETRIES):
             try:
                 func = getattr(self._client.models, method_name)
-                return await asyncio.to_thread(func, *args, **kwargs)
+                async with _gemini_call_lock:
+                    return await asyncio.to_thread(func, *args, **kwargs)
             except Exception as e:
                 last_error = e
                 error_str = str(e)
@@ -246,7 +251,17 @@ class GeminiProvider:
                     result = "לא נמצא"
                 elif isinstance(result_data.get("result"), dict) and result_data["result"].get("action") == "send_media":
                     media_actions.append(result_data["result"])
-                    result = f"מדיה '{result_data['result'].get('name', '')}' תישלח ללקוח."
+                    cap = (result_data["result"].get("caption") or "").strip()
+                    if cap:
+                        result = (
+                            f"מדיה '{result_data['result'].get('name', '')}' תישלח ללקוח "
+                            f"עם הכיתוב שצוין. אל תשלח שוב את אותו כיתוב כהודעת טקסט נפרדת."
+                        )
+                    else:
+                        result = (
+                            f"מדיה '{result_data['result'].get('name', '')}' תישלח ללקוח. "
+                            f"אם רצית כיתוב על הקובץ עצמו — העבר אותו ב-caption של send_media."
+                        )
                 else:
                     result = str(result_data["result"]) if not isinstance(result_data["result"], str) else result_data["result"]
                 

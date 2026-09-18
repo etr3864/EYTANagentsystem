@@ -206,7 +206,17 @@ class OpenAIProvider:
                     result = "לא נמצא"
                 elif isinstance(result_data.get("result"), dict) and result_data["result"].get("action") == "send_media":
                     media_actions.append(result_data["result"])
-                    result = f"מדיה '{result_data['result'].get('name', '')}' תישלח ללקוח."
+                    cap = (result_data["result"].get("caption") or "").strip()
+                    if cap:
+                        result = (
+                            f"מדיה '{result_data['result'].get('name', '')}' תישלח ללקוח "
+                            f"עם הכיתוב שצוין. אל תשלח שוב את אותו כיתוב כהודעת טקסט נפרדת."
+                        )
+                    else:
+                        result = (
+                            f"מדיה '{result_data['result'].get('name', '')}' תישלח ללקוח. "
+                            f"אם רצית כיתוב על הקובץ עצמו — העבר אותו ב-caption של send_media."
+                        )
                 else:
                     result = str(result_data["result"]) if not isinstance(result_data["result"], str) else result_data["result"]
                 
