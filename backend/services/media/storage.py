@@ -171,47 +171,6 @@ def delete_prefix(prefix: str) -> None:
         logger.error(f"storage prefix_delete_failed prefix={prefix} error={e}")
 
 
-def file_exists(file_key: str) -> bool:
-    """Check if file exists in R2."""
-    client = _get_client()
-    
-    try:
-        client.head_object(
-            Bucket=settings.r2_bucket_name,
-            Key=file_key
-        )
-        return True
-    except ClientError:
-        return False
-
-
-def generate_presigned_upload_url(file_key: str, content_type: str, expires_in: int = 3600) -> str:
-    """Generate presigned URL for direct client upload.
-    
-    Used for large files to upload directly from browser to R2.
-    
-    Args:
-        file_key: Path where file will be stored
-        content_type: Expected MIME type
-        expires_in: URL validity in seconds (default 1 hour)
-    
-    Returns:
-        Presigned PUT URL
-    """
-    client = _get_client()
-    
-    url = client.generate_presigned_url(
-        "put_object",
-        Params={
-            "Bucket": settings.r2_bucket_name,
-            "Key": file_key,
-            "ContentType": content_type
-        },
-        ExpiresIn=expires_in
-    )
-    return url
-
-
 _PROFILE_PIC_MAX_BYTES = 500_000  # 500KB safety limit
 
 

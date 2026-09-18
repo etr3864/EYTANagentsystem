@@ -52,12 +52,6 @@ def get_provider(model: str, agent: "Agent | None" = None):
     return _providers[cache_key]
 
 
-def is_gemini_available() -> bool:
-    """Check if Gemini is configured and available."""
-    from backend.core.config import settings
-    return bool(settings.google_api_key or settings.google_api_keys)
-
-
 def has_images(messages: list) -> bool:
     """Check if messages contain images."""
     for msg in messages:

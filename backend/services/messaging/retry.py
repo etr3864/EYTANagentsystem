@@ -5,8 +5,7 @@ exponential backoff. After the final failure an alert is sent to the
 configured alert_webhook_url (Slack/Discord/custom).
 """
 import asyncio
-from datetime import datetime
-from typing import Callable, Awaitable, Optional
+from typing import Awaitable, Callable
 
 import httpx
 

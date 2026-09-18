@@ -184,14 +184,6 @@ def list_employees(db: Session, admin_id: int) -> list[AuthUser]:
     ).order_by(*_order_active_recent(AuthUser)).all()
 
 
-def count_employees(db: Session, admin_id: int) -> int:
-    """Count employees under an admin."""
-    return db.query(AuthUser).filter(
-        AuthUser.role == UserRole.EMPLOYEE,
-        AuthUser.parent_id == admin_id
-    ).count()
-
-
 # ============================================================
 # Agent Assignment
 # ============================================================

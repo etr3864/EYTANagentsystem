@@ -51,14 +51,6 @@ async def get_current_user(
     return user
 
 
-async def get_current_user_optional(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
-) -> AuthUser | None:
-    raw = credentials.credentials if credentials else None
-    return _user_from_bearer(db, raw)
-
-
 def require_role(*allowed_roles: UserRole) -> Callable:
     """Create a dependency that requires specific roles.
     

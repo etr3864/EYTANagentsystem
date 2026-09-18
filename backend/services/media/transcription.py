@@ -8,7 +8,6 @@ from typing import Optional
 
 from backend.core.config import settings
 from backend.core.logger import log_audio, log_error
-from backend.services.media import download_whatsapp_media
 
 
 def _get_google_credentials():
@@ -157,15 +156,3 @@ async def transcribe_audio(audio_bytes: bytes, language_code: str = "he-IL") -> 
                 pass
 
 
-async def transcribe_whatsapp_audio(media_id: str, access_token: str) -> Optional[str]:
-    """Download and transcribe a WhatsApp voice message."""
-    try:
-        audio_bytes = await download_whatsapp_media(media_id, access_token)
-        if not audio_bytes:
-            return None
-        
-        return await transcribe_audio(audio_bytes)
-        
-    except Exception as e:
-        log_error("audio", str(e)[:80])
-        return None

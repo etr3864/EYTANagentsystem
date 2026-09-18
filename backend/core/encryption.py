@@ -10,8 +10,6 @@ Generate a new key:
 WARNING: Losing the key makes ALL stored credentials unreadable.
 """
 import json
-import os
-from typing import Optional
 
 from backend.core.config import settings
 
@@ -42,8 +40,3 @@ def encrypt_credentials(data: dict) -> bytes:
 def decrypt_credentials(encrypted: bytes) -> dict:
     """Decrypt stored bytes back to credentials dict."""
     return json.loads(_get_fernet().decrypt(encrypted))
-
-
-def credentials_available() -> bool:
-    """Check if encryption is configured (non-raising)."""
-    return bool(settings.credentials_encryption_key)

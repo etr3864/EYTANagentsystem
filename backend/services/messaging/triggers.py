@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 from backend.models.agent import Agent
-from backend.models.agent_trigger import KIND_PUSH, KIND_SEND, VALID_KINDS, AgentTrigger
+from backend.models.agent_trigger import KIND_SEND, VALID_KINDS, AgentTrigger
 from backend.models.conversation import Conversation
 from backend.models.user import User
 from backend.services.entities import conversations, users
@@ -74,13 +74,6 @@ def create_trigger(db: Session, agent: Agent, name: str, kind: str) -> AgentTrig
         enabled=True,
     )
     db.add(row)
-    db.commit()
-    db.refresh(row)
-    return row
-
-
-def set_enabled(db: Session, row: AgentTrigger, enabled: bool) -> AgentTrigger:
-    row.enabled = enabled
     db.commit()
     db.refresh(row)
     return row

@@ -126,11 +126,3 @@ def get_idempotency(
     )
 
 
-def recent_runs(db: Session, function_id: int, limit: int = 20) -> list[AgentFunctionRun]:
-    return (
-        db.query(AgentFunctionRun)
-        .filter(AgentFunctionRun.function_id == function_id)
-        .order_by(AgentFunctionRun.created_at.desc())
-        .limit(limit)
-        .all()
-    )

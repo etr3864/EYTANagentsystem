@@ -19,8 +19,3 @@ def is_playground_user(user) -> bool:
 def conv_is_live():
     from backend.models.conversation import Conversation
     return Conversation.playground_link_id.is_(None)
-
-
-def user_is_live():
-    from backend.models.user import User
-    return User.playground_link_id.is_(None)
