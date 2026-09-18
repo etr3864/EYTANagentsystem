@@ -33,9 +33,15 @@ GEMINI_TOOL_SUFFIX = """
 - בסיום שימוש בכלי - חובה להמשיך ולענות למשתמש!
 """
 
-# Sync google.genai.Client is not safe under concurrent to_thread calls in one
-# process (especially with WEB_CONCURRENCY=1). Serialize all model RPC.
-_gemini_call_lock = asyncio.Lock()
+# HttpOptions.timeout is milliseconds (SDK converts to seconds for httpx).
+GEMINI_HTTP_TIMEOUT_MS = 120_000
+
+
+def _build_client(api_key: str) -> genai.Client:
+    return genai.Client(
+        api_key=api_key,
+        http_options=types.HttpOptions(timeout=GEMINI_HTTP_TIMEOUT_MS),
+    )
 
 
 class GeminiProvider:
@@ -45,29 +51,23 @@ class GeminiProvider:
     RETRY_DELAY = 1.0
     
     def __init__(self, api_key: str, provider_name: str = "google", agent: "Agent | None" = None):
-        self._client = genai.Client(api_key=api_key)
+        self._client = _build_client(api_key)
         self._api_key = api_key
         self._provider_name = provider_name
         self._agent = agent
 
     def _rebuild_client(self, new_key: str):
-        self._client = genai.Client(api_key=new_key)
+        self._client = _build_client(new_key)
         self._api_key = new_key
 
-    async def _call_with_retry(self, method_name: str, *args, rebuild_thinking=None, **kwargs):
-        """Execute function with retry logic, key rotation on rate limit/auth errors.
-
-        Uses method_name (e.g. 'generate_content') to always resolve from the
-        current self._client, so key rotation takes effect on retry.
-        """
+    async def _call_with_retry(self, *, rebuild_thinking=None, **kwargs):
+        """Async generate_content with retry + key rotation on rate limit/auth errors."""
         from . import key_manager
         last_error = None
         
         for attempt in range(self.MAX_RETRIES):
             try:
-                func = getattr(self._client.models, method_name)
-                async with _gemini_call_lock:
-                    return await asyncio.to_thread(func, *args, **kwargs)
+                return await self._client.aio.models.generate_content(**kwargs)
             except Exception as e:
                 last_error = e
                 error_str = str(e)
@@ -203,7 +203,6 @@ class GeminiProvider:
             return downgrade.once(kw, lambda k, _lv: {**k, "config": make_config()})
 
         response = await self._call_with_retry(
-            "generate_content",
             model=model_id,
             contents=gemini_contents,
             config=make_config(),
@@ -275,7 +274,6 @@ class GeminiProvider:
             gemini_contents.append(types.Content(role="user", parts=response_parts))
             
             response = await self._call_with_retry(
-                "generate_content",
                 model=model_id,
                 contents=gemini_contents,
                 config=make_config(),
@@ -316,7 +314,6 @@ class GeminiProvider:
         """Generate a simple text response without tools (for follow-ups, reminders)."""
         model_id = resolve_model(model)
         response = await self._call_with_retry(
-            "generate_content",
             model=model_id,
             contents=[types.Content(role="user", parts=[types.Part(text=prompt)])],
             config=self._cheap_config(max_tokens, model_id),
@@ -333,7 +330,6 @@ class GeminiProvider:
         """Like generate_simple_response but also returns token usage."""
         model_id = resolve_model(model)
         response = await self._call_with_retry(
-            "generate_content",
             model=model_id,
             contents=[types.Content(role="user", parts=[types.Part(text=prompt)])],
             config=self._cheap_config(max_tokens, model_id),
