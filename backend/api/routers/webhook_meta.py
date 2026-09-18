@@ -90,7 +90,10 @@ async def receive_meta_webhook(request: Request):
     if parser:
         messages = parser(payload)
         if messages:
+            log("webhook_meta_in", object=obj, count=len(messages))
             asyncio.create_task(_dispatch_messages(messages))
+        else:
+            log("webhook_meta_empty", object=obj)
     else:
         log("webhook_meta_skip", msg=f"no parser for object={obj}")
 

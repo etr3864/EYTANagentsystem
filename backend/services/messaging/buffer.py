@@ -16,10 +16,12 @@ from backend.core.config import settings
 from backend.core.logger import log_error
 
 BUFFER_TTL_SECONDS = 600
-LOCK_TTL_SECONDS = 180
+# Short TTL + heartbeat: a crashed holder releases within ~LOCK_TTL, not minutes.
+LOCK_TTL_SECONDS = 45
 MAX_DRAIN_DEPTH = 3
 STALE_AFTER_SECONDS = 600
-HEARTBEAT_SECONDS = 60
+HEARTBEAT_SECONDS = 15
+LOCK_RETRY_SECONDS = 2
 REDIS_RETRY_COOLDOWN_SECONDS = 30
 
 
@@ -226,17 +228,7 @@ async def _add_message_redis(
         await _process_redis_buffer(r, agent_id, user_phone, process_callback)
         return
     
-    # Start new debounce timer
-    _processing_tasks[task_key] = _DebounceTimer(
-        task=asyncio.create_task(
-            _delayed_redis_process(
-                r, agent_id, user_phone, debounce_seconds, process_callback, generation
-            )
-        ),
-        agent_id=agent_id,
-        user_phone=user_phone,
-        callback=process_callback,
-    )
+    _arm_timer(r, agent_id, user_phone, debounce_seconds, process_callback, generation)
 
 
 async def _delayed_redis_process(
@@ -306,6 +298,31 @@ async def _refresh_lock(r: redis.Redis, lock_key: str, stop: asyncio.Event) -> N
             break
 
 
+def _arm_timer(
+    r: redis.Redis,
+    agent_id: int,
+    user_phone: str,
+    delay: int,
+    callback: ProcessCallback,
+    generation: int,
+) -> None:
+    """Replace any local timer for this conversation with a fresh one."""
+    task_key = f"{agent_id}:{user_phone}"
+    existing = _processing_tasks.get(task_key)
+    if existing and not existing.task.done():
+        existing.task.cancel()
+    _processing_tasks[task_key] = _DebounceTimer(
+        task=asyncio.create_task(
+            _delayed_redis_process(
+                r, agent_id, user_phone, delay, callback, generation,
+            )
+        ),
+        agent_id=agent_id,
+        user_phone=user_phone,
+        callback=callback,
+    )
+
+
 async def _process_redis_buffer(
     r: redis.Redis,
     agent_id: int,
@@ -319,6 +336,16 @@ async def _process_redis_buffer(
 
     lock_acquired = await r.set(lock_key, "1", nx=True, ex=LOCK_TTL_SECONDS)
     if not lock_acquired:
+        # A live worker is draining, or a dead holder still owns the key until
+        # TTL. Returning with no timer used to orphan the batch for up to
+        # BUFFER_TTL after deploys — reschedule so we retry once the lock frees.
+        if drain_depth == 0:
+            from backend.core.logger import log
+            log("buffer_lock_busy", agent_id=agent_id, retry_in=LOCK_RETRY_SECONDS)
+            _arm_timer(
+                r, agent_id, user_phone, LOCK_RETRY_SECONDS, callback,
+                await _current_generation(r, agent_id, user_phone),
+            )
         return
 
     stop = asyncio.Event()
@@ -342,16 +369,9 @@ async def _process_redis_buffer(
     if leftover and drain_depth < MAX_DRAIN_DEPTH:
         await _process_redis_buffer(r, agent_id, user_phone, callback, drain_depth + 1)
     elif leftover:
-        _processing_tasks[task_key] = _DebounceTimer(
-            task=asyncio.create_task(
-                _delayed_redis_process(
-                    r, agent_id, user_phone, 1, callback,
-                    await _current_generation(r, agent_id, user_phone),
-                )
-            ),
-            agent_id=agent_id,
-            user_phone=user_phone,
-            callback=callback,
+        _arm_timer(
+            r, agent_id, user_phone, 1, callback,
+            await _current_generation(r, agent_id, user_phone),
         )
 
 

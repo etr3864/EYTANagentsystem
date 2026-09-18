@@ -362,8 +362,17 @@ async def receive_wasender_webhook(
         if msg_data:
             message_id = msg_data.get("message_key", {}).get("id", "")
             if is_duplicate(message_id):
+                log("wasender_dup", agent_id=agent_id, msg_id=(message_id or "")[:20])
                 return {"status": "ok", "duplicate": True}
+            log(
+                "wasender_in",
+                agent_id=agent_id,
+                phone=msg_data.get("phone", "")[-4:],
+                msg_type=msg_data.get("msg_type", "text"),
+            )
             asyncio.create_task(handle_wasender_message(agent_id, msg_data))
+        else:
+            log("wasender_skip", agent_id=agent_id, event=body.get("event", ""))
 
         return {"status": "ok"}
     finally:
