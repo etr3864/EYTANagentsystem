@@ -34,12 +34,18 @@ GEMINI_TOOL_SUFFIX = """
 """
 
 # HttpOptions.timeout is milliseconds (SDK converts to seconds for httpx).
-GEMINI_HTTP_TIMEOUT_MS = 90_000
-# Hard ceiling on the await — cancels the async httpx request (safe with aio).
-GEMINI_CALL_TIMEOUT_SEC = 95.0
+# Keep this tight: the turn lock is held for the whole call.
+GEMINI_HTTP_TIMEOUT_MS = 35_000
+GEMINI_CALL_TIMEOUT_SEC = 38.0
 
 # We run tools ourselves; SDK AFC must stay off (FunctionDeclarations ≠ callables).
 _DISABLE_AFC = types.AutomaticFunctionCallingConfig(disable=True)
+
+
+def _timed_out(exc: Exception) -> bool:
+    if isinstance(exc, (asyncio.TimeoutError, TimeoutError)):
+        return True
+    return "timeout" in type(exc).__name__.lower()
 
 
 def _build_client(api_key: str) -> genai.Client:
@@ -52,7 +58,7 @@ def _build_client(api_key: str) -> genai.Client:
 class GeminiProvider:
     """Google Gemini API provider with tool support and retry logic."""
     
-    MAX_RETRIES = 4
+    MAX_RETRIES = 2
     RETRY_DELAY = 1.0
     
     def __init__(self, api_key: str, provider_name: str = "google", agent: "Agent | None" = None):
@@ -66,71 +72,84 @@ class GeminiProvider:
         self._api_key = new_key
 
     async def _call_with_retry(self, *, rebuild_thinking=None, **kwargs):
-        """Async generate_content with retry + key rotation on rate limit/auth errors."""
+        """Async generate_content. At most one retry — the turn lock is held."""
         from . import key_manager
         last_error = None
-        
+
         for attempt in range(self.MAX_RETRIES):
             try:
                 return await asyncio.wait_for(
                     self._client.aio.models.generate_content(**kwargs),
                     timeout=GEMINI_CALL_TIMEOUT_SEC,
                 )
-            except asyncio.TimeoutError as e:
-                last_error = e
-                log_error(
-                    "gemini_timeout",
-                    f"exceeded {GEMINI_CALL_TIMEOUT_SEC:.0f}s",
-                )
-                break
-            except Exception as e:
-                last_error = e
-                error_str = str(e)
+            except Exception as error:
+                last_error = error
+                if _timed_out(error):
+                    log_error(
+                        "gemini_timeout",
+                        f"exceeded {GEMINI_CALL_TIMEOUT_SEC:.0f}s",
+                    )
+                    rebuilt = rebuild_thinking(kwargs) if rebuild_thinking else None
+                    if rebuilt is None:
+                        break
+                    kwargs = rebuilt
+                    rebuild_thinking = None
+                    continue
 
-                if is_capacity_error(e):
-                    if rebuild_thinking:
-                        rebuilt = rebuild_thinking(kwargs)
-                        if rebuilt is not None:
-                            kwargs = rebuilt
-                            rebuild_thinking = None
-                            continue
-                    override = key_manager.is_override_key(self._provider_name, self._api_key, self._agent)
-                    has_more = attempt < self.MAX_RETRIES - 1
-                    delay = 3.0 * (2 ** attempt)
-                    if override:
-                        if has_more:
-                            await asyncio.sleep(delay)
+                error_str = str(error)
+                if is_capacity_error(error):
+                    log_error("gemini_retry", f"capacity {attempt + 1}: {error_str[:80]}")
+                    rebuilt = rebuild_thinking(kwargs) if rebuild_thinking else None
+                    if rebuilt is not None:
+                        kwargs = rebuilt
+                        rebuild_thinking = None
                         continue
-                    if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
-                        key_manager.mark_rate_limited(self._provider_name, self._api_key)
-                    new_key = key_manager.get_key(self._provider_name, self._agent)
-                    if new_key != self._api_key:
-                        self._rebuild_client(new_key)
-                        continue
-                    if has_more:
-                        await asyncio.sleep(delay)
+                    if not await self._rotate_or_wait(key_manager, error_str, attempt):
+                        break
                     continue
 
                 if "API key" in error_str or "PERMISSION_DENIED" in error_str:
-                    override = key_manager.is_override_key(self._provider_name, self._api_key, self._agent)
-                    if override:
-                        log_error("gemini", "Agent override key failed, falling back to pool")
-                        key_manager.mark_dead(self._provider_name, self._api_key)
-                        new_key = key_manager.get_key(self._provider_name)
-                        self._rebuild_client(new_key)
-                        continue
-                    key_manager.mark_dead(self._provider_name, self._api_key)
-                    new_key = key_manager.get_key(self._provider_name, self._agent)
-                    self._rebuild_client(new_key)
+                    self._fail_over_key(key_manager)
                     continue
-                
+
                 if attempt < self.MAX_RETRIES - 1:
-                    delay = self.RETRY_DELAY * (2 ** attempt)
-                    log_error("gemini_retry", f"Attempt {attempt+1} failed: {error_str[:50]}")
-                    await asyncio.sleep(delay)
-        
-        log_error("gemini_failed", f"All {self.MAX_RETRIES} attempts failed")
+                    log_error("gemini_retry", f"attempt {attempt + 1}: {error_str[:80]}")
+                    await asyncio.sleep(self.RETRY_DELAY * (2 ** attempt))
+
+        log_error("gemini_failed", f"gave up after {self.MAX_RETRIES} attempts")
         raise last_error
+
+    async def _rotate_or_wait(self, key_manager, error_str: str, attempt: int) -> bool:
+        """True if another generate_content attempt should run."""
+        override = key_manager.is_override_key(
+            self._provider_name, self._api_key, self._agent,
+        )
+        has_more = attempt < self.MAX_RETRIES - 1
+        if override:
+            if has_more:
+                await asyncio.sleep(self.RETRY_DELAY)
+            return has_more
+        if "429" in error_str or "RESOURCE_EXHAUSTED" in error_str:
+            key_manager.mark_rate_limited(self._provider_name, self._api_key)
+        new_key = key_manager.get_key(self._provider_name, self._agent)
+        if new_key != self._api_key:
+            self._rebuild_client(new_key)
+            return True
+        if has_more:
+            await asyncio.sleep(self.RETRY_DELAY)
+        return has_more
+
+    def _fail_over_key(self, key_manager, error_str: str) -> None:
+        override = key_manager.is_override_key(
+            self._provider_name, self._api_key, self._agent,
+        )
+        if override:
+            log_error("gemini", "Agent override key failed, falling back to pool")
+            key_manager.mark_dead(self._provider_name, self._api_key)
+            self._rebuild_client(key_manager.get_key(self._provider_name))
+            return
+        key_manager.mark_dead(self._provider_name, self._api_key)
+        self._rebuild_client(key_manager.get_key(self._provider_name, self._agent))
     
     async def get_response(
         self,
