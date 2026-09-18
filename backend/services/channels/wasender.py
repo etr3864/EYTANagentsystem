@@ -141,7 +141,7 @@ async def send_document(
     document_url: str,
     filename: str,
     caption: str | None = None,
-    max_retries: int = 3
+    max_retries: int = 2
 ) -> bool:
     """Send document via WA Sender API."""
     url = f"{_BASE_URL}/send-message"
@@ -156,7 +156,7 @@ async def send_document(
     if caption:
         payload["text"] = caption
     
-    return await _send_with_retry(url, api_key, payload, max_retries, timeout=90)
+    return await _send_with_retry(url, api_key, payload, max_retries, timeout=45)
 
 
 async def _send_with_retry(

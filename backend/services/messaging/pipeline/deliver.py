@@ -1,15 +1,78 @@
 """Send the reply: attachments first, then the text."""
+import asyncio
+
+from sqlalchemy.exc import IntegrityError
+
 from backend.core.database import SessionLocal
 from backend.core.logger import log_error, log_response
 from backend.services.messaging import messages
-from backend.services.messaging.pipeline.context import ModelReply, TurnContext
+from backend.services.messaging.pipeline.context import ModelReply, TurnContext, detach
 
 DEFAULT_MAX_MEDIA_PER_MESSAGE = 10
+# Wasender document downloads can be slow; still never block a turn for minutes.
+MEDIA_SEND_TIMEOUT_SECONDS = 50
 
 
 async def send(ctx: TurnContext, reply: ModelReply) -> None:
     await dispatch_media(ctx, reply.media_actions)
     await _send_text(ctx, reply)
+
+
+def _revive_conversation(ctx: TurnContext) -> None:
+    """If the chat was deleted mid-turn, open a fresh one so sends can finish."""
+    from backend.services.entities import conversations
+
+    with SessionLocal() as db:
+        if conversations.get_by_id(db, ctx.conversation_id):
+            return
+        conv = conversations.get_or_create(
+            db,
+            ctx.agent_id,
+            ctx.user_id,
+            playground_link_id=ctx.playground_link_id,
+        )
+        detach(db, conv)
+        log_error(
+            "deliver",
+            f"conversation {ctx.conversation_id} gone, revived as {conv.id}",
+        )
+        ctx.conversation = conv
+
+
+def _persist_assistant(
+    ctx: TurnContext,
+    content: str,
+    *,
+    message_type: str = "text",
+    media_id: int | None = None,
+    media_url: str | None = None,
+):
+    """Write an assistant row; recreate the conversation once if it vanished."""
+    with SessionLocal() as db:
+        try:
+            return messages.add(
+                db,
+                ctx.conversation_id,
+                "assistant",
+                content,
+                message_type=message_type,
+                media_id=media_id,
+                media_url=media_url,
+            )
+        except IntegrityError:
+            db.rollback()
+
+    _revive_conversation(ctx)
+    with SessionLocal() as db:
+        return messages.add(
+            db,
+            ctx.conversation_id,
+            "assistant",
+            content,
+            message_type=message_type,
+            media_id=media_id,
+            media_url=media_url,
+        )
 
 
 async def dispatch_media(ctx: TurnContext, actions: list[dict]) -> int:
@@ -26,36 +89,52 @@ async def dispatch_media(ctx: TurnContext, actions: list[dict]) -> int:
     )
     sent = 0
 
-    with SessionLocal() as db:
-        for action in actions:
-            if sent >= limit:
-                break
-            media_id = action.get("media_id")
-            if media_id is None or media_id in ctx.media_sent_ids:
-                continue
+    for action in actions:
+        if sent >= limit:
+            break
+        media_id = action.get("media_id")
+        if media_id is None or media_id in ctx.media_sent_ids:
+            continue
 
-            delivered = await ctx.outbound.send_media(
-                ctx.phone,
-                action["file_url"],
-                action["media_type"],
-                action.get("caption"),
-                action.get("filename"),
+        try:
+            delivered = await asyncio.wait_for(
+                ctx.outbound.send_media(
+                    ctx.phone,
+                    action["file_url"],
+                    action["media_type"],
+                    action.get("caption"),
+                    action.get("filename"),
+                ),
+                timeout=MEDIA_SEND_TIMEOUT_SECONDS,
             )
-            if not delivered:
-                log_error(ctx.provider, f"media send failed: {action['name']}")
-                continue
+        except asyncio.TimeoutError:
+            log_error(
+                ctx.provider,
+                f"media send timed out after {MEDIA_SEND_TIMEOUT_SECONDS}s: {action['name']}",
+            )
+            continue
+        except Exception as error:
+            log_error(ctx.provider, f"media send error: {str(error)[:80]}")
+            continue
 
-            messages.add(
-                db,
-                ctx.conversation_id,
-                "assistant",
+        if not delivered:
+            log_error(ctx.provider, f"media send failed: {action['name']}")
+            continue
+
+        try:
+            _persist_assistant(
+                ctx,
                 f"[{action['media_type']}]: {action['name']}",
                 message_type=action["media_type"],
                 media_id=action["media_id"],
                 media_url=action["file_url"],
             )
-            ctx.media_sent_ids.add(media_id)
-            sent += 1
+        except Exception as error:
+            # Channel already got the file — do not abort the rest of the turn.
+            log_error(ctx.provider, f"media persist failed: {str(error)[:80]}")
+
+        ctx.media_sent_ids.add(media_id)
+        sent += 1
 
     return sent
 
@@ -64,8 +143,9 @@ async def _send_text(ctx: TurnContext, reply: ModelReply) -> None:
     if not (reply.text and reply.text.strip()):
         return
 
-    with SessionLocal() as db:
-        saved = messages.add(db, ctx.conversation_id, "assistant", reply.text)
+    meta = None
+    try:
+        saved = _persist_assistant(ctx, reply.text)
         meta = {
             "id": saved.id,
             "role": "assistant",
@@ -73,6 +153,8 @@ async def _send_text(ctx: TurnContext, reply: ModelReply) -> None:
             "message_type": "text",
             "created_at": saved.created_at.isoformat() if saved.created_at else None,
         }
+    except Exception as error:
+        log_error(ctx.provider, f"text persist failed: {str(error)[:80]}")
 
     log_response(
         reply.usage["input_tokens"],

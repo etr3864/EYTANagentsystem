@@ -41,8 +41,14 @@ async def run_turn(request: TurnRequest) -> None:
             return
 
         account.record(ctx, reply)
-        await deliver.send(ctx, reply)
-        await aftercare.run(ctx)
+        try:
+            await deliver.send(ctx, reply)
+        except Exception as error:
+            log_error("pipeline", f"deliver failed: {str(error)[:120]}")
+        try:
+            await aftercare.run(ctx)
+        except Exception as error:
+            log_error("pipeline", f"aftercare failed: {str(error)[:80]}")
     finally:
         await _clear_status(ctx)
 
