@@ -139,7 +139,7 @@ class GeminiProvider:
             await asyncio.sleep(self.RETRY_DELAY)
         return has_more
 
-    def _fail_over_key(self, key_manager, error_str: str) -> None:
+    def _fail_over_key(self, key_manager) -> None:
         override = key_manager.is_override_key(
             self._provider_name, self._api_key, self._agent,
         )
