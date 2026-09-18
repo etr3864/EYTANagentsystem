@@ -16,11 +16,11 @@ from backend.core.config import settings
 from backend.core.logger import log_error
 
 BUFFER_TTL_SECONDS = 600
-# Lock covers only the Redis pop, not the LLM call — keep it short.
-LOCK_TTL_SECONDS = 30
+# Covers a full turn (LLM + media). No heartbeat — a crashed holder frees
+# after this TTL instead of pinning the conversation forever.
+LOCK_TTL_SECONDS = 150
 MAX_DRAIN_DEPTH = 3
 STALE_AFTER_SECONDS = 600
-LOCK_RETRY_SECONDS = 2
 REDIS_RETRY_COOLDOWN_SECONDS = 30
 
 
@@ -318,11 +318,13 @@ async def _process_redis_buffer(
     callback: Callable[[list[PendingMessage]], Awaitable[None]],
     drain_depth: int = 0,
 ) -> None:
-    """Pop the batch under a short lock, then run the model outside it.
+    """One turn at a time per conversation.
 
-    Holding the lock through the LLM used to pin conversations forever when a
-    worker hung or was slow — heartbeat kept refreshing the key and every other
-    timer logged buffer_lock_busy with no way out.
+    The lock is held for the whole callback (including the model call). That is
+    what keeps replies ordered. Messages that arrive mid-turn stay in Redis and
+    are drained as leftovers when this turn finishes — never as a parallel turn.
+
+    No heartbeat: if this process dies, the key expires at LOCK_TTL_SECONDS.
     """
     key = _buffer_key(agent_id, user_phone)
     lock_key = _lock_key(agent_id, user_phone)
@@ -330,30 +332,23 @@ async def _process_redis_buffer(
 
     lock_acquired = await r.set(lock_key, "1", nx=True, ex=LOCK_TTL_SECONDS)
     if not lock_acquired:
-        if drain_depth == 0:
-            from backend.core.logger import log
-            log("buffer_lock_busy", agent_id=agent_id, retry_in=LOCK_RETRY_SECONDS)
-            _arm_timer(
-                r, agent_id, user_phone, LOCK_RETRY_SECONDS, callback,
-                await _current_generation(r, agent_id, user_phone),
-            )
+        # Holder will see leftovers after it finishes. Starting another turn
+        # here is what made replies land minutes later mid-conversation.
         return
 
-    messages: list[PendingMessage] = []
     try:
         messages_json = await r.lrange(key, 0, -1)
-        if messages_json:
-            await r.delete(key)
-            messages = [PendingMessage.from_dict(json.loads(m)) for m in messages_json]
-            if task_key in _processing_tasks:
-                del _processing_tasks[task_key]
+        if not messages_json:
+            return
+
+        await r.delete(key)
+        messages = [PendingMessage.from_dict(json.loads(m)) for m in messages_json]
+        if task_key in _processing_tasks:
+            del _processing_tasks[task_key]
+
+        await callback(messages)
     finally:
         await r.delete(lock_key)
-
-    if not messages:
-        return
-
-    await callback(messages)
 
     leftover = await r.llen(key)
     if leftover and drain_depth < MAX_DRAIN_DEPTH:
