@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -16,7 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { isSuperAdmin, isAdmin, isEmployee } from '@/lib/auth';
 import { phoneToUrl, phoneFromUrl } from '@/lib/phone';
 import { 
-  getAgent, updateAgent, getConversations, getMessages, deleteConversation, 
+  getAgent, updateAgent, getConversations, getConversationsRevision, getMessages, deleteConversation, 
   sendMessage, sendConversationMedia, sendConversationTemplate,
   getWhatsAppInbox, whatsappKindFromAgent, pauseConversation, resumeConversation,
   getAgentMedia, uploadAgentMedia, updateAgentMedia, deleteAgentMedia,
@@ -152,6 +152,41 @@ function AgentPage() {
     
     return () => clearInterval(interval);
   }, [selectedConv, tab]);
+
+  // Poll inbox fingerprint every 5s — full list fetch only when revision changes
+  const convRevisionRef = useRef<string | null>(null);
+  useEffect(() => {
+    convRevisionRef.current = null;
+  }, [agentId]);
+
+  useEffect(() => {
+    if (tab !== 'conversations') return;
+
+    let cancelled = false;
+
+    async function checkRevision() {
+      try {
+        const revision = await getConversationsRevision(agentId);
+        if (cancelled) return;
+        if (convRevisionRef.current === null) {
+          convRevisionRef.current = revision;
+          return;
+        }
+        if (revision !== convRevisionRef.current) {
+          convRevisionRef.current = revision;
+          await loadConversations({ selectFromUrl: false });
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    const interval = setInterval(checkRevision, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [agentId, tab]);
 
   async function loadAgent() {
     try {

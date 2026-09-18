@@ -12,7 +12,7 @@ from .converters import (
     gemini_function_call_to_standard
 )
 from backend.core.ai_config import USER_TOOLS
-from backend.core.logger import log_error
+from backend.core.logger import log, log_error
 from backend.services.llm.catalog import (
     CHEAP_GEMINI,
     conversation_max_tokens,
@@ -34,7 +34,12 @@ GEMINI_TOOL_SUFFIX = """
 """
 
 # HttpOptions.timeout is milliseconds (SDK converts to seconds for httpx).
-GEMINI_HTTP_TIMEOUT_MS = 120_000
+GEMINI_HTTP_TIMEOUT_MS = 90_000
+# Hard ceiling on the await — cancels the async httpx request (safe with aio).
+GEMINI_CALL_TIMEOUT_SEC = 95.0
+
+# We run tools ourselves; SDK AFC must stay off (FunctionDeclarations ≠ callables).
+_DISABLE_AFC = types.AutomaticFunctionCallingConfig(disable=True)
 
 
 def _build_client(api_key: str) -> genai.Client:
@@ -66,11 +71,36 @@ class GeminiProvider:
         last_error = None
         
         for attempt in range(self.MAX_RETRIES):
+            started = asyncio.get_running_loop().time()
             try:
-                return await self._client.aio.models.generate_content(**kwargs)
+                log("GEMINI_CALL", attempt=attempt + 1, model=kwargs.get("model"))
+                response = await asyncio.wait_for(
+                    self._client.aio.models.generate_content(**kwargs),
+                    timeout=GEMINI_CALL_TIMEOUT_SEC,
+                )
+                log(
+                    "GEMINI_OK",
+                    attempt=attempt + 1,
+                    ms=int((asyncio.get_running_loop().time() - started) * 1000),
+                )
+                return response
+            except asyncio.TimeoutError as e:
+                last_error = e
+                log_error(
+                    "gemini_timeout",
+                    f"attempt {attempt + 1} exceeded {GEMINI_CALL_TIMEOUT_SEC:.0f}s",
+                )
+                # Timeout is usually network/API stall — retrying 4×95s is worse for the user.
+                break
             except Exception as e:
                 last_error = e
                 error_str = str(e)
+                log_error(
+                    "gemini_err",
+                    f"attempt {attempt + 1} after "
+                    f"{int((asyncio.get_running_loop().time() - started) * 1000)}ms: "
+                    f"{error_str[:80]}",
+                )
 
                 if is_capacity_error(e):
                     if rebuild_thinking:
@@ -194,6 +224,7 @@ class GeminiProvider:
                 system_instruction=system_text,
                 tools=[gemini_tools],
                 max_output_tokens=conversation_max_tokens(downgrade.level),
+                automatic_function_calling=_DISABLE_AFC,
             )
             if glevel:
                 config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_level=glevel)
@@ -302,7 +333,10 @@ class GeminiProvider:
         )
 
     def _cheap_config(self, max_tokens: int, model: str):
-        kwargs = dict(max_output_tokens=max_tokens)
+        kwargs = dict(
+            max_output_tokens=max_tokens,
+            automatic_function_calling=_DISABLE_AFC,
+        )
         level = gemini_thinking_level(model, "minimal")
         if level:
             kwargs["thinking_config"] = types.ThinkingConfig(thinking_level=level)

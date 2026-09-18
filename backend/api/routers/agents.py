@@ -180,6 +180,37 @@ def delete_agent(
     return {"status": "deleted"}
 
 
+@router.get("/{agent_id}/conversations/revision")
+def agent_conversations_revision(
+    agent_id: int,
+    current_user: AuthUser = Depends(AgentAccessChecker()),
+    db: Session = Depends(get_db),
+):
+    """Cheap inbox fingerprint for polling — one indexed row + count, no joins."""
+    from sqlalchemy import text
+
+    row = db.execute(text("""
+        SELECT
+            c.updated_at,
+            c.id,
+            (SELECT COUNT(*)::int
+               FROM conversations c2
+              WHERE c2.agent_id = :agent_id
+                AND c2.playground_link_id IS NULL) AS total
+        FROM conversations c
+        WHERE c.agent_id = :agent_id
+          AND c.playground_link_id IS NULL
+        ORDER BY c.updated_at DESC, c.id DESC
+        LIMIT 1
+    """), {"agent_id": agent_id}).first()
+
+    if not row:
+        return {"revision": "empty"}
+
+    stamp = row.updated_at.isoformat() if row.updated_at else ""
+    return {"revision": f"{stamp}|{row.id}|{row.total}"}
+
+
 @router.get("/{agent_id}/conversations")
 def list_agent_conversations(
     agent_id: int,

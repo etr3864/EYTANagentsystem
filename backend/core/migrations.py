@@ -156,6 +156,12 @@ def _indexes(conn):
         ON conversations (agent_id, created_at);
     """))
 
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_conversations_agent_updated
+        ON conversations (agent_id, updated_at DESC, id DESC)
+        WHERE playground_link_id IS NULL;
+    """))
+
 
 def _usage_and_pricing(conn):
     conn.execute(text("""

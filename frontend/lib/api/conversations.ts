@@ -27,6 +27,18 @@ export async function getConversations(
   return res.json();
 }
 
+/** Lightweight fingerprint — poll this; refetch the list only when it changes. */
+export async function getConversationsRevision(
+  agentId: number,
+): Promise<string> {
+  const res = await authFetch(
+    `${API_URL}/api/agents/${agentId}/conversations/revision`,
+  );
+  if (!res.ok) throw new Error('Failed to fetch conversations revision');
+  const data = await res.json();
+  return data.revision as string;
+}
+
 export async function getMessages(convId: number): Promise<Message[]> {
   const res = await authFetch(`${API_URL}/api/conversations/${convId}/messages`);
   if (!res.ok) throw new Error('Failed to fetch messages');
