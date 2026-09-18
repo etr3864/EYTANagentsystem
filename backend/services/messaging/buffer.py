@@ -6,18 +6,21 @@ Supports two backends:
 """
 import asyncio
 import json
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Callable, Awaitable, Optional
 import redis.asyncio as redis
 
 from backend.core.config import settings
+from backend.core.logger import log_error
 
 BUFFER_TTL_SECONDS = 600
 LOCK_TTL_SECONDS = 180
 MAX_DRAIN_DEPTH = 3
 STALE_AFTER_SECONDS = 600
 HEARTBEAT_SECONDS = 60
+REDIS_RETRY_COOLDOWN_SECONDS = 30
 
 
 @dataclass
@@ -59,40 +62,58 @@ class PendingMessage:
 
 # Redis connection pool (lazy init)
 _redis_pool: Optional[redis.Redis] = None
-_redis_available: Optional[bool] = None
+_redis_retry_after: float = 0.0
+
+ProcessCallback = Callable[[list[PendingMessage]], Awaitable[None]]
+
 
 # Fallback in-memory buffer
 @dataclass
 class UserBuffer:
     messages: list[PendingMessage] = field(default_factory=list)
     task: asyncio.Task | None = None
+    callback: Optional[ProcessCallback] = None
 
 _memory_buffers: dict[tuple[int, str], UserBuffer] = {}
 
-# Active processing tasks (for both Redis and memory mode)
-_processing_tasks: dict[str, asyncio.Task] = {}
+
+@dataclass
+class _DebounceTimer:
+    """A pending drain owned by this process, retained so shutdown can flush it."""
+
+    task: asyncio.Task
+    agent_id: int
+    user_phone: str
+    callback: ProcessCallback
+
+
+_processing_tasks: dict[str, _DebounceTimer] = {}
 
 
 async def _get_redis() -> Optional[redis.Redis]:
-    """Get Redis connection, return None if unavailable."""
-    global _redis_pool, _redis_available
-    
-    if _redis_available is False:
+    """Get Redis connection, or None while it is unreachable.
+
+    A failure is remembered only for a cooldown. Giving up permanently would
+    leave the process on the in-memory buffer for its whole life, which
+    silently stops batching from working across processes.
+    """
+    global _redis_pool, _redis_retry_after
+
+    if _redis_pool is not None:
+        return _redis_pool
+    if time.monotonic() < _redis_retry_after:
         return None
-    
-    if _redis_pool is None:
-        try:
-            _redis_pool = redis.from_url(
-                settings.redis_url,
-                encoding="utf-8",
-                decode_responses=True
-            )
-            await _redis_pool.ping()
-            _redis_available = True
-        except Exception:
-            _redis_available = False
-            return None
-    
+
+    try:
+        pool = redis.from_url(
+            settings.redis_url, encoding="utf-8", decode_responses=True,
+        )
+        await pool.ping()
+    except Exception:
+        _redis_retry_after = time.monotonic() + REDIS_RETRY_COOLDOWN_SECONDS
+        return None
+
+    _redis_pool = pool
     return _redis_pool
 
 
@@ -104,6 +125,24 @@ def _buffer_key(agent_id: int, user_phone: str) -> str:
 def _lock_key(agent_id: int, user_phone: str) -> str:
     """Redis key for processing lock."""
     return f"msg_lock:{agent_id}:{user_phone}"
+
+
+def _generation_key(agent_id: int, user_phone: str) -> str:
+    """Redis key for the debounce generation counter."""
+    return f"msg_gen:{agent_id}:{user_phone}"
+
+
+async def _bump_generation(r: redis.Redis, agent_id: int, user_phone: str) -> int:
+    """Invalidate every timer started before this message."""
+    key = _generation_key(agent_id, user_phone)
+    generation = await r.incr(key)
+    await r.expire(key, BUFFER_TTL_SECONDS)
+    return generation
+
+
+async def _current_generation(r: redis.Redis, agent_id: int, user_phone: str) -> int:
+    raw = await r.get(_generation_key(agent_id, user_phone))
+    return int(raw) if raw else 0
 
 
 async def add_message(
@@ -168,19 +207,19 @@ async def _add_message_redis(
     )
     await r.rpush(key, json.dumps(msg.to_dict()))
     await r.expire(key, BUFFER_TTL_SECONDS)
-    
-    # Check message count
+
+    generation = await _bump_generation(r, agent_id, user_phone)
     count = await r.llen(key)
-    
-    # Cancel existing timer
-    if task_key in _processing_tasks:
-        task = _processing_tasks[task_key]
-        if not task.done():
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
+
+    # Local cancellation is an optimisation only — a timer in another process
+    # cannot be cancelled from here, so correctness rests on the generation.
+    existing = _processing_tasks.get(task_key)
+    if existing and not existing.task.done():
+        existing.task.cancel()
+        try:
+            await existing.task
+        except asyncio.CancelledError:
+            pass
     
     # Process immediately if max reached
     if count >= max_messages:
@@ -188,8 +227,15 @@ async def _add_message_redis(
         return
     
     # Start new debounce timer
-    _processing_tasks[task_key] = asyncio.create_task(
-        _delayed_redis_process(r, agent_id, user_phone, debounce_seconds, process_callback)
+    _processing_tasks[task_key] = _DebounceTimer(
+        task=asyncio.create_task(
+            _delayed_redis_process(
+                r, agent_id, user_phone, debounce_seconds, process_callback, generation
+            )
+        ),
+        agent_id=agent_id,
+        user_phone=user_phone,
+        callback=process_callback,
     )
 
 
@@ -198,16 +244,55 @@ async def _delayed_redis_process(
     agent_id: int,
     user_phone: str,
     delay: int,
-    callback: Callable[[list[PendingMessage]], Awaitable[None]]
+    callback: Callable[[list[PendingMessage]], Awaitable[None]],
+    generation: int,
 ) -> None:
-    """Wait for delay then process the Redis buffer."""
+    """Drain after the delay, unless a newer message restarted the debounce.
+
+    Any process may hold the timer for this conversation. The one whose
+    generation still matches Redis is the only one allowed to drain.
+    """
     await asyncio.sleep(delay)
+    if await _current_generation(r, agent_id, user_phone) != generation:
+        return
     await _process_redis_buffer(r, agent_id, user_phone, callback)
 
 
 def is_stale(msg: PendingMessage) -> bool:
     age = (datetime.utcnow() - msg.timestamp).total_seconds()
     return age > STALE_AFTER_SECONDS
+
+
+async def drain_now() -> None:
+    """Flush every buffer this process still owns, before it goes away.
+
+    Covers a graceful stop only. A hard kill leaves the batch in Redis until
+    its TTL expires, unanswered — recovering that needs a worker able to
+    rebuild the outbound channel from scratch.
+    """
+    timers = list(_processing_tasks.values())
+    _processing_tasks.clear()
+    for timer in timers:
+        timer.task.cancel()
+
+    r = await _get_redis() if timers else None
+    for timer in timers:
+        if r is None:
+            break
+        try:
+            await _process_redis_buffer(r, timer.agent_id, timer.user_phone, timer.callback)
+        except Exception as error:
+            log_error("buffer", f"drain failed on shutdown: {str(error)[:80]}")
+
+    for key, buffer in list(_memory_buffers.items()):
+        if buffer.task:
+            buffer.task.cancel()
+        if not buffer.messages or buffer.callback is None:
+            continue
+        try:
+            await _process_memory_buffer(key, buffer.callback)
+        except Exception as error:
+            log_error("buffer", f"memory drain failed on shutdown: {str(error)[:80]}")
 
 
 async def _refresh_lock(r: redis.Redis, lock_key: str, stop: asyncio.Event) -> None:
@@ -257,8 +342,16 @@ async def _process_redis_buffer(
     if leftover and drain_depth < MAX_DRAIN_DEPTH:
         await _process_redis_buffer(r, agent_id, user_phone, callback, drain_depth + 1)
     elif leftover:
-        _processing_tasks[task_key] = asyncio.create_task(
-            _delayed_redis_process(r, agent_id, user_phone, 1, callback)
+        _processing_tasks[task_key] = _DebounceTimer(
+            task=asyncio.create_task(
+                _delayed_redis_process(
+                    r, agent_id, user_phone, 1, callback,
+                    await _current_generation(r, agent_id, user_phone),
+                )
+            ),
+            agent_id=agent_id,
+            user_phone=user_phone,
+            callback=callback,
         )
 
 
@@ -302,6 +395,7 @@ async def _add_message_memory(
         media_too_large=media_too_large,
         reply_to_text=reply_to_text,
     ))
+    buffer.callback = process_callback
     
     if len(buffer.messages) >= max_messages:
         await _process_memory_buffer(key, process_callback)

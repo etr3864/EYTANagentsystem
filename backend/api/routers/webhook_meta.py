@@ -23,7 +23,8 @@ from backend.core.config import settings
 from backend.core.hmac_verify import verify_meta_signature, select_secret_for_object
 from backend.core.database import SessionLocal
 from backend.core.logger import log, log_error
-from backend.services.messaging.processing import is_duplicate, process_batched_messages
+from backend.services.messaging.dedup import is_duplicate
+from backend.services.messaging.processing import process_batched_messages
 from backend.services.messaging.buffer import PendingMessage
 from backend.services.channels.meta_webhook_parser import (
     parse_instagram_payload,

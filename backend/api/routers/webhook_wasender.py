@@ -15,7 +15,8 @@ from backend.services.media import transcription
 from backend.services.media.inbox import ingest_from_url, too_large_text
 from backend.services.channels import wasender
 from backend.services.messaging.buffer import PendingMessage
-from backend.services.messaging.processing import process_batched_messages, is_duplicate
+from backend.services.messaging.dedup import is_duplicate
+from backend.services.messaging.processing import process_batched_messages
 from backend.services.channels.agent_channels import get_channel_by_type, get_credentials
 from backend.services.channels.channel_users import (
     get_or_create_for_incoming, get_by_external_id, IncomingUserInfo,

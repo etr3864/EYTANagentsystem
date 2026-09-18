@@ -19,6 +19,7 @@ from backend.api.routers.agent_triggers import router as agent_triggers_router
 from backend.api.routers.agent_escalations import router as agent_escalations_router
 from backend.auth import auth_router
 from backend.mcp.server import McpSlashRewrite, mcp_http_app, combine_with_mcp
+from backend.services.messaging import buffer as message_buffer
 from backend.services.scheduling import scheduler
 
 
@@ -36,6 +37,10 @@ async def lifespan(app: FastAPI):
         await scheduler_task
     except asyncio.CancelledError:
         pass
+
+    # Buffered messages live in Redis but their debounce timer lives here, so
+    # they would sit unanswered until TTL if this process just exited.
+    await message_buffer.drain_now()
 
     log("SERVER_DOWN")
 

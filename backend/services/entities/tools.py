@@ -364,7 +364,10 @@ async def handle_tool_calls(
     simulate_calendar: bool = False,
 ) -> list[dict[str, Any]]:
     """Handle all AI tool calls (knowledge, appointments, user info, media).
-    
+
+    Commits the round before returning — callers must not assume the session
+    still holds uncommitted work of their own.
+
     Args:
         db: Database session
         agent: Agent instance
@@ -457,5 +460,13 @@ async def handle_tool_calls(
         if result is None:
             result = "הכלי לא זמין"
         results.append({"name": name, "result": result})
-    
+
+    # Tool side effects (bookings, opt-outs, escalations, function state) must
+    # outlive a later failure in the same turn, so this round commits its own work.
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
     return results

@@ -12,7 +12,8 @@ from backend.services.channels import whatsapp
 from backend.services.messaging import buffer as message_buffer
 from backend.services.media import transcription
 from backend.services.messaging.buffer import PendingMessage
-from backend.services.messaging.processing import process_batched_messages, is_duplicate
+from backend.services.messaging.dedup import is_duplicate
+from backend.services.messaging.processing import process_batched_messages
 
 router = APIRouter(tags=["webhook"])
 

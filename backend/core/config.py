@@ -4,6 +4,13 @@ from typing import Optional
 
 class Settings(BaseSettings):
     database_url: str = "postgresql://postgres:postgres@localhost:5432/whatsapp_agents"
+
+    # Per-process connection budget. Every web worker and every Celery child
+    # keeps its own pool, so the ceiling is (processes × (size + overflow)).
+    # Render Standard allows ~97 total; 9 processes × 10 leaves headroom.
+    db_pool_size: int = 6
+    db_max_overflow: int = 4
+    db_pool_timeout: int = 10
     anthropic_api_key: str = ""
     openai_api_key: Optional[str] = None
     google_api_key: Optional[str] = None  # Gemini API

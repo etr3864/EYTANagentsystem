@@ -10,8 +10,9 @@ logger = logging.getLogger(__name__)
 
 engine = create_engine(
     settings.database_url,
-    pool_size=20,           # Base pool (Render Standard allows 97 total)
-    max_overflow=30,        # Allows burst to 50 total connections
+    pool_size=settings.db_pool_size,
+    max_overflow=settings.db_max_overflow,
+    pool_timeout=settings.db_pool_timeout,
     pool_pre_ping=True,     # Check connection health before use
     pool_recycle=300,       # Recycle connections every 5 min (cloud DB best practice)
 )

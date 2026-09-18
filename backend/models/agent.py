@@ -3,7 +3,6 @@ from typing import Optional, TYPE_CHECKING
 from sqlalchemy import String, Text, Boolean, DateTime, ForeignKey, Integer, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.orm.attributes import flag_modified
 from backend.core.database import Base
 
 if TYPE_CHECKING:
@@ -62,8 +61,9 @@ class Agent(Base):
     # Batching config (JSON) - settings for message batching
     batching_config: Mapped[Optional[dict]] = mapped_column(JSONB, default=DEFAULT_BATCHING_CONFIG)
     
-    # Usage stats (JSON) - cumulative token usage per model
-    # Format: {"model_name": {"input": N, "output": N, "cache_read": N, "cache_create": N}}
+    # Legacy cumulative counters, kept only so historical rows survive.
+    # Nothing reads or writes this — agent_usage_daily is the source of truth
+    # and its ON CONFLICT increment is safe under concurrency.
     usage_stats: Mapped[Optional[dict]] = mapped_column(JSONB, default=dict)
     
     # Calendar configuration (JSON)
@@ -131,22 +131,3 @@ class Agent(Base):
         if self.batching_config:
             config.update(self.batching_config)
         return config
-    
-    def add_usage(self, model: str, input_tokens: int, output_tokens: int, 
-                  cache_read: int = 0, cache_create: int = 0) -> None:
-        """Add token usage to cumulative stats."""
-        if self.usage_stats is None:
-            self.usage_stats = {}
-        
-        if model not in self.usage_stats:
-            self.usage_stats[model] = {
-                "input": 0, "output": 0, "cache_read": 0, "cache_create": 0
-            }
-        
-        self.usage_stats[model]["input"] += input_tokens
-        self.usage_stats[model]["output"] += output_tokens
-        self.usage_stats[model]["cache_read"] += cache_read
-        self.usage_stats[model]["cache_create"] += cache_create
-        
-        # Tell SQLAlchemy that the JSON field was modified
-        flag_modified(self, "usage_stats")
