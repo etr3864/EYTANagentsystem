@@ -99,6 +99,7 @@ def public_agent(agent) -> dict:
         "is_active": agent.is_active,
         "provider": agent.provider or "meta",
         "batching_config": agent.batching_config,
+        "split_config": agent.split_config,
         "calendar": calendar,
         "media_config": agent.media_config,
         "followup_config": agent.followup_config,

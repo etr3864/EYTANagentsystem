@@ -146,7 +146,7 @@ export function ChatView({
         };
         
         return (
-          <div key={i}>
+          <div key={msg.id ?? `row-${i}`}>
             {showDate && msgDate && (
               <div className="flex items-center justify-center my-6">
                 <div className="bg-[var(--glass)] border border-[var(--edge)] text-[var(--text-muted)] text-[11px] tracking-[0.12em] px-3.5 py-1 rounded-full">

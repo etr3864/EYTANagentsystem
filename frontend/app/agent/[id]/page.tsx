@@ -22,7 +22,8 @@ import {
   getAgentMedia, uploadAgentMedia, updateAgentMedia, deleteAgentMedia,
   type MediaUploadData, type ConversationCursor, type WhatsAppInbox,
 } from '@/lib/api';
-import type { Agent, AgentBatchingConfig, ContextSummaryConfig, Conversation, Message, Provider, WaSenderConfig, AgentMedia, MediaConfig, CustomApiKeys } from '@/lib/types';
+import type { Agent, AgentBatchingConfig, AgentSplitConfig, ContextSummaryConfig, Conversation, Message, Provider, WaSenderConfig, AgentMedia, MediaConfig, CustomApiKeys } from '@/lib/types';
+import { DEFAULT_SPLIT_CONFIG } from '@/lib/types';
 import { DEFAULT_MODEL, getModel, resolveModel } from '@/lib/models';
 import { NewChatModal } from '@/components/chat/NewChatModal';
 import type { TemplateSendPayload } from '@/components/chat/Composer';
@@ -104,6 +105,7 @@ function AgentPage() {
     max_batch_messages: 10,
     max_history_messages: 20,
   });
+  const [splitConfig, setSplitConfig] = useState<AgentSplitConfig>(DEFAULT_SPLIT_CONFIG);
   const [maxToolRounds, setMaxToolRounds] = useState(5);
   const [customApiKeys, setCustomApiKeys] = useState<CustomApiKeys>({});
   const [contextSummaryConfig, setContextSummaryConfig] = useState<ContextSummaryConfig>({
@@ -208,6 +210,7 @@ function AgentPage() {
         max_batch_messages: 10, 
         max_history_messages: 20 
       });
+      setSplitConfig(data.split_config || DEFAULT_SPLIT_CONFIG);
       setMediaConfig(data.media_config || null);
       setCustomApiKeys(data.custom_api_keys || {});
       setContextSummaryConfig(data.context_summary_config || {
@@ -336,6 +339,7 @@ function AgentPage() {
         thinking_level: thinkingLevel,
         is_active: isActive,
         batching_config: batchingConfig,
+        split_config: splitConfig,
         custom_api_keys: customApiKeys,
         context_summary_config: contextSummaryConfig,
         max_tool_rounds: maxToolRounds,
@@ -344,6 +348,7 @@ function AgentPage() {
       setAgent(fresh);
       setModel(resolveModel(fresh.model));
       setThinkingLevel(fresh.thinking_level || getModel(fresh.model).defaultThinking);
+      setSplitConfig(fresh.split_config || DEFAULT_SPLIT_CONFIG);
       setFeedback({ type: 'success', text: 'נשמר בהצלחה!' });
       setTimeout(() => setFeedback(null), 3000);
     } catch (err) {
@@ -671,6 +676,7 @@ function AgentPage() {
               model={model}
               thinkingLevel={thinkingLevel}
               batchingConfig={batchingConfig}
+              splitConfig={splitConfig}
               maxToolRounds={maxToolRounds}
               customApiKeys={customApiKeys}
               contextSummaryConfig={contextSummaryConfig}
@@ -681,6 +687,7 @@ function AgentPage() {
               }}
               onThinkingLevelChange={setThinkingLevel}
               onBatchingConfigChange={setBatchingConfig}
+              onSplitConfigChange={setSplitConfig}
               onMaxToolRoundsChange={setMaxToolRounds}
               onCustomApiKeysChange={setCustomApiKeys}
               onContextSummaryConfigChange={setContextSummaryConfig}

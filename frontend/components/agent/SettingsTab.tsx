@@ -4,7 +4,8 @@ import { Button, Card, CardHeader } from '@/components/ui';
 import { Input, NumberInput } from '@/components/ui/Input';
 import { ModelSelect } from '@/components/ui/ModelSelect';
 import { getModel, THINKING_LABELS } from '@/lib/models';
-import type { AgentBatchingConfig, ContextSummaryConfig, CustomApiKeys } from '@/lib/types';
+import type { AgentBatchingConfig, AgentSplitConfig, ContextSummaryConfig, CustomApiKeys } from '@/lib/types';
+import { SplitSettings } from './SplitSettings';
 
 interface SettingsTabProps {
   agentId: number;
@@ -12,6 +13,7 @@ interface SettingsTabProps {
   model: string;
   thinkingLevel: string;
   batchingConfig: AgentBatchingConfig;
+  splitConfig: AgentSplitConfig;
   maxToolRounds: number;
   customApiKeys: CustomApiKeys;
   contextSummaryConfig: ContextSummaryConfig;
@@ -19,6 +21,7 @@ interface SettingsTabProps {
   onModelChange: (v: string) => void;
   onThinkingLevelChange: (v: string) => void;
   onBatchingConfigChange: (config: AgentBatchingConfig) => void;
+  onSplitConfigChange: (config: AgentSplitConfig) => void;
   onMaxToolRoundsChange: (value: number) => void;
   onCustomApiKeysChange: (keys: CustomApiKeys) => void;
   onContextSummaryConfigChange: (config: ContextSummaryConfig) => void;
@@ -28,9 +31,9 @@ interface SettingsTabProps {
 }
 
 export function SettingsTab({
-  name, model, thinkingLevel, batchingConfig, maxToolRounds,
+  name, model, thinkingLevel, batchingConfig, splitConfig, maxToolRounds,
   customApiKeys, contextSummaryConfig, onNameChange,
-  onModelChange, onThinkingLevelChange, onBatchingConfigChange, onMaxToolRoundsChange,
+  onModelChange, onThinkingLevelChange, onBatchingConfigChange, onSplitConfigChange, onMaxToolRoundsChange,
   onCustomApiKeysChange, onContextSummaryConfigChange, onSave, saving,
   onNavigateToChannels,
 }: SettingsTabProps) {
@@ -133,6 +136,8 @@ export function SettingsTab({
           />
         </div>
       </Card>
+
+      <SplitSettings config={splitConfig} onChange={onSplitConfigChange} />
 
       {/* Conversation History */}
       <Card>

@@ -7,6 +7,9 @@ from backend.core.database import SessionLocal
 from backend.core.logger import log_error, log_response
 from backend.services.messaging import messages
 from backend.services.messaging.pipeline.context import ModelReply, TurnContext, detach
+from backend.services.messaging.split.burst import send_parts
+from backend.services.messaging.split.config import for_agent
+from backend.services.messaging.split.parts import MARKER, parse
 
 DEFAULT_MAX_MEDIA_PER_MESSAGE = 10
 # Wasender document downloads can be slow; still never block a turn for minutes.
@@ -40,8 +43,15 @@ async def send(ctx: TurnContext, reply: ModelReply) -> None:
         reply.usage["output_tokens"],
         reply.usage["cache_read_tokens"],
     )
-    if text:
-        await _send_text(ctx, text)
+    if not text:
+        return
+    cfg = for_agent(ctx.agent)
+    parts = parse(text, cfg.max_parts) if cfg.enabled else [_plain(text)]
+    await send_parts(ctx, parts, cfg, lambda part: _send_text(ctx, part))
+
+
+def _plain(text: str) -> str:
+    return text.replace(MARKER, "\n").strip()
 
 
 def _revive_conversation(ctx: TurnContext) -> None:
@@ -166,7 +176,7 @@ async def dispatch_media(ctx: TurnContext, actions: list[dict]) -> int:
     return sent
 
 
-async def _send_text(ctx: TurnContext, text: str) -> None:
+async def _send_text(ctx: TurnContext, text: str) -> bool:
     meta = None
     try:
         saved = _persist_assistant(ctx, text)
@@ -184,3 +194,4 @@ async def _send_text(ctx: TurnContext, text: str) -> None:
     delivered = await ctx.outbound.send_message(ctx.phone, text, meta=meta)
     if not delivered:
         log_error(ctx.provider, f"send failed to {ctx.display_name}")
+    return bool(delivered)

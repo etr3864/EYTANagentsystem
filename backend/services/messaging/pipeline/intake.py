@@ -36,6 +36,29 @@ async def absorb(ctx: TurnContext) -> None:
     )
 
 
+async def append_batch(ctx: TurnContext, extra: list) -> None:
+    """Customer typed during the model call — fold into this turn once."""
+    if not extra:
+        return
+    has_images, usage = await vision.describe_pending(extra, ctx.agent)
+    ctx.has_images = ctx.has_images or has_images
+    ctx.vision_usage["input_tokens"] += usage.get("input_tokens", 0)
+    ctx.vision_usage["output_tokens"] += usage.get("output_tokens", 0)
+    original = list(ctx.pending)
+    ctx.pending = extra
+    _persist(ctx)
+    ctx.pending = original + extra
+    ctx.combined_text = "\n".join(msg.text for msg in ctx.pending)
+    log_message(
+        ctx.agent.name,
+        ctx.display_name,
+        ctx.combined_text,
+        len(ctx.pending),
+        ctx.has_images,
+        provider=ctx.provider,
+    )
+
+
 def _persist(ctx: TurnContext) -> None:
     with SessionLocal() as db:
         for msg in ctx.pending:

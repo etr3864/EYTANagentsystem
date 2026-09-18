@@ -85,6 +85,12 @@ def _legacy_columns_and_constraints(conn):
         EXCEPTION WHEN duplicate_column THEN null;
         END $$;
     """))
+    conn.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE agents ADD COLUMN split_config JSON;
+        EXCEPTION WHEN duplicate_column THEN null;
+        END $$;
+    """))
 
 
 def _conversation_summaries(conn):
@@ -380,6 +386,7 @@ def _cascade_and_jsonb(conn):
         "provider_config", "batching_config", "usage_stats",
         "calendar_config", "summary_config", "followup_config",
         "media_config", "custom_api_keys", "context_summary_config",
+        "split_config",
     ):
         conn.execute(text(
             f"ALTER TABLE agents ALTER COLUMN {col} TYPE JSONB USING {col}::jsonb"

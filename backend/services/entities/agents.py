@@ -5,7 +5,8 @@ from backend.models.agent import Agent
 from backend.services.llm.catalog import require_selectable_model, sanitize_thinking
 
 _JSON_FIELDS = {"provider_config", "batching_config", "calendar_config",
-                "summary_config", "followup_config", "media_config", "custom_api_keys"}
+                "summary_config", "followup_config", "media_config", "custom_api_keys",
+                "context_summary_config", "split_config"}
 
 
 def _normalize_phone_id(value: str | None) -> str | None:

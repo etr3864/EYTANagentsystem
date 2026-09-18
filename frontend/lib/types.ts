@@ -14,6 +14,20 @@ export interface AgentBatchingConfig {
   max_history_messages: number;
 }
 
+export interface AgentSplitConfig {
+  enabled: boolean;
+  max_parts: number;
+  delay_seconds: number;
+  instruction: string;
+}
+
+export const DEFAULT_SPLIT_CONFIG: AgentSplitConfig = {
+  enabled: false,
+  max_parts: 2,
+  delay_seconds: 2,
+  instruction: '',
+};
+
 export interface ContextSummaryConfig {
   enabled: boolean;
   message_threshold: number;
@@ -51,6 +65,7 @@ export interface Agent {
   provider: Provider;
   provider_config: WaSenderConfig | Record<string, never>;
   batching_config: AgentBatchingConfig;
+  split_config?: AgentSplitConfig;
   calendar_config: Record<string, unknown> | null;
   media_config: MediaConfig | null;
   followup_config: FollowupConfig | null;
@@ -90,6 +105,7 @@ export interface AgentUpdate {
   provider?: Provider;
   provider_config?: WaSenderConfig | Record<string, never>;
   batching_config?: AgentBatchingConfig;
+  split_config?: AgentSplitConfig;
   media_config?: MediaConfig | null;
   custom_api_keys?: CustomApiKeys | null;
   context_summary_config?: ContextSummaryConfig | null;
@@ -132,6 +148,7 @@ export interface Conversation {
 export type MessageType = 'text' | 'voice' | 'image' | 'video' | 'document' | 'media' | 'manual' | 'external' | 'trigger_data' | 'escalation' | 'function';
 
 export interface Message {
+  id?: number;
   role: 'user' | 'assistant';
   content: string;
   message_type: MessageType;

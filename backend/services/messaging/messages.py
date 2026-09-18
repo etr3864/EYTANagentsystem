@@ -80,6 +80,7 @@ def get_history(db: Session, conversation_id: int, limit: int | None = None) -> 
 
     return [
         {
+            "id": m.id,
             "role": m.role,
             "content": m.content,
             "message_type": m.message_type or "text",

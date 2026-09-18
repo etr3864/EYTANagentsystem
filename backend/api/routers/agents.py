@@ -6,6 +6,7 @@ from backend.core.database import get_db
 from backend.services.entities import agents
 from backend.api.schemas import AgentCreate, AgentUpdate
 from backend.models.agent import Agent, DEFAULT_BATCHING_CONFIG
+from backend.services.messaging.split.config import sanitize as sanitize_split
 from backend.auth.models import AuthUser, UserRole
 from backend.auth.dependencies import get_current_user, require_role, AgentAccessChecker
 from backend.auth import service as auth_service
@@ -44,6 +45,7 @@ def agent_to_response(a) -> dict:
         "provider": a.provider or "meta",
         "provider_config": a.provider_config or {},
         "batching_config": batching,
+        "split_config": sanitize_split(getattr(a, "split_config", None)),
         "calendar_config": a.calendar_config,
         "media_config": a.media_config,
         "followup_config": a.followup_config,
@@ -138,6 +140,9 @@ def update_agent(
     
     if data.batching_config is not None:
         update_data['batching_config'] = data.batching_config.model_dump()
+
+    if data.split_config is not None:
+        update_data['split_config'] = sanitize_split(data.split_config.model_dump())
 
     if data.context_summary_config is not None:
         update_data['context_summary_config'] = data.context_summary_config

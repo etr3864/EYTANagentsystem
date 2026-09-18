@@ -50,10 +50,21 @@ async def reply(ctx: TurnContext, inputs: PromptInputs) -> Optional[ModelReply]:
     No wall-clock cancel around get_response: cancelling leaves Gemini's sync
     to_thread running on the shared client and poisons later turns.
     """
+    from backend.services.messaging.split import leftover
+    from backend.services.messaging.split.config import for_agent
+    from backend.services.messaging.split.parts import prompt_block
+
+    prompt = ctx.prompt
+    draft = await leftover.peek(ctx.agent_id, ctx.phone)
+    prompt += leftover.prompt_block(draft)
+    cfg = for_agent(ctx.agent)
+    if cfg.enabled:
+        prompt += prompt_block(cfg.max_parts, cfg.instruction)
+
     try:
         text, _tool_calls, usage, media_actions = await ai.get_response(
             model=ctx.agent.model,
-            system_prompt=ctx.prompt,
+            system_prompt=prompt,
             history=inputs.history,
             user_message=ctx.combined_text,
             user_info=ctx.user_info,

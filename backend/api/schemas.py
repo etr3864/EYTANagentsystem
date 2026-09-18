@@ -78,6 +78,13 @@ class AgentBatchingConfig(BaseModel):
     max_history_messages: int = 20
 
 
+class AgentSplitConfig(BaseModel):
+    enabled: bool = False
+    max_parts: int = 2
+    delay_seconds: float = 2
+    instruction: str = ""
+
+
 class WaSenderConfig(BaseModel):
     """WA Sender provider configuration."""
     api_key: str = ""
@@ -113,6 +120,7 @@ class AgentUpdate(BaseModel):
     provider: Optional[str] = None
     provider_config: Optional[dict] = None
     batching_config: Optional[AgentBatchingConfig] = None
+    split_config: Optional[AgentSplitConfig] = None
     media_config: Optional[dict] = None
     custom_api_keys: Optional[dict] = None
     context_summary_config: Optional[dict] = None

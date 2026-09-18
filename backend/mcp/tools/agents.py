@@ -16,6 +16,7 @@ from backend.mcp.ctx import (
 from backend.services.entities import agents as agents_service
 from backend.services.knowledge import documents
 from backend.services.llm.catalog import require_selectable_model, sanitize_thinking, selectable_models
+from backend.services.messaging.split.config import sanitize as sanitize_split
 
 
 def register(mcp) -> None:
@@ -98,6 +99,7 @@ def register(mcp) -> None:
         max_tool_rounds: Optional[int] = None,
         business_assistant_mode: Optional[bool] = None,
         batching_config: Optional[dict[str, Any]] = None,
+        split_config: Optional[dict[str, Any]] = None,
         media_config: Optional[dict[str, Any]] = None,
         context_summary_config: Optional[dict[str, Any]] = None,
     ) -> dict:
@@ -119,6 +121,8 @@ def register(mcp) -> None:
                 updates["business_assistant_mode"] = business_assistant_mode
             if batching_config is not None:
                 updates["batching_config"] = batching_config
+            if split_config is not None:
+                updates["split_config"] = sanitize_split(split_config)
             if media_config is not None:
                 updates["media_config"] = media_config
             if context_summary_config is not None:

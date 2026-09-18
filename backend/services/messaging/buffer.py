@@ -91,6 +91,47 @@ class _DebounceTimer:
 _processing_tasks: dict[str, _DebounceTimer] = {}
 
 
+async def redis() -> Optional[redis.Redis]:
+    """Public Redis handle for split leftover / lock refresh."""
+    return await _get_redis()
+
+
+async def peek_count(agent_id: int, user_phone: str) -> int:
+    """How many inbound messages arrived during this turn. Does not drain."""
+    r = await _get_redis()
+    if r:
+        return int(await r.llen(_buffer_key(agent_id, user_phone)))
+    buffer = _memory_buffers.get((agent_id, user_phone))
+    return len(buffer.messages) if buffer else 0
+
+
+async def steal_pending(agent_id: int, user_phone: str) -> list[PendingMessage]:
+    """Take waiting inbound messages into the current turn (lock holder only)."""
+    r = await _get_redis()
+    if r:
+        key = _buffer_key(agent_id, user_phone)
+        raw = await r.lrange(key, 0, -1)
+        if not raw:
+            return []
+        await r.delete(key)
+        return [PendingMessage.from_dict(json.loads(item)) for item in raw]
+    mem_key = (agent_id, user_phone)
+    buffer = _memory_buffers.get(mem_key)
+    if not buffer or not buffer.messages:
+        return []
+    taken = buffer.messages.copy()
+    buffer.messages = []
+    return taken
+
+
+async def refresh_lock(agent_id: int, user_phone: str) -> None:
+    """Keep the turn lock alive across split delays."""
+    r = await _get_redis()
+    if r is None:
+        return
+    await r.expire(_lock_key(agent_id, user_phone), LOCK_TTL_SECONDS)
+
+
 async def _get_redis() -> Optional[redis.Redis]:
     """Get Redis connection, or None while it is unreachable.
 
