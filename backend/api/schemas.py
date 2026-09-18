@@ -81,7 +81,7 @@ class AgentBatchingConfig(BaseModel):
 class AgentSplitConfig(BaseModel):
     enabled: bool = False
     max_parts: int = 2
-    delay_seconds: float = 2
+    delay_seconds: float = 1
     instruction: str = ""
 
 

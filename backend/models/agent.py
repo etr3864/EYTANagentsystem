@@ -108,7 +108,7 @@ class Agent(Base):
     media_config: Mapped[Optional[dict]] = mapped_column(JSONB, default=None)
 
     # Split one model reply into sequential bubbles (super-admin).
-    # { "enabled": false, "max_parts": 2, "delay_seconds": 2, "instruction": "" }
+    # { "enabled": false, "max_parts": 2, "delay_seconds": 1, "instruction": "" }
     split_config: Mapped[Optional[dict]] = mapped_column(JSONB, default=None)
 
     custom_api_keys: Mapped[Optional[dict]] = mapped_column(JSONB, default=None)

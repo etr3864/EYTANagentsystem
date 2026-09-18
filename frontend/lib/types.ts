@@ -24,7 +24,7 @@ export interface AgentSplitConfig {
 export const DEFAULT_SPLIT_CONFIG: AgentSplitConfig = {
   enabled: false,
   max_parts: 2,
-  delay_seconds: 2,
+  delay_seconds: 1,
   instruction: '',
 };
 

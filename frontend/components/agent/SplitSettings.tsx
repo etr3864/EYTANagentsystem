@@ -54,16 +54,17 @@ export function SplitSettings({
         />
         <NumberInput
           label="השהייה בין הודעות (שניות)"
-          min={1}
+          min={0}
           max={4}
           value={config.delay_seconds}
-          onChange={(e) =>
+          onChange={(e) => {
+            const parsed = parseInt(e.target.value, 10);
             onChange({
               ...config,
-              delay_seconds: Math.max(1, Math.min(4, parseInt(e.target.value) || 2)),
-            })
-          }
-          hint="הקלדה אמיתית בין בועות"
+              delay_seconds: Math.max(0, Math.min(4, Number.isNaN(parsed) ? 1 : parsed)),
+            });
+          }}
+          hint="0 = בלי המתנה. עדיין בודק אם הלקוח כתב באמצע."
         />
       </div>
 
@@ -71,7 +72,7 @@ export function SplitSettings({
         label="מתי לפצל"
         value={config.instruction}
         onChange={(e) => onChange({ ...config, instruction: e.target.value })}
-        placeholder="פצל רק כשאדם היה שולח שתי הודעות נפרדות — למשל ברכה ואז שאלה."
+        placeholder="פצל רק כשאדם היה שולח שתי הודעות נפרדות. שאלה רק בהודעה האחרונה."
         hint="ריק = ברירת מחדל. אל תכתוב כאן מספר הודעות."
       />
     </Card>

@@ -3,11 +3,13 @@ from dataclasses import dataclass
 
 MIN_PARTS = 1
 MAX_PARTS = 10
-MIN_DELAY_SEC = 1.0
+MIN_DELAY_SEC = 0.0
 MAX_DELAY_SEC = 4.0
+DEFAULT_DELAY_SEC = 1.0
 
 DEFAULT_INSTRUCTION = (
-    "פצל רק כשאדם היה שולח שתי הודעות נפרדות — למשל ברכה ואז שאלה. "
+    "פצל רק כשאדם היה שולח שתי הודעות נפרדות — למשל ברכה ואז מידע, או הסבר ואז שאלה. "
+    "שאלה רק בהודעה האחרונה. אסור לשאול ואז להמשיך — הלקוח יענה באמצע והשאר יתבטל. "
     "אל תפצל מחירון, תנאים, רשימה או תשובה שהיא רעיון אחד."
 )
 
@@ -23,7 +25,7 @@ class SplitConfig:
 def for_agent(agent) -> SplitConfig:
     raw = getattr(agent, "split_config", None) or {}
     max_parts = _clamp(raw.get("max_parts", 2), MIN_PARTS, MAX_PARTS)
-    delay = _clamp_float(raw.get("delay_seconds", 2), MIN_DELAY_SEC, MAX_DELAY_SEC)
+    delay = _clamp_float(raw.get("delay_seconds", DEFAULT_DELAY_SEC), MIN_DELAY_SEC, MAX_DELAY_SEC)
     instruction = (raw.get("instruction") or "").strip()
     enabled = bool(raw.get("enabled")) and max_parts > 1
     return SplitConfig(
@@ -41,7 +43,11 @@ def sanitize(data: dict | None) -> dict:
         "enabled": bool(raw.get("enabled")),
         "max_parts": int(_clamp(raw.get("max_parts", 2), MIN_PARTS, MAX_PARTS)),
         "delay_seconds": float(
-            _clamp_float(raw.get("delay_seconds", 2), MIN_DELAY_SEC, MAX_DELAY_SEC)
+            _clamp_float(
+                raw.get("delay_seconds", DEFAULT_DELAY_SEC),
+                MIN_DELAY_SEC,
+                MAX_DELAY_SEC,
+            )
         ),
         "instruction": instruction,
     }
