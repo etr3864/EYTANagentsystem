@@ -11,8 +11,8 @@ from .converters import (
     anthropic_system_to_gemini,
     gemini_function_call_to_standard
 )
-from backend.core.ai_config import USER_TOOLS
-from backend.core.logger import log, log_error
+from backend.core.ai_config import USER_TOOLS, media_sent_notice
+from backend.core.logger import log_error
 from backend.services.llm.catalog import (
     CHEAP_GEMINI,
     conversation_max_tokens,
@@ -71,36 +71,21 @@ class GeminiProvider:
         last_error = None
         
         for attempt in range(self.MAX_RETRIES):
-            started = asyncio.get_running_loop().time()
             try:
-                log("GEMINI_CALL", attempt=attempt + 1, model=kwargs.get("model"))
-                response = await asyncio.wait_for(
+                return await asyncio.wait_for(
                     self._client.aio.models.generate_content(**kwargs),
                     timeout=GEMINI_CALL_TIMEOUT_SEC,
                 )
-                log(
-                    "GEMINI_OK",
-                    attempt=attempt + 1,
-                    ms=int((asyncio.get_running_loop().time() - started) * 1000),
-                )
-                return response
             except asyncio.TimeoutError as e:
                 last_error = e
                 log_error(
                     "gemini_timeout",
-                    f"attempt {attempt + 1} exceeded {GEMINI_CALL_TIMEOUT_SEC:.0f}s",
+                    f"exceeded {GEMINI_CALL_TIMEOUT_SEC:.0f}s",
                 )
-                # Timeout is usually network/API stall — retrying 4×95s is worse for the user.
                 break
             except Exception as e:
                 last_error = e
                 error_str = str(e)
-                log_error(
-                    "gemini_err",
-                    f"attempt {attempt + 1} after "
-                    f"{int((asyncio.get_running_loop().time() - started) * 1000)}ms: "
-                    f"{error_str[:80]}",
-                )
 
                 if is_capacity_error(e):
                     if rebuild_thinking:
@@ -281,17 +266,7 @@ class GeminiProvider:
                     result = "לא נמצא"
                 elif isinstance(result_data.get("result"), dict) and result_data["result"].get("action") == "send_media":
                     media_actions.append(result_data["result"])
-                    cap = (result_data["result"].get("caption") or "").strip()
-                    if cap:
-                        result = (
-                            f"מדיה '{result_data['result'].get('name', '')}' תישלח ללקוח "
-                            f"עם הכיתוב שצוין. אל תשלח שוב את אותו כיתוב כהודעת טקסט נפרדת."
-                        )
-                    else:
-                        result = (
-                            f"מדיה '{result_data['result'].get('name', '')}' תישלח ללקוח. "
-                            f"אם רצית כיתוב על הקובץ עצמו — העבר אותו ב-caption של send_media."
-                        )
+                    result = media_sent_notice(result_data["result"])
                 else:
                     result = str(result_data["result"]) if not isinstance(result_data["result"], str) else result_data["result"]
                 

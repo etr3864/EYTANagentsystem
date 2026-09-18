@@ -274,14 +274,14 @@ def _is_media_already_sent(db: Session, conversation_id: int, media_id: int) -> 
 
 def _build_media_result(media, custom_caption: str | None) -> dict:
     """Build media result dict for sending."""
-    caption = custom_caption if custom_caption else media.default_caption
-    
+    override = (custom_caption or "").strip() or None
+    default = (media.default_caption or "").strip() or None
     result = {
         "action": "send_media",
         "media_id": media.id,
         "media_type": media.media_type,
         "file_url": media.file_url,
-        "caption": caption,
+        "caption": override or default,
         "name": media.name
     }
     

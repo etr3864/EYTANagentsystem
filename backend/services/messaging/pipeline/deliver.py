@@ -13,9 +13,35 @@ DEFAULT_MAX_MEDIA_PER_MESSAGE = 10
 MEDIA_SEND_TIMEOUT_SECONDS = 50
 
 
+def followup_after_captions(actions: list[dict], text: str) -> str:
+    """Keep the agent's caption as-is; drop it from the follow-up if they repeated it."""
+    leftover = (text or "").strip()
+    for action in actions:
+        cap = (action.get("caption") or "").strip()
+        leftover = _drop_leading_caption(leftover, cap)
+    return leftover
+
+
+def _drop_leading_caption(text: str, caption: str) -> str:
+    if not text or not caption:
+        return text
+    if text == caption:
+        return ""
+    if text.startswith(caption):
+        return text[len(caption):].lstrip(" \n\t-–—,.")
+    return text
+
+
 async def send(ctx: TurnContext, reply: ModelReply) -> None:
+    text = followup_after_captions(reply.media_actions, reply.text)
     await dispatch_media(ctx, reply.media_actions)
-    await _send_text(ctx, reply)
+    log_response(
+        reply.usage["input_tokens"],
+        reply.usage["output_tokens"],
+        reply.usage["cache_read_tokens"],
+    )
+    if text:
+        await _send_text(ctx, text)
 
 
 def _revive_conversation(ctx: TurnContext) -> None:
@@ -122,9 +148,10 @@ async def dispatch_media(ctx: TurnContext, actions: list[dict]) -> int:
             continue
 
         try:
+            cap = (action.get("caption") or "").strip()
             _persist_assistant(
                 ctx,
-                f"[{action['media_type']}]: {action['name']}",
+                cap or f"[{action['media_type']}]: {action['name']}",
                 message_type=action["media_type"],
                 media_id=action["media_id"],
                 media_url=action["file_url"],
@@ -139,29 +166,21 @@ async def dispatch_media(ctx: TurnContext, actions: list[dict]) -> int:
     return sent
 
 
-async def _send_text(ctx: TurnContext, reply: ModelReply) -> None:
-    if not (reply.text and reply.text.strip()):
-        return
-
+async def _send_text(ctx: TurnContext, text: str) -> None:
     meta = None
     try:
-        saved = _persist_assistant(ctx, reply.text)
+        saved = _persist_assistant(ctx, text)
         meta = {
             "id": saved.id,
             "role": "assistant",
-            "content": reply.text,
+            "content": text,
             "message_type": "text",
             "created_at": saved.created_at.isoformat() if saved.created_at else None,
         }
     except Exception as error:
         log_error(ctx.provider, f"text persist failed: {str(error)[:80]}")
 
-    log_response(
-        reply.usage["input_tokens"],
-        reply.usage["output_tokens"],
-        reply.usage["cache_read_tokens"],
-    )
     await ctx.outbound.emit_status(ctx.phone, "מקליד")
-    delivered = await ctx.outbound.send_message(ctx.phone, reply.text, meta=meta)
+    delivered = await ctx.outbound.send_message(ctx.phone, text, meta=meta)
     if not delivered:
         log_error(ctx.provider, f"send failed to {ctx.display_name}")

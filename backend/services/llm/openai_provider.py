@@ -7,7 +7,7 @@ import openai
 from openai import AsyncOpenAI
 
 from .types import LLMResponse, ToolHandler
-from backend.core.ai_config import USER_TOOLS
+from backend.core.ai_config import USER_TOOLS, media_sent_notice
 from backend.core.logger import log_error
 from backend.services.llm.catalog import CHEAP_OPENAI, resolve_model
 
@@ -206,17 +206,7 @@ class OpenAIProvider:
                     result = "לא נמצא"
                 elif isinstance(result_data.get("result"), dict) and result_data["result"].get("action") == "send_media":
                     media_actions.append(result_data["result"])
-                    cap = (result_data["result"].get("caption") or "").strip()
-                    if cap:
-                        result = (
-                            f"מדיה '{result_data['result'].get('name', '')}' תישלח ללקוח "
-                            f"עם הכיתוב שצוין. אל תשלח שוב את אותו כיתוב כהודעת טקסט נפרדת."
-                        )
-                    else:
-                        result = (
-                            f"מדיה '{result_data['result'].get('name', '')}' תישלח ללקוח. "
-                            f"אם רצית כיתוב על הקובץ עצמו — העבר אותו ב-caption של send_media."
-                        )
+                    result = media_sent_notice(result_data["result"])
                 else:
                     result = str(result_data["result"]) if not isinstance(result_data["result"], str) else result_data["result"]
                 
