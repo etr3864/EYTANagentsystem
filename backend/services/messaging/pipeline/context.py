@@ -56,6 +56,8 @@ class TurnContext:
     vision_usage: dict = field(
         default_factory=lambda: {"input_tokens": 0, "output_tokens": 0}
     )
+    # Media already pushed to the channel mid-turn (before the model finishes).
+    media_sent_ids: set = field(default_factory=set)
 
     @property
     def outbound(self) -> OutboundChannel:

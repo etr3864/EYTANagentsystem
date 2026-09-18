@@ -8,18 +8,22 @@ DEFAULT_MAX_MEDIA_PER_MESSAGE = 10
 
 
 async def send(ctx: TurnContext, reply: ModelReply) -> None:
-    await _send_attachments(ctx, reply.media_actions)
+    await dispatch_media(ctx, reply.media_actions)
     await _send_text(ctx, reply)
 
 
-async def _send_attachments(ctx: TurnContext, actions: list[dict]) -> None:
+async def dispatch_media(ctx: TurnContext, actions: list[dict]) -> int:
+    """Push media to the channel now. Safe to call mid-turn (tool round).
+
+    Returns how many new items were delivered. Already-sent media_ids are skipped
+    so an eager mid-turn push and the final deliver.send do not double-fire.
+    """
     if not actions:
-        return
+        return 0
 
     limit = (ctx.agent.media_config or {}).get(
         "max_per_message", DEFAULT_MAX_MEDIA_PER_MESSAGE
     )
-    seen_media_ids = set()
     sent = 0
 
     with SessionLocal() as db:
@@ -27,9 +31,8 @@ async def _send_attachments(ctx: TurnContext, actions: list[dict]) -> None:
             if sent >= limit:
                 break
             media_id = action.get("media_id")
-            if media_id in seen_media_ids:
+            if media_id is None or media_id in ctx.media_sent_ids:
                 continue
-            seen_media_ids.add(media_id)
 
             delivered = await ctx.outbound.send_media(
                 ctx.phone,
@@ -51,7 +54,10 @@ async def _send_attachments(ctx: TurnContext, actions: list[dict]) -> None:
                 media_id=action["media_id"],
                 media_url=action["file_url"],
             )
+            ctx.media_sent_ids.add(media_id)
             sent += 1
+
+    return sent
 
 
 async def _send_text(ctx: TurnContext, reply: ModelReply) -> None:

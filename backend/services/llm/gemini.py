@@ -62,7 +62,17 @@ class GeminiProvider:
         for attempt in range(self.MAX_RETRIES):
             try:
                 func = getattr(self._client.models, method_name)
-                return await asyncio.to_thread(func, *args, **kwargs)
+                return await asyncio.wait_for(
+                    asyncio.to_thread(func, *args, **kwargs),
+                    timeout=60,
+                )
+            except asyncio.TimeoutError as e:
+                last_error = e
+                log_error("gemini", f"call timed out (attempt {attempt + 1})")
+                if attempt < self.MAX_RETRIES - 1:
+                    await asyncio.sleep(self.RETRY_DELAY * (2 ** attempt))
+                    continue
+                break
             except Exception as e:
                 last_error = e
                 error_str = str(e)
