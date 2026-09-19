@@ -14,6 +14,14 @@ class SessionApiError(Exception):
         self.message = message
         super().__init__(message)
 
+    def client_message(self) -> str:
+        text = (self.message or "").lower()
+        if "personal access token" in text or self.message == "wasender_pat_missing":
+            return "אין PAT תקף. שמור מפתח בהגדרות."
+        if self.message == "no_session":
+            return "אין סשן חי. צור סשן חדש."
+        return self.message
+
 
 def _client() -> httpx.AsyncClient:
     global _http

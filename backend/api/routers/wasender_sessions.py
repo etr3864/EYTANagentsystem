@@ -29,7 +29,7 @@ _super_admin = Depends(require_super_admin())
 
 def _raise_upstream(error: SessionApiError) -> None:
     status = 409 if error.status_code in (401, 403) else error.status_code
-    raise HTTPException(status_code=status, detail=error.message)
+    raise HTTPException(status_code=status, detail=error.client_message())
 
 
 class CreateLineBody(BaseModel):

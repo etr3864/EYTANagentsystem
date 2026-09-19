@@ -6,8 +6,9 @@ from backend.auth.dependencies import require_super_admin
 from backend.auth.models import AuthUser
 from backend.core.database import get_db
 from backend.services.wasender.account import clear_pat, pat_configured, set_pat
-from backend.services.wasender.lifecycle import adopt_existing, reset_except
+from backend.services.wasender.lifecycle import adopt_existing
 from backend.services.wasender.http import SessionApiError
+from backend.services.wasender.purge import drop_provider, list_provider, purge_stale
 
 router = APIRouter(tags=["wasender-account"])
 _super_admin = Depends(require_super_admin())
@@ -15,10 +16,6 @@ _super_admin = Depends(require_super_admin())
 
 class PatBody(BaseModel):
     pat: str
-
-
-class ResetExceptBody(BaseModel):
-    keep: str
 
 
 @router.get("/settings/wasender-pat")
@@ -59,18 +56,39 @@ async def adopt_wasender_sessions(
     try:
         return await adopt_existing(db)
     except SessionApiError as error:
-        raise HTTPException(status_code=error.status_code, detail=error.message)
+        raise HTTPException(status_code=error.status_code, detail=error.client_message())
 
 
-@router.post("/wasender/reset-except")
-async def reset_wasender_except(
-    body: ResetExceptBody,
+@router.get("/wasender/provider-sessions")
+async def provider_sessions(
     db: Session = Depends(get_db),
     current_user: AuthUser = _super_admin,
 ):
     try:
-        return await reset_except(db, body.keep)
-    except ValueError as error:
-        raise HTTPException(status_code=400, detail=str(error))
+        return await list_provider(db)
     except SessionApiError as error:
-        raise HTTPException(status_code=error.status_code, detail=error.message)
+        raise HTTPException(status_code=error.status_code, detail=error.client_message())
+
+
+@router.delete("/wasender/provider-sessions/{session_id}")
+async def delete_provider_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = _super_admin,
+):
+    try:
+        return await drop_provider(db, session_id)
+    except SessionApiError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.client_message())
+
+
+@router.post("/wasender/purge-stale")
+async def purge_stale_sessions(
+    db: Session = Depends(get_db),
+    current_user: AuthUser = _super_admin,
+):
+    try:
+        return await purge_stale(db)
+    except SessionApiError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.client_message())
+

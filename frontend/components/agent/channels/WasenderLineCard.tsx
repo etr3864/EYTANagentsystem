@@ -172,6 +172,8 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
   }
 
   const status = line?.status || 'unknown';
+  const live = status === 'connected' || status === 'need_scan' || status === 'connecting';
+  const empty = !channel || !live;
   const image = qrSrc(line?.qr);
 
   return (
@@ -179,14 +181,16 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
       <div className="flex items-center justify-between gap-3">
         <div>
           <h3 className="font-semibold text-[var(--ink)] text-sm">WhatsApp</h3>
-          {line && (
+          {live && line ? (
             <p className="text-xs text-[var(--text-muted)] mt-0.5" dir="ltr">
               {line.phone}
               {line.note ? ` · ${line.note}` : ''}
             </p>
+          ) : (
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5">אין מספר מחובר</p>
           )}
         </div>
-        {line && (
+        {live && (
           <span className={`text-xs ${status === 'connected' ? 'text-emerald-400' : 'text-amber-300'}`}>
             {STATUS_LABEL[status] || status}
           </span>
@@ -194,18 +198,16 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
       </div>
 
       {!channel && !canCreate && (
-        <p className="text-sm text-[var(--text-secondary)]">עדיין אין מספר מחובר. מנהל ראשי פותח את המופע.</p>
+        <p className="text-sm text-[var(--text-secondary)]">אין מספר מחובר. מנהל ראשי פותח את המופע.</p>
       )}
 
-      {canCreate && (showCreate || !channel || !line?.has_session) && (
+      {canCreate && (empty || showCreate) && (
         <div className="space-y-2">
-          {channel ? (
-            <p className="text-xs text-[var(--text-secondary)]">
-              {line?.has_session
-                ? 'סשן חדש מחליף את הקיים אצל הספק. השיחות אצלנו נשארות.'
-                : 'יש שורת ערוץ ישנה בלי סשן חי. ממלאים מספר ויוצרים חיבור.'}
-            </p>
-          ) : null}
+          <p className="text-xs text-[var(--text-secondary)]">
+            {live
+              ? 'סשן חדש מחליף את הקיים אצל הספק. השיחות אצלנו נשארות.'
+              : 'ממלאים מספר ויוצרים חיבור. בלי סשן אצל הספק אין מה לחבר.'}
+          </p>
           <input
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
@@ -242,9 +244,9 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
         </div>
       )}
 
-      {channel && (
+      {channel && live && (
         <div className="flex flex-wrap gap-2">
-          {canCreate && line?.has_session && !showCreate && (
+          {canCreate && !showCreate && (
             <button
               type="button"
               disabled={busy}
@@ -264,7 +266,7 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
               קישור ללקוח
             </button>
           )}
-          {canManage && line?.has_session && (
+          {canManage && (
             <button
               type="button"
               disabled={busy}
@@ -296,7 +298,17 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
           )}
         </div>
       )}
-      {canCreate && channel && (
+      {channel && !live && canDelete && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={handleDelete}
+          className="px-3 py-1.5 rounded-lg text-xs text-red-400 border border-red-500/20"
+        >
+          מחק שורה ישנה
+        </button>
+      )}
+      {canCreate && channel && live && (
         <WasenderAdvancedSettings agentId={agentId} channelId={channel.id} onSaved={onChanged} />
       )}
       {shareNote && <p className="text-sm text-emerald-400">{shareNote}</p>}

@@ -98,22 +98,43 @@ export async function saveWasenderPat(pat: string): Promise<WasenderPatStatus> {
   );
 }
 
-export async function resetWasenderExcept(keep: string): Promise<{
-  kept: number;
-  cleared: Array<{ agent_id: number; channel_id: number; action: string }>;
-}> {
-  return readJson(
-    await authFetch(`${API_URL}/api/wasender/reset-except`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ keep }),
-    }),
-  );
+export interface ProviderSession {
+  wasender_session_id: number;
+  phone?: string | null;
+  name?: string | null;
+  status: string;
+  agent_id?: number | null;
+  agent_name?: string | null;
+  channel_id?: number | null;
 }
 
 export async function adoptWasenderSessions(): Promise<AdoptResult> {
   return readJson(
     await authFetch(`${API_URL}/api/wasender/adopt`, { method: 'POST' }),
+  );
+}
+
+export async function listProviderSessions(): Promise<ProviderSession[]> {
+  return readJson(await authFetch(`${API_URL}/api/wasender/provider-sessions`));
+}
+
+export async function deleteProviderSession(sessionId: number): Promise<{
+  wasender_session_id: number;
+  remote_ok: boolean;
+}> {
+  return readJson(
+    await authFetch(`${API_URL}/api/wasender/provider-sessions/${sessionId}`, {
+      method: 'DELETE',
+    }),
+  );
+}
+
+export async function purgeStaleWasender(): Promise<{
+  dropped: unknown[];
+  skipped: number;
+}> {
+  return readJson(
+    await authFetch(`${API_URL}/api/wasender/purge-stale`, { method: 'POST' }),
   );
 }
 

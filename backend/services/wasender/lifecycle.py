@@ -339,34 +339,6 @@ async def adopt_existing(db: Session) -> dict:
     return {"matched": matched, "orphans": orphans, "skipped": skipped}
 
 
-async def reset_except(db: Session, keep: str) -> dict:
-    needle = (keep or "").strip().lower()
-    if len(needle) < 3:
-        raise ValueError("keep_too_short")
-    keep_ids = {
-        row.id
-        for row in db.query(Agent).filter(Agent.name.isnot(None)).all()
-        if needle in row.name.lower()
-    }
-    if not keep_ids:
-        raise ValueError("keep_not_found")
-    channels = (
-        db.query(AgentChannel)
-        .filter(AgentChannel.channel_type == CHANNEL_TYPE)
-        .all()
-    )
-    kept = 0
-    cleared = []
-    for channel in channels:
-        if channel.agent_id in keep_ids:
-            kept += 1
-            continue
-        result = await remove_line(db, channel)
-        cleared.append({"agent_id": channel.agent_id, "channel_id": channel.id, "action": result["status"]})
-    log("wasender_dbg", op="reset_except", keep=needle, kept=kept, cleared=len(cleared))
-    return {"kept": kept, "cleared": cleared}
-
-
 def list_lines(db: Session) -> list[dict]:
     rows = (
         db.query(AgentChannel, Agent.name)
