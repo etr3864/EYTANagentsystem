@@ -1,25 +1,18 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { CreateChannelModal } from '@/components/channels/CreateChannelModal';
 import { ProviderSessions } from '@/components/channels/ProviderSessions';
-import { Button, Card, ListPager, ListViewport, BELOW_NAV_CLASS } from '@/components/ui';
+import { Button, BELOW_NAV_CLASS } from '@/components/ui';
 import {
   adoptWasenderSessions,
   deleteProviderSession,
   getAgents,
   listProviderSessions,
-  listWasenderHub,
-  wipeWasenderExceptNella,
   type Agent,
   type ProviderSession,
-  type WasenderLine,
 } from '@/lib/api';
-import { paginate } from '@/lib/pagination';
-
-const PAGE_SIZE = 12;
 
 const STATUS_LABEL: Record<string, string> = {
   need_scan: 'ממתין לסריקה',
@@ -31,8 +24,14 @@ const STATUS_LABEL: Record<string, string> = {
   unknown: 'לא ידוע',
 };
 
-function matchesSearch(row: WasenderLine, query: string): boolean {
-  const hay = [row.agent_name, `סוכן ${row.agent_id}`, row.phone, row.note, STATUS_LABEL[row.status] || row.status]
+function matchesSearch(row: ProviderSession, query: string): boolean {
+  const hay = [
+    row.agent_name,
+    row.name,
+    row.phone,
+    String(row.wasender_session_id),
+    STATUS_LABEL[row.status] || row.status,
+  ]
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
@@ -40,24 +39,20 @@ function matchesSearch(row: WasenderLine, query: string): boolean {
 }
 
 function HubPage() {
-  const [rows, setRows] = useState<WasenderLine[]>([]);
   const [provider, setProvider] = useState<ProviderSession[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [purging, setPurging] = useState(false);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
 
   async function loadLines() {
-    const [lines, agentRows] = await Promise.all([listWasenderHub(), getAgents()]);
-    setRows(lines);
+    const [agentRows, remote] = await Promise.all([getAgents(), listProviderSessions()]);
     setAgents(agentRows);
-    setProvider(await listProviderSessions());
+    setProvider(remote);
   }
 
   useEffect(() => {
@@ -66,35 +61,16 @@ function HubPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    setPage(1);
-  }, [search]);
-
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((row) => matchesSearch(row, q));
-  }, [rows, search]);
+    if (!q) return provider;
+    return provider.filter((row) => matchesSearch(row, q));
+  }, [provider, search]);
 
-  const paged = paginate(filtered, page, PAGE_SIZE);
-  const takenAgentIds = useMemo(() => new Set(rows.map((row) => row.agent_id)), [rows]);
-
-  async function handleWipeExcept() {
-    if (!confirm('למחוק את כל הערוצים והסשנים חוץ מ-nella? השיחות נשארות, החיבורים לא.')) return;
-    if (!confirm('בטוח? זה מוחק גם סשנים מחוברים, חוץ מנלה.')) return;
-    setPurging(true);
-    setError('');
-    setInfo('');
-    try {
-      const result = await wipeWasenderExceptNella();
-      await loadLines();
-      setInfo(`נשמרו ${result.kept} סוכנים · נמחקו ${result.dropped.length} אצל הספק · ${result.local} שורות אצלנו`);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'מחיקה נכשלה');
-    } finally {
-      setPurging(false);
-    }
-  }
+  const takenAgentIds = useMemo(
+    () => new Set(provider.map((row) => row.agent_id).filter((id): id is number => id != null)),
+    [provider],
+  );
 
   async function handleDeleteProvider(sessionId: number) {
     if (!confirm('למחוק את הסשן אצל הספק?')) return;
@@ -136,14 +112,11 @@ function HubPage() {
           <div className="flex items-start justify-between gap-3">
             <div>
               <h1 className="text-2xl font-semibold text-[var(--ink)]">ערוצי תקשורת</h1>
-              <p className="text-[var(--text-secondary)] mt-1 text-sm">מספרי WhatsApp של הסוכנים. חיבור, ברקוד ומחיקה גם אצל הסוכן.</p>
+              <p className="text-[var(--text-secondary)] mt-1 text-sm">הסשנים אצל הספק. חיבור וברקוד גם אצל הסוכן.</p>
             </div>
             <div className="flex shrink-0 flex-wrap justify-end gap-2">
               <Button type="button" variant="secondary" size="sm" loading={refreshing} onClick={handleRefresh}>
                 רענן חיבורים
-              </Button>
-              <Button type="button" variant="danger" size="sm" loading={purging} onClick={handleWipeExcept}>
-                מחק הכל חוץ מ-nella
               </Button>
               <Button type="button" size="sm" onClick={() => setCreating(true)}>
                 ערוץ חדש
@@ -181,50 +154,10 @@ function HubPage() {
 
         {loading ? (
           <div className="h-24 rounded-lg skeleton" />
+        ) : search && filtered.length === 0 ? (
+          <p className="text-sm text-[var(--text-muted)] text-center py-8">לא נמצאו סשנים עבור «{search}»</p>
         ) : (
-          <ProviderSessions rows={provider} busyId={busyId} onDelete={handleDeleteProvider} />
-        )}
-
-        {loading ? null : rows.length === 0 ? (
-          <Card>
-            <p className="text-sm text-[var(--text-secondary)]">אין ערוצים אצלנו. לחץ «ערוץ חדש» אחרי שמפנים סלוט אצל הספק.</p>
-          </Card>
-        ) : filtered.length === 0 ? (
-          <p className="text-sm text-[var(--text-muted)] text-center py-8">לא נמצאו ערוצים עבור «{search}»</p>
-        ) : (
-          <ListViewport
-            footer={
-              <ListPager
-                page={paged.page}
-                totalPages={paged.totalPages}
-                from={paged.from}
-                to={paged.to}
-                total={paged.total}
-                onPage={setPage}
-              />
-            }
-          >
-            <Card>
-              <ul key={paged.page} className="divide-y divide-[var(--edge)] animate-fade-in">
-                {paged.items.map((row) => (
-                  <li key={row.id} className="py-3 flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <Link href={`/agent/${row.agent_id}?tab=channels`} className="text-sm text-[var(--ink)] hover:underline">
-                        {row.agent_name || `סוכן #${row.agent_id}`}
-                      </Link>
-                      <p className="text-xs text-[var(--text-muted)] mt-0.5" dir="ltr">
-                        {row.phone}
-                        {row.note ? ` · ${row.note}` : ''}
-                      </p>
-                    </div>
-                    <span className={`text-xs shrink-0 ${row.status === 'connected' ? 'text-emerald-400' : 'text-amber-300'}`}>
-                      {STATUS_LABEL[row.status] || row.status}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          </ListViewport>
+          <ProviderSessions rows={filtered} busyId={busyId} onDelete={handleDeleteProvider} />
         )}
       </div>
 
@@ -233,13 +166,9 @@ function HubPage() {
           agents={agents}
           takenAgentIds={takenAgentIds}
           onClose={() => setCreating(false)}
-          onCreated={(line) => {
+          onCreated={() => {
             setCreating(false);
-            setRows((prev) => {
-              const next = prev.filter((row) => row.id !== line.id);
-              return [{ ...line, agent_name: agents.find((a) => a.id === line.agent_id)?.name }, ...next];
-            });
-            setPage(1);
+            loadLines().catch((e) => setError(e instanceof Error ? e.message : 'שגיאה'));
             setInfo('הערוץ נוצר. שלח ללקוח קישור ברקוד מכרטיס הסוכן.');
           }}
         />

@@ -321,17 +321,6 @@ async def adopt_existing(db: Session) -> dict:
     return {"matched": matched, "orphans": orphans, "skipped": skipped}
 
 
-def list_lines(db: Session) -> list[dict]:
-    rows = (
-        db.query(AgentChannel, Agent.name)
-        .join(Agent, Agent.id == AgentChannel.agent_id)
-        .filter(AgentChannel.channel_type == CHANNEL_TYPE)
-        .order_by(Agent.name, AgentChannel.id)
-        .all()
-    )
-    return [{**public_channel(channel), "agent_name": name} for channel, name in rows]
-
-
 def get_owned_channel(db: Session, agent_id: int, channel_id: int) -> AgentChannel:
     channel = get_channel(db, channel_id)
     if not channel or channel.agent_id != agent_id or channel.channel_type != CHANNEL_TYPE:

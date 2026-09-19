@@ -2,14 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { Button, Card, Input } from '@/components/ui';
-import { adoptWasenderSessions, getWasenderPat, saveWasenderPat } from '@/lib/api';
+import { getWasenderPat, saveWasenderPat } from '@/lib/api';
 
 export function WasenderPatCard() {
   const [configured, setConfigured] = useState(false);
   const [pat, setPat] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [adopting, setAdopting] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
 
@@ -33,20 +32,6 @@ export function WasenderPatCard() {
       setError(e instanceof Error ? e.message : 'שמירה נכשלה');
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function handleAdopt() {
-    setAdopting(true);
-    setError('');
-    setInfo('');
-    try {
-      const result = await adoptWasenderSessions();
-      setInfo(`שויכו ${result.matched} סשנים. יתומים: ${result.orphans.length}`);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'שיוך נכשל');
-    } finally {
-      setAdopting(false);
     }
   }
 
@@ -79,11 +64,6 @@ export function WasenderPatCard() {
             <Button type="button" onClick={handleSave} loading={saving} disabled={!pat.trim()}>
               שמור
             </Button>
-            {configured && (
-              <Button type="button" variant="secondary" onClick={handleAdopt} loading={adopting}>
-                שייך סשנים קיימים
-              </Button>
-            )}
           </div>
         </>
       )}

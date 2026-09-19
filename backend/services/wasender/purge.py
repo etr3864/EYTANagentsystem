@@ -3,30 +3,17 @@ from sqlalchemy.orm import Session
 from backend.core.logger import log
 from backend.models.agent import Agent
 from backend.models.agent_channel import AgentChannel
-from backend.services.channels.agent_channels import get_credentials
 from backend.services.wasender import sessions
 from backend.services.wasender.http import SessionApiError
 from backend.services.wasender.cleanup import wipe_channel_runtime
 from backend.services.wasender.lifecycle import (
     CHANNEL_TYPE,
-    _digits,
     _normalize_status,
     _remote_id,
     _require_pat,
     _session_id,
     remove_line,
 )
-
-
-def _keep_ids(db: Session, keep: str) -> set[int]:
-    needle = (keep or "").strip().lower()
-    if len(needle) < 3:
-        return set()
-    return {
-        row.id
-        for row in db.query(Agent).filter(Agent.name.isnot(None)).all()
-        if needle in row.name.lower()
-    }
 
 
 def _local_by_remote(db: Session, session_id: int) -> AgentChannel | None:
@@ -85,59 +72,26 @@ async def drop_provider(db: Session, session_id: int) -> dict:
     return {"wasender_session_id": session_id, "remote_ok": remote_ok, "local": local}
 
 
-def _keep_sessions(db: Session, keep_ids: set[int]) -> tuple[set[int], set[str]]:
-    session_ids: set[int] = set()
-    phones: set[str] = set()
-    rows = (
-        db.query(AgentChannel)
-        .filter(
-            AgentChannel.channel_type == CHANNEL_TYPE,
-            AgentChannel.agent_id.in_(keep_ids),
-        )
-        .all()
-    )
-    for channel in rows:
-        try:
-            sid = _session_id(channel)
-        except Exception:
-            sid = None
-        if sid is not None:
-            session_ids.add(sid)
-        try:
-            phone = _digits(get_credentials(channel).get("phone_number") or channel.external_account_id)
-        except Exception:
-            phone = _digits(channel.external_account_id)
-        if phone:
-            phones.add(phone)
-    return session_ids, phones
-
-
-async def wipe_except(db: Session, keep: str = "nella") -> dict:
-    keep_ids = _keep_ids(db, keep)
-    if not keep_ids:
-        raise ValueError("keep_not_found")
-    keep_sids, keep_phones = _keep_sessions(db, keep_ids)
-    if not keep_sids and not keep_phones:
-        raise ValueError("keep_has_no_session")
-    pat = _require_pat(db)
+async def wipe_all(db: Session) -> dict:
     dropped = []
-    skipped = 0
-    for row in await sessions.list_sessions(pat):
-        rid = _remote_id(row)
-        phone = _digits(row.get("phone_number"))
-        if rid is None:
-            continue
-        if rid in keep_sids or (phone and phone in keep_phones):
-            skipped += 1
-            continue
-        try:
-            await sessions.delete_session(pat, rid)
-            remote_ok = True
-        except SessionApiError as error:
-            if error.status_code != 404:
-                raise
-            remote_ok = False
-        dropped.append({"wasender_session_id": rid, "remote_ok": remote_ok})
+    pat = None
+    try:
+        pat = _require_pat(db)
+    except SessionApiError:
+        pat = None
+    if pat:
+        for row in await sessions.list_sessions(pat):
+            rid = _remote_id(row)
+            if rid is None:
+                continue
+            try:
+                await sessions.delete_session(pat, rid)
+                remote_ok = True
+            except SessionApiError as error:
+                if error.status_code != 404:
+                    raise
+                remote_ok = False
+            dropped.append({"wasender_session_id": rid, "remote_ok": remote_ok})
     leftovers = (
         db.query(AgentChannel)
         .filter(AgentChannel.channel_type == CHANNEL_TYPE)
@@ -145,11 +99,9 @@ async def wipe_except(db: Session, keep: str = "nella") -> dict:
     )
     local = 0
     for channel in leftovers:
-        if channel.agent_id in keep_ids:
-            continue
         await wipe_channel_runtime(db, channel)
         db.delete(channel)
         local += 1
     db.commit()
-    log("wasender_dbg", op="wipe_except", keep=keep, remote=len(dropped), local=local, skipped=skipped)
-    return {"dropped": dropped, "local": local, "skipped": skipped, "kept": len(keep_ids)}
+    log("wasender_dbg", op="wipe_all", remote=len(dropped), local=local)
+    return {"remote": len(dropped), "local": local}

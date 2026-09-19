@@ -129,21 +129,6 @@ export async function deleteProviderSession(sessionId: number): Promise<{
   );
 }
 
-export async function wipeWasenderExceptNella(): Promise<{
-  dropped: unknown[];
-  local: number;
-  skipped: number;
-  kept: number;
-}> {
-  return readJson(
-    await authFetch(`${API_URL}/api/wasender/wipe-except`, { method: 'POST' }),
-  );
-}
-
-export async function listWasenderHub(): Promise<WasenderLine[]> {
-  return readJson(await authFetch(`${API_URL}/api/wasender/sessions`));
-}
-
 export async function createWasenderLine(agentId: number, body: CreateWasenderLine): Promise<WasenderLine> {
   return readJson(
     await authFetch(`${API_URL}/api/agents/${agentId}/wasender/sessions`, {

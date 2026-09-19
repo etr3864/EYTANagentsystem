@@ -8,7 +8,7 @@ from backend.core.database import get_db
 from backend.services.wasender.account import clear_pat, pat_configured, set_pat
 from backend.services.wasender.lifecycle import adopt_existing
 from backend.services.wasender.http import SessionApiError
-from backend.services.wasender.purge import drop_provider, list_provider, wipe_except
+from backend.services.wasender.purge import drop_provider, list_provider
 
 router = APIRouter(tags=["wasender-account"])
 _super_admin = Depends(require_super_admin())
@@ -81,20 +81,4 @@ async def delete_provider_session(
     except SessionApiError as error:
         raise HTTPException(status_code=error.status_code, detail=error.client_message())
 
-
-@router.post("/wasender/wipe-except")
-async def wipe_except_sessions(
-    db: Session = Depends(get_db),
-    current_user: AuthUser = _super_admin,
-):
-    try:
-        return await wipe_except(db)
-    except ValueError as error:
-        detail = {
-            "keep_not_found": "לא נמצא סוכן עם nella בשם",
-            "keep_has_no_session": "ל-nella אין ערוץ לשמור. לא מוחקים כלום.",
-        }.get(str(error), str(error))
-        raise HTTPException(status_code=400, detail=detail)
-    except SessionApiError as error:
-        raise HTTPException(status_code=error.status_code, detail=error.client_message())
 

@@ -15,7 +15,6 @@ from backend.services.wasender.lifecycle import (
     disconnect_line,
     fetch_qr,
     get_owned_channel,
-    list_lines,
     public_channel,
     refresh_status,
     remove_line,
@@ -82,14 +81,6 @@ def _can_operate(user: AuthUser, agent_id: int, db: Session, write: bool) -> Non
     agent = _agent_or_404(db, agent_id)
     if agent.owner_id != user.id:
         raise HTTPException(status_code=403, detail="forbidden")
-
-
-@router.get("/wasender/sessions")
-def hub_sessions(
-    db: Session = Depends(get_db),
-    current_user: AuthUser = _super_admin,
-):
-    return list_lines(db)
 
 
 @router.post("/agents/{agent_id}/wasender/sessions")
