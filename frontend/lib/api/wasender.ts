@@ -6,6 +6,7 @@ export interface WasenderLine {
   agent_name?: string | null;
   channel_type: string;
   phone: string;
+  session_name?: string | null;
   note: string | null;
   status: string;
   is_active: boolean;
@@ -31,6 +32,7 @@ export interface AdoptResult {
 
 export interface CreateWasenderLine {
   phone: string;
+  session_name?: string;
   note?: string;
   account_protection?: boolean;
   log_messages?: boolean;
@@ -62,6 +64,7 @@ export type WasenderSettingsUpdate = Partial<
   Pick<
     WasenderSettings,
     | 'phone'
+    | 'session_name'
     | 'note'
     | 'api_key'
     | 'webhook_secret'

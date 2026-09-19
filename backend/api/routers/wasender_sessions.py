@@ -34,6 +34,7 @@ def _raise_upstream(error: SessionApiError) -> None:
 class CreateLineBody(BaseModel):
     phone: str | None = None
     note: str | None = None
+    session_name: str | None = None
     account_protection: bool = True
     log_messages: bool = False
     read_incoming_messages: bool = False
@@ -47,6 +48,7 @@ class CreateLineBody(BaseModel):
 class SettingsBody(BaseModel):
     phone: str | None = None
     note: str | None = None
+    session_name: str | None = None
     api_key: str | None = None
     webhook_secret: str | None = None
     account_protection: bool | None = None
@@ -98,7 +100,8 @@ async def create_session(
             agent,
             phone,
             body.note,
-            body.model_dump(exclude={"phone", "note"}),
+            body.session_name,
+            body.model_dump(exclude={"phone", "note", "session_name"}),
         )
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error))

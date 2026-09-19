@@ -49,6 +49,7 @@ export function WasenderAdvancedSettings({ agentId, channelId, onSaved }: Props)
     try {
       const saved = await saveWasenderSettings(agentId, channelId, {
         phone: toSessionPhone(form.phone) || form.phone,
+        session_name: form.session_name ?? '',
         note: form.note ?? '',
         api_key: form.api_key,
         webhook_secret: form.webhook_secret,
@@ -97,9 +98,16 @@ export function WasenderAdvancedSettings({ agentId, channelId, onSaved }: Props)
             hint={toSessionPhone(form.phone || '') ? `יישלח ${toSessionPhone(form.phone || '')}` : 'אפשר 054, +972 או 972'}
           />
           <Input
-            label="הערה / שם סשן"
+            label="שם סשן"
+            value={form.session_name || ''}
+            onChange={(e) => setForm({ ...form, session_name: e.target.value })}
+            hint="מה שמוצג אצל הספק."
+          />
+          <Input
+            label="הערה"
             value={form.note || ''}
             onChange={(e) => setForm({ ...form, note: e.target.value })}
+            hint="רק אצלנו. לא נשלח לספק."
           />
           <PasswordInput
             label="API key של הסשן"

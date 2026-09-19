@@ -74,6 +74,7 @@ def public_channel(channel: AgentChannel, extra: dict | None = None) -> dict:
         "agent_id": channel.agent_id,
         "channel_type": channel.channel_type,
         "phone": creds.get("phone_number") or channel.external_account_id,
+        "session_name": creds.get("session_name") or None,
         "note": channel.account_name,
         "status": channel.health_status or "unknown",
         "is_active": channel.is_active,
@@ -96,11 +97,18 @@ def _line_for_agent(db: Session, agent_id: int) -> AgentChannel | None:
     )
 
 
-def _session_payload(agent: Agent, channel: AgentChannel, phone: str | None, flags: dict) -> dict:
+def _session_payload(
+    agent: Agent,
+    channel: AgentChannel,
+    phone: str | None,
+    flags: dict,
+    session_name: str | None,
+) -> dict:
     if not phone:
         raise ValueError("הספק דורש מספר בינלאומי. אפשר 054 או +972…")
+    name = (session_name or "").strip() or (agent.name or f"agent-{agent.id}")
     payload = {
-        "name": (agent.name or f"agent-{agent.id}")[:80],
+        "name": name[:80],
         "phone_number": phone,
         "webhook_url": webhook_url(agent.id, channel.id),
         "webhook_enabled": True,
@@ -117,6 +125,7 @@ async def _bind_remote(
     channel: AgentChannel,
     phone: str | None,
     note: str | None,
+    session_name: str | None,
     flags: dict,
     *,
     new_row: bool,
@@ -124,13 +133,15 @@ async def _bind_remote(
     pat = _require_pat(db)
     old_id = None if new_row else _session_id(channel)
     try:
-        remote = await sessions.create_session(pat, _session_payload(agent, channel, phone, flags))
+        remote = await sessions.create_session(
+            pat, _session_payload(agent, channel, phone, flags, session_name)
+        )
     except Exception:
         if new_row:
             db.delete(channel)
             db.commit()
         raise
-    _store_remote(channel, remote, phone)
+    _store_remote(channel, remote, phone, {"session_name": (session_name or "").strip()[:80] or None})
     if note is not None:
         channel.account_name = (note or "").strip() or None
     channel.is_active = True
@@ -158,12 +169,15 @@ async def create_line(
     agent: Agent,
     phone: str | None,
     note: str | None,
+    session_name: str | None,
     options: dict | None = None,
 ) -> dict:
     flags = options or {}
     existing = _line_for_agent(db, agent.id)
     if existing:
-        return await _bind_remote(db, agent, existing, phone, note, flags, new_row=False)
+        return await _bind_remote(
+            db, agent, existing, phone, note, session_name, flags, new_row=False
+        )
     channel = add_channel(
         db,
         agent.id,
@@ -173,7 +187,7 @@ async def create_line(
         account_name=(note or "").strip() or None,
     )
     db.flush()
-    return await _bind_remote(db, agent, channel, phone, note, flags, new_row=True)
+    return await _bind_remote(db, agent, channel, phone, note, session_name, flags, new_row=True)
 
 
 async def connect_line(db: Session, channel: AgentChannel) -> dict:
@@ -355,6 +369,7 @@ def _store_remote(
         "session": str(session_id) if session_id is not None else existing.get("session") or "default",
         "wasender_session_id": session_id,
         "phone_number": extra.get("phone_number") or remote.get("phone_number") or phone or existing.get("phone_number"),
+        "session_name": extra.get("session_name") or remote.get("name") or existing.get("session_name"),
     }
     for key in SETTING_KEYS:
         if key in extra:

@@ -31,6 +31,7 @@ def settings_view(channel: AgentChannel, remote: dict | None = None) -> dict:
             "webhook_url": webhook_url(channel.agent_id, channel.id),
             "webhook_events": list(src.get("webhook_events") or DEFAULT_EVENTS),
             "session_id": _session_id(channel, creds),
+            "session_name": src.get("name") or creds.get("session_name") or "",
         }
     )
     for key in SETTING_KEYS:
@@ -78,6 +79,9 @@ def _local_overrides(body: dict) -> dict:
         overrides["webhook_secret"] = str(body.get("webhook_secret") or "").strip()
     if body.get("phone"):
         overrides["phone_number"] = body["phone"].strip()
+    name = (body.get("session_name") or "").strip()
+    if name:
+        overrides["session_name"] = name[:80]
     for key in SETTING_KEYS:
         if key in body and body[key] is not None:
             overrides[key] = bool(body[key])
@@ -93,9 +97,9 @@ def _remote_payload(channel: AgentChannel, body: dict) -> dict:
     phone = (body.get("phone") or "").strip()
     if phone:
         payload["phone_number"] = phone
-    note = (body.get("note") or "").strip()
-    if note:
-        payload["name"] = note[:80]
+    name = (body.get("session_name") or "").strip()
+    if name:
+        payload["name"] = name[:80]
     for key in SETTING_KEYS:
         if key in body and body[key] is not None:
             payload[key] = bool(body[key])

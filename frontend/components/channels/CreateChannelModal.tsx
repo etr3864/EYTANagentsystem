@@ -25,6 +25,7 @@ export function CreateChannelModal({ agents, takenAgentIds, onClose, onCreated }
   );
   const [agentId, setAgentId] = useState(options[0]?.value || '');
   const [phone, setPhone] = useState('');
+  const [sessionName, setSessionName] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -40,7 +41,11 @@ export function CreateChannelModal({ agents, takenAgentIds, onClose, onCreated }
     setBusy(true);
     setError('');
     try {
-      const line = await createWasenderLine(id, { phone: normalized, note: note.trim() || undefined });
+      const line = await createWasenderLine(id, {
+        phone: normalized,
+        session_name: sessionName.trim() || undefined,
+        note: note.trim() || undefined,
+      });
       onCreated(line);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'יצירה נכשלה');
@@ -70,10 +75,18 @@ export function CreateChannelModal({ agents, takenAgentIds, onClose, onCreated }
             hint={normalized ? `יישלח ${normalized}` : 'הספק דורש מספר בינלאומי'}
           />
           <Input
+            label="שם סשן"
+            value={sessionName}
+            onChange={(e) => setSessionName(e.target.value)}
+            placeholder="כפי שיופיע אצל הספק"
+            hint="אופציונלי. בלי זה יישלח שם הסוכן."
+          />
+          <Input
             label="הערה"
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="אופציונלי"
+            placeholder="רק אצלנו"
+            hint="לא נשלח לספק."
           />
           {replacing && (
             <p className="text-xs text-amber-300">לסוכן הזה כבר יש ערוץ. הסשן הישן אצל הספק יימחק ויוחלף.</p>

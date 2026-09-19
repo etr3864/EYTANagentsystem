@@ -39,10 +39,13 @@ interface Props {
 export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDelete, onChanged }: Props) {
   const [line, setLine] = useState<WasenderLine | null>(null);
   const [phone, setPhone] = useState('');
+  const [sessionName, setSessionName] = useState('');
+  const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [shareNote, setShareNote] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [showQr, setShowQr] = useState(false);
 
   useEffect(() => {
     if (!channel) {
@@ -67,18 +70,13 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
   }, [agentId, channel]);
 
   useEffect(() => {
-    if (!channel || !line) return;
-    if (line.status === 'connected') return;
+    if (!channel || !line || line.status === 'connected') {
+      if (line?.status === 'connected') setShowQr(false);
+      return;
+    }
     const timer = window.setInterval(() => {
       getWasenderLine(agentId, channel.id)
-        .then((next) => {
-          setLine((prev) => ({ ...next, qr: prev?.qr }));
-          if (next.status === 'need_scan' || next.status === 'connecting') {
-            fetchWasenderQr(agentId, channel.id)
-              .then(setLine)
-              .catch(() => undefined);
-          }
-        })
+        .then((next) => setLine((prev) => ({ ...next, qr: prev?.qr })))
         .catch(() => undefined);
     }, 4000);
     return () => window.clearInterval(timer);
@@ -93,10 +91,17 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
         setError('הספק דורש מספר. אפשר 054 או +972…');
         return;
       }
-      const created = await createWasenderLine(agentId, { phone: normalized });
-      setLine(created);
+      const created = await createWasenderLine(agentId, {
+        phone: normalized,
+        session_name: sessionName.trim() || undefined,
+        note: note.trim() || undefined,
+      });
+      setLine({ ...created, qr: undefined });
       setPhone('');
+      setSessionName('');
+      setNote('');
       setShowCreate(false);
+      setShowQr(false);
       onChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'יצירה נכשלה');
@@ -105,14 +110,22 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
     }
   }
 
-  async function handleConnect() {
+  async function handleShowQr() {
     if (!channel) return;
     setBusy(true);
     setError('');
     try {
-      setLine(await connectWasenderLine(agentId, channel.id));
+      const next = showQr
+        ? await connectWasenderLine(agentId, channel.id)
+        : await fetchWasenderQr(agentId, channel.id);
+      if (!next.qr && !showQr) {
+        setLine(await connectWasenderLine(agentId, channel.id));
+      } else {
+        setLine(next);
+      }
+      setShowQr(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'חיבור נכשל');
+      setError(e instanceof Error ? e.message : 'לא הצלחנו להביא ברקוד');
     } finally {
       setBusy(false);
     }
@@ -124,6 +137,7 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
     setError('');
     try {
       setLine(await disconnectWasenderLine(agentId, channel.id));
+      setShowQr(false);
       onChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'ניתוק נכשל');
@@ -157,6 +171,7 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
     try {
       await deleteWasenderLine(agentId, channel.id);
       setLine(null);
+      setShowQr(false);
       onChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'מחיקה נכשלה');
@@ -167,7 +182,6 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
 
   const status = line?.status || channel?.health_status || 'unknown';
   const hasSession = Boolean(line?.has_session);
-  const label = [line?.note, line?.phone].filter(Boolean).join(' · ');
   const normalized = toSessionPhone(phone);
   const showForm = canCreate && showCreate;
 
@@ -186,9 +200,16 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
       </CardHeader>
 
       <div className="space-y-4">
-        <p className="text-sm text-[var(--text-secondary)]" dir={hasSession ? 'ltr' : 'rtl'}>
-          {hasSession ? label || 'ממתין לסריקה' : 'אין חיבור. סופר־אדמין פותח סשן אצל הספק.'}
-        </p>
+        {hasSession ? (
+          <div className="space-y-1 text-sm text-[var(--text-secondary)]">
+            {line?.session_name ? <p>{line.session_name}</p> : null}
+            {line?.note ? <p>{line.note}</p> : null}
+            {line?.phone ? <p dir="ltr">{line.phone}</p> : null}
+            {!line?.session_name && !line?.note && !line?.phone ? <p>ממתין לסריקה</p> : null}
+          </div>
+        ) : (
+          <p className="text-sm text-[var(--text-secondary)]">אין חיבור. סופר־אדמין פותח סשן אצל הספק.</p>
+        )}
 
         {canCreate && !hasSession && !showCreate && (
           <Button type="button" disabled={busy} onClick={() => setShowCreate(true)}>
@@ -209,13 +230,27 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
               dir="ltr"
               hint={normalized ? `יישלח ${normalized}` : 'הספק דורש מספר בינלאומי'}
             />
+            <Input
+              label="שם סשן"
+              value={sessionName}
+              onChange={(e) => setSessionName(e.target.value)}
+              placeholder="כפי שיופיע אצל הספק"
+              hint="אופציונלי. בלי זה יישלח שם הסוכן."
+            />
+            <Input
+              label="הערה"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="רק אצלנו"
+              hint="לא נשלח לספק."
+            />
             <Button type="button" loading={busy} disabled={!normalized} onClick={handleCreate}>
               {hasSession ? 'החלף סשן' : 'הוסף חיבור'}
             </Button>
           </div>
         )}
 
-        {hasSession && line?.qr && status !== 'connected' && (
+        {hasSession && showQr && line?.qr && status !== 'connected' && (
           <div className="flex flex-col items-center gap-3 py-2">
             <QrImage value={line.qr} className="w-56 h-56 rounded-2xl bg-white p-3" />
             <p className="text-sm text-[var(--text-secondary)] text-center">
@@ -236,9 +271,9 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
                 קישור ללקוח
               </Button>
             )}
-            {canManage && (
-              <Button type="button" variant="secondary" size="sm" loading={busy} onClick={handleConnect}>
-                {status === 'connected' ? 'QR מחדש' : 'חבר'}
+            {canManage && status !== 'connected' && (
+              <Button type="button" variant="secondary" size="sm" loading={busy} onClick={handleShowQr}>
+                {showQr ? 'רענן ברקוד' : 'הצג ברקוד'}
               </Button>
             )}
             {canManage && status === 'connected' && (
