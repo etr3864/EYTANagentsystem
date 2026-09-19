@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 
-from backend.core.config import settings
 from backend.models.agent_channel import AgentChannel
 from backend.models.wasender_qr_link import WasenderQrLink
 from backend.services.wasender.http import SessionApiError
@@ -19,11 +18,6 @@ TTL = timedelta(hours=24)
 
 def _hash(raw: str) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()
-
-
-def public_page_url(raw: str) -> str:
-    base = (settings.frontend_url or "").rstrip("/")
-    return f"{base}/wa-qr/{raw}"
 
 
 def issue(db: Session, channel: AgentChannel, user_id: int) -> dict:
@@ -42,7 +36,6 @@ def issue(db: Session, channel: AgentChannel, user_id: int) -> dict:
     db.add(row)
     db.commit()
     return {
-        "url": public_page_url(raw),
         "path": f"/wa-qr/{raw}",
         "expires_at": row.expires_at.isoformat(),
     }

@@ -166,7 +166,7 @@ export async function fetchWasenderQr(agentId: number, channelId: number): Promi
 export async function shareWasenderQrLink(
   agentId: number,
   channelId: number,
-): Promise<{ url: string; path: string; expires_at: string }> {
+): Promise<{ path: string; expires_at: string }> {
   return readJson(
     await authFetch(`${API_URL}/api/agents/${agentId}/wasender/sessions/${channelId}/share-link`, {
       method: 'POST',
