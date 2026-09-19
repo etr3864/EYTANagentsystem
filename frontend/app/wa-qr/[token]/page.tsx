@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { QrImage, useQrSeconds } from '@/components/channels/QrImage';
+import { QrImage, useElapsedSeconds } from '@/components/channels/QrImage';
 import { getPublicWasenderQr, refreshPublicWasenderQr } from '@/lib/api';
 
 export default function WaQrPage() {
@@ -15,13 +15,17 @@ export default function WaQrPage() {
   const [gone, setGone] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const secondsLeft = useQrSeconds(!connected && qr ? qr : null);
+  const [qrIssuedAt, setQrIssuedAt] = useState(0);
+  const elapsed = useElapsedSeconds(!connected && qr && qrIssuedAt ? String(qrIssuedAt) : null);
 
   function apply(row: { status: string; connected: boolean; phone: string | null; qr: string | null }, keepQr = false) {
     setStatus(row.status);
     setConnected(row.connected);
     setPhone(row.phone);
-    if (!keepQr) setQr(row.qr);
+    if (!keepQr && row.qr) {
+      setQr(row.qr);
+      setQrIssuedAt(Date.now());
+    }
   }
 
   useEffect(() => {
@@ -46,10 +50,7 @@ export default function WaQrPage() {
     setError('');
     try {
       const row = await refreshPublicWasenderQr(token);
-      setStatus(row.status);
-      setConnected(row.connected);
-      setPhone(row.phone);
-      setQr(row.qr);
+      apply(row);
     } catch {
       setError('לא הצלחנו לרענן. לחץ שוב.');
     } finally {
@@ -98,10 +99,8 @@ export default function WaQrPage() {
       {qr ? (
         <div className="space-y-3">
           <QrImage value={qr} className="w-64 h-64 mx-auto rounded-2xl bg-white p-2" />
-          <p className={`text-center text-sm tabular-nums ${secondsLeft === 0 ? 'text-red-400' : 'text-[var(--text-secondary)]'}`}>
-            {secondsLeft === 0
-              ? 'הברקוד פג. לחץ ברקוד חדש.'
-              : `בתוקף עוד ${secondsLeft} שניות`}
+          <p className="text-center text-sm tabular-nums text-[var(--text-secondary)]">
+            {elapsed == null ? '' : `נמשך לפני ${elapsed} שניות`}
           </p>
         </div>
       ) : (

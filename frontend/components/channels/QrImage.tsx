@@ -3,9 +3,6 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 
-// WaSender help: WhatsApp QR expires every 10–15 seconds.
-export const QR_TTL_SECONDS = 15;
-
 function asImageSrc(qr: string): string | null {
   if (qr.startsWith('data:image/')) return qr;
   if (qr.startsWith('iVBOR') || qr.startsWith('/9j')) return `data:image/png;base64,${qr}`;
@@ -50,21 +47,21 @@ export function QrImage({ value, className }: { value: string; className?: strin
   );
 }
 
-export function useQrSeconds(qr: string | null | undefined, ttl = QR_TTL_SECONDS): number | null {
-  const [left, setLeft] = useState<number | null>(qr ? ttl : null);
+export function useElapsedSeconds(key: string | null): number | null {
+  const [elapsed, setElapsed] = useState<number | null>(key ? 0 : null);
 
   useEffect(() => {
-    if (!qr) {
-      setLeft(null);
+    if (!key) {
+      setElapsed(null);
       return;
     }
-    setLeft(ttl);
+    setElapsed(0);
     const started = Date.now();
     const id = window.setInterval(() => {
-      setLeft(Math.max(0, ttl - Math.floor((Date.now() - started) / 1000)));
+      setElapsed(Math.floor((Date.now() - started) / 1000));
     }, 200);
     return () => window.clearInterval(id);
-  }, [qr, ttl]);
+  }, [key]);
 
-  return left;
+  return elapsed;
 }

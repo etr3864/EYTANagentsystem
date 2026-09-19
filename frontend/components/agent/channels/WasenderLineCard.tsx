@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   connectWasenderLine,
   createWasenderLine,
   deleteWasenderLine,
   disconnectWasenderLine,
+  fetchWasenderQr,
   getWasenderLine,
   shareWasenderQrLink,
   type WasenderLine,
@@ -13,7 +14,7 @@ import {
 import { type AgentChannel } from '@/lib/channels';
 import { toSessionPhone } from '@/lib/phone';
 import { Button, Card, CardHeader, Input } from '@/components/ui';
-import { QrImage, useQrSeconds } from '@/components/channels/QrImage';
+import { QrImage, useElapsedSeconds } from '@/components/channels/QrImage';
 import { WasenderAdvancedSettings } from './WasenderAdvancedSettings';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -45,6 +46,8 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
   const [shareNote, setShareNote] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [showQr, setShowQr] = useState(false);
+  const [qrIssuedAt, setQrIssuedAt] = useState(0);
+  const lastQr = useRef<string | null>(null);
 
   useEffect(() => {
     if (!channel) {
@@ -74,12 +77,26 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
       return;
     }
     const timer = window.setInterval(() => {
-      getWasenderLine(agentId, channel.id)
-        .then((next) => setLine((prev) => ({ ...next, qr: prev?.qr })))
+      const pull = showQr
+        ? fetchWasenderQr(agentId, channel.id)
+        : getWasenderLine(agentId, channel.id);
+      pull
+        .then((next) => {
+          if (next.status === 'connected') {
+            setLine(next);
+            setShowQr(false);
+            return;
+          }
+          if (next.qr && next.qr !== lastQr.current) {
+            lastQr.current = next.qr;
+            setQrIssuedAt(Date.now());
+          }
+          setLine((prev) => ({ ...next, qr: next.qr || prev?.qr }));
+        })
         .catch(() => undefined);
     }, 4000);
     return () => window.clearInterval(timer);
-  }, [agentId, channel, line?.status]);
+  }, [agentId, channel, line?.status, showQr]);
 
   async function handleCreate() {
     setBusy(true);
@@ -119,6 +136,8 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
         setError('הספק לא החזיר ברקוד. לחץ שוב.');
         return;
       }
+      lastQr.current = next.qr;
+      setQrIssuedAt(Date.now());
       setLine(next);
       setShowQr(true);
     } catch (e) {
@@ -180,7 +199,7 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
   const status = line?.status || channel?.health_status || 'unknown';
   const hasSession = Boolean(line?.has_session);
   const visibleQr = hasSession && showQr && status !== 'connected' ? line?.qr || null : null;
-  const secondsLeft = useQrSeconds(visibleQr);
+  const elapsed = useElapsedSeconds(visibleQr && qrIssuedAt ? String(qrIssuedAt) : null);
   const normalized = toSessionPhone(phone);
   const showForm = canCreate && showCreate;
 
@@ -252,10 +271,8 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
         {visibleQr && (
           <div className="flex flex-col items-center gap-3 py-2">
             <QrImage value={visibleQr} className="w-56 h-56 rounded-2xl bg-white p-3" />
-            <p className={`text-sm text-center tabular-nums ${secondsLeft === 0 ? 'text-red-400' : 'text-[var(--text-secondary)]'}`}>
-              {secondsLeft === 0
-                ? 'הברקוד פג. לחץ רענן ברקוד.'
-                : `בתוקף עוד ${secondsLeft} שניות`}
+            <p className="text-sm text-center tabular-nums text-[var(--text-secondary)]">
+              {elapsed == null ? '' : `נמשך לפני ${elapsed} שניות · הספק לא מחזיר תוקף`}
             </p>
             <p className="text-sm text-[var(--text-secondary)] text-center">
               לפתוח במחשב ולסרוק עם הטלפון של המספר הזה
