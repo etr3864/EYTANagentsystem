@@ -20,10 +20,16 @@ from backend.services.wasender.lifecycle import (
     refresh_status,
     remove_line,
 )
+from backend.services.wasender.phone import session_phone
 from backend.services.wasender.settings import load_settings, save_settings
 
 router = APIRouter(tags=["wasender-sessions"])
 _super_admin = Depends(require_super_admin())
+
+
+def _raise_upstream(error: SessionApiError) -> None:
+    status = 409 if error.status_code in (401, 403) else error.status_code
+    raise HTTPException(status_code=status, detail=error.message)
 
 
 class CreateLineBody(BaseModel):
@@ -95,17 +101,20 @@ async def create_session(
 ):
     agent = _agent_or_404(db, agent_id)
     try:
+        phone = session_phone(body.phone)
         return await create_line(
             db,
             agent,
-            body.phone.strip(),
+            phone,
             body.note,
             body.model_dump(exclude={"phone", "note"}),
         )
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error))
     except ChannelConflictError as error:
         raise HTTPException(status_code=409, detail=str(error))
     except SessionApiError as error:
-        raise HTTPException(status_code=error.status_code, detail=error.message)
+        _raise_upstream(error)
 
 
 @router.post("/agents/{agent_id}/wasender/sessions/{channel_id}/connect")
@@ -120,7 +129,7 @@ async def connect_session(
     try:
         return await connect_line(db, channel)
     except SessionApiError as error:
-        raise HTTPException(status_code=error.status_code, detail=error.message)
+        _raise_upstream(error)
 
 
 @router.post("/agents/{agent_id}/wasender/sessions/{channel_id}/disconnect")
@@ -135,7 +144,7 @@ async def disconnect_session(
     try:
         return await disconnect_line(db, channel)
     except SessionApiError as error:
-        raise HTTPException(status_code=error.status_code, detail=error.message)
+        _raise_upstream(error)
 
 
 @router.get("/agents/{agent_id}/wasender/sessions/{channel_id}")
@@ -176,7 +185,7 @@ async def session_qr(
     try:
         return await fetch_qr(db, channel)
     except SessionApiError as error:
-        raise HTTPException(status_code=error.status_code, detail=error.message)
+        _raise_upstream(error)
 
 
 @router.get("/agents/{agent_id}/wasender/sessions/{channel_id}/settings")
@@ -199,10 +208,16 @@ async def put_session_settings(
     current_user: AuthUser = _super_admin,
 ):
     channel = _channel_or_404(db, agent_id, channel_id)
+    payload = body.model_dump(exclude_unset=True)
+    if payload.get("phone"):
+        try:
+            payload["phone"] = session_phone(payload["phone"])
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error))
     try:
-        return await save_settings(db, channel, body.model_dump(exclude_unset=True))
+        return await save_settings(db, channel, payload)
     except SessionApiError as error:
-        raise HTTPException(status_code=error.status_code, detail=error.message)
+        _raise_upstream(error)
 
 
 @router.post("/agents/{agent_id}/wasender/sessions/{channel_id}/share-link")
@@ -228,6 +243,6 @@ async def delete_session(
     try:
         return await remove_line(db, channel)
     except SessionApiError as error:
-        raise HTTPException(status_code=error.status_code, detail=error.message)
+        _raise_upstream(error)
 
 

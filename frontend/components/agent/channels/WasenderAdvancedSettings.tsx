@@ -7,6 +7,7 @@ import {
   saveWasenderSettings,
   type WasenderSettings,
 } from '@/lib/api';
+import { toSessionPhone } from '@/lib/phone';
 
 const FLAGS: Array<{ key: keyof WasenderSettings; label: string }> = [
   { key: 'account_protection', label: 'הגנת חשבון' },
@@ -47,7 +48,7 @@ export function WasenderAdvancedSettings({ agentId, channelId, onSaved }: Props)
     setInfo('');
     try {
       const saved = await saveWasenderSettings(agentId, channelId, {
-        phone: form.phone,
+        phone: toSessionPhone(form.phone) || form.phone,
         note: form.note ?? '',
         api_key: form.api_key,
         webhook_secret: form.webhook_secret,
@@ -93,6 +94,7 @@ export function WasenderAdvancedSettings({ agentId, channelId, onSaved }: Props)
             value={form.phone || ''}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
             dir="ltr"
+            hint={toSessionPhone(form.phone || '') ? `יישלח ${toSessionPhone(form.phone || '')}` : 'אפשר 054, +972 או 972'}
           />
           <Input
             label="הערה / שם סשן"

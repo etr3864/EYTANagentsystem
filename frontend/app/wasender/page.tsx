@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { CreateChannelModal } from '@/components/channels/CreateChannelModal';
 import { Button, Card, ListPager, ListViewport, BELOW_NAV_CLASS } from '@/components/ui';
-import { adoptWasenderSessions, getAgents, listWasenderHub, type Agent, type WasenderLine } from '@/lib/api';
+import { adoptWasenderSessions, getAgents, listWasenderHub, resetWasenderExcept, type Agent, type WasenderLine } from '@/lib/api';
 import { paginate } from '@/lib/pagination';
 
 const PAGE_SIZE = 12;
@@ -35,6 +35,7 @@ function HubPage() {
   const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -64,6 +65,23 @@ function HubPage() {
   const paged = paginate(filtered, page, PAGE_SIZE);
   const takenAgentIds = useMemo(() => new Set(rows.map((row) => row.agent_id)), [rows]);
 
+  async function handleResetStale() {
+    if (!confirm('למחוק את כל הערוצים חוץ מ-nella? השיחות נשארות, הסשנים הישנים לא.')) return;
+    if (!confirm('בטוח? זה רץ על כולם מלבד סוכנים עם nella בשם.')) return;
+    setResetting(true);
+    setError('');
+    setInfo('');
+    try {
+      const result = await resetWasenderExcept('nella');
+      await loadLines();
+      setInfo(`נשמרו ${result.kept} · אופסו ${result.cleared.length}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'איפוס נכשל');
+    } finally {
+      setResetting(false);
+    }
+  }
+
   async function handleRefresh() {
     setRefreshing(true);
     setError('');
@@ -71,7 +89,11 @@ function HubPage() {
     try {
       const result = await adoptWasenderSessions();
       await loadLines();
-      setInfo(`עודכנו ${result.matched} חיבורים${result.orphans.length ? ` · ${result.orphans.length} בלי סוכן` : ''}`);
+      const extra = [
+        result.orphans.length ? `${result.orphans.length} בלי סוכן` : '',
+        result.skipped ? `${result.skipped} דולגו (ישנים/כפולים)` : '',
+      ].filter(Boolean);
+      setInfo(`עודכנו ${result.matched} חיבורים${extra.length ? ` · ${extra.join(' · ')}` : ''}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'רענון נכשל');
     } finally {
@@ -91,6 +113,9 @@ function HubPage() {
             <div className="flex shrink-0 flex-wrap justify-end gap-2">
               <Button type="button" variant="secondary" size="sm" loading={refreshing} onClick={handleRefresh}>
                 רענן חיבורים
+              </Button>
+              <Button type="button" variant="danger" size="sm" loading={resetting} onClick={handleResetStale}>
+                אפס חוץ מ-nella
               </Button>
               <Button type="button" size="sm" onClick={() => setCreating(true)}>
                 ערוץ חדש

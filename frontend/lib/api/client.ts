@@ -22,8 +22,7 @@ export async function authFetch(url: string, options: RequestInit = {}): Promise
   
   const res = await fetch(url, { ...options, headers });
   
-  // Handle 401 - redirect to login
-  if (res.status === 401) {
+  if (res.status === 401 && !url.includes('/wasender/')) {
     clearAuth();
     if (typeof window !== 'undefined') {
       window.location.href = '/login';

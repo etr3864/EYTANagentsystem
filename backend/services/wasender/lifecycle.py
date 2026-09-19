@@ -243,6 +243,8 @@ async def remove_line(db: Session, channel: AgentChannel) -> dict:
     )
     if live_count:
         channel.is_active = False
+        channel.external_account_id = f"pending_{uuid.uuid4().hex[:12]}"
+        channel.credentials_encrypted = encrypt_credentials({"pending": True})
         update_health(db, channel, "logged_out")
         db.commit()
         action = "disabled"
@@ -252,6 +254,26 @@ async def remove_line(db: Session, channel: AgentChannel) -> dict:
         action = "deleted"
     log("wasender_dbg", op="delete", channel_id=channel.id, action=action, remote_ok=remote_ok)
     return {"status": action, "channel_id": channel.id, "remote_ok": remote_ok}
+
+
+def _remote_id(row: dict) -> int | None:
+    try:
+        return int(row.get("id"))
+    except (TypeError, ValueError):
+        return None
+
+
+def _session_taken(db: Session, channel_id: int, session_id: int) -> bool:
+    return (
+        db.query(AgentChannel.id)
+        .filter(
+            AgentChannel.channel_type == CHANNEL_TYPE,
+            AgentChannel.external_account_id == str(session_id),
+            AgentChannel.id != channel_id,
+        )
+        .first()
+        is not None
+    )
 
 
 async def adopt_existing(db: Session) -> dict:
@@ -268,6 +290,7 @@ async def adopt_existing(db: Session) -> dict:
         if _digits(row.get("phone_number"))
     }
     matched = 0
+    skipped = 0
     orphans = []
     seen_ids: set[int] = set()
     channels = (
@@ -279,22 +302,30 @@ async def adopt_existing(db: Session) -> dict:
         try:
             creds = get_credentials(channel)
         except Exception:
+            skipped += 1
             continue
         remote = by_key.get(str(creds.get("api_key") or ""))
         if remote is None:
             remote = by_phone.get(_digits(creds.get("phone_number") or channel.external_account_id))
         if remote is None:
             continue
-        _store_remote(channel, remote, creds.get("phone_number"))
-        seen_ids.add(int(remote["id"]))
-        matched += 1
+        rid = _remote_id(remote)
+        if rid is None or rid in seen_ids or _session_taken(db, channel.id, rid):
+            skipped += 1
+            continue
+        try:
+            with db.begin_nested():
+                _store_remote(channel, remote, creds.get("phone_number"))
+                db.flush()
+            seen_ids.add(rid)
+            matched += 1
+        except Exception:
+            skipped += 1
+            log_error("wasender_adopt", f"ch={channel.id}")
     db.commit()
     for row in remote_rows:
-        try:
-            rid = int(row["id"])
-        except (KeyError, TypeError, ValueError):
-            continue
-        if rid in seen_ids:
+        rid = _remote_id(row)
+        if rid is None or rid in seen_ids:
             continue
         orphans.append(
             {
@@ -304,8 +335,36 @@ async def adopt_existing(db: Session) -> dict:
                 "status": _normalize_status(row.get("status")),
             }
         )
-    log("wasender_dbg", op="adopt", matched=matched, orphans=len(orphans))
-    return {"matched": matched, "orphans": orphans}
+    log("wasender_dbg", op="adopt", matched=matched, orphans=len(orphans), skipped=skipped)
+    return {"matched": matched, "orphans": orphans, "skipped": skipped}
+
+
+async def reset_except(db: Session, keep: str) -> dict:
+    needle = (keep or "").strip().lower()
+    if len(needle) < 3:
+        raise ValueError("keep_too_short")
+    keep_ids = {
+        row.id
+        for row in db.query(Agent).filter(Agent.name.isnot(None)).all()
+        if needle in row.name.lower()
+    }
+    if not keep_ids:
+        raise ValueError("keep_not_found")
+    channels = (
+        db.query(AgentChannel)
+        .filter(AgentChannel.channel_type == CHANNEL_TYPE)
+        .all()
+    )
+    kept = 0
+    cleared = []
+    for channel in channels:
+        if channel.agent_id in keep_ids:
+            kept += 1
+            continue
+        result = await remove_line(db, channel)
+        cleared.append({"agent_id": channel.agent_id, "channel_id": channel.id, "action": result["status"]})
+    log("wasender_dbg", op="reset_except", keep=needle, kept=kept, cleared=len(cleared))
+    return {"kept": kept, "cleared": cleared}
 
 
 def list_lines(db: Session) -> list[dict]:

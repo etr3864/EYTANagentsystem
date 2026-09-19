@@ -20,6 +20,7 @@ export interface WasenderPatStatus {
 
 export interface AdoptResult {
   matched: number;
+  skipped?: number;
   orphans: Array<{
     wasender_session_id: number;
     phone?: string;
@@ -93,6 +94,19 @@ export async function saveWasenderPat(pat: string): Promise<WasenderPatStatus> {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pat }),
+    }),
+  );
+}
+
+export async function resetWasenderExcept(keep: string): Promise<{
+  kept: number;
+  cleared: Array<{ agent_id: number; channel_id: number; action: string }>;
+}> {
+  return readJson(
+    await authFetch(`${API_URL}/api/wasender/reset-except`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keep }),
     }),
   );
 }

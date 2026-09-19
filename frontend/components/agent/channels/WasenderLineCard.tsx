@@ -12,6 +12,7 @@ import {
   type WasenderLine,
 } from '@/lib/api';
 import { type AgentChannel } from '@/lib/channels';
+import { toSessionPhone } from '@/lib/phone';
 import { WasenderAdvancedSettings } from './WasenderAdvancedSettings';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -92,7 +93,12 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
     setBusy(true);
     setError('');
     try {
-      const created = await createWasenderLine(agentId, { phone: phone.trim(), note: note.trim() || undefined });
+      const normalized = toSessionPhone(phone);
+      if (!normalized) {
+        setError('מספר לא תקין. אפשר 054, +972 או 972…');
+        return;
+      }
+      const created = await createWasenderLine(agentId, { phone: normalized, note: note.trim() || undefined });
       setLine(created);
       setPhone('');
       setNote('');
@@ -203,10 +209,13 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
           <input
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            placeholder="מספר בינלאומי"
+            placeholder="054… או +972…"
             className="w-full bg-[var(--glass-2)] border border-[var(--edge)] rounded-lg px-3 py-2 text-sm"
             dir="ltr"
           />
+          {toSessionPhone(phone) && (
+            <p className="text-[11px] text-[var(--text-muted)]" dir="ltr">יישלח {toSessionPhone(phone)}</p>
+          )}
           <input
             value={note}
             onChange={(e) => setNote(e.target.value)}

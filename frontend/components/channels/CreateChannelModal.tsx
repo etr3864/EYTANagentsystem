@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { Button, Input, Modal, Select } from '@/components/ui';
 import { createWasenderLine, type Agent, type WasenderLine } from '@/lib/api';
+import { toSessionPhone } from '@/lib/phone';
 
 interface Props {
   agents: Agent[];
@@ -32,10 +33,15 @@ export function CreateChannelModal({ agents, takenAgentIds, onClose, onCreated }
   async function handleCreate() {
     const id = Number(agentId);
     if (!id || !phone.trim()) return;
+    const normalized = toSessionPhone(phone);
+    if (!normalized) {
+      setError('מספר לא תקין. אפשר 054, +972 או 972…');
+      return;
+    }
     setBusy(true);
     setError('');
     try {
-      const line = await createWasenderLine(id, { phone: phone.trim(), note: note.trim() || undefined });
+      const line = await createWasenderLine(id, { phone: normalized, note: note.trim() || undefined });
       onCreated(line);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'יצירה נכשלה');
@@ -60,8 +66,9 @@ export function CreateChannelModal({ agents, takenAgentIds, onClose, onCreated }
             label="מספר WhatsApp"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            placeholder="972501234567"
+            placeholder="054… או +972…"
             dir="ltr"
+            hint={toSessionPhone(phone) ? `יישלח ${toSessionPhone(phone)}` : 'אפשר 054, +972 או 972'}
           />
           <Input
             label="הערה"
