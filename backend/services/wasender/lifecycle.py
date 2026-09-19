@@ -211,9 +211,6 @@ async def refresh_status(db: Session, channel: AgentChannel) -> dict:
 
 
 async def fetch_qr(db: Session, channel: AgentChannel) -> dict:
-    cached = await live.current(channel.id)
-    if cached and cached.get("qr"):
-        return public_channel(channel, {"qr": cached.get("qr")})
     creds = get_credentials(channel)
     session_id = _session_id(channel, creds)
     if session_id is None:

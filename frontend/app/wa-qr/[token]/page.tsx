@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { QrImage } from '@/components/channels/QrImage';
+import { QrImage, useQrSeconds } from '@/components/channels/QrImage';
 import { getPublicWasenderQr, refreshPublicWasenderQr } from '@/lib/api';
 
 export default function WaQrPage() {
@@ -15,23 +15,29 @@ export default function WaQrPage() {
   const [gone, setGone] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const secondsLeft = useQrSeconds(!connected && qr ? qr : null);
 
-  async function load() {
-    try {
-      const row = await getPublicWasenderQr(token);
-      setStatus(row.status);
-      setConnected(row.connected);
-      setPhone(row.phone);
-      setQr(row.qr);
-    } catch {
-      setGone(true);
-    }
+  function apply(row: { status: string; connected: boolean; phone: string | null; qr: string | null }, keepQr = false) {
+    setStatus(row.status);
+    setConnected(row.connected);
+    setPhone(row.phone);
+    if (!keepQr) setQr(row.qr);
   }
 
   useEffect(() => {
     if (!token) return;
-    load();
-    const timer = window.setInterval(load, 4000);
+    refreshPublicWasenderQr(token)
+      .then((row) => apply(row))
+      .catch(() => {
+        getPublicWasenderQr(token)
+          .then((row) => apply(row))
+          .catch(() => setGone(true));
+      });
+    const timer = window.setInterval(() => {
+      getPublicWasenderQr(token)
+        .then((row) => apply(row, true))
+        .catch(() => setGone(true));
+    }, 4000);
     return () => window.clearInterval(timer);
   }, [token]);
 
@@ -90,7 +96,14 @@ export default function WaQrPage() {
       </ol>
 
       {qr ? (
-        <QrImage value={qr} className="w-64 h-64 mx-auto rounded-2xl bg-white p-2" />
+        <div className="space-y-3">
+          <QrImage value={qr} className="w-64 h-64 mx-auto rounded-2xl bg-white p-2" />
+          <p className={`text-center text-sm tabular-nums ${secondsLeft === 0 ? 'text-red-400' : 'text-[var(--text-secondary)]'}`}>
+            {secondsLeft === 0
+              ? 'הברקוד פג. לחץ ברקוד חדש.'
+              : `בתוקף עוד ${secondsLeft} שניות`}
+          </p>
+        </div>
       ) : (
         <p className="text-center text-sm text-[var(--text-secondary)] py-10">
           {status === 'connecting' ? 'מתחבר…' : 'לוחצים על ברקוד חדש כדי לראות את הריבוע.'}

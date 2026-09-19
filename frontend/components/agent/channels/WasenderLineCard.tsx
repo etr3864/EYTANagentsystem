@@ -6,7 +6,6 @@ import {
   createWasenderLine,
   deleteWasenderLine,
   disconnectWasenderLine,
-  fetchWasenderQr,
   getWasenderLine,
   shareWasenderQrLink,
   type WasenderLine,
@@ -14,7 +13,7 @@ import {
 import { type AgentChannel } from '@/lib/channels';
 import { toSessionPhone } from '@/lib/phone';
 import { Button, Card, CardHeader, Input } from '@/components/ui';
-import { QrImage } from '@/components/channels/QrImage';
+import { QrImage, useQrSeconds } from '@/components/channels/QrImage';
 import { WasenderAdvancedSettings } from './WasenderAdvancedSettings';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -115,14 +114,12 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
     setBusy(true);
     setError('');
     try {
-      const next = showQr
-        ? await connectWasenderLine(agentId, channel.id)
-        : await fetchWasenderQr(agentId, channel.id);
-      if (!next.qr && !showQr) {
-        setLine(await connectWasenderLine(agentId, channel.id));
-      } else {
-        setLine(next);
+      const next = await connectWasenderLine(agentId, channel.id);
+      if (!next.qr) {
+        setError('הספק לא החזיר ברקוד. לחץ שוב.');
+        return;
       }
+      setLine(next);
       setShowQr(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'לא הצלחנו להביא ברקוד');
@@ -182,6 +179,8 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
 
   const status = line?.status || channel?.health_status || 'unknown';
   const hasSession = Boolean(line?.has_session);
+  const visibleQr = hasSession && showQr && status !== 'connected' ? line?.qr || null : null;
+  const secondsLeft = useQrSeconds(visibleQr);
   const normalized = toSessionPhone(phone);
   const showForm = canCreate && showCreate;
 
@@ -250,9 +249,14 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
           </div>
         )}
 
-        {hasSession && showQr && line?.qr && status !== 'connected' && (
+        {visibleQr && (
           <div className="flex flex-col items-center gap-3 py-2">
-            <QrImage value={line.qr} className="w-56 h-56 rounded-2xl bg-white p-3" />
+            <QrImage value={visibleQr} className="w-56 h-56 rounded-2xl bg-white p-3" />
+            <p className={`text-sm text-center tabular-nums ${secondsLeft === 0 ? 'text-red-400' : 'text-[var(--text-secondary)]'}`}>
+              {secondsLeft === 0
+                ? 'הברקוד פג. לחץ רענן ברקוד.'
+                : `בתוקף עוד ${secondsLeft} שניות`}
+            </p>
             <p className="text-sm text-[var(--text-secondary)] text-center">
               לפתוח במחשב ולסרוק עם הטלפון של המספר הזה
             </p>
