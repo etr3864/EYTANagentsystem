@@ -377,7 +377,7 @@ async def receive_wasender_webhook(
             )
             asyncio.create_task(handle_wasender_message(agent_id, msg_data))
         else:
-            log("wasender_skip", agent_id=agent_id, event=body.get("event", ""))
+            log("wasender_skip", agent_id=agent_id, wa_event=body.get("event", ""))
 
         return {"status": "ok"}
     finally:
