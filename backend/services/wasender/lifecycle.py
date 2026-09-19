@@ -1,3 +1,4 @@
+import secrets
 import uuid
 
 from sqlalchemy.orm import Session
@@ -116,6 +117,7 @@ def _session_payload(
     }
     for key in SETTING_KEYS:
         payload[key] = bool(flags[key]) if key in flags else FLAG_DEFAULTS[key]
+    payload["webhook_secret"] = secrets.token_hex(16)
     return payload
 
 
@@ -133,15 +135,22 @@ async def _bind_remote(
     pat = _require_pat(db)
     old_id = None if new_row else _session_id(channel)
     try:
-        remote = await sessions.create_session(
-            pat, _session_payload(agent, channel, phone, flags, session_name)
-        )
+        payload = _session_payload(agent, channel, phone, flags, session_name)
+        remote = await sessions.create_session(pat, payload)
     except Exception:
         if new_row:
             db.delete(channel)
             db.commit()
         raise
-    _store_remote(channel, remote, phone, {"session_name": (session_name or "").strip()[:80] or None})
+    _store_remote(
+        channel,
+        remote,
+        phone,
+        {
+            "session_name": (session_name or "").strip()[:80] or None,
+            "webhook_secret": remote.get("webhook_secret") or payload.get("webhook_secret"),
+        },
+    )
     if note is not None:
         channel.account_name = (note or "").strip() or None
     channel.is_active = True
@@ -153,7 +162,8 @@ async def _bind_remote(
             await sessions.delete_session(pat, old_id)
         except SessionApiError as error:
             log_error("wasender_replace", error.message[:80])
-    log("wasender_dbg", op="create", agent_id=agent.id, channel_id=channel.id)
+    await ensure_webhook_secret(db, channel)
+    log("wasender_create", agent_id=agent.id, channel_id=channel.id)
     qr = None
     try:
         qr = await _connect_and_qr(pat, channel)
@@ -191,23 +201,11 @@ async def create_line(
 
 
 async def connect_line(db: Session, channel: AgentChannel) -> dict:
+    await ensure_webhook_secret(db, channel)
     qr = await _connect_and_qr(_require_pat(db), channel)
     update_health(db, channel, "need_scan")
     db.commit()
     return public_channel(channel, {"qr": qr})
-
-
-async def refresh_status(db: Session, channel: AgentChannel) -> dict:
-    creds = get_credentials(channel)
-    token = creds.get("api_key") or _require_pat(db)
-    session_id = _session_id(channel, creds)
-    remote = await sessions.get_status(token, session_id)
-    status = _normalize_status(remote.get("status") or remote.get("sessionStatus"))
-    if status:
-        update_health(db, channel, status)
-        db.commit()
-        await live.publish(channel.id, {"type": "status", "status": status})
-    return public_channel(channel)
 
 
 async def fetch_qr(db: Session, channel: AgentChannel) -> dict:
@@ -249,7 +247,7 @@ async def remove_line(db: Session, channel: AgentChannel) -> dict:
     await wipe_channel_runtime(db, channel)
     db.delete(channel)
     db.commit()
-    log("wasender_dbg", op="delete", channel_id=channel.id, action="deleted", remote_ok=remote_ok)
+    log("wasender_delete", channel_id=channel.id, remote_ok=remote_ok)
     return {"status": "deleted", "channel_id": channel.id, "remote_ok": remote_ok}
 
 
@@ -332,7 +330,9 @@ async def adopt_existing(db: Session) -> dict:
                 "status": _normalize_status(row.get("status")),
             }
         )
-    log("wasender_dbg", op="adopt", matched=matched, orphans=len(orphans), skipped=skipped)
+    for channel in channels:
+        await ensure_webhook_secret(db, channel)
+    log("wasender_adopt", matched=matched, orphans=len(orphans), skipped=skipped)
     return {"matched": matched, "orphans": orphans, "skipped": skipped}
 
 
@@ -341,6 +341,44 @@ def get_owned_channel(db: Session, agent_id: int, channel_id: int) -> AgentChann
     if not channel or channel.agent_id != agent_id or channel.channel_type != CHANNEL_TYPE:
         raise LookupError("channel_not_found")
     return channel
+
+
+async def ensure_webhook_secret(db: Session, channel: AgentChannel) -> None:
+    creds: dict = {}
+    try:
+        creds = get_credentials(channel)
+    except Exception:
+        return
+    if (creds.get("webhook_secret") or "").strip():
+        return
+    session_id = _session_id(channel, creds)
+    if session_id is None:
+        return
+    pat = _require_pat(db)
+    remote: dict = {}
+    try:
+        remote = await sessions.get_session(pat, session_id)
+    except SessionApiError:
+        remote = {}
+    secret = (remote.get("webhook_secret") or "").strip() or secrets.token_hex(16)
+    if not (remote.get("webhook_secret") or "").strip():
+        try:
+            remote = await sessions.update_session(
+                pat,
+                session_id,
+                {
+                    "webhook_url": webhook_url(channel.agent_id, channel.id),
+                    "webhook_enabled": True,
+                    "webhook_events": list(DEFAULT_EVENTS),
+                    "webhook_secret": secret,
+                },
+            )
+            secret = (remote.get("webhook_secret") or secret).strip()
+        except SessionApiError as error:
+            log_error("wasender_secret", error.message[:80])
+            return
+    _store_remote(channel, remote, creds.get("phone_number"), {"webhook_secret": secret})
+    db.commit()
 
 
 def _store_remote(

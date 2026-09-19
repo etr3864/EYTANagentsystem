@@ -162,14 +162,6 @@ export async function getWasenderLine(agentId: number, channelId: number): Promi
   return readJson(await authFetch(`${API_URL}/api/agents/${agentId}/wasender/sessions/${channelId}`));
 }
 
-export async function refreshWasenderLine(agentId: number, channelId: number): Promise<WasenderLine> {
-  return readJson(
-    await authFetch(`${API_URL}/api/agents/${agentId}/wasender/sessions/${channelId}/refresh`, {
-      method: 'POST',
-    }),
-  );
-}
-
 export async function fetchWasenderQr(agentId: number, channelId: number): Promise<WasenderLine> {
   return readJson(await authFetch(`${API_URL}/api/agents/${agentId}/wasender/sessions/${channelId}/qr`));
 }

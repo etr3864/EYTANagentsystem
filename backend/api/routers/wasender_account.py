@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from backend.auth.dependencies import require_super_admin
 from backend.auth.models import AuthUser
 from backend.core.database import get_db
-from backend.services.wasender.account import clear_pat, pat_configured, set_pat
+from backend.services.wasender.account import pat_configured, set_pat
 from backend.services.wasender.lifecycle import adopt_existing
 from backend.services.wasender.http import SessionApiError
 from backend.services.wasender.purge import drop_provider, list_provider
@@ -37,15 +37,6 @@ def put_wasender_pat(
     except ValueError:
         raise HTTPException(status_code=400, detail="empty_pat")
     return {"configured": True}
-
-
-@router.delete("/settings/wasender-pat")
-def delete_wasender_pat(
-    db: Session = Depends(get_db),
-    current_user: AuthUser = _super_admin,
-):
-    clear_pat(db)
-    return {"configured": False}
 
 
 @router.post("/wasender/adopt")

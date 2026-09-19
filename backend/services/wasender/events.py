@@ -16,14 +16,14 @@ async def apply_event(db: Session, channel: AgentChannel, payload: dict) -> None
             return
         update_health(db, channel, status)
         db.commit()
-        log("wasender_dbg", op="status", channel_id=channel.id, status=status)
+        log("wasender_status", channel_id=channel.id, status=status)
         await live.publish(channel.id, {"type": "status", "status": status})
         return
     if event == "qrcode.updated":
         qr = data.get("qrCode") or data.get("qrcode") or data.get("qr")
         update_health(db, channel, "need_scan")
         db.commit()
-        log("wasender_dbg", op="qr", channel_id=channel.id)
+        log("wasender_qr", channel_id=channel.id)
         await live.publish(channel.id, {"type": "qr", "qr": qr, "status": "need_scan"})
 
 

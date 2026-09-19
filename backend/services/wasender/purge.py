@@ -5,7 +5,6 @@ from backend.models.agent import Agent
 from backend.models.agent_channel import AgentChannel
 from backend.services.wasender import sessions
 from backend.services.wasender.http import SessionApiError
-from backend.services.wasender.cleanup import wipe_channel_runtime
 from backend.services.wasender.lifecycle import (
     CHANNEL_TYPE,
     _normalize_status,
@@ -68,40 +67,5 @@ async def drop_provider(db: Session, session_id: int) -> dict:
     channel = _local_by_remote(db, session_id)
     if channel:
         local = await remove_line(db, channel)
-    log("wasender_dbg", op="drop_provider", session_id=session_id, remote_ok=remote_ok)
+    log("wasender_drop", session_id=session_id, remote_ok=remote_ok)
     return {"wasender_session_id": session_id, "remote_ok": remote_ok, "local": local}
-
-
-async def wipe_all(db: Session) -> dict:
-    dropped = []
-    pat = None
-    try:
-        pat = _require_pat(db)
-    except SessionApiError:
-        pat = None
-    if pat:
-        for row in await sessions.list_sessions(pat):
-            rid = _remote_id(row)
-            if rid is None:
-                continue
-            try:
-                await sessions.delete_session(pat, rid)
-                remote_ok = True
-            except SessionApiError as error:
-                if error.status_code != 404:
-                    raise
-                remote_ok = False
-            dropped.append({"wasender_session_id": rid, "remote_ok": remote_ok})
-    leftovers = (
-        db.query(AgentChannel)
-        .filter(AgentChannel.channel_type == CHANNEL_TYPE)
-        .all()
-    )
-    local = 0
-    for channel in leftovers:
-        await wipe_channel_runtime(db, channel)
-        db.delete(channel)
-        local += 1
-    db.commit()
-    log("wasender_dbg", op="wipe_all", remote=len(dropped), local=local)
-    return {"remote": len(dropped), "local": local}

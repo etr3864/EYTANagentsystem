@@ -44,4 +44,4 @@ async def wipe_channel_runtime(db: Session, channel: AgentChannel) -> None:
     for phone in phones:
         await clear_leftover(channel.agent_id, phone)
     await live.clear(channel.id)
-    log("wasender_dbg", op="cleanup", channel_id=channel.id, phones=len(phones))
+    log("wasender_cleanup", channel_id=channel.id, phones=len(phones))

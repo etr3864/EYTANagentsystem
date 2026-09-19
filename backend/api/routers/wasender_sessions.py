@@ -16,7 +16,6 @@ from backend.services.wasender.lifecycle import (
     fetch_qr,
     get_owned_channel,
     public_channel,
-    refresh_status,
     remove_line,
 )
 from backend.services.wasender.phone import session_phone
@@ -150,21 +149,6 @@ def session_status(
 ):
     _can_operate(current_user, agent_id, db, write=False)
     return public_channel(_channel_or_404(db, agent_id, channel_id))
-
-
-@router.post("/agents/{agent_id}/wasender/sessions/{channel_id}/refresh")
-async def session_refresh(
-    agent_id: int,
-    channel_id: int,
-    db: Session = Depends(get_db),
-    current_user: AuthUser = Depends(get_current_user),
-):
-    _can_operate(current_user, agent_id, db, write=True)
-    channel = _channel_or_404(db, agent_id, channel_id)
-    try:
-        return await refresh_status(db, channel)
-    except SessionApiError:
-        return public_channel(channel)
 
 
 @router.get("/agents/{agent_id}/wasender/sessions/{channel_id}/qr")

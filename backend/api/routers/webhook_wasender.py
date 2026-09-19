@@ -390,16 +390,11 @@ async def _receive_webhook(
             return {"status": "ok", "skipped": "agent_inactive"}
 
         secret = _webhook_secret(db, agent, channel_id)
-        if secret and not wasender.verify_signature(signature, secret):
-            log("wasender_dbg", op="sig", agent_id=agent_id, channel_id=channel_id, sig="bad")
+        if not secret:
+            log("wasender_webhook", agent_id=agent_id, channel_id=channel_id, reason="no_secret")
+            raise HTTPException(status_code=403, detail="webhook_secret_missing")
+        if not wasender.verify_signature(signature, secret):
             raise HTTPException(status_code=403, detail="Invalid signature")
-        log(
-            "wasender_dbg",
-            op="sig",
-            agent_id=agent_id,
-            channel_id=channel_id,
-            sig="ok" if secret else "missing",
-        )
 
         body = await request.json()
         event = body.get("event", "")

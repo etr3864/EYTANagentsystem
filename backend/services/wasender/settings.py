@@ -11,6 +11,7 @@ from backend.services.wasender.lifecycle import (
     _require_pat,
     _session_id,
     _store_remote,
+    ensure_webhook_secret,
     public_channel,
     webhook_url,
 )
@@ -45,6 +46,7 @@ def settings_view(channel: AgentChannel, remote: dict | None = None) -> dict:
 
 
 async def load_settings(db: Session, channel: AgentChannel) -> dict:
+    await ensure_webhook_secret(db, channel)
     remote: dict = {}
     session_id = _session_id(channel)
     if session_id is not None:
