@@ -23,7 +23,6 @@ const NAV_LINKS: NavLink[] = [
   { href: '/dashboard', label: 'דאשבורד', icon: <ChartIcon />, roles: ['super_admin', 'admin'] },
   { href: '/users', label: 'משתמשים', icon: <UsersIcon />, roles: ['super_admin', 'admin'] },
   { href: '/database', label: 'Database', icon: <DatabaseIcon />, roles: ['super_admin'] },
-  { href: '/new', label: 'סוכן חדש', icon: <PlusIcon />, roles: ['super_admin'] },
   { href: '/wasender', label: 'ערוצים', icon: <SettingsIcon />, roles: ['super_admin'] },
 ];
 
@@ -84,6 +83,15 @@ export function AppNavbar() {
             </div>
 
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              {isSuperAdmin(user) && (
+                <Link
+                  href="/new"
+                  className="hidden md:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm font-semibold bg-[var(--ink)] text-[var(--bg)] hover:opacity-90 active:scale-[0.98] transition"
+                >
+                  <PlusIcon />
+                  סוכן חדש
+                </Link>
+              )}
               <div className="hidden sm:flex items-center gap-2 text-sm">
                 <span className="text-[var(--text-secondary)] truncate max-w-[8rem]">{user.name}</span>
                 <span className="text-[11px] px-2 py-0.5 rounded-full border border-[var(--edge)] text-[var(--text-secondary)]">
@@ -149,6 +157,16 @@ export function AppNavbar() {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
           <div className="absolute top-16 right-0 left-0 try-glass border-b border-[var(--edge)] animate-fade-in rounded-none">
             <div className="px-4 py-3 space-y-1">
+              {isSuperAdmin(user) && (
+                <Link
+                  href="/new"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-2xl text-sm font-semibold bg-[var(--ink)] text-[var(--bg)]"
+                >
+                  <PlusIcon />
+                  סוכן חדש
+                </Link>
+              )}
               {visibleLinks.map(link => (
                 <Link
                   key={link.href}
