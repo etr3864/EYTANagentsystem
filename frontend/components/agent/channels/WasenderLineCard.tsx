@@ -13,6 +13,7 @@ import {
 } from '@/lib/api';
 import { type AgentChannel } from '@/lib/channels';
 import { toSessionPhone } from '@/lib/phone';
+import { QrImage } from '@/components/channels/QrImage';
 import { WasenderAdvancedSettings } from './WasenderAdvancedSettings';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -24,12 +25,6 @@ const STATUS_LABEL: Record<string, string> = {
   expired: 'פג',
   unknown: 'לא ידוע',
 };
-
-function qrSrc(qr?: string | null): string | null {
-  if (!qr) return null;
-  if (qr.startsWith('data:') || qr.startsWith('http')) return qr;
-  return `data:image/png;base64,${qr}`;
-}
 
 interface Props {
   agentId: number;
@@ -171,7 +166,6 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
 
   const status = line?.status || channel?.health_status || 'unknown';
   const hasSession = Boolean(line?.has_session);
-  const image = qrSrc(line?.qr);
   const label = [line?.note, line?.phone].filter(Boolean).join(' · ');
   const normalized = toSessionPhone(phone);
   const showForm = canCreate && showCreate;
@@ -235,9 +229,9 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
         </div>
       )}
 
-      {hasSession && image && status !== 'connected' && (
+      {hasSession && line?.qr && status !== 'connected' && (
         <div className="flex flex-col items-center gap-2">
-          <img src={image} alt="QR" className="w-56 h-56 rounded-xl bg-white p-2" />
+          <QrImage value={line.qr} className="w-56 h-56 rounded-xl bg-white p-2" />
           <p className="text-xs text-[var(--text-secondary)] text-center">
             לפתוח במחשב ולסרוק עם הטלפון של המספר הזה
           </p>

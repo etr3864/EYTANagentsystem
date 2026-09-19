@@ -2,13 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { QrImage } from '@/components/channels/QrImage';
 import { getPublicWasenderQr, refreshPublicWasenderQr } from '@/lib/api';
-
-function qrSrc(qr?: string | null): string | null {
-  if (!qr) return null;
-  if (qr.startsWith('data:') || qr.startsWith('http')) return qr;
-  return `data:image/png;base64,${qr}`;
-}
 
 export default function WaQrPage() {
   const params = useParams();
@@ -56,8 +51,6 @@ export default function WaQrPage() {
     }
   }
 
-  const image = qrSrc(qr);
-
   if (gone) {
     return (
       <main className="min-h-screen px-5 py-10 max-w-md mx-auto text-center" dir="rtl">
@@ -96,8 +89,8 @@ export default function WaQrPage() {
         <li>אם הריבוע נעלם או לא עובד — לחץ «ברקוד חדש».</li>
       </ol>
 
-      {image ? (
-        <img src={image} alt="ברקוד" className="w-64 h-64 mx-auto rounded-2xl bg-white p-2" />
+      {qr ? (
+        <QrImage value={qr} className="w-64 h-64 mx-auto rounded-2xl bg-white p-2" />
       ) : (
         <p className="text-center text-sm text-[var(--text-secondary)] py-10">
           {status === 'connecting' ? 'מתחבר…' : 'לוחצים על ברקוד חדש כדי לראות את הריבוע.'}
