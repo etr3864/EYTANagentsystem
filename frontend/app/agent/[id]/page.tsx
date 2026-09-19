@@ -50,7 +50,7 @@ const allTabs: TabConfig[] = [
   { id: 'followups', label: 'פולו-אפ', group: 'auto', roles: ['super_admin'] },
   { id: 'summaries', label: 'סיכומים', group: 'auto', roles: ['super_admin'] },
   { id: 'calendar', label: 'יומן', group: 'system', roles: ['super_admin', 'admin'] },
-  { id: 'channels', label: 'ערוצים', group: 'system', roles: ['super_admin'] },
+  { id: 'channels', label: 'ערוצים', group: 'system', roles: ['super_admin', 'admin'] },
   { id: 'settings', label: 'הגדרות', group: 'system', roles: ['super_admin'] },
 ];
 
@@ -666,7 +666,12 @@ function AgentPage() {
           )}
 
           {tab === 'channels' && (
-            <ChannelsTab agentId={agentId} canEdit={isSuperAdmin(user)} />
+            <ChannelsTab
+              agentId={agentId}
+              canCreate={isSuperAdmin(user)}
+              canManage={isSuperAdmin(user) || isAdmin(user)}
+              canDelete={isSuperAdmin(user)}
+            />
           )}
 
           {tab === 'settings' && (

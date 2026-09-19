@@ -42,9 +42,15 @@ class CallbackOutbound:
         self._send = send_message
         self._media = send_media
         self._typing = send_typing
+        self.last_provider_msg_id: str | None = None
 
     async def send_message(self, to: str, text: str, meta: dict | None = None) -> bool:
-        return await self._send(to, text)
+        result = await self._send(to, text)
+        if isinstance(result, str) and result and result != "ok":
+            self.last_provider_msg_id = result
+            return True
+        self.last_provider_msg_id = None
+        return bool(result)
 
     async def send_media(
         self, to: str, url: str, media_type: str, caption: str | None, filename: str | None = None,

@@ -67,10 +67,8 @@ def format_jid(phone: str) -> str:
     return f"{cleaned}@s.whatsapp.net"
 
 
-async def send_message(api_key: str, session: str, to: str, text: str, max_retries: int = 3) -> bool:
-    """Send text message via WA Sender API with retry on rate limit."""
+async def send_message(api_key: str, session: str, to: str, text: str, max_retries: int = 3) -> str | None:
     url = f"{_BASE_URL}/send-message"
-    
     for attempt in range(max_retries):
         try:
             response = await _client().post(
@@ -83,33 +81,35 @@ async def send_message(api_key: str, session: str, to: str, text: str, max_retri
                 },
                 timeout=30,
             )
-            
             if response.status_code == 429:
-                # Rate limited - wait and retry
-                wait_time = (attempt + 1) * 2  # 2s, 4s, 6s
+                wait_time = (attempt + 1) * 2
                 if attempt < max_retries - 1:
                     await asyncio.sleep(wait_time)
                     continue
                 log_error("wasender", "rate_limited (max retries)")
-                return False
-            
+                return None
             if response.status_code != 200:
-                # Log full error details for debugging
                 try:
                     error_body = response.json()
                     log_error("wasender", f"send status={response.status_code} body={str(error_body)[:100]}")
                 except Exception:
                     log_error("wasender", f"send status={response.status_code} body={response.text[:100]}")
-                return False
-            
-            data = response.json()
-            return data.get("success", False)
-            
+                return None
+            return _extract_msg_id(response.json())
         except Exception as e:
             log_error("wasender", str(e)[:80])
-            return False
-    
-    return False
+            return None
+    return None
+
+
+def _extract_msg_id(data) -> str | None:
+    if not isinstance(data, dict) or data.get("success") is False:
+        return None
+    payload = data.get("data") if isinstance(data.get("data"), dict) else data
+    raw = payload.get("msgId") or payload.get("id")
+    if raw is None:
+        return "ok"
+    return str(raw)
 
 
 async def send_typing(api_key: str, to: str) -> None:
@@ -425,6 +425,7 @@ def extract_message_data(payload: dict) -> Optional[dict]:
             "timestamp": timestamp,
             "message_key": key,
             "message_data": raw_message,
+            "provider_msg_id": str(key.get("id") or "") or None,
         }
         
         # Determine message type

@@ -27,6 +27,7 @@ class Message(Base):
     media_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     media_too_large: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     reply_to_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    provider_msg_id: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 

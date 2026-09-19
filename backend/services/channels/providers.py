@@ -60,7 +60,7 @@ async def send_message(agent: Agent, to: str, text: str) -> bool:
         if not api_key:
             return False
         
-        return await wasender.send_message(api_key, session, to, text)
+        return bool(await wasender.send_message(api_key, session, to, text))
     
     # Default: Meta WhatsApp Business API
     return await whatsapp.send_message(
@@ -157,9 +157,9 @@ async def send_channel_message(
     ct = channel.channel_type
 
     if ct == "whatsapp_wasender":
-        return await wasender.send_message(
+        return bool(await wasender.send_message(
             creds["api_key"], creds.get("session", "default"), to, text
-        )
+        ))
 
     if ct == "whatsapp_meta":
         token = await _ensure_valid_token(db, channel, creds)

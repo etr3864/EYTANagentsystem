@@ -24,6 +24,7 @@ const NAV_LINKS: NavLink[] = [
   { href: '/users', label: 'משתמשים', icon: <UsersIcon />, roles: ['super_admin', 'admin'] },
   { href: '/database', label: 'Database', icon: <DatabaseIcon />, roles: ['super_admin'] },
   { href: '/new', label: 'סוכן חדש', icon: <PlusIcon />, roles: ['super_admin'] },
+  { href: '/wasender', label: 'WaSender', icon: <SettingsIcon />, roles: ['super_admin'] },
 ];
 
 function getRoleBadge(role?: string) {

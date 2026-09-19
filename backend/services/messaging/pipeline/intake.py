@@ -71,5 +71,6 @@ def _persist(ctx: TurnContext) -> None:
                 media_url=msg.media_url,
                 media_too_large=msg.media_too_large,
                 reply_to_text=msg.reply_to_text,
+                provider_msg_id=msg.provider_msg_id,
             )
         db.commit()

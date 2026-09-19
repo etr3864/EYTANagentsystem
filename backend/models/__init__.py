@@ -17,6 +17,7 @@ from backend.models.agent_function import AgentFunction, AgentFunctionRun, Agent
 from backend.models.agent_trigger import AgentTrigger
 from backend.models.escalation import AgentEscalationReason, EscalationCooldown
 from backend.models.playground_link import PlaygroundLink
+from backend.models.system_secret import SystemSecret
 
 # Auth models (imported last to avoid circular imports)
 from backend.auth.models import AuthUser, UserRole, McpToken

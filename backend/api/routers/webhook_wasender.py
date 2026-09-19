@@ -18,6 +18,7 @@ from backend.services.messaging.buffer import PendingMessage
 from backend.services.messaging.dedup import is_duplicate
 from backend.services.messaging.processing import process_batched_messages
 from backend.services.channels.agent_channels import get_channel_by_type, get_credentials
+from backend.services.wasender.events import apply_event, resolve_channel
 from backend.services.channels.channel_users import (
     get_or_create_for_incoming, get_by_external_id, IncomingUserInfo,
 )
@@ -299,6 +300,7 @@ async def handle_wasender_message(agent_id: int, msg_data: dict):
             text=text, msg_type=msg_type, image_base64=image_base64,
             media_type=mime_type, media_url=media_url, media_too_large=media_too_large,
             reply_to_text=quoted_text,
+            provider_msg_id=msg_data.get("provider_msg_id"),
         )
 
         async def send_fn(to: str, txt: str) -> bool:
@@ -334,9 +336,20 @@ async def handle_wasender_message(agent_id: int, msg_data: dict):
             msg_type=msg_type, image_base64=image_base64, media_type=mime_type,
             media_url=media_url, media_too_large=media_too_large,
             reply_to_text=quoted_text,
+            provider_msg_id=msg_data.get("provider_msg_id"),
         )
     finally:
         db.close()
+
+
+@router.post("/webhook/wasender/{agent_id}/{channel_id}")
+async def receive_wasender_channel_webhook(
+    agent_id: int,
+    channel_id: int,
+    request: Request,
+    x_webhook_signature: Optional[str] = Header(None, alias="X-Webhook-Signature"),
+):
+    return await _receive_webhook(agent_id, request, x_webhook_signature, channel_id)
 
 
 @router.post("/webhook/wasender/{agent_id}")
@@ -345,7 +358,27 @@ async def receive_wasender_webhook(
     request: Request,
     x_webhook_signature: Optional[str] = Header(None, alias="X-Webhook-Signature"),
 ):
-    """Receive webhook from WA Sender for a specific agent."""
+    return await _receive_webhook(agent_id, request, x_webhook_signature, None)
+
+
+def _webhook_secret(db, agent, channel_id: int | None) -> str:
+    channel = resolve_channel(db, agent.id, channel_id)
+    if channel:
+        try:
+            secret = (get_credentials(channel).get("webhook_secret") or "").strip()
+            if secret:
+                return secret
+        except Exception:
+            pass
+    return ((agent.provider_config or {}).get("webhook_secret") or "").strip()
+
+
+async def _receive_webhook(
+    agent_id: int,
+    request: Request,
+    signature: str | None,
+    channel_id: int | None,
+):
     db = SessionLocal()
     try:
         agent = agents.get_by_id(db, agent_id)
@@ -356,14 +389,27 @@ async def receive_wasender_webhook(
         if not agent.is_active:
             return {"status": "ok", "skipped": "agent_inactive"}
 
-        config = agent.provider_config or {}
-        webhook_secret = config.get("webhook_secret", "")
-        if webhook_secret and not wasender.verify_signature(x_webhook_signature, webhook_secret):
+        secret = _webhook_secret(db, agent, channel_id)
+        if secret and not wasender.verify_signature(signature, secret):
+            log("wasender_dbg", op="sig", agent_id=agent_id, channel_id=channel_id, sig="bad")
             raise HTTPException(status_code=403, detail="Invalid signature")
+        log(
+            "wasender_dbg",
+            op="sig",
+            agent_id=agent_id,
+            channel_id=channel_id,
+            sig="ok" if secret else "missing",
+        )
 
         body = await request.json()
-        msg_data = wasender.extract_message_data(body)
+        event = body.get("event", "")
+        if event in ("session.status", "qrcode.updated"):
+            channel = resolve_channel(db, agent_id, channel_id)
+            if channel:
+                await apply_event(db, channel, body)
+            return {"status": "ok"}
 
+        msg_data = wasender.extract_message_data(body)
         if msg_data:
             message_id = msg_data.get("message_key", {}).get("id", "")
             if is_duplicate(message_id):
@@ -377,8 +423,7 @@ async def receive_wasender_webhook(
             )
             asyncio.create_task(handle_wasender_message(agent_id, msg_data))
         else:
-            log("wasender_skip", agent_id=agent_id, wa_event=body.get("event", ""))
-
+            log("wasender_skip", agent_id=agent_id, wa_event=event)
         return {"status": "ok"}
     finally:
         db.close()

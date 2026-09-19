@@ -21,6 +21,7 @@ def run_all(conn):
     _message_reply_to(conn)
     _mcp_tokens(conn)
     _playground(conn)
+    _wasender_hub(conn)
     conn.commit()
 
 
@@ -737,5 +738,22 @@ def _playground(conn):
     conn.execute(text("""
         CREATE OR REPLACE VIEW users_live AS
         SELECT * FROM users WHERE playground_link_id IS NULL;
+    """))
+
+
+def _wasender_hub(conn):
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS system_secrets (
+            name VARCHAR(64) PRIMARY KEY,
+            value_encrypted BYTEA NOT NULL,
+            updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+        );
+    """))
+    conn.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE messages ADD COLUMN provider_msg_id VARCHAR(120);
+        EXCEPTION
+            WHEN duplicate_column THEN null;
+        END $$;
     """))
 

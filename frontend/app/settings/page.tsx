@@ -24,6 +24,7 @@ import {
   type McpToken,
   type McpTokenCreated,
 } from '@/lib/api';
+import { WasenderPatCard } from '@/components/settings/WasenderPatCard';
 
 function mcpSnippet(mcpUrl: string, token: string) {
   return JSON.stringify(
@@ -179,6 +180,8 @@ function SettingsPage() {
           {error}
         </div>
       )}
+
+      <WasenderPatCard />
 
       <Card>
         <h2 className="text-lg font-medium text-[var(--ink)] mb-2">מה זה MCP</h2>

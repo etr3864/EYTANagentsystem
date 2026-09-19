@@ -11,6 +11,7 @@ export * from './dashboard';
 export * from './triggers';
 export * from './mcp';
 export * from './playground';
+export * from './wasender';
 
 export type {
   Agent,

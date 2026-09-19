@@ -12,19 +12,8 @@ def add(
     media_url: str | None = None,
     media_too_large: bool = False,
     reply_to_text: str | None = None,
+    provider_msg_id: str | None = None,
 ) -> Message:
-    """Add a message to conversation.
-    
-    Args:
-        db: Database session
-        conversation_id: Conversation ID
-        role: 'user' or 'assistant'
-        content: Message text content
-        message_type: Type of message ('text', 'image', 'video', 'voice')
-        media_id: Optional link to AgentMedia record
-        media_url: Optional URL of the media file
-        media_too_large: True when inbound media exceeded persist cap
-    """
     msg = Message(
         conversation_id=conversation_id,
         role=role,
@@ -34,6 +23,7 @@ def add(
         media_url=media_url,
         media_too_large=media_too_large,
         reply_to_text=reply_to_text,
+        provider_msg_id=provider_msg_id,
     )
     db.add(msg)
     db.commit()
@@ -51,8 +41,8 @@ def add_no_commit(
     media_url: str | None = None,
     media_too_large: bool = False,
     reply_to_text: str | None = None,
+    provider_msg_id: str | None = None,
 ) -> Message:
-    """Add a message without committing — caller is responsible for db.commit()."""
     msg = Message(
         conversation_id=conversation_id,
         role=role,
@@ -62,6 +52,7 @@ def add_no_commit(
         media_url=media_url,
         media_too_large=media_too_large,
         reply_to_text=reply_to_text,
+        provider_msg_id=provider_msg_id,
     )
     db.add(msg)
     return msg
@@ -107,3 +98,11 @@ def get_by_conversation(db: Session, conversation_id: int, limit: int = 50) -> l
     return db.query(Message).filter(
         Message.conversation_id == conversation_id
     ).order_by(Message.created_at.desc()).limit(limit).all()
+
+
+def set_provider_msg_id(db: Session, message_id: int, provider_msg_id: str) -> None:
+    row = db.query(Message).filter(Message.id == message_id).first()
+    if not row or not provider_msg_id:
+        return
+    row.provider_msg_id = str(provider_msg_id)[:120]
+    db.commit()

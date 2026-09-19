@@ -33,6 +33,7 @@ class PendingMessage:
     media_url: Optional[str] = None
     media_too_large: bool = False
     reply_to_text: Optional[str] = None
+    provider_msg_id: Optional[str] = None
     timestamp: datetime = field(default_factory=datetime.utcnow)
     
     def to_dict(self) -> dict:
@@ -44,6 +45,7 @@ class PendingMessage:
             "media_url": self.media_url,
             "media_too_large": self.media_too_large,
             "reply_to_text": self.reply_to_text,
+            "provider_msg_id": self.provider_msg_id,
             "timestamp": self.timestamp.isoformat()
         }
     
@@ -57,6 +59,7 @@ class PendingMessage:
             media_url=data.get("media_url"),
             media_too_large=bool(data.get("media_too_large")),
             reply_to_text=data.get("reply_to_text"),
+            provider_msg_id=data.get("provider_msg_id"),
             timestamp=datetime.fromisoformat(data["timestamp"]) if data.get("timestamp") else datetime.utcnow()
         )
 
@@ -200,21 +203,19 @@ async def add_message(
     media_url: Optional[str] = None,
     media_too_large: bool = False,
     reply_to_text: Optional[str] = None,
+    provider_msg_id: Optional[str] = None,
 ) -> None:
-    """Add message to buffer. Processes when debounce expires or max reached."""
     r = await _get_redis()
-    
+    extra = (msg_type, image_base64, media_type, media_url, media_too_large, reply_to_text, provider_msg_id)
     if r:
         await _add_message_redis(
             r, agent_id, user_phone, text, debounce_seconds, max_messages,
-            process_callback, msg_type, image_base64, media_type,
-            media_url, media_too_large, reply_to_text,
+            process_callback, *extra,
         )
     else:
         await _add_message_memory(
             agent_id, user_phone, text, debounce_seconds, max_messages,
-            process_callback, msg_type, image_base64, media_type,
-            media_url, media_too_large, reply_to_text,
+            process_callback, *extra,
         )
 
 
@@ -232,12 +233,10 @@ async def _add_message_redis(
     media_url: Optional[str] = None,
     media_too_large: bool = False,
     reply_to_text: Optional[str] = None,
+    provider_msg_id: Optional[str] = None,
 ) -> None:
-    """Redis-backed message buffer."""
     key = _buffer_key(agent_id, user_phone)
     task_key = f"{agent_id}:{user_phone}"
-    
-    # Add message to Redis list
     msg = PendingMessage(
         text=text,
         msg_type=msg_type,
@@ -246,6 +245,7 @@ async def _add_message_redis(
         media_url=media_url,
         media_too_large=media_too_large,
         reply_to_text=reply_to_text,
+        provider_msg_id=provider_msg_id,
     )
     await r.rpush(key, json.dumps(msg.to_dict()))
     await r.expire(key, BUFFER_TTL_SECONDS)
@@ -416,8 +416,8 @@ async def _add_message_memory(
     media_url: Optional[str] = None,
     media_too_large: bool = False,
     reply_to_text: Optional[str] = None,
+    provider_msg_id: Optional[str] = None,
 ) -> None:
-    """In-memory buffer (fallback when Redis unavailable)."""
     key = (agent_id, user_phone)
     
     if key not in _memory_buffers:
@@ -440,6 +440,7 @@ async def _add_message_memory(
         media_url=media_url,
         media_too_large=media_too_large,
         reply_to_text=reply_to_text,
+        provider_msg_id=provider_msg_id,
     ))
     buffer.callback = process_callback
     

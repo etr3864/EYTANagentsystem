@@ -181,6 +181,7 @@ async def dispatch_media(ctx: TurnContext, actions: list[dict]) -> int:
 
 async def _send_text(ctx: TurnContext, text: str, *, show_typing: bool = True) -> bool:
     meta = None
+    saved = None
     try:
         saved = _persist_assistant(ctx, text)
         meta = {
@@ -198,4 +199,12 @@ async def _send_text(ctx: TurnContext, text: str, *, show_typing: bool = True) -
     delivered = await ctx.outbound.send_message(ctx.phone, text, meta=meta)
     if not delivered:
         log_error(ctx.provider, f"send failed to {ctx.display_name}")
-    return bool(delivered)
+        return False
+    provider_id = getattr(ctx.outbound, "last_provider_msg_id", None)
+    if saved is not None and provider_id:
+        try:
+            with SessionLocal() as db:
+                messages.set_provider_msg_id(db, saved.id, provider_id)
+        except Exception as error:
+            log_error(ctx.provider, f"provider_msg_id: {str(error)[:60]}")
+    return True
