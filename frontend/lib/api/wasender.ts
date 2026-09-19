@@ -129,12 +129,14 @@ export async function deleteProviderSession(sessionId: number): Promise<{
   );
 }
 
-export async function purgeStaleWasender(): Promise<{
+export async function wipeWasenderExceptNella(): Promise<{
   dropped: unknown[];
+  local: number;
   skipped: number;
+  kept: number;
 }> {
   return readJson(
-    await authFetch(`${API_URL}/api/wasender/purge-stale`, { method: 'POST' }),
+    await authFetch(`${API_URL}/api/wasender/wipe-except`, { method: 'POST' }),
   );
 }
 

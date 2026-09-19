@@ -3,18 +3,19 @@ from sqlalchemy.orm import Session
 from backend.core.logger import log
 from backend.models.agent import Agent
 from backend.models.agent_channel import AgentChannel
+from backend.services.channels.agent_channels import get_credentials
 from backend.services.wasender import sessions
 from backend.services.wasender.http import SessionApiError
+from backend.services.wasender.cleanup import wipe_channel_runtime
 from backend.services.wasender.lifecycle import (
     CHANNEL_TYPE,
+    _digits,
     _normalize_status,
     _remote_id,
     _require_pat,
     _session_id,
     remove_line,
 )
-
-STALE = {"disconnected", "logged_out", "expired", "unknown"}
 
 
 def _keep_ids(db: Session, keep: str) -> set[int]:
@@ -84,31 +85,71 @@ async def drop_provider(db: Session, session_id: int) -> dict:
     return {"wasender_session_id": session_id, "remote_ok": remote_ok, "local": local}
 
 
-async def purge_stale(db: Session, keep: str = "nella") -> dict:
+def _keep_sessions(db: Session, keep_ids: set[int]) -> tuple[set[int], set[str]]:
+    session_ids: set[int] = set()
+    phones: set[str] = set()
+    rows = (
+        db.query(AgentChannel)
+        .filter(
+            AgentChannel.channel_type == CHANNEL_TYPE,
+            AgentChannel.agent_id.in_(keep_ids),
+        )
+        .all()
+    )
+    for channel in rows:
+        try:
+            sid = _session_id(channel)
+        except Exception:
+            sid = None
+        if sid is not None:
+            session_ids.add(sid)
+        try:
+            phone = _digits(get_credentials(channel).get("phone_number") or channel.external_account_id)
+        except Exception:
+            phone = _digits(channel.external_account_id)
+        if phone:
+            phones.add(phone)
+    return session_ids, phones
+
+
+async def wipe_except(db: Session, keep: str = "nella") -> dict:
     keep_ids = _keep_ids(db, keep)
+    if not keep_ids:
+        raise ValueError("keep_not_found")
+    keep_sids, keep_phones = _keep_sessions(db, keep_ids)
+    if not keep_sids and not keep_phones:
+        raise ValueError("keep_has_no_session")
+    pat = _require_pat(db)
     dropped = []
     skipped = 0
-    for row in await list_provider(db):
-        rid = row.get("wasender_session_id")
+    for row in await sessions.list_sessions(pat):
+        rid = _remote_id(row)
+        phone = _digits(row.get("phone_number"))
         if rid is None:
             continue
-        if row.get("agent_id") in keep_ids:
+        if rid in keep_sids or (phone and phone in keep_phones):
             skipped += 1
             continue
-        if row.get("status") not in STALE:
-            skipped += 1
-            continue
-        dropped.append(await drop_provider(db, int(rid)))
+        try:
+            await sessions.delete_session(pat, rid)
+            remote_ok = True
+        except SessionApiError as error:
+            if error.status_code != 404:
+                raise
+            remote_ok = False
+        dropped.append({"wasender_session_id": rid, "remote_ok": remote_ok})
     leftovers = (
         db.query(AgentChannel)
         .filter(AgentChannel.channel_type == CHANNEL_TYPE)
         .all()
     )
+    local = 0
     for channel in leftovers:
         if channel.agent_id in keep_ids:
             continue
-        if (channel.health_status or "unknown") == "connected":
-            continue
-        dropped.append(await remove_line(db, channel))
-    log("wasender_dbg", op="purge_stale", dropped=len(dropped), skipped=skipped)
-    return {"dropped": dropped, "skipped": skipped}
+        await wipe_channel_runtime(db, channel)
+        db.delete(channel)
+        local += 1
+    db.commit()
+    log("wasender_dbg", op="wipe_except", keep=keep, remote=len(dropped), local=local, skipped=skipped)
+    return {"dropped": dropped, "local": local, "skipped": skipped, "kept": len(keep_ids)}

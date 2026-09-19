@@ -6,7 +6,6 @@ from backend.core.config import settings
 from backend.core.logger import log, log_error
 from backend.models.agent import Agent
 from backend.models.agent_channel import AgentChannel
-from backend.models.conversation import Conversation
 from backend.core.encryption import encrypt_credentials
 from backend.services.channels.agent_channels import (
     add_channel,
@@ -233,27 +232,10 @@ async def remove_line(db: Session, channel: AgentChannel) -> dict:
             remote_ok = False
             log_error("wasender_delete", error.message[:80])
     await wipe_channel_runtime(db, channel)
-    live_count = (
-        db.query(Conversation)
-        .filter(
-            Conversation.channel_id == channel.id,
-            Conversation.archived_at.is_(None),
-        )
-        .count()
-    )
-    if live_count:
-        channel.is_active = False
-        channel.external_account_id = f"pending_{uuid.uuid4().hex[:12]}"
-        channel.credentials_encrypted = encrypt_credentials({"pending": True})
-        update_health(db, channel, "logged_out")
-        db.commit()
-        action = "disabled"
-    else:
-        db.delete(channel)
-        db.commit()
-        action = "deleted"
-    log("wasender_dbg", op="delete", channel_id=channel.id, action=action, remote_ok=remote_ok)
-    return {"status": action, "channel_id": channel.id, "remote_ok": remote_ok}
+    db.delete(channel)
+    db.commit()
+    log("wasender_dbg", op="delete", channel_id=channel.id, action="deleted", remote_ok=remote_ok)
+    return {"status": "deleted", "channel_id": channel.id, "remote_ok": remote_ok}
 
 
 def _remote_id(row: dict) -> int | None:

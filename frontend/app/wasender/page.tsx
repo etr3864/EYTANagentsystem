@@ -12,7 +12,7 @@ import {
   getAgents,
   listProviderSessions,
   listWasenderHub,
-  purgeStaleWasender,
+  wipeWasenderExceptNella,
   type Agent,
   type ProviderSession,
   type WasenderLine,
@@ -79,15 +79,16 @@ function HubPage() {
   const paged = paginate(filtered, page, PAGE_SIZE);
   const takenAgentIds = useMemo(() => new Set(rows.map((row) => row.agent_id)), [rows]);
 
-  async function handlePurgeStale() {
-    if (!confirm('למחוק אצל הספק את כל הסשנים המנותקים? nella נשאר. השיחות אצלנו נשארות.')) return;
+  async function handleWipeExcept() {
+    if (!confirm('למחוק את כל הערוצים והסשנים חוץ מ-nella? השיחות נשארות, החיבורים לא.')) return;
+    if (!confirm('בטוח? זה מוחק גם סשנים מחוברים, חוץ מנלה.')) return;
     setPurging(true);
     setError('');
     setInfo('');
     try {
-      const result = await purgeStaleWasender();
+      const result = await wipeWasenderExceptNella();
       await loadLines();
-      setInfo(`נמחקו ${result.dropped.length} · דולגו ${result.skipped}`);
+      setInfo(`נשמרו ${result.kept} סוכנים · נמחקו ${result.dropped.length} אצל הספק · ${result.local} שורות אצלנו`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'מחיקה נכשלה');
     } finally {
@@ -141,8 +142,8 @@ function HubPage() {
               <Button type="button" variant="secondary" size="sm" loading={refreshing} onClick={handleRefresh}>
                 רענן חיבורים
               </Button>
-              <Button type="button" variant="danger" size="sm" loading={purging} onClick={handlePurgeStale}>
-                מחק מנותקים
+              <Button type="button" variant="danger" size="sm" loading={purging} onClick={handleWipeExcept}>
+                מחק הכל חוץ מ-nella
               </Button>
               <Button type="button" size="sm" onClick={() => setCreating(true)}>
                 ערוץ חדש
