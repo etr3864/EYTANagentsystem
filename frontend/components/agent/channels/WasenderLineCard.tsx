@@ -47,7 +47,7 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [shareNote, setShareNote] = useState('');
-  const [showCreate, setShowCreate] = useState(!channel);
+  const [showCreate, setShowCreate] = useState(false);
 
   useEffect(() => {
     if (!channel) {
@@ -171,9 +171,8 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
     }
   }
 
-  const status = line?.status || 'unknown';
+  const status = line?.status || channel?.health_status || 'unknown';
   const live = status === 'connected' || status === 'need_scan' || status === 'connecting';
-  const empty = !channel || !live;
   const image = qrSrc(line?.qr);
 
   return (
@@ -197,17 +196,22 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
         )}
       </div>
 
-      {!channel && !canCreate && (
-        <p className="text-sm text-[var(--text-secondary)]">אין מספר מחובר. מנהל ראשי פותח את המופע.</p>
+      {canCreate && !live && !showCreate && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => setShowCreate(true)}
+          className="w-full py-2 rounded-lg text-sm bg-[var(--ink)] text-[var(--bg)]"
+        >
+          הוסף חיבור
+        </button>
       )}
 
-      {canCreate && (empty || showCreate) && (
+      {canCreate && showCreate && (
         <div className="space-y-2">
-          <p className="text-xs text-[var(--text-secondary)]">
-            {live
-              ? 'סשן חדש מחליף את הקיים אצל הספק. השיחות אצלנו נשארות.'
-              : 'ממלאים מספר ויוצרים חיבור. בלי סשן אצל הספק אין מה לחבר.'}
-          </p>
+          {live ? (
+            <p className="text-xs text-[var(--text-secondary)]">סשן חדש מחליף את הקיים אצל הספק. השיחות אצלנו נשארות.</p>
+          ) : null}
           <input
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
@@ -230,7 +234,7 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
             onClick={handleCreate}
             className="w-full py-2 rounded-lg text-sm bg-[var(--ink)] text-[var(--bg)] disabled:opacity-40"
           >
-            {busy ? 'יוצר…' : channel ? 'צור סשן' : 'הוסף מספר'}
+            {busy ? 'יוצר…' : 'הוסף חיבור'}
           </button>
         </div>
       )}
@@ -297,16 +301,6 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
             </button>
           )}
         </div>
-      )}
-      {channel && !live && canDelete && (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={handleDelete}
-          className="px-3 py-1.5 rounded-lg text-xs text-red-400 border border-red-500/20"
-        >
-          מחק שורה ישנה
-        </button>
       )}
       {canCreate && channel && live && (
         <WasenderAdvancedSettings agentId={agentId} channelId={channel.id} onSaved={onChanged} />
