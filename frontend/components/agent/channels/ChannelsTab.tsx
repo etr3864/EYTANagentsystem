@@ -37,11 +37,7 @@ export function ChannelsTab({ agentId, canCreate, canManage, canDelete }: Channe
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold text-[var(--ink)]">ערוצי תקשורת</h2>
-        <p className="text-sm text-[var(--text-secondary)] mt-0.5">מספר WhatsApp של הסוכן</p>
-      </div>
+    <div className="space-y-6">
       <WasenderLineCard
         agentId={agentId}
         channel={channel}

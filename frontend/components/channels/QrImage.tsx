@@ -19,7 +19,11 @@ export function QrImage({ value, className }: { value: string; className?: strin
     }
     let cancelled = false;
     import('qrcode')
-      .then((mod) => mod.toDataURL(value, { width: 320, margin: 1, errorCorrectionLevel: 'M' }))
+      .then((mod) => {
+        const toDataURL = mod.toDataURL || mod.default?.toDataURL;
+        if (!toDataURL) throw new Error('qrcode_missing');
+        return toDataURL(value, { width: 320, margin: 1, errorCorrectionLevel: 'M' });
+      })
       .then((url) => {
         if (!cancelled) setSrc(url);
       })
