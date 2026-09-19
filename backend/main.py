@@ -16,6 +16,7 @@ from backend.api.routers.webhook_meta import router as webhook_meta_router
 from backend.api.routers.agent_channels import router as agent_channels_router
 from backend.api.routers.wasender_account import router as wasender_account_router
 from backend.api.routers.wasender_sessions import router as wasender_sessions_router
+from backend.api.routers.wasender_qr_public import router as wasender_qr_public_router
 from backend.api.routers.external import router as external_router
 from backend.api.routers.agent_triggers import router as agent_triggers_router
 from backend.api.routers.agent_escalations import router as agent_escalations_router
@@ -99,6 +100,7 @@ app.include_router(webhook_meta_router)
 app.include_router(agent_channels_router, prefix="/api")
 app.include_router(wasender_account_router, prefix="/api")
 app.include_router(wasender_sessions_router, prefix="/api")
+app.include_router(wasender_qr_public_router)
 app.include_router(external_router, prefix="/api/external")
 app.include_router(agent_triggers_router, prefix="/api")
 app.include_router(agent_escalations_router, prefix="/api")

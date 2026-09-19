@@ -3,6 +3,7 @@ import { API_URL, authFetch } from './client';
 export interface WasenderLine {
   id: number;
   agent_id: number;
+  agent_name?: string | null;
   channel_type: string;
   phone: string;
   note: string | null;
@@ -39,6 +40,40 @@ export interface CreateWasenderLine {
   ignore_broadcasts?: boolean;
   always_online?: boolean;
 }
+
+export interface WasenderSettings extends WasenderLine {
+  api_key: string;
+  webhook_secret: string;
+  webhook_url: string;
+  webhook_events: string[];
+  session_id: number | null;
+  account_protection: boolean;
+  log_messages: boolean;
+  read_incoming_messages: boolean;
+  auto_reject_calls: boolean;
+  ignore_groups: boolean;
+  ignore_channels: boolean;
+  ignore_broadcasts: boolean;
+  always_online: boolean;
+}
+
+export type WasenderSettingsUpdate = Partial<
+  Pick<
+    WasenderSettings,
+    | 'phone'
+    | 'note'
+    | 'api_key'
+    | 'webhook_secret'
+    | 'account_protection'
+    | 'log_messages'
+    | 'read_incoming_messages'
+    | 'auto_reject_calls'
+    | 'ignore_groups'
+    | 'ignore_channels'
+    | 'ignore_broadcasts'
+    | 'always_online'
+  >
+>;
 
 async function readJson<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -112,6 +147,59 @@ export async function refreshWasenderLine(agentId: number, channelId: number): P
 
 export async function fetchWasenderQr(agentId: number, channelId: number): Promise<WasenderLine> {
   return readJson(await authFetch(`${API_URL}/api/agents/${agentId}/wasender/sessions/${channelId}/qr`));
+}
+
+export async function shareWasenderQrLink(
+  agentId: number,
+  channelId: number,
+): Promise<{ url: string; path: string; expires_at: string }> {
+  return readJson(
+    await authFetch(`${API_URL}/api/agents/${agentId}/wasender/sessions/${channelId}/share-link`, {
+      method: 'POST',
+    }),
+  );
+}
+
+export async function getPublicWasenderQr(token: string): Promise<{
+  status: string;
+  connected: boolean;
+  phone: string | null;
+  qr: string | null;
+}> {
+  const res = await fetch(`${API_URL}/api/wa-qr/${encodeURIComponent(token)}`);
+  if (!res.ok) throw new Error('link_gone');
+  return res.json();
+}
+
+export async function refreshPublicWasenderQr(token: string): Promise<{
+  status: string;
+  connected: boolean;
+  phone: string | null;
+  qr: string | null;
+}> {
+  const res = await fetch(`${API_URL}/api/wa-qr/${encodeURIComponent(token)}/refresh`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error('refresh_failed');
+  return res.json();
+}
+
+export async function getWasenderSettings(agentId: number, channelId: number): Promise<WasenderSettings> {
+  return readJson(await authFetch(`${API_URL}/api/agents/${agentId}/wasender/sessions/${channelId}/settings`));
+}
+
+export async function saveWasenderSettings(
+  agentId: number,
+  channelId: number,
+  body: WasenderSettingsUpdate,
+): Promise<WasenderSettings> {
+  return readJson(
+    await authFetch(`${API_URL}/api/agents/${agentId}/wasender/sessions/${channelId}/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+  );
 }
 
 export async function deleteWasenderLine(agentId: number, channelId: number): Promise<{ status: string; remote_ok: boolean }> {

@@ -8,9 +8,11 @@ import {
   disconnectWasenderLine,
   fetchWasenderQr,
   getWasenderLine,
+  shareWasenderQrLink,
   type WasenderLine,
 } from '@/lib/api';
 import { type AgentChannel } from '@/lib/channels';
+import { WasenderAdvancedSettings } from './WasenderAdvancedSettings';
 
 const STATUS_LABEL: Record<string, string> = {
   need_scan: 'ממתין לסריקה',
@@ -43,6 +45,8 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [shareNote, setShareNote] = useState('');
+  const [showCreate, setShowCreate] = useState(!channel);
 
   useEffect(() => {
     if (!channel) {
@@ -60,7 +64,7 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
           note: channel.account_name,
           status: channel.health_status || 'unknown',
           is_active: channel.is_active,
-          has_session: true,
+          has_session: false,
           created_at: channel.created_at,
         });
       });
@@ -92,6 +96,7 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
       setLine(created);
       setPhone('');
       setNote('');
+      setShowCreate(false);
       onChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'יצירה נכשלה');
@@ -122,6 +127,23 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
       onChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'ניתוק נכשל');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleShare() {
+    if (!channel) return;
+    setBusy(true);
+    setError('');
+    setShareNote('');
+    try {
+      const row = await shareWasenderQrLink(agentId, channel.id);
+      const url = `${window.location.origin}${row.path}`;
+      await navigator.clipboard.writeText(url);
+      setShareNote('הקישור הועתק. שלח ללקוח. תקף 24 שעות.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'לא הצלחנו ליצור קישור');
     } finally {
       setBusy(false);
     }
@@ -169,8 +191,15 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
         <p className="text-sm text-[var(--text-secondary)]">עדיין אין מספר מחובר. מנהל ראשי פותח את המופע.</p>
       )}
 
-      {!channel && canCreate && (
+      {canCreate && (showCreate || !channel || !line?.has_session) && (
         <div className="space-y-2">
+          {channel ? (
+            <p className="text-xs text-[var(--text-secondary)]">
+              {line?.has_session
+                ? 'סשן חדש מחליף את הקיים אצל הספק. השיחות אצלנו נשארות.'
+                : 'יש שורת ערוץ ישנה בלי סשן חי. ממלאים מספר ויוצרים חיבור.'}
+            </p>
+          ) : null}
           <input
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
@@ -190,7 +219,7 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
             onClick={handleCreate}
             className="w-full py-2 rounded-lg text-sm bg-[var(--ink)] text-[var(--bg)] disabled:opacity-40"
           >
-            {busy ? 'יוצר…' : 'הוסף מספר'}
+            {busy ? 'יוצר…' : channel ? 'צור סשן' : 'הוסף מספר'}
           </button>
         </div>
       )}
@@ -204,13 +233,29 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
         </div>
       )}
 
-      {channel && !line?.has_session && (
-        <p className="text-xs text-amber-300">מקושר, חסר מזהה סשן — שייך מההגדרות או חבר מחדש</p>
-      )}
-
       {channel && (
         <div className="flex flex-wrap gap-2">
+          {canCreate && line?.has_session && !showCreate && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setShowCreate(true)}
+              className="px-3 py-1.5 rounded-lg text-xs border border-[var(--edge)]"
+            >
+              סשן חדש
+            </button>
+          )}
           {canManage && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={handleShare}
+              className="px-3 py-1.5 rounded-lg text-xs border border-[var(--edge)]"
+            >
+              קישור ללקוח
+            </button>
+          )}
+          {canManage && line?.has_session && (
             <button
               type="button"
               disabled={busy}
@@ -242,6 +287,10 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
           )}
         </div>
       )}
+      {canCreate && channel && (
+        <WasenderAdvancedSettings agentId={agentId} channelId={channel.id} onSaved={onChanged} />
+      )}
+      {shareNote && <p className="text-sm text-emerald-400">{shareNote}</p>}
       {error && <p className="text-sm text-red-400">{error}</p>}
     </div>
   );

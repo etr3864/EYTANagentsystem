@@ -23,6 +23,16 @@ async def create_session(pat: str, payload: dict) -> dict:
     return data
 
 
+async def get_session(pat: str, session_id: int) -> dict:
+    data = _data(await request("GET", f"/whatsapp-sessions/{session_id}", pat))
+    return data if isinstance(data, dict) else {}
+
+
+async def update_session(pat: str, session_id: int, payload: dict) -> dict:
+    data = _data(await request("PUT", f"/whatsapp-sessions/{session_id}", pat, json=payload))
+    return data if isinstance(data, dict) else {}
+
+
 async def delete_session(pat: str, session_id: int) -> None:
     await request("DELETE", f"/whatsapp-sessions/{session_id}", pat)
 

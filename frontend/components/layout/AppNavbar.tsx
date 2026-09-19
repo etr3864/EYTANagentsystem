@@ -9,7 +9,7 @@ import { AgentsIcon, ChartIcon, UsersIcon, DatabaseIcon, PlusIcon, LogoutIcon, S
 import { BrandMark } from '@/components/brand/BrandMark';
 import { applyTheme } from '@/components/theme/ThemeProvider';
 
-const HIDDEN_PATHS = ['/home', '/login', '/privacy', '/terms', '/try'];
+const HIDDEN_PATHS = ['/home', '/login', '/privacy', '/terms', '/try', '/wa-qr'];
 
 interface NavLink {
   href: string;
@@ -24,7 +24,7 @@ const NAV_LINKS: NavLink[] = [
   { href: '/users', label: 'משתמשים', icon: <UsersIcon />, roles: ['super_admin', 'admin'] },
   { href: '/database', label: 'Database', icon: <DatabaseIcon />, roles: ['super_admin'] },
   { href: '/new', label: 'סוכן חדש', icon: <PlusIcon />, roles: ['super_admin'] },
-  { href: '/wasender', label: 'WaSender', icon: <SettingsIcon />, roles: ['super_admin'] },
+  { href: '/wasender', label: 'ערוצים', icon: <SettingsIcon />, roles: ['super_admin'] },
 ];
 
 function getRoleBadge(role?: string) {

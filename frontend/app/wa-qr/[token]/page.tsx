@@ -1,0 +1,118 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import { getPublicWasenderQr, refreshPublicWasenderQr } from '@/lib/api';
+
+function qrSrc(qr?: string | null): string | null {
+  if (!qr) return null;
+  if (qr.startsWith('data:') || qr.startsWith('http')) return qr;
+  return `data:image/png;base64,${qr}`;
+}
+
+export default function WaQrPage() {
+  const params = useParams();
+  const token = String(params.token || '');
+  const [status, setStatus] = useState('');
+  const [connected, setConnected] = useState(false);
+  const [phone, setPhone] = useState<string | null>(null);
+  const [qr, setQr] = useState<string | null>(null);
+  const [gone, setGone] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  async function load() {
+    try {
+      const row = await getPublicWasenderQr(token);
+      setStatus(row.status);
+      setConnected(row.connected);
+      setPhone(row.phone);
+      setQr(row.qr);
+    } catch {
+      setGone(true);
+    }
+  }
+
+  useEffect(() => {
+    if (!token) return;
+    load();
+    const timer = window.setInterval(load, 4000);
+    return () => window.clearInterval(timer);
+  }, [token]);
+
+  async function handleRefresh() {
+    setBusy(true);
+    setError('');
+    try {
+      const row = await refreshPublicWasenderQr(token);
+      setStatus(row.status);
+      setConnected(row.connected);
+      setPhone(row.phone);
+      setQr(row.qr);
+    } catch {
+      setError('לא הצלחנו לרענן. לחץ שוב.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const image = qrSrc(qr);
+
+  if (gone) {
+    return (
+      <main className="min-h-screen px-5 py-10 max-w-md mx-auto text-center" dir="rtl">
+        <h1 className="text-xl font-semibold mb-3">הקישור לא עובד</h1>
+        <p className="text-[var(--text-secondary)] leading-relaxed">
+          הוא פג או שכבר לא בתוקף. תבקש מאיתנו קישור חדש.
+        </p>
+      </main>
+    );
+  }
+
+  if (connected) {
+    return (
+      <main className="min-h-screen px-5 py-10 max-w-md mx-auto text-center" dir="rtl">
+        <h1 className="text-xl font-semibold mb-3">מחובר</h1>
+        <p className="text-[var(--text-secondary)] leading-relaxed">
+          הוואטסאפ התחבר. אפשר לסגור את הדף.
+        </p>
+      </main>
+    );
+  }
+
+  return (
+    <main className="min-h-screen px-5 py-8 max-w-md mx-auto" dir="rtl">
+      <h1 className="text-xl font-semibold text-center mb-2">חיבור וואטסאפ</h1>
+      {phone && (
+        <p className="text-center text-sm text-[var(--text-muted)] mb-6" dir="ltr">
+          {phone}
+        </p>
+      )}
+
+      <ol className="text-[15px] leading-7 text-[var(--ink)] space-y-3 mb-6 list-decimal pr-5">
+        <li>פתח את הדף הזה במחשב או בטלפון אחר — לא בטלפון של הוואטסאפ.</li>
+        <li>בטלפון של הוואטסאפ: הגדרות ← מכשירים מקושרים ← קישור מכשיר.</li>
+        <li>צלם עם המצלמה את הריבוע כאן למטה.</li>
+        <li>אם הריבוע נעלם או לא עובד — לחץ «ברקוד חדש».</li>
+      </ol>
+
+      {image ? (
+        <img src={image} alt="ברקוד" className="w-64 h-64 mx-auto rounded-2xl bg-white p-2" />
+      ) : (
+        <p className="text-center text-sm text-[var(--text-secondary)] py-10">
+          {status === 'connecting' ? 'מתחבר…' : 'לוחצים על ברקוד חדש כדי לראות את הריבוע.'}
+        </p>
+      )}
+
+      <button
+        type="button"
+        disabled={busy}
+        onClick={handleRefresh}
+        className="mt-6 w-full py-3 rounded-2xl text-base font-medium bg-[var(--ink)] text-[var(--bg)] disabled:opacity-40"
+      >
+        {busy ? 'טוען…' : 'ברקוד חדש'}
+      </button>
+      {error && <p className="text-center text-sm text-red-400 mt-3">{error}</p>}
+    </main>
+  );
+}

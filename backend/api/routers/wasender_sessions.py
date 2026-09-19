@@ -8,6 +8,7 @@ from backend.core.database import get_db
 from backend.services.channels.agent_channels import ChannelConflictError
 from backend.services.entities import agents
 from backend.services.wasender.http import SessionApiError
+from backend.services.wasender.qr_share import issue as issue_qr_link
 from backend.services.wasender.lifecycle import (
     connect_line,
     create_line,
@@ -19,6 +20,7 @@ from backend.services.wasender.lifecycle import (
     refresh_status,
     remove_line,
 )
+from backend.services.wasender.settings import load_settings, save_settings
 
 router = APIRouter(tags=["wasender-sessions"])
 _super_admin = Depends(require_super_admin())
@@ -35,6 +37,21 @@ class CreateLineBody(BaseModel):
     ignore_channels: bool = True
     ignore_broadcasts: bool = True
     always_online: bool = False
+
+
+class SettingsBody(BaseModel):
+    phone: str | None = None
+    note: str | None = None
+    api_key: str | None = None
+    webhook_secret: str | None = None
+    account_protection: bool | None = None
+    log_messages: bool | None = None
+    read_incoming_messages: bool | None = None
+    auto_reject_calls: bool | None = None
+    ignore_groups: bool | None = None
+    ignore_channels: bool | None = None
+    ignore_broadcasts: bool | None = None
+    always_online: bool | None = None
 
 
 def _agent_or_404(db: Session, agent_id: int):
@@ -160,6 +177,44 @@ async def session_qr(
         return await fetch_qr(db, channel)
     except SessionApiError as error:
         raise HTTPException(status_code=error.status_code, detail=error.message)
+
+
+@router.get("/agents/{agent_id}/wasender/sessions/{channel_id}/settings")
+async def session_settings(
+    agent_id: int,
+    channel_id: int,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = _super_admin,
+):
+    channel = _channel_or_404(db, agent_id, channel_id)
+    return await load_settings(db, channel)
+
+
+@router.put("/agents/{agent_id}/wasender/sessions/{channel_id}/settings")
+async def put_session_settings(
+    agent_id: int,
+    channel_id: int,
+    body: SettingsBody,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = _super_admin,
+):
+    channel = _channel_or_404(db, agent_id, channel_id)
+    try:
+        return await save_settings(db, channel, body.model_dump(exclude_unset=True))
+    except SessionApiError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.message)
+
+
+@router.post("/agents/{agent_id}/wasender/sessions/{channel_id}/share-link")
+def share_qr_link(
+    agent_id: int,
+    channel_id: int,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
+):
+    _can_operate(current_user, agent_id, db, write=True)
+    channel = _channel_or_404(db, agent_id, channel_id)
+    return issue_qr_link(db, channel, current_user.id)
 
 
 @router.delete("/agents/{agent_id}/wasender/sessions/{channel_id}")

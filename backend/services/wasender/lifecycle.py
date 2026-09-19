@@ -21,6 +21,26 @@ from backend.services.wasender import live, sessions
 
 CHANNEL_TYPE = "whatsapp_wasender"
 DEFAULT_EVENTS = ["messages.received", "session.status", "qrcode.updated"]
+SETTING_KEYS = (
+    "account_protection",
+    "log_messages",
+    "read_incoming_messages",
+    "auto_reject_calls",
+    "ignore_groups",
+    "ignore_channels",
+    "ignore_broadcasts",
+    "always_online",
+)
+FLAG_DEFAULTS = {
+    "account_protection": True,
+    "log_messages": False,
+    "read_incoming_messages": False,
+    "auto_reject_calls": True,
+    "ignore_groups": True,
+    "ignore_channels": True,
+    "ignore_broadcasts": True,
+    "always_online": False,
+}
 
 
 def webhook_url(agent_id: int, channel_id: int) -> str:
@@ -66,6 +86,68 @@ def public_channel(channel: AgentChannel, extra: dict | None = None) -> dict:
     return row
 
 
+def _line_for_agent(db: Session, agent_id: int) -> AgentChannel | None:
+    return (
+        db.query(AgentChannel)
+        .filter(
+            AgentChannel.agent_id == agent_id,
+            AgentChannel.channel_type == CHANNEL_TYPE,
+        )
+        .first()
+    )
+
+
+def _session_payload(agent: Agent, channel: AgentChannel, phone: str, flags: dict) -> dict:
+    payload = {
+        "name": f"{agent.name}-{phone}"[:80],
+        "phone_number": phone,
+        "webhook_url": webhook_url(agent.id, channel.id),
+        "webhook_enabled": True,
+        "webhook_events": DEFAULT_EVENTS,
+    }
+    for key in SETTING_KEYS:
+        payload[key] = bool(flags[key]) if key in flags else FLAG_DEFAULTS[key]
+    return payload
+
+
+async def _bind_remote(
+    db: Session,
+    agent: Agent,
+    channel: AgentChannel,
+    phone: str,
+    note: str | None,
+    flags: dict,
+    *,
+    new_row: bool,
+) -> dict:
+    pat = _require_pat(db)
+    old_id = None if new_row else _session_id(channel)
+    try:
+        remote = await sessions.create_session(pat, _session_payload(agent, channel, phone, flags))
+    except Exception:
+        if new_row:
+            db.delete(channel)
+            db.commit()
+        raise
+    _store_remote(channel, remote, phone)
+    if note is not None:
+        channel.account_name = (note or "").strip() or None
+    channel.is_active = True
+    agent.provider = "wasender"
+    db.commit()
+    remote_id = remote.get("id")
+    if old_id is not None and remote_id is not None and int(old_id) != int(remote_id):
+        try:
+            await sessions.delete_session(pat, old_id)
+        except SessionApiError as error:
+            log_error("wasender_replace", error.message[:80])
+    log("wasender_dbg", op="create", agent_id=agent.id, channel_id=channel.id)
+    qr = await _connect_and_qr(channel)
+    update_health(db, channel, "need_scan")
+    db.commit()
+    return public_channel(channel, {"qr": qr})
+
+
 async def create_line(
     db: Session,
     agent: Agent,
@@ -73,47 +155,20 @@ async def create_line(
     note: str | None,
     options: dict | None = None,
 ) -> dict:
-    pat = _require_pat(db)
     flags = options or {}
-    placeholder = f"pending_{uuid.uuid4().hex[:12]}"
+    existing = _line_for_agent(db, agent.id)
+    if existing:
+        return await _bind_remote(db, agent, existing, phone, note, flags, new_row=False)
     channel = add_channel(
         db,
         agent.id,
         CHANNEL_TYPE,
-        placeholder,
+        f"pending_{uuid.uuid4().hex[:12]}",
         {"pending": True},
         account_name=(note or "").strip() or None,
     )
     db.flush()
-    payload = {
-        "name": f"{agent.name}-{phone}"[:80],
-        "phone_number": phone,
-        "account_protection": flags.get("account_protection", True),
-        "log_messages": flags.get("log_messages", False),
-        "read_incoming_messages": flags.get("read_incoming_messages", False),
-        "auto_reject_calls": flags.get("auto_reject_calls", True),
-        "ignore_groups": flags.get("ignore_groups", True),
-        "ignore_channels": flags.get("ignore_channels", True),
-        "ignore_broadcasts": flags.get("ignore_broadcasts", True),
-        "always_online": flags.get("always_online", False),
-        "webhook_url": webhook_url(agent.id, channel.id),
-        "webhook_enabled": True,
-        "webhook_events": DEFAULT_EVENTS,
-    }
-    try:
-        remote = await sessions.create_session(pat, payload)
-    except Exception:
-        db.delete(channel)
-        db.commit()
-        raise
-    _store_remote(channel, remote, phone)
-    agent.provider = "wasender"
-    db.commit()
-    log("wasender_dbg", op="create", agent_id=agent.id, channel_id=channel.id)
-    qr = await _connect_and_qr(channel)
-    update_health(db, channel, "need_scan")
-    db.commit()
-    return public_channel(channel, {"qr": qr})
+    return await _bind_remote(db, agent, channel, phone, note, flags, new_row=True)
 
 
 async def connect_line(db: Session, channel: AgentChannel) -> dict:
@@ -255,12 +310,13 @@ async def adopt_existing(db: Session) -> dict:
 
 def list_lines(db: Session) -> list[dict]:
     rows = (
-        db.query(AgentChannel)
+        db.query(AgentChannel, Agent.name)
+        .join(Agent, Agent.id == AgentChannel.agent_id)
         .filter(AgentChannel.channel_type == CHANNEL_TYPE)
-        .order_by(AgentChannel.agent_id, AgentChannel.id)
+        .order_by(Agent.name, AgentChannel.id)
         .all()
     )
-    return [public_channel(row) for row in rows]
+    return [{**public_channel(channel), "agent_name": name} for channel, name in rows]
 
 
 def get_owned_channel(db: Session, agent_id: int, channel_id: int) -> AgentChannel:
@@ -270,15 +326,39 @@ def get_owned_channel(db: Session, agent_id: int, channel_id: int) -> AgentChann
     return channel
 
 
-def _store_remote(channel: AgentChannel, remote: dict, phone: str | None) -> None:
-    session_id = remote.get("id")
+def _store_remote(
+    channel: AgentChannel,
+    remote: dict,
+    phone: str | None,
+    overrides: dict | None = None,
+) -> None:
+    existing: dict = {}
+    try:
+        existing = get_credentials(channel)
+    except Exception:
+        pass
+    extra = overrides or {}
+    session_id = remote.get("id") if remote else existing.get("wasender_session_id")
     creds = {
-        "api_key": remote.get("api_key") or "",
-        "webhook_secret": remote.get("webhook_secret") or "",
-        "session": str(session_id) if session_id is not None else "default",
+        "api_key": extra.get("api_key") or remote.get("api_key") or existing.get("api_key") or "",
+        "webhook_secret": (
+            extra["webhook_secret"]
+            if "webhook_secret" in extra
+            else (remote.get("webhook_secret") or existing.get("webhook_secret") or "")
+        ),
+        "session": str(session_id) if session_id is not None else existing.get("session") or "default",
         "wasender_session_id": session_id,
-        "phone_number": remote.get("phone_number") or phone,
+        "phone_number": extra.get("phone_number") or remote.get("phone_number") or phone or existing.get("phone_number"),
     }
+    for key in SETTING_KEYS:
+        if key in extra:
+            creds[key] = bool(extra[key])
+        elif key in remote:
+            creds[key] = bool(remote[key])
+        elif key in existing:
+            creds[key] = bool(existing[key])
+        else:
+            creds[key] = FLAG_DEFAULTS[key]
     if session_id is not None:
         channel.external_account_id = str(session_id)
     channel.credentials_encrypted = encrypt_credentials(creds)

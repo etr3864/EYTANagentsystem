@@ -22,6 +22,7 @@ def run_all(conn):
     _mcp_tokens(conn)
     _playground(conn)
     _wasender_hub(conn)
+    _wasender_qr_links(conn)
     conn.commit()
 
 
@@ -755,5 +756,27 @@ def _wasender_hub(conn):
         EXCEPTION
             WHEN duplicate_column THEN null;
         END $$;
+    """))
+
+
+def _wasender_qr_links(conn):
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS wasender_qr_links (
+            id SERIAL PRIMARY KEY,
+            channel_id INTEGER NOT NULL REFERENCES agent_channels(id) ON DELETE CASCADE,
+            token_hash VARCHAR(64) NOT NULL UNIQUE,
+            created_by INTEGER NOT NULL REFERENCES auth_users(id) ON DELETE RESTRICT,
+            expires_at TIMESTAMP NOT NULL,
+            revoked_at TIMESTAMP,
+            created_at TIMESTAMP NOT NULL DEFAULT NOW()
+        );
+    """))
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_wasender_qr_links_channel_id
+        ON wasender_qr_links(channel_id);
+    """))
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_wasender_qr_links_expires_at
+        ON wasender_qr_links(expires_at);
     """))
 

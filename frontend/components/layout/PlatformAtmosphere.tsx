@@ -5,6 +5,6 @@ import { Atmosphere } from '@/components/try/Atmosphere';
 
 export function PlatformAtmosphere() {
   const pathname = usePathname();
-  if (pathname === '/try' || pathname.startsWith('/try/')) return null;
+  if (pathname === '/try' || pathname.startsWith('/try/') || pathname.startsWith('/wa-qr')) return null;
   return <Atmosphere fixed />;
 }
