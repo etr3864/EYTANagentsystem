@@ -3,7 +3,6 @@
 import { useMemo, useState } from 'react';
 import { Button, Input, Modal, Select } from '@/components/ui';
 import { createWasenderLine, type Agent, type WasenderLine } from '@/lib/api';
-import { toSessionPhone } from '@/lib/phone';
 
 interface Props {
   agents: Agent[];
@@ -24,7 +23,6 @@ export function CreateChannelModal({ agents, takenAgentIds, onClose, onCreated }
     [agents, takenAgentIds],
   );
   const [agentId, setAgentId] = useState(options[0]?.value || '');
-  const [phone, setPhone] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -32,16 +30,11 @@ export function CreateChannelModal({ agents, takenAgentIds, onClose, onCreated }
 
   async function handleCreate() {
     const id = Number(agentId);
-    if (!id || !phone.trim()) return;
-    const normalized = toSessionPhone(phone);
-    if (!normalized) {
-      setError('מספר לא תקין. אפשר 054, +972 או 972…');
-      return;
-    }
+    if (!id) return;
     setBusy(true);
     setError('');
     try {
-      const line = await createWasenderLine(id, { phone: normalized, note: note.trim() || undefined });
+      const line = await createWasenderLine(id, { note: note.trim() || undefined });
       onCreated(line);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'יצירה נכשלה');
@@ -63,24 +56,16 @@ export function CreateChannelModal({ agents, takenAgentIds, onClose, onCreated }
             options={options}
           />
           <Input
-            label="מספר WhatsApp"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="054… או +972…"
-            dir="ltr"
-            hint={toSessionPhone(phone) ? `יישלח ${toSessionPhone(phone)}` : 'אפשר 054, +972 או 972'}
-          />
-          <Input
             label="הערה"
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="למשל: קו חם / לידים קרים"
+            placeholder="אופציונלי"
           />
           {replacing && (
             <p className="text-xs text-amber-300">לסוכן הזה כבר יש ערוץ. הסשן הישן אצל הספק יימחק ויוחלף.</p>
           )}
           {error && <p className="text-sm text-red-400">{error}</p>}
-          <Button type="button" onClick={handleCreate} loading={busy} disabled={!agentId || !phone.trim()}>
+          <Button type="button" onClick={handleCreate} loading={busy} disabled={!agentId}>
             {replacing ? 'החלף סשן' : 'צור ערוץ'}
           </Button>
         </div>

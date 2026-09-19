@@ -32,7 +32,7 @@ def _raise_upstream(error: SessionApiError) -> None:
 
 
 class CreateLineBody(BaseModel):
-    phone: str
+    phone: str | None = None
     note: str | None = None
     account_protection: bool = True
     log_messages: bool = False
@@ -92,7 +92,8 @@ async def create_session(
 ):
     agent = _agent_or_404(db, agent_id)
     try:
-        phone = session_phone(body.phone)
+        raw = (body.phone or "").strip()
+        phone = session_phone(raw) if raw else None
         return await create_line(
             db,
             agent,

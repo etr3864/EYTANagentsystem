@@ -96,14 +96,15 @@ def _line_for_agent(db: Session, agent_id: int) -> AgentChannel | None:
     )
 
 
-def _session_payload(agent: Agent, channel: AgentChannel, phone: str, flags: dict) -> dict:
+def _session_payload(agent: Agent, channel: AgentChannel, phone: str | None, flags: dict) -> dict:
     payload = {
-        "name": f"{agent.name}-{phone}"[:80],
-        "phone_number": phone,
+        "name": (agent.name or f"agent-{agent.id}")[:80],
         "webhook_url": webhook_url(agent.id, channel.id),
         "webhook_enabled": True,
         "webhook_events": DEFAULT_EVENTS,
     }
+    if phone:
+        payload["phone_number"] = phone
     for key in SETTING_KEYS:
         payload[key] = bool(flags[key]) if key in flags else FLAG_DEFAULTS[key]
     return payload
@@ -113,7 +114,7 @@ async def _bind_remote(
     db: Session,
     agent: Agent,
     channel: AgentChannel,
-    phone: str,
+    phone: str | None,
     note: str | None,
     flags: dict,
     *,
@@ -141,16 +142,20 @@ async def _bind_remote(
         except SessionApiError as error:
             log_error("wasender_replace", error.message[:80])
     log("wasender_dbg", op="create", agent_id=agent.id, channel_id=channel.id)
-    qr = await _connect_and_qr(channel)
-    update_health(db, channel, "need_scan")
-    db.commit()
+    qr = None
+    try:
+        qr = await _connect_and_qr(pat, channel)
+        update_health(db, channel, "need_scan")
+        db.commit()
+    except SessionApiError as error:
+        log_error("wasender_connect", error.message[:80])
     return public_channel(channel, {"qr": qr})
 
 
 async def create_line(
     db: Session,
     agent: Agent,
-    phone: str,
+    phone: str | None,
     note: str | None,
     options: dict | None = None,
 ) -> dict:
@@ -171,7 +176,7 @@ async def create_line(
 
 
 async def connect_line(db: Session, channel: AgentChannel) -> dict:
-    qr = await _connect_and_qr(channel)
+    qr = await _connect_and_qr(_require_pat(db), channel)
     update_health(db, channel, "need_scan")
     db.commit()
     return public_channel(channel, {"qr": qr})
@@ -195,11 +200,10 @@ async def fetch_qr(db: Session, channel: AgentChannel) -> dict:
     if cached and cached.get("qr"):
         return public_channel(channel, {"qr": cached.get("qr")})
     creds = get_credentials(channel)
-    token = creds.get("api_key") or _require_pat(db)
     session_id = _session_id(channel, creds)
     if session_id is None:
         raise SessionApiError(400, "no_session")
-    qr = await sessions.get_qr(token, session_id)
+    qr = await sessions.get_qr(_require_pat(db), session_id)
     if qr:
         await live.publish(channel.id, {"type": "qr", "qr": qr, "status": "need_scan"})
     return public_channel(channel, {"qr": qr})
@@ -207,10 +211,9 @@ async def fetch_qr(db: Session, channel: AgentChannel) -> dict:
 
 async def disconnect_line(db: Session, channel: AgentChannel) -> dict:
     creds = get_credentials(channel)
-    token = creds.get("api_key") or _require_pat(db)
     session_id = _session_id(channel, creds)
     if session_id is not None:
-        await sessions.disconnect_session(token, session_id)
+        await sessions.disconnect_session(_require_pat(db), session_id)
     update_health(db, channel, "disconnected")
     db.commit()
     await live.publish(channel.id, {"type": "status", "status": "disconnected"})
@@ -369,14 +372,16 @@ def _store_remote(
         channel.health_status = status
 
 
-async def _connect_and_qr(channel: AgentChannel) -> str | None:
-    creds = get_credentials(channel)
-    token = creds.get("api_key")
-    session_id = _session_id(channel, creds)
-    if not token or session_id is None:
+async def _connect_and_qr(pat: str, channel: AgentChannel) -> str | None:
+    session_id = _session_id(channel)
+    if session_id is None:
         raise SessionApiError(400, "no_session")
-    await sessions.connect_session(token, session_id)
-    qr = await sessions.get_qr(token, session_id)
+    remote = await sessions.connect_session(pat, session_id)
+    qr = None
+    if isinstance(remote, dict):
+        qr = remote.get("qrCode") or remote.get("qrcode") or remote.get("qr")
+    if not qr:
+        qr = await sessions.get_qr(pat, session_id)
     await live.publish(channel.id, {"type": "qr", "qr": qr, "status": "need_scan"})
     return qr
 

@@ -12,7 +12,6 @@ import {
   type WasenderLine,
 } from '@/lib/api';
 import { type AgentChannel } from '@/lib/channels';
-import { toSessionPhone } from '@/lib/phone';
 import { WasenderAdvancedSettings } from './WasenderAdvancedSettings';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -42,8 +41,6 @@ interface Props {
 
 export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDelete, onChanged }: Props) {
   const [line, setLine] = useState<WasenderLine | null>(null);
-  const [phone, setPhone] = useState('');
-  const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [shareNote, setShareNote] = useState('');
@@ -93,15 +90,8 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
     setBusy(true);
     setError('');
     try {
-      const normalized = toSessionPhone(phone);
-      if (!normalized) {
-        setError('מספר לא תקין. אפשר 054, +972 או 972…');
-        return;
-      }
-      const created = await createWasenderLine(agentId, { phone: normalized, note: note.trim() || undefined });
+      const created = await createWasenderLine(agentId);
       setLine(created);
-      setPhone('');
-      setNote('');
       setShowCreate(false);
       onChanged();
     } catch (e) {
@@ -172,74 +162,56 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
   }
 
   const status = line?.status || channel?.health_status || 'unknown';
-  const live = status === 'connected' || status === 'need_scan' || status === 'connecting';
+  const hasSession = Boolean(line?.has_session);
   const image = qrSrc(line?.qr);
+  const label = [line?.note, line?.phone].filter(Boolean).join(' · ');
 
   return (
     <div className="rounded-[22px] border border-[var(--edge)] bg-[var(--bg)]/80 backdrop-blur-xl p-4 space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h3 className="font-semibold text-[var(--ink)] text-sm">WhatsApp</h3>
-          {live && line ? (
+          {hasSession && line ? (
             <p className="text-xs text-[var(--text-muted)] mt-0.5" dir="ltr">
-              {line.phone}
-              {line.note ? ` · ${line.note}` : ''}
+              {label || 'ממתין לסריקה'}
             </p>
           ) : (
-            <p className="text-xs text-[var(--text-secondary)] mt-0.5">אין מספר מחובר</p>
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5">אין חיבור</p>
           )}
         </div>
-        {live && (
+        {hasSession && (
           <span className={`text-xs ${status === 'connected' ? 'text-emerald-400' : 'text-amber-300'}`}>
             {STATUS_LABEL[status] || status}
           </span>
         )}
       </div>
 
-      {canCreate && !live && !showCreate && (
+      {canCreate && !hasSession && (
         <button
           type="button"
           disabled={busy}
-          onClick={() => setShowCreate(true)}
+          onClick={handleCreate}
           className="w-full py-2 rounded-lg text-sm bg-[var(--ink)] text-[var(--bg)]"
         >
-          הוסף חיבור
+          {busy ? 'יוצר…' : 'הוסף חיבור'}
         </button>
       )}
 
-      {canCreate && showCreate && (
+      {canCreate && hasSession && showCreate && (
         <div className="space-y-2">
-          {live ? (
-            <p className="text-xs text-[var(--text-secondary)]">סשן חדש מחליף את הקיים אצל הספק. השיחות אצלנו נשארות.</p>
-          ) : null}
-          <input
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="054… או +972…"
-            className="w-full bg-[var(--glass-2)] border border-[var(--edge)] rounded-lg px-3 py-2 text-sm"
-            dir="ltr"
-          />
-          {toSessionPhone(phone) && (
-            <p className="text-[11px] text-[var(--text-muted)]" dir="ltr">יישלח {toSessionPhone(phone)}</p>
-          )}
-          <input
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="הערה (אופציונלי)"
-            className="w-full bg-[var(--glass-2)] border border-[var(--edge)] rounded-lg px-3 py-2 text-sm"
-          />
+          <p className="text-xs text-[var(--text-secondary)]">סשן חדש מחליף את הקיים אצל הספק. השיחות אצלנו נשארות.</p>
           <button
             type="button"
-            disabled={busy || !phone.trim()}
+            disabled={busy}
             onClick={handleCreate}
-            className="w-full py-2 rounded-lg text-sm bg-[var(--ink)] text-[var(--bg)] disabled:opacity-40"
+            className="w-full py-2 rounded-lg text-sm bg-[var(--ink)] text-[var(--bg)]"
           >
-            {busy ? 'יוצר…' : 'הוסף חיבור'}
+            {busy ? 'יוצר…' : 'החלף סשן'}
           </button>
         </div>
       )}
 
-      {channel && image && status !== 'connected' && (
+      {hasSession && image && status !== 'connected' && (
         <div className="flex flex-col items-center gap-2">
           <img src={image} alt="QR" className="w-56 h-56 rounded-xl bg-white p-2" />
           <p className="text-xs text-[var(--text-secondary)] text-center">
@@ -248,7 +220,7 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
         </div>
       )}
 
-      {channel && live && (
+      {hasSession && (
         <div className="flex flex-wrap gap-2">
           {canCreate && !showCreate && (
             <button
@@ -302,7 +274,7 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
           )}
         </div>
       )}
-      {canCreate && channel && live && (
+      {canCreate && hasSession && channel && (
         <WasenderAdvancedSettings agentId={agentId} channelId={channel.id} onSaved={onChanged} />
       )}
       {shareNote && <p className="text-sm text-emerald-400">{shareNote}</p>}
