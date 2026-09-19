@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { Button, Input, Modal, Select } from '@/components/ui';
 import { createWasenderLine, type Agent, type WasenderLine } from '@/lib/api';
+import { toSessionPhone } from '@/lib/phone';
 
 interface Props {
   agents: Agent[];
@@ -23,18 +24,23 @@ export function CreateChannelModal({ agents, takenAgentIds, onClose, onCreated }
     [agents, takenAgentIds],
   );
   const [agentId, setAgentId] = useState(options[0]?.value || '');
+  const [phone, setPhone] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const replacing = takenAgentIds.has(Number(agentId));
+  const normalized = toSessionPhone(phone);
 
   async function handleCreate() {
     const id = Number(agentId);
-    if (!id) return;
+    if (!id || !normalized) {
+      setError('הספק דורש מספר. אפשר 054 או +972…');
+      return;
+    }
     setBusy(true);
     setError('');
     try {
-      const line = await createWasenderLine(id, { note: note.trim() || undefined });
+      const line = await createWasenderLine(id, { phone: normalized, note: note.trim() || undefined });
       onCreated(line);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'יצירה נכשלה');
@@ -56,6 +62,14 @@ export function CreateChannelModal({ agents, takenAgentIds, onClose, onCreated }
             options={options}
           />
           <Input
+            label="מספר WhatsApp"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="054… או +972…"
+            dir="ltr"
+            hint={normalized ? `יישלח ${normalized}` : 'הספק דורש מספר בינלאומי'}
+          />
+          <Input
             label="הערה"
             value={note}
             onChange={(e) => setNote(e.target.value)}
@@ -65,7 +79,7 @@ export function CreateChannelModal({ agents, takenAgentIds, onClose, onCreated }
             <p className="text-xs text-amber-300">לסוכן הזה כבר יש ערוץ. הסשן הישן אצל הספק יימחק ויוחלף.</p>
           )}
           {error && <p className="text-sm text-red-400">{error}</p>}
-          <Button type="button" onClick={handleCreate} loading={busy} disabled={!agentId}>
+          <Button type="button" onClick={handleCreate} loading={busy} disabled={!agentId || !normalized}>
             {replacing ? 'החלף סשן' : 'צור ערוץ'}
           </Button>
         </div>

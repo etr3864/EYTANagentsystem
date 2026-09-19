@@ -30,7 +30,7 @@ export interface AdoptResult {
 }
 
 export interface CreateWasenderLine {
-  phone?: string;
+  phone: string;
   note?: string;
   account_protection?: boolean;
   log_messages?: boolean;
@@ -129,7 +129,7 @@ export async function deleteProviderSession(sessionId: number): Promise<{
   );
 }
 
-export async function createWasenderLine(agentId: number, body: CreateWasenderLine = {}): Promise<WasenderLine> {
+export async function createWasenderLine(agentId: number, body: CreateWasenderLine): Promise<WasenderLine> {
   return readJson(
     await authFetch(`${API_URL}/api/agents/${agentId}/wasender/sessions`, {
       method: 'POST',

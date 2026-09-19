@@ -97,14 +97,15 @@ def _line_for_agent(db: Session, agent_id: int) -> AgentChannel | None:
 
 
 def _session_payload(agent: Agent, channel: AgentChannel, phone: str | None, flags: dict) -> dict:
+    if not phone:
+        raise ValueError("הספק דורש מספר בינלאומי. אפשר 054 או +972…")
     payload = {
         "name": (agent.name or f"agent-{agent.id}")[:80],
+        "phone_number": phone,
         "webhook_url": webhook_url(agent.id, channel.id),
         "webhook_enabled": True,
         "webhook_events": DEFAULT_EVENTS,
     }
-    if phone:
-        payload["phone_number"] = phone
     for key in SETTING_KEYS:
         payload[key] = bool(flags[key]) if key in flags else FLAG_DEFAULTS[key]
     return payload

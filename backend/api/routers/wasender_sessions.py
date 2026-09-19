@@ -92,8 +92,7 @@ async def create_session(
 ):
     agent = _agent_or_404(db, agent_id)
     try:
-        raw = (body.phone or "").strip()
-        phone = session_phone(raw) if raw else None
+        phone = session_phone((body.phone or "").strip())
         return await create_line(
             db,
             agent,

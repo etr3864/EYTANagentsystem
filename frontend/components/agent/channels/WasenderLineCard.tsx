@@ -12,6 +12,7 @@ import {
   type WasenderLine,
 } from '@/lib/api';
 import { type AgentChannel } from '@/lib/channels';
+import { toSessionPhone } from '@/lib/phone';
 import { WasenderAdvancedSettings } from './WasenderAdvancedSettings';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -41,6 +42,7 @@ interface Props {
 
 export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDelete, onChanged }: Props) {
   const [line, setLine] = useState<WasenderLine | null>(null);
+  const [phone, setPhone] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [shareNote, setShareNote] = useState('');
@@ -90,8 +92,14 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
     setBusy(true);
     setError('');
     try {
-      const created = await createWasenderLine(agentId);
+      const normalized = toSessionPhone(phone);
+      if (!normalized) {
+        setError('הספק דורש מספר. אפשר 054 או +972…');
+        return;
+      }
+      const created = await createWasenderLine(agentId, { phone: normalized });
       setLine(created);
+      setPhone('');
       setShowCreate(false);
       onChanged();
     } catch (e) {
@@ -165,6 +173,8 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
   const hasSession = Boolean(line?.has_session);
   const image = qrSrc(line?.qr);
   const label = [line?.note, line?.phone].filter(Boolean).join(' · ');
+  const normalized = toSessionPhone(phone);
+  const showForm = canCreate && showCreate;
 
   return (
     <div className="rounded-[22px] border border-[var(--edge)] bg-[var(--bg)]/80 backdrop-blur-xl p-4 space-y-4">
@@ -186,27 +196,41 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
         )}
       </div>
 
-      {canCreate && !hasSession && (
+      {canCreate && !hasSession && !showCreate && (
         <button
           type="button"
           disabled={busy}
-          onClick={handleCreate}
+          onClick={() => setShowCreate(true)}
           className="w-full py-2 rounded-lg text-sm bg-[var(--ink)] text-[var(--bg)]"
         >
-          {busy ? 'יוצר…' : 'הוסף חיבור'}
+          הוסף חיבור
         </button>
       )}
 
-      {canCreate && hasSession && showCreate && (
+      {showForm && (
         <div className="space-y-2">
-          <p className="text-xs text-[var(--text-secondary)]">סשן חדש מחליף את הקיים אצל הספק. השיחות אצלנו נשארות.</p>
+          {hasSession ? (
+            <p className="text-xs text-[var(--text-secondary)]">סשן חדש מחליף את הקיים אצל הספק. השיחות אצלנו נשארות.</p>
+          ) : null}
+          <input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="054… או +972…"
+            className="w-full bg-[var(--glass-2)] border border-[var(--edge)] rounded-lg px-3 py-2 text-sm"
+            dir="ltr"
+          />
+          {normalized ? (
+            <p className="text-[11px] text-[var(--text-muted)]" dir="ltr">יישלח {normalized}</p>
+          ) : (
+            <p className="text-[11px] text-[var(--text-muted)]">הספק דורש מספר בינלאומי</p>
+          )}
           <button
             type="button"
-            disabled={busy}
+            disabled={busy || !normalized}
             onClick={handleCreate}
-            className="w-full py-2 rounded-lg text-sm bg-[var(--ink)] text-[var(--bg)]"
+            className="w-full py-2 rounded-lg text-sm bg-[var(--ink)] text-[var(--bg)] disabled:opacity-40"
           >
-            {busy ? 'יוצר…' : 'החלף סשן'}
+            {busy ? 'יוצר…' : hasSession ? 'החלף סשן' : 'הוסף חיבור'}
           </button>
         </div>
       )}

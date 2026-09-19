@@ -20,6 +20,8 @@ class SessionApiError(Exception):
             return "אין PAT תקף. שמור מפתח בהגדרות."
         if self.message == "no_session":
             return "אין סשן חי. צור סשן חדש."
+        if "phone number" in text:
+            return "הספק דורש מספר בינלאומי. אפשר 054 או +972…"
         return self.message
 
 
