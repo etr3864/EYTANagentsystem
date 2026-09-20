@@ -15,6 +15,7 @@ from backend.services.media import transcription
 from backend.services.media.inbox import ingest_from_url, too_large_text
 from backend.services.channels import wasender
 from backend.services.messaging.buffer import PendingMessage
+from backend.services.messaging.ai_gate import should_understand
 from backend.services.messaging.dedup import is_duplicate
 from backend.services.messaging.processing import process_batched_messages
 from backend.services.channels.agent_channels import get_channel_by_type, get_credentials
@@ -65,7 +66,9 @@ async def _decrypt(api_key: str, msg_data: dict) -> Optional[str]:
     return await wasender.decrypt_media(api_key, msg_data["message_key"], msg_data["message_data"])
 
 
-async def _process_audio(api_key: str, msg_data: dict, agent_id: int, agent_name: str) -> _InboundMedia:
+async def _process_audio(
+    api_key: str, msg_data: dict, agent_id: int, agent_name: str, *, understand: bool,
+) -> _InboundMedia:
     log_audio("received", agent=agent_name, provider="wasender")
     public_url = await _decrypt(api_key, msg_data)
     if not public_url:
@@ -80,6 +83,8 @@ async def _process_audio(api_key: str, msg_data: dict, agent_id: int, agent_name
         )
     if not ingested.data:
         return _InboundMedia("[הודעה קולית - לא הצלחתי להוריד]", "voice")
+    if not understand:
+        return _InboundMedia("[הודעה קולית]", "voice", media_url=ingested.media_url)
     transcript = await transcription.transcribe_audio(ingested.data)
     text = f"[הודעה קולית]: {transcript}" if transcript else "[הודעה קולית - לא הצלחתי לתמלל]"
     if not transcript:
@@ -87,7 +92,9 @@ async def _process_audio(api_key: str, msg_data: dict, agent_id: int, agent_name
     return _InboundMedia(text, "voice", media_url=ingested.media_url)
 
 
-async def _process_image(api_key: str, msg_data: dict, agent_id: int, agent_name: str) -> _InboundMedia:
+async def _process_image(
+    api_key: str, msg_data: dict, agent_id: int, agent_name: str, *, understand: bool,
+) -> _InboundMedia:
     import base64
     from backend.services.media import get_media_type_from_mime
 
@@ -111,6 +118,8 @@ async def _process_image(api_key: str, msg_data: dict, agent_id: int, agent_name
     if not ingested.data:
         log_error("image", "download failed")
         return _InboundMedia(caption or "[תמונה - לא הצלחתי להוריד]", "text")
+    if not understand:
+        return _InboundMedia(caption or "[תמונה]", "image", media_url=ingested.media_url)
     return _InboundMedia(
         caption or "[תמונה]", "image",
         image_base64=base64.b64encode(ingested.data).decode("utf-8"),
@@ -119,7 +128,9 @@ async def _process_image(api_key: str, msg_data: dict, agent_id: int, agent_name
     )
 
 
-async def _process_video(api_key: str, msg_data: dict, agent_id: int, agent_name: str) -> _InboundMedia:
+async def _process_video(
+    api_key: str, msg_data: dict, agent_id: int, agent_name: str, *, understand: bool,
+) -> _InboundMedia:
     from backend.services.media.video import extract_first_frame
 
     log("VIDEO", agent=agent_name, provider="wasender")
@@ -141,6 +152,8 @@ async def _process_video(api_key: str, msg_data: dict, agent_id: int, agent_name
     if not ingested.data:
         log_error("video", "download failed")
         return _InboundMedia(caption or "[וידאו]", "video")
+    if not understand:
+        return _InboundMedia(caption or "[וידאו]", "video", media_url=ingested.media_url)
     return _InboundMedia(
         caption or "[וידאו]", "video",
         image_base64=extract_first_frame(ingested.data),
@@ -149,7 +162,9 @@ async def _process_video(api_key: str, msg_data: dict, agent_id: int, agent_name
     )
 
 
-async def _process_document(api_key: str, msg_data: dict, agent_id: int) -> _InboundMedia:
+async def _process_document(
+    api_key: str, msg_data: dict, agent_id: int, *, understand: bool,
+) -> _InboundMedia:
     from backend.services.media.document_extraction import document_label, inbound_text
 
     filename = msg_data.get("filename") or ""
@@ -166,6 +181,8 @@ async def _process_document(api_key: str, msg_data: dict, agent_id: int) -> _Inb
             too_large_text("document", filename, ingested.size), "document",
             media_url=ingested.media_url, media_too_large=True,
         )
+    if not understand:
+        return _InboundMedia(label, "document", media_url=ingested.media_url)
     text = await inbound_text(filename, ingested.data, mime)
     return _InboundMedia(text, "document", media_url=ingested.media_url)
 
@@ -256,13 +273,12 @@ async def handle_wasender_message(agent_id: int, msg_data: dict):
         if not agent or agent.provider != "wasender":
             log_error("wasender", f"agent_id={agent_id} invalid or not wasender")
             return
-        if not agent.is_active:
-            return
 
         phone = msg_data["phone"]
         name = msg_data.get("name")
         msg_type = msg_data["msg_type"]
         creds = _resolve_credentials(db, agent)
+        understand = should_understand(db, agent, phone)
 
         text = msg_data.get("text", "")
         image_base64 = None
@@ -272,13 +288,21 @@ async def handle_wasender_message(agent_id: int, msg_data: dict):
         quoted_text = msg_data.get("quoted_text")
 
         if msg_type == "audio":
-            inbound = await _process_audio(creds.api_key, msg_data, agent.id, agent.name)
+            inbound = await _process_audio(
+                creds.api_key, msg_data, agent.id, agent.name, understand=understand,
+            )
         elif msg_type == "image":
-            inbound = await _process_image(creds.api_key, msg_data, agent.id, agent.name)
+            inbound = await _process_image(
+                creds.api_key, msg_data, agent.id, agent.name, understand=understand,
+            )
         elif msg_type == "video":
-            inbound = await _process_video(creds.api_key, msg_data, agent.id, agent.name)
+            inbound = await _process_video(
+                creds.api_key, msg_data, agent.id, agent.name, understand=understand,
+            )
         elif msg_type == "document":
-            inbound = await _process_document(creds.api_key, msg_data, agent.id)
+            inbound = await _process_document(
+                creds.api_key, msg_data, agent.id, understand=understand,
+            )
         else:
             inbound = None
 
@@ -386,8 +410,6 @@ async def _receive_webhook(
             raise HTTPException(status_code=404, detail="Agent not found")
         if agent.provider != "wasender":
             raise HTTPException(status_code=400, detail="Agent is not configured for WA Sender")
-        if not agent.is_active:
-            return {"status": "ok", "skipped": "agent_inactive"}
 
         secret = _webhook_secret(db, agent, channel_id)
         if not secret:

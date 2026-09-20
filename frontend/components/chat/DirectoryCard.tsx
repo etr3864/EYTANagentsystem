@@ -74,38 +74,148 @@ function ParticipantRow({
   );
 }
 
+function StaffNote({
+  agentId,
+  jid,
+  initial,
+}: {
+  agentId: number;
+  jid: string;
+  initial: string;
+}) {
+  const [saved, setSaved] = useState(initial);
+  const [draft, setDraft] = useState(initial);
+  const [editing, setEditing] = useState(!initial.trim());
+  const [busy, setBusy] = useState(false);
+  const [hint, setHint] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    setSaved(initial);
+    setDraft(initial);
+    setEditing(!initial.trim());
+    setHint('');
+    setError('');
+  }, [jid, initial]);
+
+  useEffect(() => {
+    if (!hint) return;
+    const timer = window.setTimeout(() => setHint(''), 2500);
+    return () => window.clearTimeout(timer);
+  }, [hint]);
+
+  const persist = async (text: string, ok: string) => {
+    setBusy(true);
+    setError('');
+    try {
+      const row = await saveWasenderCardNote(agentId, jid, text);
+      setSaved(row.note);
+      setDraft(row.note);
+      setEditing(!row.note);
+      setHint(ok);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'השמירה נכשלה');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-medium text-[var(--ink)]">הערה אצלנו</p>
+        {hint ? <span className="text-xs text-emerald-400">{hint}</span> : null}
+      </div>
+      {error ? <p className="text-sm text-red-400">{error}</p> : null}
+      {!editing && saved ? (
+        <div className="rounded-2xl border border-[var(--edge)] bg-[var(--glass-2)] px-4 py-3">
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--ink)]">{saved}</p>
+          <div className="mt-3 flex gap-2">
+            <Button size="sm" variant="secondary" onClick={() => { setDraft(saved); setEditing(true); setHint(''); }}>
+              ערוך
+            </Button>
+            <Button size="sm" variant="ghost" disabled={busy} onClick={() => persist('', 'ההערה נמחקה')}>
+              מחק
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <Textarea
+            value={draft}
+            rows={3}
+            placeholder="הערה פנימית — רק אצלנו"
+            onChange={(e) => setDraft(e.target.value)}
+          />
+          <div className="flex justify-end gap-2">
+            {saved ? (
+              <Button size="sm" variant="ghost" disabled={busy} onClick={() => { setDraft(saved); setEditing(false); }}>
+                ביטול
+              </Button>
+            ) : null}
+            <Button
+              size="sm"
+              disabled={busy || !draft.trim() || draft.trim() === saved}
+              onClick={() => persist(draft.trim(), 'נשמר')}
+            >
+              {busy ? 'שומר…' : saved ? 'שמור שינוי' : 'שמור הערה'}
+            </Button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function ProfileFacts({ card }: { card: WasenderCard }) {
+  const showNotify = Boolean(card.notify && card.notify !== card.name);
+  return (
+    <div className="space-y-2 rounded-2xl border border-[var(--edge)] px-4 py-3 text-sm">
+      <div>
+        <p className="text-[11px] text-[var(--text-muted)]">
+          {card.kind === 'group' ? 'תיאור הקבוצה' : 'סטטוס בוואטסאפ'}
+        </p>
+        <p className="mt-0.5 whitespace-pre-wrap text-[var(--ink)]">
+          {card.status || 'לא זמין מהספק'}
+        </p>
+      </div>
+      {card.verified_name ? (
+        <div>
+          <p className="text-[11px] text-[var(--text-muted)]">שם מאומת</p>
+          <p className="mt-0.5 text-[var(--ink)]">{card.verified_name}</p>
+        </div>
+      ) : null}
+      {showNotify ? (
+        <div>
+          <p className="text-[11px] text-[var(--text-muted)]">שם בתצוגה</p>
+          <p className="mt-0.5 text-[var(--ink)]">{card.notify}</p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function DirectoryCard({ agentId, jid, onClose, onOpenCard, onOpenChat }: Props) {
   const [card, setCard] = useState<WasenderCard | null>(null);
-  const [note, setNote] = useState('');
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
   const [zoom, setZoom] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     setCard(null);
     setZoom(false);
     setError('');
     getWasenderCard(agentId, jid)
       .then((row) => {
-        setCard(row);
-        setNote(row.note);
+        if (!cancelled) setCard(row);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : 'לא נטען'));
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'לא נטען');
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [agentId, jid]);
-
-  const save = async () => {
-    if (!card) return;
-    setBusy(true);
-    setError('');
-    try {
-      const saved = await saveWasenderCardNote(agentId, card.jid, note);
-      setNote(saved.note);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'שמירת ההערה נכשלה');
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const openChat = () => {
     if (!card) return;
@@ -148,33 +258,13 @@ export function DirectoryCard({ agentId, jid, onClose, onOpenCard, onOpenChat }:
                 <p className="mt-0.5 truncate font-mono text-xs text-[var(--text-muted)]" dir="ltr">
                   {card.kind === 'group' ? 'קבוצה' : card.phone}
                 </p>
-                {card.notify ? (
-                  <p className="truncate text-xs text-[var(--text-secondary)]">{card.notify}</p>
-                ) : null}
-                {card.verified_name ? (
-                  <p className="truncate text-xs text-[var(--text-secondary)]">{card.verified_name}</p>
-                ) : null}
               </div>
             </div>
-            {card.status ? (
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--text-secondary)]">
-                {card.status}
-              </p>
-            ) : null}
+            <ProfileFacts card={card} />
             <Button size="sm" onClick={openChat}>
               פתח צ׳אט
             </Button>
-            <Textarea
-              label="הערה אצלנו"
-              value={note}
-              rows={3}
-              onChange={(e) => setNote(e.target.value)}
-            />
-            <div className="flex justify-end">
-              <Button size="sm" variant="secondary" disabled={busy} onClick={save}>
-                {busy ? 'שומר…' : 'שמור הערה'}
-              </Button>
-            </div>
+            <StaffNote agentId={agentId} jid={card.jid} initial={card.note} />
             {card.kind === 'group' ? (
               <div className="space-y-2">
                 <p className="text-sm font-medium text-[var(--ink)]">

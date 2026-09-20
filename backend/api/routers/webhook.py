@@ -11,6 +11,7 @@ from backend.services.entities import agents
 from backend.services.channels import whatsapp
 from backend.services.messaging import buffer as message_buffer
 from backend.services.media import transcription
+from backend.services.messaging.ai_gate import should_understand
 from backend.services.messaging.buffer import PendingMessage
 from backend.services.messaging.dedup import is_duplicate
 from backend.services.messaging.processing import process_batched_messages
@@ -32,6 +33,7 @@ async def handle_incoming_message(
         agent = agents.get_by_phone_number_id(db, phone_number_id)
         if not agent:
             return
+        understand = should_understand(db, agent, user_phone)
         
         text = content
         image_base64 = None
@@ -52,11 +54,14 @@ async def handle_incoming_message(
                 media_url = ingested.media_url
                 media_too_large = True
             elif ingested.data:
-                transcript = await transcription.transcribe_audio(ingested.data)
-                text = f"[הודעה קולית]: {transcript}" if transcript else "[הודעה קולית - לא הצלחתי לתמלל]"
                 media_url = ingested.media_url
-                if not transcript:
-                    log_error("audio", "transcription failed")
+                if understand:
+                    transcript = await transcription.transcribe_audio(ingested.data)
+                    text = f"[הודעה קולית]: {transcript}" if transcript else "[הודעה קולית - לא הצלחתי לתמלל]"
+                    if not transcript:
+                        log_error("audio", "transcription failed")
+                else:
+                    text = "[הודעה קולית]"
             else:
                 text = "[הודעה קולית - לא הצלחתי לתמלל]"
                 log_error("audio", "transcription failed")
@@ -74,11 +79,12 @@ async def handle_incoming_message(
                 media_url = ingested.media_url
                 media_too_large = True
             elif ingested.data:
-                image_base64 = base64.b64encode(ingested.data).decode("utf-8")
                 text = "[תמונה]"
                 final_msg_type = "image"
                 final_mime_type = media.get_media_type_from_mime(mime_type or "image/jpeg")
                 media_url = ingested.media_url
+                if understand:
+                    image_base64 = base64.b64encode(ingested.data).decode("utf-8")
             else:
                 text = "[תמונה - לא הצלחתי להוריד]"
                 final_msg_type = "text"

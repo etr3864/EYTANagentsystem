@@ -6,6 +6,19 @@ def get_by_id(db: Session, conversation_id: int) -> Conversation | None:
     return db.query(Conversation).filter(Conversation.id == conversation_id).first()
 
 
+def get_live(db: Session, agent_id: int, user_id: int) -> Conversation | None:
+    return (
+        db.query(Conversation)
+        .filter(
+            Conversation.agent_id == agent_id,
+            Conversation.user_id == user_id,
+            Conversation.archived_at.is_(None),
+            Conversation.playground_link_id.is_(None),
+        )
+        .first()
+    )
+
+
 def get_or_create(
     db: Session,
     agent_id: int,

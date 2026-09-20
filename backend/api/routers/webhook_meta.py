@@ -23,6 +23,7 @@ from backend.core.config import settings
 from backend.core.hmac_verify import verify_meta_signature, select_secret_for_object
 from backend.core.database import SessionLocal
 from backend.core.logger import log, log_error
+from backend.services.messaging.ai_gate import should_understand
 from backend.services.messaging.dedup import is_duplicate
 from backend.services.messaging.processing import process_batched_messages
 from backend.services.messaging.buffer import PendingMessage
@@ -173,6 +174,7 @@ async def _resolve_messenger_profile(
 
 async def _process_media(
     msg: ParsedIncomingMessage, agent_id: int, access_token: Optional[str] = None,
+    *, understand: bool = True,
 ) -> tuple[str, Optional[str], Optional[str], bool]:
     """Download inbound media, persist under the size cap.
 
@@ -217,29 +219,37 @@ async def _process_media(
 
     if msg.msg_type == "image":
         if ingested.data:
-            image_base64 = base64.b64encode(ingested.data).decode("utf-8")
             text = text or "[תמונה]"
+            if understand:
+                image_base64 = base64.b64encode(ingested.data).decode("utf-8")
         else:
             text = text or "[תמונה - לא הצלחתי להוריד]"
             log_error("webhook_meta", f"image download failed for {msg.channel_type}")
     elif msg.msg_type == "video":
         from backend.services.media.video import extract_first_frame
         if ingested.data:
-            image_base64 = extract_first_frame(ingested.data)
             text = text or "[וידאו]"
+            if understand:
+                image_base64 = extract_first_frame(ingested.data)
         else:
             log_error("webhook_meta", f"video download failed for {msg.channel_type}")
             text = text or "[וידאו]"
     elif msg.msg_type == "document":
-        from backend.services.media.document_extraction import inbound_text
-        text = await inbound_text(filename, ingested.data, msg.mime_type)
+        from backend.services.media.document_extraction import document_label, inbound_text
+        if understand:
+            text = await inbound_text(filename, ingested.data, msg.mime_type)
+        else:
+            text = document_label(filename)
     elif msg.msg_type == "audio":
         if ingested.data:
-            transcript = await transcribe_audio(ingested.data)
-            if transcript:
-                text = f"[הודעה קולית]: {transcript}"
+            if understand:
+                transcript = await transcribe_audio(ingested.data)
+                if transcript:
+                    text = f"[הודעה קולית]: {transcript}"
+                else:
+                    text = text or "[הודעה קולית - לא הצלחתי לתמלל]"
             else:
-                text = text or "[הודעה קולית - לא הצלחתי לתמלל]"
+                text = text or "[הודעה קולית]"
         else:
             log_error("webhook_meta", f"audio download failed for {msg.channel_type}")
             text = text or "[הודעה קולית - לא הצלחתי להוריד]"
@@ -257,8 +267,8 @@ async def _handle_single_message(msg: ParsedIncomingMessage) -> None:
         if not channel:
             log("webhook_meta_skip", msg=f"no channel for {msg.channel_type}/{msg.external_account_id}")
             return
-        if not channel.agent or not channel.agent.is_active:
-            log("webhook_meta_skip", msg=f"agent inactive for {msg.channel_type}/{msg.external_account_id}")
+        if not channel.agent:
+            log("webhook_meta_skip", msg=f"agent missing for {msg.channel_type}/{msg.external_account_id}")
             return
 
         display_name = msg.display_name
@@ -310,8 +320,9 @@ async def _handle_single_message(msg: ParsedIncomingMessage) -> None:
             creds = decrypt_credentials(channel.credentials_encrypted)
             wa_token = creds.get("access_token", "")
 
+        understand = should_understand(db, channel.agent, msg.external_user_id)
         text, image_base64, media_url, media_too_large = await _process_media(
-            msg, channel.agent_id, access_token=wa_token,
+            msg, channel.agent_id, access_token=wa_token, understand=understand,
         )
         pending_mime = msg.mime_type
         if image_base64:

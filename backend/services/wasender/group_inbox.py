@@ -63,7 +63,7 @@ async def persist_group_inbound(agent_id: int, channel_id: int | None, msg_data:
     db = SessionLocal()
     try:
         agent = agents.get_by_id(db, agent_id)
-        if not agent or not agent.is_active:
+        if not agent:
             return
         jid = msg_data["group_jid"]
         channel = get_channel(db, channel_id) if channel_id else None

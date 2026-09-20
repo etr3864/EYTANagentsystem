@@ -29,7 +29,7 @@ async def run_turn(request: TurnRequest) -> None:
         return
 
     try:
-        if await intake.store_while_paused(ctx):
+        if await intake.store_without_ai(ctx):
             return
         # Ahead of vision: an exhausted quota must not buy image understanding.
         if await account.quota_exhausted(ctx):

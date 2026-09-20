@@ -6,9 +6,9 @@ from backend.services.messaging.pipeline import vision
 from backend.services.messaging.pipeline.context import TurnContext
 
 
-async def store_while_paused(ctx: TurnContext) -> bool:
-    """A paused agent still records what it was told, but never answers."""
-    if not ctx.conversation.is_paused:
+async def store_without_ai(ctx: TurnContext) -> bool:
+    """Paused chat or inactive agent: record the turn, never answer."""
+    if ctx.agent.is_active and not ctx.conversation.is_paused:
         return False
     _persist(ctx)
     log("PAUSED", agent=ctx.agent.name, user=ctx.display_name, msgs=len(ctx.pending))

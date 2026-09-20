@@ -282,20 +282,6 @@ export async function saveWasenderCardNote(
   );
 }
 
-export async function sendWasenderGroup(
-  agentId: number,
-  jid: string,
-  text: string,
-): Promise<void> {
-  await readJson(
-    await authFetch(`${API_URL}/api/agents/${agentId}/wasender/card/send`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jid, text }),
-    }),
-  );
-}
-
 export async function deleteWasenderLine(agentId: number, channelId: number): Promise<{ status: string; remote_ok: boolean }> {
   return readJson(
     await authFetch(`${API_URL}/api/agents/${agentId}/wasender/sessions/${channelId}`, {

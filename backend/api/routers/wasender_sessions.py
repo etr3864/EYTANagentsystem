@@ -23,9 +23,8 @@ from backend.services.wasender.lifecycle import (
 from backend.services.wasender.phone import session_phone
 from backend.services.wasender.settings import load_settings, save_settings
 from backend.services.wasender import live
-from backend.services.wasender.cards import load_card, save_note, parse_target, wasender_channel
+from backend.services.wasender.cards import load_card, save_note, wasender_channel
 from backend.services.wasender.roster import load_contacts, load_groups
-from backend.services.messaging import outbound
 
 router = APIRouter(tags=["wasender-sessions"])
 _super_admin = Depends(require_super_admin())
@@ -280,11 +279,6 @@ class CardNoteBody(BaseModel):
     note: str = ""
 
 
-class CardSendBody(BaseModel):
-    jid: str
-    text: str
-
-
 def _card_channel(db: Session, agent_id: int):
     try:
         return wasender_channel(db, agent_id)
@@ -322,32 +316,6 @@ def patch_card_note(
         return save_note(db, channel, body.jid, body.note)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
-
-
-@router.post("/agents/{agent_id}/wasender/card/send")
-async def send_card(
-    agent_id: int,
-    body: CardSendBody,
-    db: Session = Depends(get_db),
-    current_user: AuthUser = Depends(get_current_user),
-):
-    _can_operate(current_user, agent_id, db, write=True)
-    try:
-        kind, key = parse_target(body.jid)
-    except ValueError as error:
-        raise HTTPException(status_code=400, detail=str(error)) from error
-    if kind != "group":
-        raise HTTPException(status_code=400, detail="שליחה מהכרטיס היא לקבוצה. לאדם פותחים שיחה.")
-    text = (body.text or "").strip()
-    if not text or len(text) > 4000:
-        raise HTTPException(status_code=400, detail="הודעה ריקה או ארוכה מדי")
-    agent = _agent_or_404(db, agent_id)
-    try:
-        conv = await outbound.open_whatsapp_chat(db, agent, key)
-        await outbound.send_text(db, conv, text)
-    except outbound.OutboundError as error:
-        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
-    return {"ok": True, "conversation_id": conv.id}
 
 
 @router.delete("/agents/{agent_id}/wasender/sessions/{channel_id}")

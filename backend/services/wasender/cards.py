@@ -33,6 +33,17 @@ def parse_target(raw: str) -> tuple[str, str]:
         raise ValueError(str(exc)) from exc
 
 
+def _about(remote: dict) -> str:
+    for key in ("status", "desc", "about"):
+        raw = remote.get(key)
+        if isinstance(raw, dict):
+            raw = raw.get("status") or raw.get("text") or raw.get("about")
+        text = str(raw or "").strip()
+        if text:
+            return text
+    return ""
+
+
 def _http_img(raw) -> str:
     url = str(raw or "").strip()
     return url if url.startswith("http") else ""
@@ -144,7 +155,7 @@ def _present(kind: str, key: str, remote: dict, row: ChannelUser, img: str, memb
         "name": name.strip(),
         "notify": str(remote.get("notify") or "").strip(),
         "verified_name": str(remote.get("verifiedName") or "").strip(),
-        "status": str(remote.get("status") or remote.get("desc") or "").strip(),
+        "status": _about(remote),
         "img_url": img,
         "note": row.staff_note or "",
         "participants": members,
