@@ -14,6 +14,7 @@ from backend.services.wasender.lifecycle import (
     connect_line,
     create_line,
     disconnect_line,
+    ensure_group_inbox,
     fetch_qr,
     get_owned_channel,
     public_channel,
@@ -22,7 +23,9 @@ from backend.services.wasender.lifecycle import (
 from backend.services.wasender.phone import session_phone
 from backend.services.wasender.settings import load_settings, save_settings
 from backend.services.wasender import live
+from backend.services.wasender.cards import load_card, save_note, parse_target, wasender_channel
 from backend.services.wasender.roster import load_contacts, load_groups
+from backend.services.messaging import outbound
 
 router = APIRouter(tags=["wasender-sessions"])
 _super_admin = Depends(require_super_admin())
@@ -41,7 +44,7 @@ class CreateLineBody(BaseModel):
     log_messages: bool = False
     read_incoming_messages: bool = False
     auto_reject_calls: bool = True
-    ignore_groups: bool = True
+    ignore_groups: bool = False
     ignore_channels: bool = True
     ignore_broadcasts: bool = True
     always_online: bool = False
@@ -249,6 +252,7 @@ async def agent_groups(
     channel = get_channel_by_type(db, agent_id, "whatsapp_wasender")
     if not channel:
         return []
+    await ensure_group_inbox(db, channel)
     try:
         return await load_groups(channel)
     except (ValueError, SessionApiError):
@@ -269,6 +273,81 @@ async def agent_contacts(
         return await load_contacts(channel)
     except (ValueError, SessionApiError):
         return []
+
+
+class CardNoteBody(BaseModel):
+    jid: str
+    note: str = ""
+
+
+class CardSendBody(BaseModel):
+    jid: str
+    text: str
+
+
+def _card_channel(db: Session, agent_id: int):
+    try:
+        return wasender_channel(db, agent_id)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@router.get("/agents/{agent_id}/wasender/card")
+async def get_card(
+    agent_id: int,
+    jid: str,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
+):
+    _can_operate(current_user, agent_id, db, write=False)
+    channel = _card_channel(db, agent_id)
+    try:
+        return await load_card(db, channel, jid)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except SessionApiError as error:
+        _raise_upstream(error)
+
+
+@router.patch("/agents/{agent_id}/wasender/card")
+def patch_card_note(
+    agent_id: int,
+    body: CardNoteBody,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
+):
+    _can_operate(current_user, agent_id, db, write=True)
+    channel = _card_channel(db, agent_id)
+    try:
+        return save_note(db, channel, body.jid, body.note)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@router.post("/agents/{agent_id}/wasender/card/send")
+async def send_card(
+    agent_id: int,
+    body: CardSendBody,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
+):
+    _can_operate(current_user, agent_id, db, write=True)
+    try:
+        kind, key = parse_target(body.jid)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    if kind != "group":
+        raise HTTPException(status_code=400, detail="שליחה מהכרטיס היא לקבוצה. לאדם פותחים שיחה.")
+    text = (body.text or "").strip()
+    if not text or len(text) > 4000:
+        raise HTTPException(status_code=400, detail="הודעה ריקה או ארוכה מדי")
+    agent = _agent_or_404(db, agent_id)
+    try:
+        conv = await outbound.open_whatsapp_chat(db, agent, key)
+        await outbound.send_text(db, conv, text)
+    except outbound.OutboundError as error:
+        raise HTTPException(status_code=error.status_code, detail=error.detail) from error
+    return {"ok": True, "conversation_id": conv.id}
 
 
 @router.delete("/agents/{agent_id}/wasender/sessions/{channel_id}")

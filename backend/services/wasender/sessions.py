@@ -1,4 +1,5 @@
 from typing import Any
+from urllib.parse import quote
 
 from backend.services.wasender.http import request
 
@@ -71,6 +72,30 @@ async def list_contacts(token: str) -> list[dict]:
 
 async def list_groups(token: str) -> list[dict]:
     return _rows(_data(await request("GET", "/groups", token, timeout=20)))
+
+
+def _enc(jid: str) -> str:
+    return quote(jid, safe="@.")
+
+
+async def get_contact(token: str, phone: str) -> dict:
+    data = _data(await request("GET", f"/contacts/{_enc(phone)}", token, timeout=15))
+    return data if isinstance(data, dict) else {}
+
+
+async def get_group(token: str, jid: str) -> dict:
+    data = _data(await request("GET", f"/groups/{_enc(jid)}/metadata", token, timeout=15))
+    return data if isinstance(data, dict) else {}
+
+
+async def get_picture(token: str, target: str, *, group: bool = False) -> str | None:
+    path = f"/groups/{_enc(target)}/picture" if group else f"/contacts/{_enc(target)}/picture"
+    data = _data(await request("GET", path, token, timeout=15))
+    if isinstance(data, dict):
+        url = str(data.get("imgUrl") or data.get("img_url") or "").strip()
+        if url.startswith("http"):
+            return url
+    return None
 
 
 async def get_status(token: str, session_id: int | None = None) -> dict:

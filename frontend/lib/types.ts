@@ -156,6 +156,8 @@ export interface Message {
   media_url: string | null;
   media_too_large?: boolean;
   reply_to_text?: string | null;
+  sender_name?: string | null;
+  sender_phone?: string | null;
   created_at: string | null;
 }
 

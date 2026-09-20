@@ -581,6 +581,7 @@ function AgentPage() {
           <div className="h-full max-w-[90rem] mx-auto px-2 md:px-6 py-2 md:py-3 flex flex-col min-h-0 min-w-0 overflow-hidden animate-fade-in">
             <div className="flex-1 min-h-0">
             <ConversationsTab
+              agentId={agentId}
               conversations={conversations}
               book={book}
               selectedId={selectedConv}

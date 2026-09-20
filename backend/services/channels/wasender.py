@@ -125,7 +125,7 @@ async def send_typing(api_key: str, to: str) -> None:
         await _client().post(
             f"{_BASE_URL}/send-presence-update",
             headers=_auth(api_key),
-            json={"jid": format_jid(to), "type": "composing"},
+            json={"jid": recipient_jid(to), "type": "composing"},
             timeout=5,
         )
     except Exception as error:
@@ -146,7 +146,7 @@ async def send_media(
     
     payload = {
         "session": session,
-        "to": format_jid(to),
+        "to": recipient_jid(to),
     }
     
     if media_type == "image":
@@ -179,7 +179,7 @@ async def send_document(
     
     payload = {
         "session": session,
-        "to": format_jid(to),
+        "to": recipient_jid(to),
         "documentUrl": document_url,
         "fileName": filename
     }
@@ -379,41 +379,87 @@ def _media_caption(inner: dict, messages_data: dict) -> str:
     )
 
 
+def is_group_jid(value: str) -> bool:
+    return str(value or "").endswith("@g.us")
+
+
+def _messages_blob(payload: dict) -> dict:
+    data = payload.get("data") or {}
+    messages_data = data.get("messages") or {}
+    if isinstance(messages_data, list):
+        messages_data = messages_data[0] if messages_data else {}
+    return messages_data if isinstance(messages_data, dict) else {}
+
+
+def _apply_message_kind(result: dict, message: dict, messages_data: dict) -> bool:
+    if message.get("imageMessage"):
+        img = message["imageMessage"]
+        result["msg_type"] = "image"
+        result["text"] = _media_caption(img, messages_data)
+        result["mime_type"] = img.get("mimetype", "image/jpeg")
+        return True
+    if message.get("audioMessage"):
+        result["msg_type"] = "audio"
+        result["text"] = ""
+        result["mime_type"] = message.get("audioMessage", {}).get("mimetype", "audio/ogg")
+        return True
+    if message.get("videoMessage"):
+        vid = message["videoMessage"]
+        result["msg_type"] = "video"
+        result["text"] = _media_caption(vid, messages_data)
+        result["mime_type"] = vid.get("mimetype", "video/mp4")
+        return True
+    if message.get("documentMessage"):
+        doc = message["documentMessage"]
+        result["msg_type"] = "document"
+        result["text"] = ""
+        result["mime_type"] = doc.get("mimetype", "")
+        result["filename"] = doc.get("fileName", "")
+        return True
+    if message.get("extendedTextMessage"):
+        result["msg_type"] = "text"
+        result["text"] = (
+            message["extendedTextMessage"].get("text")
+            or messages_data.get("messageBody")
+            or ""
+        )
+        return True
+    if message.get("conversation"):
+        result["msg_type"] = "text"
+        result["text"] = message.get("conversation", "")
+        return True
+    if messages_data.get("messageBody"):
+        result["msg_type"] = "text"
+        result["text"] = messages_data.get("messageBody", "")
+        return True
+    return False
+
+
+def _with_quote(result: dict, message: dict) -> dict:
+    quoted = extract_quoted_text(message)
+    if quoted:
+        result["quoted_text"] = quoted
+    return result
+
+
 def extract_message_data(payload: dict) -> Optional[dict]:
-    """Extract normalized message data from WA Sender webhook payload.
-    
-    Returns dict with:
-        - phone: sender phone number
-        - name: sender name  
-        - text: message text (or None for media)
-        - msg_type: "text", "audio", "image"
-        - message_key: for decrypt_media
-        - message_data: for decrypt_media
-        - timestamp: message timestamp
-    """
+    """Extract normalized 1:1 message data from a WaSender webhook payload."""
     try:
         event = payload.get("event", "")
         if event not in ("messages.received", "messages.upsert", "messages-personal.received"):
             return None
-        
-        data = payload.get("data", {})
-        messages_data = data.get("messages", {})
-        if isinstance(messages_data, list):
-            messages_data = messages_data[0] if messages_data else {}
-        if not isinstance(messages_data, dict):
+
+        messages_data = _messages_blob(payload)
+        if not messages_data:
             return None
-        
-        # Extract key info
-        key = messages_data.get("key", {})
-        
+
+        key = messages_data.get("key") or {}
         if key.get("fromMe", False):
-            return None  # Ignore our own messages
+            return None
         remote = str(key.get("remoteJid") or "")
         if "@g.us" in remote or "@broadcast" in remote or "@newsletter" in remote:
             return None
-        
-        # Get phone from key - prioritize cleanedSenderPn (for @lid addressing mode)
-        # Fallback chain: cleanedSenderPn -> senderPn -> participant -> remoteJid
+
         phone_jid = (
             key.get("cleanedSenderPn", "") or
             key.get("senderPn", "") or
@@ -423,64 +469,55 @@ def extract_message_data(payload: dict) -> Optional[dict]:
         phone = normalize_phone(phone_jid)
         if not phone:
             return None
-        
-        name = messages_data.get("pushName", "")
-        timestamp = messages_data.get("messageTimestamp", 0)
-        raw_message = messages_data.get("message", {}) or {}
+
+        raw_message = messages_data.get("message") or {}
         message = _unwrap_message(raw_message)
-        
         result = {
             "phone": phone,
-            "name": name,
-            "timestamp": timestamp,
+            "name": messages_data.get("pushName", ""),
+            "timestamp": messages_data.get("messageTimestamp", 0),
             "message_key": key,
             "message_data": raw_message,
             "provider_msg_id": str(key.get("id") or "") or None,
         }
-        
-        # Determine message type
-        if message.get("imageMessage"):
-            img = message["imageMessage"]
-            result["msg_type"] = "image"
-            result["text"] = _media_caption(img, messages_data)
-            result["mime_type"] = img.get("mimetype", "image/jpeg")
-        elif message.get("audioMessage"):
-            result["msg_type"] = "audio"
-            result["text"] = ""
-            result["mime_type"] = message.get("audioMessage", {}).get("mimetype", "audio/ogg")
-        elif message.get("videoMessage"):
-            vid = message["videoMessage"]
-            result["msg_type"] = "video"
-            result["text"] = _media_caption(vid, messages_data)
-            result["mime_type"] = vid.get("mimetype", "video/mp4")
-        elif message.get("documentMessage"):
-            doc = message["documentMessage"]
-            result["msg_type"] = "document"
-            result["text"] = ""
-            result["mime_type"] = doc.get("mimetype", "")
-            result["filename"] = doc.get("fileName", "")
-        elif message.get("extendedTextMessage"):
-            result["msg_type"] = "text"
-            result["text"] = (
-                message["extendedTextMessage"].get("text")
-                or messages_data.get("messageBody")
-                or ""
-            )
-        elif message.get("conversation"):
-            result["msg_type"] = "text"
-            result["text"] = message.get("conversation", "")
-        elif messages_data.get("messageBody"):
-            result["msg_type"] = "text"
-            result["text"] = messages_data.get("messageBody", "")
-        else:
+        if not _apply_message_kind(result, message, messages_data):
             return None
-
-        quoted = extract_quoted_text(message)
-        if quoted:
-            result["quoted_text"] = quoted
-
-        return result
-        
+        return _with_quote(result, message)
     except Exception as e:
         log_error("wasender", f"extract: {str(e)[:60]}")
+        return None
+
+
+def extract_group_message(payload: dict) -> Optional[dict]:
+    """Group inbound. Docs: event messages-group.received, remoteJid=@g.us, sender=cleanedParticipantPn."""
+    try:
+        event = payload.get("event") or ""
+        messages_data = _messages_blob(payload)
+        if not messages_data:
+            return None
+        key = messages_data.get("key") or {}
+        if key.get("fromMe"):
+            return None
+        remote = str(key.get("remoteJid") or "")
+        if event != "messages-group.received" and not is_group_jid(remote):
+            return None
+        if not is_group_jid(remote):
+            return None
+        raw_sender = str(key.get("cleanedParticipantPn") or key.get("participantPn") or "")
+        sender_phone = normalize_phone(raw_sender) or "".join(c for c in raw_sender if c.isdigit())
+        raw_message = messages_data.get("message") or {}
+        message = _unwrap_message(raw_message)
+        result = {
+            "group_jid": remote,
+            "sender_phone": sender_phone,
+            "sender_name": str(messages_data.get("pushName") or "").strip(),
+            "message_key": key,
+            "message_data": raw_message,
+            "provider_msg_id": str(key.get("id") or "") or None,
+        }
+        if not _apply_message_kind(result, message, messages_data):
+            return None
+        return _with_quote(result, message)
+    except Exception as e:
+        log_error("wasender", f"extract_group: {str(e)[:60]}")
         return None

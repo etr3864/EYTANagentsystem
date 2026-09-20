@@ -13,6 +13,8 @@ def add(
     media_too_large: bool = False,
     reply_to_text: str | None = None,
     provider_msg_id: str | None = None,
+    sender_name: str | None = None,
+    sender_phone: str | None = None,
 ) -> Message:
     msg = Message(
         conversation_id=conversation_id,
@@ -24,6 +26,8 @@ def add(
         media_too_large=media_too_large,
         reply_to_text=reply_to_text,
         provider_msg_id=provider_msg_id,
+        sender_name=sender_name,
+        sender_phone=sender_phone,
     )
     db.add(msg)
     db.commit()
@@ -42,6 +46,8 @@ def add_no_commit(
     media_too_large: bool = False,
     reply_to_text: str | None = None,
     provider_msg_id: str | None = None,
+    sender_name: str | None = None,
+    sender_phone: str | None = None,
 ) -> Message:
     msg = Message(
         conversation_id=conversation_id,
@@ -53,6 +59,8 @@ def add_no_commit(
         media_too_large=media_too_large,
         reply_to_text=reply_to_text,
         provider_msg_id=provider_msg_id,
+        sender_name=sender_name,
+        sender_phone=sender_phone,
     )
     db.add(msg)
     return msg
@@ -78,6 +86,8 @@ def get_history(db: Session, conversation_id: int, limit: int | None = None) -> 
             "media_url": m.media_url,
             "media_too_large": bool(m.media_too_large),
             "reply_to_text": m.reply_to_text,
+            "sender_name": m.sender_name,
+            "sender_phone": m.sender_phone,
             "created_at": m.created_at.isoformat() if m.created_at else None,
         }
         for m in msgs

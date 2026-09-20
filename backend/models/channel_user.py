@@ -39,6 +39,7 @@ class ChannelUser(Base):
 
     display_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     profile_pic_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    staff_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     metadata_: Mapped[Optional[dict]] = mapped_column("metadata", JSONB, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(

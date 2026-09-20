@@ -242,6 +242,60 @@ export async function getWasenderContacts(agentId: number): Promise<WasenderCont
   return readJson(await authFetch(`${API_URL}/api/agents/${agentId}/wasender/contacts`));
 }
 
+export interface WasenderCardMember {
+  jid: string;
+  phone: string;
+  name: string;
+  is_admin: boolean;
+  can_open: boolean;
+}
+
+export interface WasenderCard {
+  kind: 'contact' | 'group';
+  jid: string;
+  phone: string;
+  name: string;
+  notify: string;
+  verified_name: string;
+  status: string;
+  img_url: string;
+  note: string;
+  participants: WasenderCardMember[];
+}
+
+export async function getWasenderCard(agentId: number, jid: string): Promise<WasenderCard> {
+  const qs = new URLSearchParams({ jid });
+  return readJson(await authFetch(`${API_URL}/api/agents/${agentId}/wasender/card?${qs}`));
+}
+
+export async function saveWasenderCardNote(
+  agentId: number,
+  jid: string,
+  note: string,
+): Promise<{ note: string }> {
+  return readJson(
+    await authFetch(`${API_URL}/api/agents/${agentId}/wasender/card`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jid, note }),
+    }),
+  );
+}
+
+export async function sendWasenderGroup(
+  agentId: number,
+  jid: string,
+  text: string,
+): Promise<void> {
+  await readJson(
+    await authFetch(`${API_URL}/api/agents/${agentId}/wasender/card/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jid, text }),
+    }),
+  );
+}
+
 export async function deleteWasenderLine(agentId: number, channelId: number): Promise<{ status: string; remote_ok: boolean }> {
   return readJson(
     await authFetch(`${API_URL}/api/agents/${agentId}/wasender/sessions/${channelId}`, {

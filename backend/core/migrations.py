@@ -24,6 +24,8 @@ def run_all(conn):
     _wasender_hub(conn)
     _wasender_qr_links(conn)
     _escalation_groups(conn)
+    _channel_user_staff_note(conn)
+    _message_group_sender(conn)
     conn.commit()
 
 
@@ -787,6 +789,34 @@ def _escalation_groups(conn):
         DO $$ BEGIN
             ALTER TABLE agent_escalation_reasons
             ADD COLUMN groups JSONB NOT NULL DEFAULT '[]'::jsonb;
+        EXCEPTION
+            WHEN duplicate_column THEN null;
+        END $$;
+    """))
+
+
+def _channel_user_staff_note(conn):
+    conn.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE channel_users
+            ADD COLUMN staff_note TEXT;
+        EXCEPTION
+            WHEN duplicate_column THEN null;
+        END $$;
+    """))
+
+
+def _message_group_sender(conn):
+    conn.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE messages ADD COLUMN sender_name VARCHAR(100);
+        EXCEPTION
+            WHEN duplicate_column THEN null;
+        END $$;
+    """))
+    conn.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE messages ADD COLUMN sender_phone VARCHAR(32);
         EXCEPTION
             WHEN duplicate_column THEN null;
         END $$;

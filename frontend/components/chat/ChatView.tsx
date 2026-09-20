@@ -24,6 +24,7 @@ interface ChatViewProps {
   onSendVoice?: (blob: Blob) => Promise<void>;
   onSendTemplate?: (payload: TemplateSendPayload) => Promise<void>;
   onTogglePause?: () => Promise<void>;
+  onSenderClick?: (phone: string, name: string) => void;
 }
 
 export function ChatView({
@@ -38,6 +39,7 @@ export function ChatView({
   onSendVoice,
   onSendTemplate,
   onTogglePause,
+  onSenderClick,
 }: ChatViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevMessageCount = useRef<number>(0);
@@ -175,6 +177,21 @@ export function ChatView({
                   <div className="flex items-center gap-2 text-orange-300 text-xs mb-2 pb-2 border-b border-orange-500/20">
                     <span>נשלח ללקוח מאוטומציה</span>
                   </div>
+                )}
+                {!isFunction && (msg.sender_name || msg.sender_phone) && isUser && (
+                  onSenderClick && msg.sender_phone ? (
+                    <button
+                      type="button"
+                      className="mb-0.5 text-[11px] font-medium text-[var(--acc)] hover:underline"
+                      onClick={() => onSenderClick(msg.sender_phone || '', msg.sender_name || msg.sender_phone || '')}
+                    >
+                      {msg.sender_name || msg.sender_phone}
+                    </button>
+                  ) : (
+                    <div className="text-[11px] font-medium text-[var(--acc)] mb-0.5">
+                      {msg.sender_name || msg.sender_phone}
+                    </div>
+                  )
                 )}
                 {!isFunction && msg.reply_to_text && <ReplyQuote text={msg.reply_to_text} />}
                 {!isFunction && <MessageMedia msg={msg} displayContent={displayContent} />}

@@ -20,7 +20,12 @@ from backend.services.wasender.http import SessionApiError
 from backend.services.wasender import live, sessions
 
 CHANNEL_TYPE = "whatsapp_wasender"
-DEFAULT_EVENTS = ["messages.received", "session.status", "qrcode.updated"]
+DEFAULT_EVENTS = [
+    "messages.received",
+    "session.status",
+    "qrcode.updated",
+    "messages-group.received",
+]
 SETTING_KEYS = (
     "account_protection",
     "log_messages",
@@ -36,7 +41,7 @@ FLAG_DEFAULTS = {
     "log_messages": False,
     "read_incoming_messages": False,
     "auto_reject_calls": True,
-    "ignore_groups": True,
+    "ignore_groups": False,
     "ignore_channels": True,
     "ignore_broadcasts": True,
     "always_online": False,
@@ -149,6 +154,8 @@ async def _bind_remote(
         {
             "session_name": (session_name or "").strip()[:80] or None,
             "webhook_secret": remote.get("webhook_secret") or payload.get("webhook_secret"),
+            "group_inbox": True,
+            "ignore_groups": False,
         },
     )
     if note is not None:
@@ -202,6 +209,7 @@ async def create_line(
 
 async def connect_line(db: Session, channel: AgentChannel) -> dict:
     await ensure_webhook_secret(db, channel)
+    await ensure_group_inbox(db, channel)
     qr = await _connect_and_qr(_require_pat(db), channel)
     update_health(db, channel, "need_scan")
     db.commit()
@@ -332,6 +340,7 @@ async def adopt_existing(db: Session) -> dict:
         )
     for channel in channels:
         await ensure_webhook_secret(db, channel)
+        await ensure_group_inbox(db, channel)
     log("wasender_adopt", matched=matched, orphans=len(orphans), skipped=skipped)
     return {"matched": matched, "orphans": orphans, "skipped": skipped}
 
@@ -381,6 +390,39 @@ async def ensure_webhook_secret(db: Session, channel: AgentChannel) -> None:
     db.commit()
 
 
+async def ensure_group_inbox(db: Session, channel: AgentChannel) -> None:
+    """Existing sessions defaulted to ignore_groups. Mirror needs the group event + that flag off."""
+    creds: dict = {}
+    try:
+        creds = get_credentials(channel)
+    except Exception:
+        return
+    if creds.get("group_inbox"):
+        return
+    session_id = _session_id(channel, creds)
+    if session_id is None:
+        return
+    try:
+        remote = await sessions.update_session(
+            _require_pat(db),
+            session_id,
+            {
+                "webhook_url": webhook_url(channel.agent_id, channel.id),
+                "webhook_enabled": True,
+                "webhook_events": list(DEFAULT_EVENTS),
+                "ignore_groups": False,
+            },
+        )
+    except SessionApiError as error:
+        log_error("wasender_group_inbox", error.message[:80])
+        return
+    _store_remote(
+        channel, remote, creds.get("phone_number"),
+        {"ignore_groups": False, "group_inbox": True},
+    )
+    db.commit()
+
+
 def _store_remote(
     channel: AgentChannel,
     remote: dict,
@@ -415,6 +457,8 @@ def _store_remote(
             creds[key] = bool(existing[key])
         else:
             creds[key] = FLAG_DEFAULTS[key]
+    if extra.get("group_inbox") or existing.get("group_inbox"):
+        creds["group_inbox"] = True
     if session_id is not None:
         channel.external_account_id = str(session_id)
     channel.credentials_encrypted = encrypt_credentials(creds)

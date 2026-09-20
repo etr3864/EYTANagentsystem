@@ -404,6 +404,15 @@ async def _receive_webhook(
                 await apply_event(db, channel, body)
             return {"status": "ok"}
 
+        group_data = wasender.extract_group_message(body)
+        if group_data:
+            message_id = group_data.get("message_key", {}).get("id", "")
+            if is_duplicate(message_id):
+                return {"status": "ok", "duplicate": True}
+            from backend.services.wasender.group_inbox import persist_group_inbound
+            asyncio.create_task(persist_group_inbound(agent_id, channel_id, group_data))
+            return {"status": "ok"}
+
         msg_data = wasender.extract_message_data(body)
         if msg_data:
             message_id = msg_data.get("message_key", {}).get("id", "")

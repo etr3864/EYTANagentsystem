@@ -10,9 +10,12 @@ import { phoneKey } from '@/lib/phone';
 interface ContactListProps {
   conversations: Conversation[];
   book?: WasenderContact[];
+  groups?: WasenderContact[];
   selectedId: number | null;
+  selectedGroupJid?: string | null;
   onSelect: (id: number) => void;
   onOpenContact?: (phone: string, name: string) => void;
+  onOpenGroup?: (jid: string, name: string) => void;
   onDelete: (id: number) => void;
   onNewChat?: () => void;
   onLoadMore?: () => void;
@@ -26,7 +29,9 @@ function getGenderIcon(gender: string | null): string {
   return '👤';
 }
 
-function Face({ pic, gender, on }: { pic?: string | null; gender?: string | null; on?: boolean }) {
+function Face({
+  pic, gender, on, group,
+}: { pic?: string | null; gender?: string | null; on?: boolean; group?: boolean }) {
   return (
     <>
       {pic ? (
@@ -46,7 +51,7 @@ function Face({ pic, gender, on }: { pic?: string | null; gender?: string | null
         ${pic ? 'hidden' : ''}
         ${on ? 'bg-[oklch(0.80_0.125_225_/_0.18)]' : 'bg-[var(--glass-2)]'}
       `}>
-        {getGenderIcon(gender ?? null)}
+        {group ? '👥' : getGenderIcon(gender ?? null)}
       </div>
     </>
   );
@@ -65,9 +70,12 @@ function ChannelBadge({ channelType }: { channelType: string | null | undefined 
 export function ContactList({
   conversations,
   book = [],
+  groups = [],
   selectedId,
+  selectedGroupJid,
   onSelect,
   onOpenContact,
+  onOpenGroup,
   onDelete,
   onNewChat,
   onLoadMore,
@@ -128,6 +136,21 @@ export function ContactList({
     });
   }, [book, knownPhones, search, channelFilter]);
 
+  const knownGroupJids = useMemo(
+    () => new Set(conversations.filter((c) => c.user_phone?.endsWith('@g.us')).map((c) => c.user_phone)),
+    [conversations],
+  );
+
+  const groupRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (channelFilter !== 'all' && channelFilter !== 'whatsapp_wasender') return [];
+    return groups.filter((row) => {
+      if (knownGroupJids.has(row.jid)) return false;
+      if (!q) return true;
+      return (row.name || '').toLowerCase().includes(q) || row.jid.toLowerCase().includes(q);
+    });
+  }, [groups, search, channelFilter, knownGroupJids]);
+
   return (
     <div className="h-full border-l border-[var(--edge)] flex flex-col min-w-0 overflow-hidden">
       <div className="p-3 md:p-4 border-b border-[var(--edge)]">
@@ -147,8 +170,8 @@ export function ContactList({
         </div>
         <div className="text-xs text-[var(--text-secondary)]">
           {search || channelFilter !== 'all'
-            ? `${filtered.length + bookRows.length} מתוך ${conversations.length + book.length}`
-            : `${conversations.length} שיחות${bookRows.length ? ` · ${bookRows.length} אנשי קשר` : ''}`}
+            ? `${filtered.length + bookRows.length + groupRows.length} מתוך ${conversations.length + book.length + groups.length}`
+            : `${conversations.length} שיחות${bookRows.length ? ` · ${bookRows.length} אנשי קשר` : ''}${groupRows.length ? ` · ${groupRows.length} קבוצות` : ''}`}
         </div>
       </div>
 
@@ -201,9 +224,9 @@ export function ContactList({
       </div>
 
       <div className="overflow-y-auto flex-1 min-h-0 overscroll-contain">
-        {filtered.length === 0 && bookRows.length === 0 && (
+        {filtered.length === 0 && bookRows.length === 0 && groupRows.length === 0 && (
           <div className="p-6 text-center text-sm text-[var(--text-secondary)]">
-            {conversations.length === 0 && book.length === 0 ? 'אין שיחות עדיין. אפשר לפתוח צ׳אט חדש.' : 'לא נמצאו תוצאות'}
+            {conversations.length === 0 && book.length === 0 && groups.length === 0 ? 'אין שיחות עדיין. אפשר לפתוח צ׳אט חדש.' : 'לא נמצאו תוצאות'}
           </div>
         )}
         {filtered.map(conv => (
@@ -214,7 +237,12 @@ export function ContactList({
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <Face pic={conv.channel_profile_pic} gender={conv.user_gender} on={selectedId === conv.id} />
+                <Face
+                  pic={conv.channel_profile_pic}
+                  gender={conv.user_gender}
+                  on={selectedId === conv.id}
+                  group={conv.user_phone?.endsWith('@g.us')}
+                />
                 <div>
                   <div className="font-medium text-[var(--ink)] text-sm flex items-center gap-1.5 min-w-0">
                     {conv.channel_username && conv.channel_type === 'instagram' ? (
@@ -239,13 +267,15 @@ export function ContactList({
                       >
                         {conv.channel_username}
                       </a>
+                    ) : conv.user_phone?.endsWith('@g.us') ? (
+                      conv.user_name || 'קבוצה'
                     ) : (
                       conv.user_name || `לקוח ${conv.user_phone.slice(-4)}`
                     )}
                     {showChannelBadges && <ChannelBadge channelType={conv.channel_type} />}
                   </div>
                   <div className="text-xs text-[var(--text-muted)] font-mono">
-                    {conv.user_phone}
+                    {conv.user_phone?.endsWith('@g.us') ? 'קבוצה' : conv.user_phone}
                   </div>
                 </div>
               </div>
@@ -270,6 +300,21 @@ export function ContactList({
           </div>
         ))}
 
+        {groupRows.map((row) => (
+          <div
+            key={row.jid}
+            onClick={() => onOpenGroup?.(row.jid, row.name)}
+            className={`ops-row ${selectedGroupJid === row.jid ? 'is-on' : ''}`}
+          >
+            <div className="flex items-center gap-3">
+              <Face pic={row.img_url} group />
+              <div>
+                <div className="font-medium text-[var(--ink)] text-sm">{row.name || row.jid}</div>
+                <div className="text-xs text-[var(--text-muted)]">קבוצה</div>
+              </div>
+            </div>
+          </div>
+        ))}
         {bookRows.map((row) => {
           const phone = row.phone || row.jid.split('@')[0];
           return (

@@ -180,6 +180,9 @@ def _create_if_eligible(db: Session, agent_id: int, conv_id: int, now: datetime)
     conv = db.query(Conversation).filter(Conversation.id == conv_id).first()
     if not conv or conv.opted_out or conv.is_paused:
         return False
+    user = db.get(User, conv.user_id)
+    if user and str(user.phone or "").endswith("@g.us"):
+        return False
 
     if not conv.last_customer_message_at:
         return False

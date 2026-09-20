@@ -29,7 +29,10 @@ def _group(row: dict) -> dict | None:
     name = str(row.get("name") or row.get("subject") or "").strip()
     if not jid.endswith("@g.us"):
         return None
-    return {"jid": jid, "name": name}
+    img = str(row.get("imgUrl") or row.get("img_url") or "").strip()
+    if not img.startswith("http"):
+        img = ""
+    return {"jid": jid, "name": name, "img_url": img}
 
 
 async def load_contacts(channel: AgentChannel) -> list[dict]:

@@ -40,6 +40,15 @@ def customer_window_open(conv: Conversation) -> bool:
     return (datetime.utcnow() - ts).total_seconds() < WINDOW_SECONDS
 
 
+def identity_key(raw: str) -> str:
+    value = (raw or "").strip()
+    if value.endswith("@g.us"):
+        if not value or len(value) > 64:
+            raise OutboundError("מזהה קבוצה לא תקין")
+        return value
+    return normalize_msisdn(value)
+
+
 def normalize_msisdn(raw: str) -> str:
     from backend.services.channels.wasender import normalize_phone
 
@@ -119,7 +128,7 @@ async def open_whatsapp_chat(
 ) -> Conversation:
     if not agent.is_active:
         raise OutboundError("הסוכן לא פעיל")
-    phone = normalize_msisdn(phone_raw)
+    phone = identity_key(phone_raw)
     channel = active_whatsapp_channel(db, agent)
     if not channel and agent.provider not in ("wasender", "meta"):
         raise OutboundError("אין ערוץ וואטסאפ פעיל לסוכן הזה")
@@ -128,7 +137,11 @@ async def open_whatsapp_chat(
     conv = conversations.get_or_create(db, agent.id, user.id)
     if channel:
         attach_whatsapp(db, conv, channel, phone)
-        if channel.channel_type == "whatsapp_wasender" and conv.channel_user_id:
+        if (
+            channel.channel_type == "whatsapp_wasender"
+            and conv.channel_user_id
+            and not phone.endswith("@g.us")
+        ):
             from backend.models.channel_user import ChannelUser
             cu = db.get(ChannelUser, conv.channel_user_id)
             if not cu or not cu.profile_pic_url:

@@ -28,6 +28,8 @@ class Message(Base):
     media_too_large: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     reply_to_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     provider_msg_id: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    sender_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    sender_phone: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
