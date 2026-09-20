@@ -1,10 +1,7 @@
-"""Provider abstraction layer for sending WhatsApp messages.
+"""Provider send layer.
 
-Legacy API (send_message / send_media / send_template) remains unchanged
-for backward compatibility.
-
-New unified API (send_channel_message / send_channel_media) routes via
-AgentChannel rows and decrypts credentials on the fly.
+Returns a provider msg id, the token "ok" when the provider has no id, or None.
+reply_to is WaSender's integer msgId; ignored by Meta/IG/Messenger.
 """
 from typing import Optional, TYPE_CHECKING
 
@@ -41,34 +38,20 @@ async def send_template(
     )
 
 
-async def send_message(agent: Agent, to: str, text: str) -> bool:
-    """Send message via the appropriate provider based on agent configuration.
-    
-    Args:
-        agent: Agent model with provider configuration
-        to: Recipient phone number
-        text: Message text to send
-        
-    Returns:
-        True if message was sent successfully
-    """
+async def send_message(
+    agent: Agent, to: str, text: str, reply_to: int | None = None,
+) -> str | None:
     if agent.provider == "wasender":
         config = agent.provider_config or {}
         api_key = config.get("api_key", "")
         session = config.get("session", "default")
-        
         if not api_key:
-            return False
-        
-        return bool(await wasender.send_message(api_key, session, to, text))
-    
-    # Default: Meta WhatsApp Business API
-    return await whatsapp.send_message(
-        agent.phone_number_id,
-        agent.access_token,
-        to,
-        text
+            return None
+        return await wasender.send_message(api_key, session, to, text, reply_to=reply_to)
+    ok = await whatsapp.send_message(
+        agent.phone_number_id, agent.access_token, to, text,
     )
+    return "ok" if ok else None
 
 
 async def send_media(
@@ -77,54 +60,32 @@ async def send_media(
     media_url: str,
     media_type: str,
     caption: str | None = None,
-    filename: str | None = None
-) -> bool:
-    """Send media via the appropriate provider based on agent configuration.
-    
-    Args:
-        agent: Agent model with provider configuration
-        to: Recipient phone number
-        media_url: Public URL of media file
-        media_type: 'image', 'video', or 'document'
-        caption: Optional caption text
-        filename: For documents - display filename for recipient
-        
-    Returns:
-        True if media was sent successfully
-    """
+    filename: str | None = None,
+    reply_to: int | None = None,
+) -> str | None:
     if agent.provider == "wasender":
         config = agent.provider_config or {}
         api_key = config.get("api_key", "")
         session = config.get("session", "default")
-        
         if not api_key:
-            return False
-        
+            return None
         if media_type == "document":
             return await wasender.send_document(
-                api_key, session, to, media_url, filename or "file", caption
+                api_key, session, to, media_url, filename or "file", caption, reply_to=reply_to,
             )
-        return await wasender.send_media(api_key, session, to, media_url, media_type, caption)
-    
-    # Default: Meta WhatsApp Business API
-    if media_type == "document":
-        return await whatsapp.send_document(
-            agent.phone_number_id,
-            agent.access_token,
-            to,
-            media_url,
-            filename or "file",
-            caption
+        return await wasender.send_media(
+            api_key, session, to, media_url, media_type, caption, reply_to=reply_to,
         )
-    return await whatsapp.send_media(
-        agent.phone_number_id,
-        agent.access_token,
-        to,
-        media_url,
-        media_type,
-        caption,
+    if media_type == "document":
+        ok = await whatsapp.send_document(
+            agent.phone_number_id, agent.access_token, to, media_url, filename or "file", caption,
+        )
+        return "ok" if ok else None
+    ok = await whatsapp.send_media(
+        agent.phone_number_id, agent.access_token, to, media_url, media_type, caption,
         voice=(media_type in ("audio", "voice")),
     )
+    return "ok" if ok else None
 
 
 # ── New unified channel API ────────────────────────────────────────────────────
@@ -134,47 +95,40 @@ async def send_channel_message(
     to: str,
     text: str,
     db=None,
-) -> bool:
-    """Send a text message via any channel type using decrypted credentials.
-
-    Args:
-        channel: AgentChannel record (with encrypted credentials).
-        to: Recipient identifier (phone / IG user ID / PSID).
-        text: Message text.
-        db: DB session (required for WA Meta token refresh).
-
-    Returns:
-        True if sent successfully.
-    """
+    reply_to: int | None = None,
+) -> str | None:
     from backend.core.encryption import decrypt_credentials
 
     try:
         creds = decrypt_credentials(channel.credentials_encrypted)
     except Exception as e:
         log_error("send_channel", f"credential decryption failed: {e}")
-        return False
+        return None
 
     ct = channel.channel_type
 
     if ct == "whatsapp_wasender":
-        return bool(await wasender.send_message(
-            creds["api_key"], creds.get("session", "default"), to, text
-        ))
+        return await wasender.send_message(
+            creds["api_key"], creds.get("session", "default"), to, text, reply_to=reply_to,
+        )
 
     if ct == "whatsapp_meta":
         token = await _ensure_valid_token(db, channel, creds)
-        return await whatsapp.send_message(channel.external_account_id, token, to, text)
+        ok = await whatsapp.send_message(channel.external_account_id, token, to, text)
+        return "ok" if ok else None
 
     if ct == "instagram":
         from backend.services.channels.instagram import send_message as ig_send
-        return await ig_send(creds["access_token"], channel.page_id or channel.external_account_id, to, text)
+        ok = await ig_send(creds["access_token"], channel.page_id or channel.external_account_id, to, text)
+        return "ok" if ok else None
 
     if ct == "messenger":
         from backend.services.channels.messenger import send_message as ms_send
-        return await ms_send(creds["access_token"], channel.page_id or channel.external_account_id, to, text)
+        ok = await ms_send(creds["access_token"], channel.page_id or channel.external_account_id, to, text)
+        return "ok" if ok else None
 
     log_error("send_channel", f"unknown channel_type: {ct}")
-    return False
+    return None
 
 
 async def send_channel_template(
@@ -213,15 +167,15 @@ async def send_channel_media(
     filename: Optional[str] = None,
     db=None,
     voice: bool = False,
-) -> bool:
-    """Send media via any channel type."""
+    reply_to: int | None = None,
+) -> str | None:
     from backend.core.encryption import decrypt_credentials
 
     try:
         creds = decrypt_credentials(channel.credentials_encrypted)
     except Exception as e:
         log_error("send_channel", f"credential decryption failed: {e}")
-        return False
+        return None
 
     ct = channel.channel_type
 
@@ -229,40 +183,44 @@ async def send_channel_media(
         if media_type == "document":
             return await wasender.send_document(
                 creds["api_key"], creds.get("session", "default"),
-                to, media_url, filename or "file", caption,
+                to, media_url, filename or "file", caption, reply_to=reply_to,
             )
         return await wasender.send_media(
             creds["api_key"], creds.get("session", "default"),
-            to, media_url, media_type, caption,
+            to, media_url, media_type, caption, reply_to=reply_to,
         )
 
     if ct == "whatsapp_meta":
         token = await _ensure_valid_token(db, channel, creds)
         if media_type == "document":
-            return await whatsapp.send_document(
-                channel.external_account_id, token, to, media_url, filename or "file", caption
+            ok = await whatsapp.send_document(
+                channel.external_account_id, token, to, media_url, filename or "file", caption,
             )
-        return await whatsapp.send_media(
-            channel.external_account_id, token, to, media_url, media_type, caption,
-            voice=voice or media_type in ("audio", "voice"),
-        )
+        else:
+            ok = await whatsapp.send_media(
+                channel.external_account_id, token, to, media_url, media_type, caption,
+                voice=voice or media_type in ("audio", "voice"),
+            )
+        return "ok" if ok else None
 
     if ct == "instagram":
         from backend.services.channels.instagram import send_media as ig_media
-        return await ig_media(
+        ok = await ig_media(
             creds["access_token"], channel.page_id or channel.external_account_id,
             to, media_url, media_type, caption,
         )
+        return "ok" if ok else None
 
     if ct == "messenger":
         from backend.services.channels.messenger import send_media as ms_media
-        return await ms_media(
+        ok = await ms_media(
             creds["access_token"], channel.page_id or channel.external_account_id,
             to, media_url, media_type, caption, filename,
         )
+        return "ok" if ok else None
 
     log_error("send_channel", f"unknown channel_type: {ct}")
-    return False
+    return None
 
 
 async def _ensure_valid_token(db, channel: "AgentChannel", creds: dict) -> str:

@@ -180,7 +180,9 @@ async def send_message(
     """Send a manual text message. Meta WhatsApp outside the 24h window is rejected."""
     require_conversation_access(conv_id, current_user, db)
     try:
-        msg = await outbound.send_text(db, _load_conv(db, conv_id), req.text)
+        msg = await outbound.send_text(
+            db, _load_conv(db, conv_id), req.text, req.reply_to_message_id,
+        )
     except outbound.OutboundError as e:
         _raise_outbound(e)
     return {"status": "sent", "message_id": msg.id, "conversation_id": conv_id}
@@ -191,6 +193,7 @@ async def send_media(
     conv_id: int,
     caption: Optional[str] = Form(None),
     as_voice: bool = Form(False),
+    reply_to_message_id: Optional[int] = Form(None),
     file: UploadFile = File(...),
     current_user: AuthUser = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -201,6 +204,7 @@ async def send_media(
     try:
         msg = await outbound.send_bytes(
             db, _load_conv(db, conv_id), data, content_type, filename, caption, as_voice,
+            reply_to_message_id,
         )
     except outbound.OutboundError as e:
         _raise_outbound(e)

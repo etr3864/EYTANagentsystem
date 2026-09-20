@@ -7,6 +7,8 @@ interface FreeformComposerProps {
   allowVoice: boolean;
   allowImages: boolean;
   allowFiles: boolean;
+  quoteText?: string | null;
+  onCancelQuote?: () => void;
   onSendText: (text: string) => Promise<void>;
   onSendMedia: (file: File, caption: string, asVoice?: boolean) => Promise<void>;
   onSendVoice: (blob: Blob) => Promise<void>;
@@ -18,6 +20,8 @@ export function FreeformComposer({
   allowVoice,
   allowImages,
   allowFiles,
+  quoteText,
+  onCancelQuote,
   onSendText,
   onSendMedia,
   onSendVoice,
@@ -121,6 +125,19 @@ export function FreeformComposer({
 
   return (
     <div className="space-y-2">
+      {quoteText && (
+        <div className="flex items-start gap-2 text-xs text-[var(--text-secondary)] bg-[var(--glass-2)] rounded-2xl px-3 py-2 border-r-2 border-[var(--acc)]">
+          <p className="flex-1 line-clamp-2 whitespace-pre-wrap">{quoteText}</p>
+          <button
+            type="button"
+            onClick={onCancelQuote}
+            className="text-[var(--text-secondary)] hover:text-[var(--ink)]"
+            aria-label="בטל ציטוט"
+          >
+            <XIcon className="w-4 h-4" />
+          </button>
+        </div>
+      )}
       {file && (
         <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] bg-[var(--glass-2)] rounded-2xl px-3 py-2">
           <span className="truncate flex-1">{file.name}</span>

@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from backend.models.message import Message
+from backend.services.messaging.quote import usable_id
 
 
 def add(
@@ -111,8 +112,9 @@ def get_by_conversation(db: Session, conversation_id: int, limit: int = 50) -> l
 
 
 def set_provider_msg_id(db: Session, message_id: int, provider_msg_id: str) -> None:
+    pid = usable_id(provider_msg_id)
     row = db.query(Message).filter(Message.id == message_id).first()
-    if not row or not provider_msg_id:
+    if not row or not pid:
         return
-    row.provider_msg_id = str(provider_msg_id)[:120]
+    row.provider_msg_id = pid
     db.commit()

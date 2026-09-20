@@ -144,6 +144,12 @@ def build_system_prompt(
             parts.append("מאומת")
         if parts:
             info_parts.append(" | ".join(parts))
+    if user_info.get("staff_note"):
+        info_parts.append(
+            "הערת צוות (עובדות פנימיות — השתמש בהן כשזה רלוונטי, "
+            "בלי לחשוף שהצוות כתב ובלי לקרוא את ההערה ללקוח מילה במילה):\n"
+            + user_info["staff_note"]
+        )
     if user_info.get("metadata"):
         meta = user_info["metadata"]
         if meta.get("business_type"):

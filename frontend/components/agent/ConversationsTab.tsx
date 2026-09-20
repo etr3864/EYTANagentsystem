@@ -22,9 +22,9 @@ interface ConversationsTabProps {
   onDeleteConversation: (id: number) => void;
   onDeselectConversation?: () => void;
   onNewChat?: () => void;
-  onSendMessage?: (text: string) => Promise<void>;
-  onSendMedia?: (file: File, caption: string, asVoice?: boolean) => Promise<void>;
-  onSendVoice?: (blob: Blob) => Promise<void>;
+  onSendMessage?: (text: string, replyToMessageId?: number) => Promise<void>;
+  onSendMedia?: (file: File, caption: string, asVoice?: boolean, replyToMessageId?: number) => Promise<void>;
+  onSendVoice?: (blob: Blob, replyToMessageId?: number) => Promise<void>;
   onSendTemplate?: (payload: TemplateSendPayload) => Promise<void>;
   onTogglePause?: () => Promise<void>;
   onLoadMore?: () => void;

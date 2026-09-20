@@ -1,7 +1,7 @@
 from typing import Any
 from urllib.parse import quote
 
-from backend.services.wasender.http import request
+from backend.services.wasender.http import SessionApiError, request
 
 
 def _data(body: Any) -> Any:
@@ -75,17 +75,44 @@ async def list_groups(token: str) -> list[dict]:
 
 
 def _enc(jid: str) -> str:
-    return quote(jid, safe="@.")
+    # Wasender wants @ as %40 in path JIDs. Digits-only phones are unchanged.
+    return quote(jid, safe="")
+
+
+def _entity(raw: Any) -> dict:
+    if isinstance(raw, list):
+        raw = raw[0] if raw and isinstance(raw[0], dict) else {}
+    if not isinstance(raw, dict):
+        return {}
+    for key in ("contact", "group"):
+        inner = raw.get(key)
+        if isinstance(inner, dict):
+            return inner
+    return raw
 
 
 async def get_contact(token: str, phone: str) -> dict:
-    data = _data(await request("GET", f"/contacts/{_enc(phone)}", token, timeout=15))
-    return data if isinstance(data, dict) else {}
+    ident = (phone or "").split("@", 1)[0]
+    paths = [f"/contacts/{_enc(ident)}"]
+    if ident:
+        paths.append(f"/contacts/{_enc(f'{ident}@s.whatsapp.net')}")
+    for path in paths:
+        try:
+            row = _entity(_data(await request("GET", path, token, timeout=15)))
+        except SessionApiError:
+            continue
+        if row:
+            return row
+    return {}
 
 
 async def get_group(token: str, jid: str) -> dict:
-    data = _data(await request("GET", f"/groups/{_enc(jid)}/metadata", token, timeout=15))
-    return data if isinstance(data, dict) else {}
+    try:
+        return _entity(_data(await request(
+            "GET", f"/groups/{_enc(jid)}/metadata", token, timeout=15,
+        )))
+    except SessionApiError:
+        return {}
 
 
 async def get_picture(token: str, target: str, *, group: bool = False) -> str | None:

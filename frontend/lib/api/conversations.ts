@@ -68,11 +68,18 @@ async function readApiError(res: Response, fallback: string): Promise<string> {
   return fallback;
 }
 
-export async function sendMessage(convId: number, text: string): Promise<{ status: string; message_id: number }> {
+export async function sendMessage(
+  convId: number,
+  text: string,
+  replyToMessageId?: number,
+): Promise<{ status: string; message_id: number }> {
   const res = await authFetch(`${API_URL}/api/conversations/${convId}/send`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({
+      text,
+      ...(replyToMessageId ? { reply_to_message_id: replyToMessageId } : {}),
+    }),
   });
   if (!res.ok) throw new Error(await readApiError(res, 'שליחת ההודעה נכשלה'));
   return res.json();
@@ -83,11 +90,13 @@ export async function sendConversationMedia(
   file: File,
   caption?: string,
   asVoice?: boolean,
+  replyToMessageId?: number,
 ): Promise<{ status: string; message_id: number }> {
   const fd = new FormData();
   fd.append('file', file);
   if (caption) fd.append('caption', caption);
   if (asVoice) fd.append('as_voice', 'true');
+  if (replyToMessageId) fd.append('reply_to_message_id', String(replyToMessageId));
   const res = await authFetch(`${API_URL}/api/conversations/${convId}/send-media`, {
     method: 'POST',
     body: fd,

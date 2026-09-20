@@ -402,24 +402,24 @@ function AgentPage() {
     }
   }
 
-  async function handleSendMessage(text: string) {
+  async function handleSendMessage(text: string, replyToMessageId?: number) {
     if (!selectedConv) return;
-    await sendMessage(selectedConv, text);
+    await sendMessage(selectedConv, text, replyToMessageId);
     await loadMessages(selectedConv);
     await loadConversations({ selectFromUrl: false });
   }
 
-  async function handleSendMedia(file: File, caption: string, asVoice?: boolean) {
+  async function handleSendMedia(file: File, caption: string, asVoice?: boolean, replyToMessageId?: number) {
     if (!selectedConv) return;
-    await sendConversationMedia(selectedConv, file, caption, asVoice);
+    await sendConversationMedia(selectedConv, file, caption, asVoice, replyToMessageId);
     await loadMessages(selectedConv);
     await loadConversations({ selectFromUrl: false });
   }
 
-  async function handleSendVoice(blob: Blob) {
+  async function handleSendVoice(blob: Blob, replyToMessageId?: number) {
     if (!selectedConv) return;
     const file = new File([blob], 'voice.webm', { type: blob.type || 'audio/webm' });
-    await sendConversationMedia(selectedConv, file, undefined, true);
+    await sendConversationMedia(selectedConv, file, undefined, true, replyToMessageId);
     await loadMessages(selectedConv);
     await loadConversations({ selectFromUrl: false });
   }

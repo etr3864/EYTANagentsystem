@@ -327,10 +327,10 @@ async def handle_wasender_message(agent_id: int, msg_data: dict):
             provider_msg_id=msg_data.get("provider_msg_id"),
         )
 
-        async def send_fn(to: str, txt: str) -> bool:
+        async def send_fn(to: str, txt: str):
             return await wasender.send_message(creds.api_key, creds.session, to, txt)
 
-        async def send_media_fn(to: str, url: str, mt: str, caption: str | None, filename: str | None = None) -> bool:
+        async def send_media_fn(to: str, url: str, mt: str, caption: str | None, filename: str | None = None):
             if mt == "document":
                 return await wasender.send_document(creds.api_key, creds.session, to, url, filename or "file", caption)
             return await wasender.send_media(creds.api_key, creds.session, to, url, mt, caption)

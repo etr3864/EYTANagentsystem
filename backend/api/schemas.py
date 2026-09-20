@@ -187,3 +187,4 @@ class DbMessageResponse(BaseModel):
 
 class SendMessageRequest(BaseModel):
     text: str
+    reply_to_message_id: int | None = None

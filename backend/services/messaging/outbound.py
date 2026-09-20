@@ -22,6 +22,7 @@ from backend.services.channels.channel_users import IncomingUserInfo, get_or_cre
 from backend.services.entities import conversations, users
 from backend.services.messaging import messages
 from backend.services.media.inbox import persist_bytes
+from backend.services.messaging.quote import load as load_quote, native_id, usable_id
 
 WINDOW_SECONDS = 24 * 3600
 _BODY_VAR = re.compile(r"\{\{(\d+)\}\}")
@@ -149,16 +150,27 @@ async def open_whatsapp_chat(
     return conv
 
 
-async def send_text(db: Session, conv: Conversation, text: str) -> Message:
+async def send_text(
+    db: Session, conv: Conversation, text: str, quote_message_id: int | None = None,
+) -> Message:
     text = (text or "").strip()
     if not text:
         raise OutboundError("אין טקסט לשליחה")
     agent, user, channel = _load_send_context(db, conv)
     require_freeform(channel, agent, conv)
-    ok = await _dispatch_text(db, channel, agent, recipient_for(db, conv, user), text)
-    if not ok:
+    quoted = load_quote(db, conv.id, quote_message_id)
+    sent = await _dispatch_text(
+        db, channel, agent, recipient_for(db, conv, user), text,
+        reply_to=native_id(quoted.provider_id) if quoted else None,
+    )
+    if not sent:
         raise OutboundError("שליחת ההודעה נכשלה", 500)
-    msg = messages.add(db, conv.id, "assistant", text, message_type="manual")
+    msg = messages.add(
+        db, conv.id, "assistant", text,
+        message_type="manual",
+        reply_to_text=quoted.text if quoted else None,
+        provider_msg_id=usable_id(sent),
+    )
     touch_conversation(db, conv)
     log("MANUAL_SEND", agent=agent.name, user=user.name or user.phone[-4:])
     return msg
@@ -172,6 +184,7 @@ async def send_bytes(
     filename: str,
     caption: str | None = None,
     as_voice: bool = False,
+    quote_message_id: int | None = None,
 ) -> Message:
     agent, user, channel = _load_send_context(db, conv)
     require_freeform(channel, agent, conv)
@@ -186,18 +199,20 @@ async def send_bytes(
     if not persisted.media_url:
         raise OutboundError("לא ניתן להעלות מדיה")
 
-    to = recipient_for(db, conv, user)
-    ok = await _dispatch_media(
-        db, channel, agent, to, persisted.media_url, kind, caption, filename,
+    quoted = load_quote(db, conv.id, quote_message_id)
+    sent = await _dispatch_media(
+        db, channel, agent, recipient_for(db, conv, user), persisted.media_url, kind, caption, filename,
+        reply_to=native_id(quoted.provider_id) if quoted else None,
     )
-    if not ok:
+    if not sent:
         raise OutboundError("שליחת המדיה נכשלה", 500)
 
-    content = _media_content(kind, filename, caption)
     msg = messages.add(
-        db, conv.id, "assistant", content,
+        db, conv.id, "assistant", _media_content(kind, filename, caption),
         message_type=_message_type(kind),
         media_url=persisted.media_url,
+        reply_to_text=quoted.text if quoted else None,
+        provider_msg_id=usable_id(sent),
     )
     touch_conversation(db, conv)
     log("MANUAL_SEND", agent=agent.name, kind=kind, user=user.name or user.phone[-4:])
@@ -302,21 +317,25 @@ def _load_send_context(
     return agent, user, channel
 
 
-async def _dispatch_text(db, channel, agent, to: str, text: str) -> bool:
+async def _dispatch_text(
+    db, channel, agent, to: str, text: str, reply_to: int | None = None,
+) -> str | None:
     if channel:
-        return await providers.send_channel_message(channel, to, text, db)
-    return await providers.send_message(agent, to, text)
+        return await providers.send_channel_message(channel, to, text, db, reply_to=reply_to)
+    return await providers.send_message(agent, to, text, reply_to=reply_to)
 
 
 async def _dispatch_media(
     db, channel, agent, to: str, url: str, kind: str, caption: str | None, filename: str,
-) -> bool:
+    reply_to: int | None = None,
+) -> str | None:
     media_type = "audio" if kind == "voice" else kind
     if channel:
         return await providers.send_channel_media(
-            channel, to, url, media_type, caption, filename, db, voice=(kind == "voice"),
+            channel, to, url, media_type, caption, filename, db,
+            voice=(kind == "voice"), reply_to=reply_to,
         )
-    return await providers.send_media(agent, to, url, media_type, caption, filename)
+    return await providers.send_media(agent, to, url, media_type, caption, filename, reply_to=reply_to)
 
 
 async def _dispatch_template(db, channel, agent, to: str, tpl: WhatsAppTemplate, components: list) -> bool:

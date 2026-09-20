@@ -14,6 +14,8 @@ interface ComposerProps {
   allowImages?: boolean;
   allowFiles?: boolean;
   allowSwitchToFreeform?: boolean;
+  quoteText?: string | null;
+  onCancelQuote?: () => void;
   onSwitchToFreeform?: () => void;
   onSwitchToTemplate?: () => void;
   onSendText: (text: string) => Promise<void>;
@@ -29,6 +31,8 @@ export function Composer({
   allowImages = false,
   allowFiles = false,
   allowSwitchToFreeform = false,
+  quoteText = null,
+  onCancelQuote,
   onSwitchToFreeform,
   onSwitchToTemplate,
   onSendText,
@@ -70,6 +74,8 @@ export function Composer({
           allowVoice={allowVoice}
           allowImages={allowImages}
           allowFiles={allowFiles}
+          quoteText={quoteText}
+          onCancelQuote={onCancelQuote}
           onSendText={onSendText}
           onSendMedia={onSendMedia}
           onSendVoice={onSendVoice}

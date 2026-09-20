@@ -33,15 +33,59 @@ def parse_target(raw: str) -> tuple[str, str]:
         raise ValueError(str(exc)) from exc
 
 
+# GET /contacts/{phone} documents status:null. The address-book list is the
+# payload that actually includes About text. Ignore session-health words.
+_NOT_ABOUT = {
+    "connected", "disconnected", "connecting", "need_scan", "need_passkey",
+    "logged_out", "expired", "null", "none", "undefined",
+}
+
+
+def _about_value(raw) -> str:
+    if isinstance(raw, dict):
+        for key in ("status", "text", "about", "desc", "message"):
+            text = _about_value(raw.get(key))
+            if text:
+                return text
+        return ""
+    if isinstance(raw, (int, float, bool)):
+        return ""
+    text = str(raw or "").strip()
+    if not text or text.lower() in _NOT_ABOUT:
+        return ""
+    return text
+
+
 def _about(remote: dict) -> str:
-    for key in ("status", "desc", "about"):
-        raw = remote.get(key)
-        if isinstance(raw, dict):
-            raw = raw.get("status") or raw.get("text") or raw.get("about")
-        text = str(raw or "").strip()
+    for key in ("status", "desc", "about", "description", "statusText"):
+        text = _about_value(remote.get(key))
         if text:
             return text
     return ""
+
+
+def _same_phone(row: dict, phone: str) -> bool:
+    ident = (phone or "").split("@", 1)[0]
+    if not ident:
+        return False
+    jid = str(row.get("jid") or row.get("id") or "")
+    return jid.split("@", 1)[0] == ident
+
+
+async def _with_book_about(token: str, phone: str, remote: dict) -> dict:
+    """Fill About from GET /contacts when get-one left status empty."""
+    if _about(remote):
+        return remote
+    try:
+        rows = await sessions.list_contacts(token)
+    except SessionApiError:
+        return remote
+    for row in rows:
+        if _same_phone(row, phone) and _about(row):
+            merged = dict(remote)
+            merged.update({key: value for key, value in row.items() if value not in (None, "")})
+            return merged
+    return remote
 
 
 def _http_img(raw) -> str:
@@ -166,6 +210,8 @@ async def load_card(db, channel: AgentChannel, raw_jid: str) -> dict:
     kind, key = parse_target(raw_jid)
     token = _session_key(channel)
     remote = await _remote(token, kind, key)
+    if kind == "contact":
+        remote = await _with_book_about(token, key, remote)
     name = str(remote.get("subject") or remote.get("name") or remote.get("notify") or "")
     row = _identity(db, channel, key, name)
     img = await _picture(db, token, kind, key, row, remote)

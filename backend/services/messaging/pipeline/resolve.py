@@ -53,7 +53,7 @@ async def open_turn(request: TurnRequest) -> Optional[TurnContext]:
                 conversation.channel_type_snapshot or "playground"
             )
 
-        user_info = _user_info(db, user, request)
+        user_info = _user_info(db, user, request, conversation)
         _inject_trigger_data(user_info, user, agent.id, conversation)
         _bind_channel(db, conversation, request)
         _reset_engagement(db, conversation, is_playground)
@@ -77,21 +77,41 @@ async def open_turn(request: TurnRequest) -> Optional[TurnContext]:
     )
 
 
-def _user_info(db: Session, user: User, request: TurnRequest) -> dict:
+def _user_info(db: Session, user: User, request: TurnRequest, conversation) -> dict:
     info = user_context(user)
     info["channel"] = request.provider
-    if not request.channel_user_id:
+    channel_user = _channel_user(db, user, request, conversation)
+    if not channel_user:
         return info
-
-    from backend.services.channels.channel_users import get_by_id as get_channel_user
-
-    channel_user = get_channel_user(db, request.channel_user_id)
-    if channel_user:
-        if channel_user.display_name:
-            info["channel_username"] = channel_user.display_name
-        if channel_user.metadata_:
-            info["channel_meta"] = channel_user.metadata_
+    if channel_user.display_name:
+        info["channel_username"] = channel_user.display_name
+    if channel_user.metadata_:
+        info["channel_meta"] = channel_user.metadata_
+    note = (channel_user.staff_note or "").strip()
+    if note:
+        info["staff_note"] = note
     return info
+
+
+def _channel_user(db: Session, user: User, request: TurnRequest, conversation):
+    from backend.services.channels.agent_channels import get_channel_by_type
+    from backend.services.channels.channel_users import get_by_external_id, get_by_id
+
+    cu_id = request.channel_user_id or conversation.channel_user_id
+    if cu_id:
+        row = get_by_id(db, cu_id)
+        if row:
+            return row
+    phone = (user.metadata_ or {}).get("claimed_phone") or user.phone
+    channel_id = request.channel_id or conversation.channel_id
+    if channel_id and phone:
+        return get_by_external_id(db, channel_id, phone)
+    if not phone:
+        return None
+    channel = get_channel_by_type(db, conversation.agent_id, "whatsapp_wasender")
+    if not channel:
+        return None
+    return get_by_external_id(db, channel.id, phone)
 
 
 def _inject_trigger_data(info: dict, user: User, agent_id: int, conversation) -> None:
