@@ -230,21 +230,16 @@ export async function saveWasenderSettings(
 export interface WasenderContact {
   jid: string;
   name: string;
-}
-
-export interface WasenderRoster {
-  contacts: WasenderContact[];
-  groups: WasenderContact[];
-}
-
-export async function getWasenderRoster(agentId: number, channelId: number): Promise<WasenderRoster> {
-  return readJson(
-    await authFetch(`${API_URL}/api/agents/${agentId}/wasender/sessions/${channelId}/roster`),
-  );
+  phone?: string;
+  img_url?: string;
 }
 
 export async function getWasenderGroups(agentId: number): Promise<WasenderContact[]> {
   return readJson(await authFetch(`${API_URL}/api/agents/${agentId}/wasender/groups`));
+}
+
+export async function getWasenderContacts(agentId: number): Promise<WasenderContact[]> {
+  return readJson(await authFetch(`${API_URL}/api/agents/${agentId}/wasender/contacts`));
 }
 
 export async function deleteWasenderLine(agentId: number, channelId: number): Promise<{ status: string; remote_ok: boolean }> {

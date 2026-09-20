@@ -4,14 +4,17 @@ import { Card } from '@/components/ui';
 import { ContactList } from '@/components/chat/ContactList';
 import { ChatView } from '@/components/chat/ChatView';
 import type { Conversation, Message, WhatsAppTemplate } from '@/lib/types';
+import type { WasenderContact } from '@/lib/api';
 import type { TemplateSendPayload } from '@/components/chat/Composer';
 
 interface ConversationsTabProps {
   conversations: Conversation[];
+  book?: WasenderContact[];
   selectedId: number | null;
   messages: Message[];
   templates?: WhatsAppTemplate[];
   onSelectConversation: (id: number) => void;
+  onOpenContact?: (phone: string, name: string) => void;
   onDeleteConversation: (id: number) => void;
   onDeselectConversation?: () => void;
   onNewChat?: () => void;
@@ -26,8 +29,8 @@ interface ConversationsTabProps {
 }
 
 export function ConversationsTab({
-  conversations, selectedId, messages, templates = [],
-  onSelectConversation, onDeleteConversation, onDeselectConversation,
+  conversations, book, selectedId, messages, templates = [],
+  onSelectConversation, onOpenContact, onDeleteConversation, onDeselectConversation,
   onNewChat, onSendMessage, onSendMedia, onSendVoice, onSendTemplate, onTogglePause,
   onLoadMore, hasMore, loadingMore,
 }: ConversationsTabProps) {
@@ -39,8 +42,10 @@ export function ConversationsTab({
         <div className={`w-full md:w-96 md:block shrink-0 min-w-0 ${selectedId ? 'hidden' : 'block'}`}>
           <ContactList
             conversations={conversations}
+            book={book}
             selectedId={selectedId}
             onSelect={onSelectConversation}
+            onOpenContact={onOpenContact}
             onDelete={onDeleteConversation}
             onNewChat={onNewChat}
             onLoadMore={onLoadMore}

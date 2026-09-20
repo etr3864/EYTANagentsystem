@@ -1,6 +1,7 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from backend.core.database import get_db
@@ -131,6 +132,29 @@ async def start_whatsapp_chat(
         _raise_outbound(e)
 
     return {"status": "sent", "conversation_id": conv.id, "message_id": msg.id}
+
+
+class OpenWhatsAppBody(BaseModel):
+    agent_id: int
+    phone: str
+    name: str | None = None
+
+
+@router.post("/inbox/whatsapp/open")
+async def open_whatsapp_thread(
+    body: OpenWhatsAppBody,
+    current_user: AuthUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    require_agent_access(body.agent_id, current_user, db)
+    agent = agents.get_by_id(db, body.agent_id)
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    try:
+        conv = await outbound.open_whatsapp_chat(db, agent, body.phone, body.name)
+    except outbound.OutboundError as e:
+        _raise_outbound(e)
+    return {"status": "ok", "conversation_id": conv.id}
 
 
 @router.get("/{conv_id}/messages")

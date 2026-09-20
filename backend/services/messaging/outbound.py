@@ -114,7 +114,9 @@ def touch_conversation(db: Session, conv: Conversation) -> None:
     db.commit()
 
 
-async def open_whatsapp_chat(db: Session, agent: Agent, phone_raw: str) -> Conversation:
+async def open_whatsapp_chat(
+    db: Session, agent: Agent, phone_raw: str, name: str | None = None
+) -> Conversation:
     if not agent.is_active:
         raise OutboundError("הסוכן לא פעיל")
     phone = normalize_msisdn(phone_raw)
@@ -122,7 +124,7 @@ async def open_whatsapp_chat(db: Session, agent: Agent, phone_raw: str) -> Conve
     if not channel and agent.provider not in ("wasender", "meta"):
         raise OutboundError("אין ערוץ וואטסאפ פעיל לסוכן הזה")
 
-    user = users.get_or_create(db, phone)
+    user = users.get_or_create(db, phone, name)
     conv = conversations.get_or_create(db, agent.id, user.id)
     if channel:
         attach_whatsapp(db, conv, channel, phone)

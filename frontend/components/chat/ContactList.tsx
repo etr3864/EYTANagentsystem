@@ -2,13 +2,17 @@
 
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import type { Conversation } from '@/lib/types';
+import type { WasenderContact } from '@/lib/api';
 import { CHANNEL_DISPLAY_NAMES } from '@/lib/channels';
 import { ChannelIcon, PlusIcon } from '@/components/ui/Icons';
+import { phoneKey } from '@/lib/phone';
 
 interface ContactListProps {
   conversations: Conversation[];
+  book?: WasenderContact[];
   selectedId: number | null;
   onSelect: (id: number) => void;
+  onOpenContact?: (phone: string, name: string) => void;
   onDelete: (id: number) => void;
   onNewChat?: () => void;
   onLoadMore?: () => void;
@@ -22,6 +26,32 @@ function getGenderIcon(gender: string | null): string {
   return '👤';
 }
 
+function Face({ pic, gender, on }: { pic?: string | null; gender?: string | null; on?: boolean }) {
+  return (
+    <>
+      {pic ? (
+        <img
+          src={pic}
+          alt=""
+          className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+          onError={(e) => {
+            const el = e.target as HTMLImageElement;
+            el.style.display = 'none';
+            el.nextElementSibling?.classList.remove('hidden');
+          }}
+        />
+      ) : null}
+      <div className={`
+        w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0
+        ${pic ? 'hidden' : ''}
+        ${on ? 'bg-[oklch(0.80_0.125_225_/_0.18)]' : 'bg-[var(--glass-2)]'}
+      `}>
+        {getGenderIcon(gender ?? null)}
+      </div>
+    </>
+  );
+}
+
 function ChannelBadge({ channelType }: { channelType: string | null | undefined }) {
   if (!channelType) return null;
   const name = CHANNEL_DISPLAY_NAMES[channelType as keyof typeof CHANNEL_DISPLAY_NAMES] ?? channelType;
@@ -32,7 +62,18 @@ function ChannelBadge({ channelType }: { channelType: string | null | undefined 
   );
 }
 
-export function ContactList({ conversations, selectedId, onSelect, onDelete, onNewChat, onLoadMore, hasMore, loadingMore }: ContactListProps) {
+export function ContactList({
+  conversations,
+  book = [],
+  selectedId,
+  onSelect,
+  onOpenContact,
+  onDelete,
+  onNewChat,
+  onLoadMore,
+  hasMore,
+  loadingMore,
+}: ContactListProps) {
   const [search, setSearch] = useState('');
   const [channelFilter, setChannelFilter] = useState<string>('all');
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -62,6 +103,11 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete, onN
 
   const showChannelBadges = channelTypes.length > 1;
 
+  const knownPhones = useMemo(
+    () => new Set(conversations.map((c) => phoneKey(c.user_phone))),
+    [conversations],
+  );
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return conversations.filter(c => {
@@ -70,6 +116,17 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete, onN
       return matchSearch && matchChannel;
     });
   }, [conversations, search, channelFilter]);
+
+  const bookRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return book.filter((row) => {
+      const phone = row.phone || row.jid;
+      if (knownPhones.has(phoneKey(phone))) return false;
+      if (channelFilter !== 'all' && channelFilter !== 'whatsapp_wasender') return false;
+      if (!q) return true;
+      return (row.name || '').toLowerCase().includes(q) || phone.includes(q);
+    });
+  }, [book, knownPhones, search, channelFilter]);
 
   return (
     <div className="h-full border-l border-[var(--edge)] flex flex-col min-w-0 overflow-hidden">
@@ -90,8 +147,8 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete, onN
         </div>
         <div className="text-xs text-[var(--text-secondary)]">
           {search || channelFilter !== 'all'
-            ? `${filtered.length} מתוך ${conversations.length}`
-            : `${conversations.length} פעילות`}
+            ? `${filtered.length + bookRows.length} מתוך ${conversations.length + book.length}`
+            : `${conversations.length} שיחות${bookRows.length ? ` · ${bookRows.length} אנשי קשר` : ''}`}
         </div>
       </div>
 
@@ -144,9 +201,9 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete, onN
       </div>
 
       <div className="overflow-y-auto flex-1 min-h-0 overscroll-contain">
-        {filtered.length === 0 && (
+        {filtered.length === 0 && bookRows.length === 0 && (
           <div className="p-6 text-center text-sm text-[var(--text-secondary)]">
-            {conversations.length === 0 ? 'אין שיחות עדיין. אפשר לפתוח צ׳אט חדש.' : 'לא נמצאו תוצאות'}
+            {conversations.length === 0 && book.length === 0 ? 'אין שיחות עדיין. אפשר לפתוח צ׳אט חדש.' : 'לא נמצאו תוצאות'}
           </div>
         )}
         {filtered.map(conv => (
@@ -157,25 +214,7 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete, onN
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                {conv.channel_profile_pic ? (
-                  <img
-                    src={conv.channel_profile_pic}
-                    alt=""
-                    className="w-10 h-10 rounded-full object-cover flex-shrink-0"
-                    onError={(e) => {
-                      const el = e.target as HTMLImageElement;
-                      el.style.display = 'none';
-                      el.nextElementSibling?.classList.remove('hidden');
-                    }}
-                  />
-                ) : null}
-                <div className={`
-                  w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0
-                  ${conv.channel_profile_pic ? 'hidden' : ''}
-                  ${selectedId === conv.id ? 'bg-[oklch(0.80_0.125_225_/_0.18)]' : 'bg-[var(--glass-2)]'}
-                `}>
-                  {getGenderIcon(conv.user_gender)}
-                </div>
+                <Face pic={conv.channel_profile_pic} gender={conv.user_gender} on={selectedId === conv.id} />
                 <div>
                   <div className="font-medium text-[var(--ink)] text-sm flex items-center gap-1.5 min-w-0">
                     {conv.channel_username && conv.channel_type === 'instagram' ? (
@@ -230,6 +269,31 @@ export function ContactList({ conversations, selectedId, onSelect, onDelete, onN
             </div>
           </div>
         ))}
+
+        {bookRows.map((row) => {
+          const phone = row.phone || row.jid.split('@')[0];
+          return (
+            <div
+              key={row.jid}
+              onClick={() => onOpenContact?.(phone, row.name)}
+              className="ops-row"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <Face pic={row.img_url} />
+                  <div>
+                    <div className="font-medium text-[var(--ink)] text-sm">
+                      {row.name || `לקוח ${phone.slice(-4)}`}
+                    </div>
+                    <div className="text-xs text-[var(--text-muted)] font-mono">
+                      {phone}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
 
         {/* Sentinel for infinite scroll */}
         <div ref={sentinelRef} className="h-1" />

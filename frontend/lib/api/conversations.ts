@@ -137,6 +137,24 @@ export async function getWhatsAppInbox(agentId: number): Promise<WhatsAppInbox> 
   return res.json();
 }
 
+export async function openWhatsAppThread(input: {
+  agentId: number;
+  phone: string;
+  name?: string;
+}): Promise<{ status: string; conversation_id: number }> {
+  const res = await authFetch(`${API_URL}/api/conversations/inbox/whatsapp/open`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      agent_id: input.agentId,
+      phone: input.phone,
+      name: input.name || undefined,
+    }),
+  });
+  if (!res.ok) throw new Error(await readApiError(res, 'פתיחת הצ׳אט נכשלה'));
+  return res.json();
+}
+
 export async function startWhatsAppChat(input: {
   agentId: number;
   phone: string;

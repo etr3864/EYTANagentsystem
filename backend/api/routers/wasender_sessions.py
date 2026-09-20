@@ -22,7 +22,7 @@ from backend.services.wasender.lifecycle import (
 from backend.services.wasender.phone import session_phone
 from backend.services.wasender.settings import load_settings, save_settings
 from backend.services.wasender import live
-from backend.services.wasender.roster import load_roster
+from backend.services.wasender.roster import load_contacts, load_groups
 
 router = APIRouter(tags=["wasender-sessions"])
 _super_admin = Depends(require_super_admin())
@@ -239,23 +239,6 @@ def share_qr_link(
     return issue_qr_link(db, channel, current_user.id)
 
 
-@router.get("/agents/{agent_id}/wasender/sessions/{channel_id}/roster")
-async def session_roster(
-    agent_id: int,
-    channel_id: int,
-    db: Session = Depends(get_db),
-    current_user: AuthUser = Depends(get_current_user),
-):
-    _can_operate(current_user, agent_id, db, write=False)
-    channel = _channel_or_404(db, agent_id, channel_id)
-    try:
-        return await load_roster(channel)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="אין סשן חי")
-    except SessionApiError as error:
-        _raise_upstream(error)
-
-
 @router.get("/agents/{agent_id}/wasender/groups")
 async def agent_groups(
     agent_id: int,
@@ -267,10 +250,25 @@ async def agent_groups(
     if not channel:
         return []
     try:
-        roster = await load_roster(channel)
+        return await load_groups(channel)
     except (ValueError, SessionApiError):
         return []
-    return roster["groups"]
+
+
+@router.get("/agents/{agent_id}/wasender/contacts")
+async def agent_contacts(
+    agent_id: int,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
+):
+    _can_operate(current_user, agent_id, db, write=False)
+    channel = get_channel_by_type(db, agent_id, "whatsapp_wasender")
+    if not channel:
+        return []
+    try:
+        return await load_contacts(channel)
+    except (ValueError, SessionApiError):
+        return []
 
 
 @router.delete("/agents/{agent_id}/wasender/sessions/{channel_id}")

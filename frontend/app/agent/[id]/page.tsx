@@ -18,9 +18,9 @@ import { phoneToUrl, phoneFromUrl } from '@/lib/phone';
 import { 
   getAgent, updateAgent, getConversations, getConversationsRevision, getMessages, deleteConversation, 
   sendMessage, sendConversationMedia, sendConversationTemplate,
-  getWhatsAppInbox, whatsappKindFromAgent, pauseConversation, resumeConversation,
+  getWhatsAppInbox, getWasenderContacts, openWhatsAppThread, whatsappKindFromAgent, pauseConversation, resumeConversation,
   getAgentMedia, uploadAgentMedia, updateAgentMedia, deleteAgentMedia,
-  type MediaUploadData, type ConversationCursor, type WhatsAppInbox,
+  type MediaUploadData, type ConversationCursor, type WhatsAppInbox, type WasenderContact,
 } from '@/lib/api';
 import type { Agent, AgentBatchingConfig, AgentSplitConfig, ContextSummaryConfig, Conversation, Message, Provider, WaSenderConfig, AgentMedia, MediaConfig, CustomApiKeys } from '@/lib/types';
 import { DEFAULT_SPLIT_CONFIG } from '@/lib/types';
@@ -120,6 +120,7 @@ function AgentPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [showNewChat, setShowNewChat] = useState(false);
   const [waInbox, setWaInbox] = useState<WhatsAppInbox>({ channel_type: null, templates: [] });
+  const [book, setBook] = useState<WasenderContact[]>([]);
 
   // Media state
   const [media, setMedia] = useState<AgentMedia[]>([]);
@@ -133,6 +134,11 @@ function AgentPage() {
     loadConversations();
     loadWaInbox();
   }, [agentId]);
+
+  useEffect(() => {
+    if (tab !== 'conversations') return;
+    loadBook();
+  }, [agentId, tab]);
 
   // Handle tab from URL or fallback when visible tabs change
   useEffect(() => {
@@ -269,6 +275,14 @@ function AgentPage() {
       }));
     } catch (e) {
       console.error(e);
+    }
+  }
+
+  async function loadBook() {
+    try {
+      setBook(await getWasenderContacts(agentId));
+    } catch {
+      setBook([]);
     }
   }
 
@@ -417,6 +431,15 @@ function AgentPage() {
     await loadConversations({ selectFromUrl: false });
   }
 
+  async function handleOpenContact(phone: string, name: string) {
+    try {
+      const opened = await openWhatsAppThread({ agentId, phone, name });
+      await handleChatOpened(opened.conversation_id);
+    } catch (err) {
+      setFeedback({ type: 'error', text: err instanceof Error ? err.message : 'פתיחת הצ׳אט נכשלה' });
+    }
+  }
+
   async function handleChatOpened(conversationId: number) {
     setShowNewChat(false);
     const items = await loadConversations({ selectFromUrl: false });
@@ -559,10 +582,12 @@ function AgentPage() {
             <div className="flex-1 min-h-0">
             <ConversationsTab
               conversations={conversations}
+              book={book}
               selectedId={selectedConv}
               messages={messages}
               templates={waInbox.templates}
               onSelectConversation={loadMessages}
+              onOpenContact={handleOpenContact}
               onDeleteConversation={handleDeleteConv}
               onDeselectConversation={() => { setSelectedConv(null); setMessages([]); updateUrlWithConversation(null); }}
               onNewChat={() => setShowNewChat(true)}
