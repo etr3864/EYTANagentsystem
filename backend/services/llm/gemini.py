@@ -42,6 +42,47 @@ GEMINI_CALL_TIMEOUT_SEC = 38.0
 _DISABLE_AFC = types.AutomaticFunctionCallingConfig(disable=True)
 
 
+def _candidate_parts(response):
+    cand = (getattr(response, "candidates", None) or [None])[0]
+    if not cand or not getattr(cand, "content", None):
+        return cand, []
+    return cand, list(cand.content.parts or [])
+
+
+def _is_thought(part) -> bool:
+    if getattr(part, "thought", False):
+        return True
+    kind = str(getattr(part, "type", "") or getattr(part, "kind", "") or "").lower()
+    return "thought" in kind
+
+
+def _visible_text(parts) -> str:
+    """Customer text only. Drop labeled thought parts; never slice a sentence."""
+    texts: list[str] = []
+    for part in parts or []:
+        if _is_thought(part):
+            continue
+        text = getattr(part, "text", None)
+        if text:
+            texts.append(text)
+    return "".join(texts)
+
+
+def _function_calls(parts) -> list:
+    calls = []
+    for part in parts or []:
+        fc = getattr(part, "function_call", None)
+        if fc:
+            calls.append(gemini_function_call_to_standard(fc))
+    return calls
+
+
+def _warn_if_truncated(candidate) -> None:
+    reason = str(getattr(candidate, "finish_reason", "") or "")
+    if "MAX_TOKEN" in reason.upper():
+        log_error("gemini", "reply hit max_output_tokens")
+
+
 def _timed_out(exc: Exception) -> bool:
     if isinstance(exc, (asyncio.TimeoutError, TimeoutError)):
         return True
@@ -252,17 +293,13 @@ class GeminiProvider:
             "cache_creation_tokens": 0
         }
         
-        # Parse response
         text_response = ""
         tool_calls = []
         media_actions = []
-        
-        if response.candidates and response.candidates[0].content and response.candidates[0].content.parts:
-            for part in response.candidates[0].content.parts:
-                if hasattr(part, 'text') and part.text:
-                    text_response = part.text
-                elif hasattr(part, 'function_call') and part.function_call:
-                    tool_calls.append(gemini_function_call_to_standard(part.function_call))
+        cand, parts = _candidate_parts(response)
+        _warn_if_truncated(cand)
+        text_response = _visible_text(parts)
+        tool_calls = _function_calls(parts)
         
         # Tool execution loop
         while tool_calls and tool_handler and rounds_left > 0:
@@ -310,14 +347,10 @@ class GeminiProvider:
                 usage_data["input_tokens"] += getattr(response.usage_metadata, 'prompt_token_count', 0) or 0
                 usage_data["output_tokens"] += getattr(response.usage_metadata, 'candidates_token_count', 0) or 0
             
-            # Parse new response
-            tool_calls = []
-            if response.candidates and response.candidates[0].content:
-                for part in response.candidates[0].content.parts:
-                    if hasattr(part, 'text') and part.text:
-                        text_response = part.text
-                    elif hasattr(part, 'function_call') and part.function_call:
-                        tool_calls.append(gemini_function_call_to_standard(part.function_call))
+            cand, parts = _candidate_parts(response)
+            _warn_if_truncated(cand)
+            text_response = _visible_text(parts)
+            tool_calls = _function_calls(parts)
         
         return LLMResponse(
             text=text_response,
@@ -346,11 +379,8 @@ class GeminiProvider:
             contents=[types.Content(role="user", parts=[types.Part(text=prompt)])],
             config=self._cheap_config(max_tokens, model_id),
         )
-        if response.candidates and response.candidates[0].content and response.candidates[0].content.parts:
-            for part in response.candidates[0].content.parts:
-                if hasattr(part, "text") and part.text:
-                    return part.text.strip()
-        return ""
+        _, parts = _candidate_parts(response)
+        return _visible_text(parts).strip()
 
     async def generate_tracked_response(
         self, prompt: str, model: str = CHEAP_GEMINI, max_tokens: int = 300
@@ -370,11 +400,7 @@ class GeminiProvider:
             "cache_creation_tokens": 0,
         }
 
-        text = ""
-        if response.candidates and response.candidates[0].content and response.candidates[0].content.parts:
-            for part in response.candidates[0].content.parts:
-                if hasattr(part, "text") and part.text:
-                    text = part.text.strip()
-                    break
+        _, parts = _candidate_parts(response)
+        text = _visible_text(parts).strip()
 
         return text, usage

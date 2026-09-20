@@ -176,7 +176,7 @@ function ProfileFacts({ card }: { card: WasenderCard }) {
           {card.kind === 'group' ? 'תיאור הקבוצה' : 'סטטוס בוואטסאפ'}
         </p>
         <p className="mt-0.5 whitespace-pre-wrap text-[var(--ink)]">
-          {card.status || 'לא זמין מהספק'}
+          {card.status || (card.kind === 'group' ? 'אין תיאור' : 'לא פורסם')}
         </p>
       </div>
       {card.verified_name ? (

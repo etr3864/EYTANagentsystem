@@ -64,28 +64,43 @@ def _about(remote: dict) -> str:
     return ""
 
 
+def _digits_id(raw: str) -> str:
+    return "".join(c for c in str(raw or "").split("@", 1)[0] if c.isdigit())
+
+
 def _same_phone(row: dict, phone: str) -> bool:
-    ident = (phone or "").split("@", 1)[0]
-    if not ident:
-        return False
-    jid = str(row.get("jid") or row.get("id") or "")
-    return jid.split("@", 1)[0] == ident
+    left = _digits_id(phone)
+    right = _digits_id(str(row.get("jid") or row.get("id") or ""))
+    if len(left) >= 8 and len(right) >= 8:
+        n = min(len(left), len(right), 10)
+        return left[-n:] == right[-n:]
+    return bool(left) and left == right
 
 
 async def _with_book_about(token: str, phone: str, remote: dict) -> dict:
-    """Fill About from GET /contacts when get-one left status empty."""
+    """GET /contacts/{id} documents status:null. About lives on the address-book list."""
     if _about(remote):
         return remote
-    try:
-        rows = await sessions.list_contacts(token)
-    except SessionApiError:
+    found = await _lookup_book(token, phone)
+    if not found or not _about(found):
         return remote
-    for row in rows:
-        if _same_phone(row, phone) and _about(row):
-            merged = dict(remote)
-            merged.update({key: value for key, value in row.items() if value not in (None, "")})
-            return merged
-    return remote
+    merged = dict(remote)
+    merged.update({key: value for key, value in found.items() if value not in (None, "")})
+    return merged
+
+
+async def _lookup_book(token: str, phone: str) -> dict:
+    try:
+        for page in range(1, 11):
+            rows, more = await sessions.list_contacts_page(token, page)
+            for row in rows:
+                if _same_phone(row, phone):
+                    return row
+            if not more:
+                break
+    except SessionApiError:
+        return {}
+    return {}
 
 
 def _http_img(raw) -> str:

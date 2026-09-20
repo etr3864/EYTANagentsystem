@@ -251,11 +251,9 @@ class AnthropicProvider:
             usage_data["cache_read_tokens"] += getattr(current_response.usage, 'cache_read_input_tokens', 0)
             usage_data["cache_creation_tokens"] += getattr(current_response.usage, 'cache_creation_input_tokens', 0)
         
-        # Extract final text
-        for block in current_response.content:
-            if block.type == "text":
-                text_response = block.text
-                break
+        text_response = "".join(
+            block.text for block in current_response.content if block.type == "text"
+        )
         
         return LLMResponse(
             text=text_response,

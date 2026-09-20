@@ -64,10 +64,33 @@ def _rows(data: Any) -> list[dict]:
     return []
 
 
+def _has_more(body: Any, data: Any, page: int, rows: list) -> bool:
+    blob = data if isinstance(data, dict) else body if isinstance(body, dict) else {}
+    pag = blob.get("pagination") if isinstance(blob, dict) else None
+    if isinstance(pag, dict):
+        if "hasMore" in pag or "has_more" in pag:
+            return bool(pag.get("hasMore") or pag.get("has_more"))
+        total = pag.get("totalPages") or pag.get("lastPage") or pag.get("last_page")
+        if total:
+            try:
+                return page < int(total)
+            except (TypeError, ValueError):
+                return False
+    return len(rows) >= 50
+
+
+async def list_contacts_page(token: str, page: int = 1, limit: int = 50) -> tuple[list[dict], bool]:
+    body = await request(
+        "GET", f"/contacts?paginated=true&page={page}&limit={limit}", token, timeout=20,
+    )
+    data = _data(body)
+    rows = _rows(data)
+    return rows, _has_more(body, data, page, rows)
+
+
 async def list_contacts(token: str) -> list[dict]:
-    return _rows(_data(await request(
-        "GET", "/contacts?paginated=true&page=1&limit=50", token, timeout=20
-    )))
+    rows, _ = await list_contacts_page(token, 1)
+    return rows
 
 
 async def list_groups(token: str) -> list[dict]:
