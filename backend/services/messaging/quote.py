@@ -27,12 +27,12 @@ def usable_id(raw: str | None) -> str | None:
     return text[:120]
 
 
-def reply_to(raw: str | None) -> int | str | None:
-    """WaSender replyTo: numeric msgId from a send, otherwise the inbound key.id."""
+def reply_to(raw: str | None) -> int | None:
+    """WaSender replyTo is the integer msgId from a send response."""
     text = usable_id(raw)
-    if not text:
+    if not text or not text.isdigit():
         return None
-    return int(text) if text.isdigit() else text
+    return int(text)
 
 
 def load(db: Session, conversation_id: int, message_id: int | None) -> Quote | None:
@@ -43,7 +43,7 @@ def load(db: Session, conversation_id: int, message_id: int | None) -> Quote | N
         .filter(Message.id == message_id, Message.conversation_id == conversation_id)
         .first()
     )
-    if not row or (row.message_type or "text") in _SKIP:
+    if not row or row.role == "user" or (row.message_type or "text") in _SKIP:
         return None
     text = (row.content or "").strip() or _LABEL.get(row.message_type or "", "[הודעה]")
     return Quote(text=text[:500], provider_id=usable_id(row.provider_msg_id))

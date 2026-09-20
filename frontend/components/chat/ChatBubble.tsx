@@ -10,7 +10,7 @@ import { ReplyQuote } from './ReplyQuote';
 const SKIP_QUOTE = new Set(['function', 'escalation', 'trigger_data']);
 
 export function canQuote(msg: Message): boolean {
-  return Boolean(msg.id) && !SKIP_QUOTE.has(msg.message_type || 'text');
+  return Boolean(msg.id) && msg.role !== 'user' && !SKIP_QUOTE.has(msg.message_type || 'text');
 }
 
 export function quotePreview(msg: Message): string {

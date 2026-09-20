@@ -318,7 +318,7 @@ def _load_send_context(
 
 
 async def _dispatch_text(
-    db, channel, agent, to: str, text: str, reply_to: int | str | None = None,
+    db, channel, agent, to: str, text: str, reply_to: int | None = None,
 ) -> str | None:
     if channel:
         return await providers.send_channel_message(channel, to, text, db, reply_to=reply_to)
@@ -327,7 +327,7 @@ async def _dispatch_text(
 
 async def _dispatch_media(
     db, channel, agent, to: str, url: str, kind: str, caption: str | None, filename: str,
-    reply_to: int | str | None = None,
+    reply_to: int | None = None,
 ) -> str | None:
     media_type = "audio" if kind == "voice" else kind
     if channel:

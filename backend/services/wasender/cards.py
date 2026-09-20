@@ -33,76 +33,6 @@ def parse_target(raw: str) -> tuple[str, str]:
         raise ValueError(str(exc)) from exc
 
 
-# GET /contacts/{phone} documents status:null. The address-book list is the
-# payload that actually includes About text. Ignore session-health words.
-_NOT_ABOUT = {
-    "connected", "disconnected", "connecting", "need_scan", "need_passkey",
-    "logged_out", "expired", "null", "none", "undefined",
-}
-
-
-def _about_value(raw) -> str:
-    if isinstance(raw, dict):
-        for key in ("status", "text", "about", "desc", "message"):
-            text = _about_value(raw.get(key))
-            if text:
-                return text
-        return ""
-    if isinstance(raw, (int, float, bool)):
-        return ""
-    text = str(raw or "").strip()
-    if not text or text.lower() in _NOT_ABOUT:
-        return ""
-    return text
-
-
-def _about(remote: dict) -> str:
-    for key in ("status", "desc", "about", "description", "statusText"):
-        text = _about_value(remote.get(key))
-        if text:
-            return text
-    return ""
-
-
-def _digits_id(raw: str) -> str:
-    return "".join(c for c in str(raw or "").split("@", 1)[0] if c.isdigit())
-
-
-def _same_phone(row: dict, phone: str) -> bool:
-    left = _digits_id(phone)
-    right = _digits_id(str(row.get("jid") or row.get("id") or ""))
-    if len(left) >= 8 and len(right) >= 8:
-        n = min(len(left), len(right), 10)
-        return left[-n:] == right[-n:]
-    return bool(left) and left == right
-
-
-async def _with_book_about(token: str, phone: str, remote: dict) -> dict:
-    """GET /contacts/{id} documents status:null. About lives on the address-book list."""
-    if _about(remote):
-        return remote
-    found = await _lookup_book(token, phone)
-    if not found or not _about(found):
-        return remote
-    merged = dict(remote)
-    merged.update({key: value for key, value in found.items() if value not in (None, "")})
-    return merged
-
-
-async def _lookup_book(token: str, phone: str) -> dict:
-    try:
-        for page in range(1, 11):
-            rows, more = await sessions.list_contacts_page(token, page)
-            for row in rows:
-                if _same_phone(row, phone):
-                    return row
-            if not more:
-                break
-    except SessionApiError:
-        return {}
-    return {}
-
-
 def _http_img(raw) -> str:
     url = str(raw or "").strip()
     return url if url.startswith("http") else ""
@@ -214,7 +144,7 @@ def _present(kind: str, key: str, remote: dict, row: ChannelUser, img: str, memb
         "name": name.strip(),
         "notify": str(remote.get("notify") or "").strip(),
         "verified_name": str(remote.get("verifiedName") or "").strip(),
-        "status": _about(remote),
+        "description": str(remote.get("desc") or remote.get("description") or "").strip() if kind == "group" else "",
         "img_url": img,
         "note": row.staff_note or "",
         "participants": members,
@@ -225,8 +155,6 @@ async def load_card(db, channel: AgentChannel, raw_jid: str) -> dict:
     kind, key = parse_target(raw_jid)
     token = _session_key(channel)
     remote = await _remote(token, kind, key)
-    if kind == "contact":
-        remote = await _with_book_about(token, key, remote)
     name = str(remote.get("subject") or remote.get("name") or remote.get("notify") or "")
     row = _identity(db, channel, key, name)
     img = await _picture(db, token, kind, key, row, remote)

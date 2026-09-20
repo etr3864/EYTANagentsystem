@@ -169,16 +169,16 @@ function StaffNote({
 
 function ProfileFacts({ card }: { card: WasenderCard }) {
   const showNotify = Boolean(card.notify && card.notify !== card.name);
+  const showDesc = card.kind === 'group' && Boolean(card.description);
+  if (!showDesc && !card.verified_name && !showNotify) return null;
   return (
     <div className="space-y-2 rounded-2xl border border-[var(--edge)] px-4 py-3 text-sm">
-      <div>
-        <p className="text-[11px] text-[var(--text-muted)]">
-          {card.kind === 'group' ? 'תיאור הקבוצה' : 'סטטוס בוואטסאפ'}
-        </p>
-        <p className="mt-0.5 whitespace-pre-wrap text-[var(--ink)]">
-          {card.status || (card.kind === 'group' ? 'אין תיאור' : 'לא פורסם')}
-        </p>
-      </div>
+      {showDesc ? (
+        <div>
+          <p className="text-[11px] text-[var(--text-muted)]">תיאור הקבוצה</p>
+          <p className="mt-0.5 whitespace-pre-wrap text-[var(--ink)]">{card.description}</p>
+        </div>
+      ) : null}
       {card.verified_name ? (
         <div>
           <p className="text-[11px] text-[var(--text-muted)]">שם מאומת</p>

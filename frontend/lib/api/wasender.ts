@@ -253,7 +253,7 @@ export interface WasenderCard {
   name: string;
   notify: string;
   verified_name: string;
-  status: string;
+  description: string;
   img_url: string;
   note: string;
   participants: WasenderCardMember[];
