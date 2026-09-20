@@ -162,6 +162,14 @@ export async function getWasenderLine(agentId: number, channelId: number): Promi
   return readJson(await authFetch(`${API_URL}/api/agents/${agentId}/wasender/sessions/${channelId}`));
 }
 
+export function wasenderLiveUrl(agentId: number, channelId: number): string {
+  return `${API_URL}/api/agents/${agentId}/wasender/sessions/${channelId}/live`;
+}
+
+export function publicWasenderLiveUrl(token: string): string {
+  return `${API_URL}/api/wa-qr/${encodeURIComponent(token)}/live`;
+}
+
 export async function fetchWasenderQr(agentId: number, channelId: number): Promise<WasenderLine> {
   return readJson(await authFetch(`${API_URL}/api/agents/${agentId}/wasender/sessions/${channelId}/qr`));
 }

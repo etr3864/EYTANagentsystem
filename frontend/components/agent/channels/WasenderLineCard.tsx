@@ -6,11 +6,13 @@ import {
   createWasenderLine,
   deleteWasenderLine,
   disconnectWasenderLine,
-  fetchWasenderQr,
   getWasenderLine,
   shareWasenderQrLink,
+  wasenderLiveUrl,
   type WasenderLine,
 } from '@/lib/api';
+import { authFetch } from '@/lib/api/client';
+import { readSse } from '@/lib/sse';
 import { type AgentChannel } from '@/lib/channels';
 import { toSessionPhone } from '@/lib/phone';
 import { Button, Card, CardHeader, Input } from '@/components/ui';
@@ -72,31 +74,56 @@ export function WasenderLineCard({ agentId, channel, canCreate, canManage, canDe
   }, [agentId, channel]);
 
   useEffect(() => {
+    if (!channel) return;
+    const ac = new AbortController();
+    authFetch(wasenderLiveUrl(agentId, channel.id), { signal: ac.signal })
+      .then((res) => {
+        if (!res.ok) return;
+        return readSse(
+          res,
+          (row) => {
+            const status = typeof row.status === 'string' ? row.status : '';
+            if (row.type === 'status' && status) {
+              setLine((prev) => (prev ? { ...prev, status } : prev));
+              if (status === 'connected') {
+                setShowQr(false);
+                onChanged();
+              }
+            }
+            if (row.type === 'qr' && typeof row.qr === 'string' && row.qr) {
+              lastQr.current = row.qr;
+              setQrIssuedAt(Date.now());
+              setShowQr(true);
+              setLine((prev) => (prev ? { ...prev, qr: row.qr as string, status: 'need_scan' } : prev));
+            }
+          },
+          ac.signal,
+        );
+      })
+      .catch(() => undefined);
+    return () => ac.abort();
+  }, [agentId, channel?.id]);
+
+  useEffect(() => {
     if (!channel || !line || line.status === 'connected') {
       if (line?.status === 'connected') setShowQr(false);
       return;
     }
     const timer = window.setInterval(() => {
-      const pull = showQr
-        ? fetchWasenderQr(agentId, channel.id)
-        : getWasenderLine(agentId, channel.id);
-      pull
+      getWasenderLine(agentId, channel.id)
         .then((next) => {
           if (next.status === 'connected') {
             setLine(next);
             setShowQr(false);
+            onChanged();
             return;
           }
-          if (next.qr && next.qr !== lastQr.current) {
-            lastQr.current = next.qr;
-            setQrIssuedAt(Date.now());
-          }
-          setLine((prev) => ({ ...next, qr: next.qr || prev?.qr }));
+          setLine((prev) => ({ ...next, qr: prev?.qr }));
         })
         .catch(() => undefined);
-    }, 4000);
+    }, 1000);
     return () => window.clearInterval(timer);
-  }, [agentId, channel, line?.status, showQr]);
+  }, [agentId, channel, line?.status]);
 
   async function handleCreate() {
     setBusy(true);

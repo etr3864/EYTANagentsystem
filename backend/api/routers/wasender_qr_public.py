@@ -1,8 +1,10 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import StreamingResponse
 
 from backend.core.database import SessionLocal
 from backend.services.wasender.http import SessionApiError
 from backend.services.wasender.qr_share import refresh, resolve, snapshot
+from backend.services.wasender import live
 
 router = APIRouter(tags=["wasender-qr-public"])
 
@@ -34,3 +36,24 @@ async def wa_qr_refresh(token: str):
         raise HTTPException(status_code=error.status_code, detail="לא הצלחנו לרענן. נסה שוב.")
     finally:
         db.close()
+
+
+@router.get("/api/wa-qr/{token}/live")
+async def wa_qr_live(token: str, request: Request):
+    db, _link, channel = _open(token)
+    channel_id = channel.id
+    db.close()
+
+    async def gen():
+        async for line in live.sse_lines(channel_id, request.is_disconnected):
+            yield line
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

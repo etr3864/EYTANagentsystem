@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { QrImage, useElapsedSeconds } from '@/components/channels/QrImage';
-import { getPublicWasenderQr, refreshPublicWasenderQr } from '@/lib/api';
+import { getPublicWasenderQr, publicWasenderLiveUrl, refreshPublicWasenderQr } from '@/lib/api';
+import { readSse } from '@/lib/sse';
 
 export default function WaQrPage() {
   const params = useParams();
@@ -37,12 +38,35 @@ export default function WaQrPage() {
           .then((row) => apply(row))
           .catch(() => setGone(true));
       });
+    const ac = new AbortController();
+    fetch(publicWasenderLiveUrl(token), { signal: ac.signal })
+      .then((res) => {
+        if (!res.ok) return;
+        return readSse(
+          res,
+          (row) => {
+            if (row.type === 'status' && row.status === 'connected') {
+              setConnected(true);
+              setStatus('connected');
+            }
+            if (row.type === 'qr' && typeof row.qr === 'string' && row.qr) {
+              setQr(row.qr);
+              setQrIssuedAt(Date.now());
+            }
+          },
+          ac.signal,
+        );
+      })
+      .catch(() => undefined);
     const timer = window.setInterval(() => {
       getPublicWasenderQr(token)
         .then((row) => apply(row, true))
         .catch(() => setGone(true));
-    }, 4000);
-    return () => window.clearInterval(timer);
+    }, 1000);
+    return () => {
+      ac.abort();
+      window.clearInterval(timer);
+    };
   }, [token]);
 
   async function handleRefresh() {

@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -20,6 +21,7 @@ from backend.services.wasender.lifecycle import (
 )
 from backend.services.wasender.phone import session_phone
 from backend.services.wasender.settings import load_settings, save_settings
+from backend.services.wasender import live
 
 router = APIRouter(tags=["wasender-sessions"])
 _super_admin = Depends(require_super_admin())
@@ -149,6 +151,32 @@ def session_status(
 ):
     _can_operate(current_user, agent_id, db, write=False)
     return public_channel(_channel_or_404(db, agent_id, channel_id))
+
+
+@router.get("/agents/{agent_id}/wasender/sessions/{channel_id}/live")
+async def session_live(
+    agent_id: int,
+    channel_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
+):
+    _can_operate(current_user, agent_id, db, write=False)
+    _channel_or_404(db, agent_id, channel_id)
+
+    async def gen():
+        async for line in live.sse_lines(channel_id, request.is_disconnected):
+            yield line
+
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.get("/agents/{agent_id}/wasender/sessions/{channel_id}/qr")
