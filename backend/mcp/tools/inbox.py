@@ -70,6 +70,7 @@ def _conversations(mcp) -> None:
                 .filter(
                     Conversation.agent_id == agent_id,
                     Conversation.playground_link_id.is_(None),
+                    ~User.phone.like("%@g.us"),
                 )
                 .order_by(Conversation.updated_at.desc())
                 .limit(capped)

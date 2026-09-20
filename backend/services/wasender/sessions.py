@@ -88,11 +88,6 @@ async def list_contacts_page(token: str, page: int = 1, limit: int = 50) -> tupl
     return rows, _has_more(body, data, page, rows)
 
 
-async def list_contacts(token: str) -> list[dict]:
-    rows, _ = await list_contacts_page(token, 1)
-    return rows
-
-
 async def list_groups(token: str) -> list[dict]:
     return _rows(_data(await request("GET", "/groups", token, timeout=20)))
 

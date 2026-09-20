@@ -24,7 +24,7 @@ from backend.services.wasender.phone import session_phone
 from backend.services.wasender.settings import load_settings, save_settings
 from backend.services.wasender import live
 from backend.services.wasender.cards import load_card, save_note, wasender_channel
-from backend.services.wasender.roster import load_contacts, load_groups
+from backend.services.wasender.roster import load_groups
 
 router = APIRouter(tags=["wasender-sessions"])
 _super_admin = Depends(require_super_admin())
@@ -254,22 +254,6 @@ async def agent_groups(
     await ensure_group_inbox(db, channel)
     try:
         return await load_groups(channel)
-    except (ValueError, SessionApiError):
-        return []
-
-
-@router.get("/agents/{agent_id}/wasender/contacts")
-async def agent_contacts(
-    agent_id: int,
-    db: Session = Depends(get_db),
-    current_user: AuthUser = Depends(get_current_user),
-):
-    _can_operate(current_user, agent_id, db, write=False)
-    channel = get_channel_by_type(db, agent_id, "whatsapp_wasender")
-    if not channel:
-        return []
-    try:
-        return await load_contacts(channel)
     except (ValueError, SessionApiError):
         return []
 

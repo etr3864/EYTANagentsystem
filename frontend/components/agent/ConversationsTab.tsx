@@ -1,19 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Card } from '@/components/ui';
 import { ContactList } from '@/components/chat/ContactList';
 import { ChatView } from '@/components/chat/ChatView';
 import { DirectoryCard } from '@/components/chat/DirectoryCard';
 import { AvatarLightbox } from '@/components/chat/AvatarLightbox';
 import type { Conversation, Message, WhatsAppTemplate } from '@/lib/types';
-import { getWasenderGroups, type WasenderContact } from '@/lib/api';
 import type { TemplateSendPayload } from '@/components/chat/Composer';
 
 interface ConversationsTabProps {
   agentId: number;
   conversations: Conversation[];
-  book?: WasenderContact[];
   selectedId: number | null;
   messages: Message[];
   templates?: WhatsAppTemplate[];
@@ -34,28 +32,20 @@ interface ConversationsTabProps {
 
 export function ConversationsTab({
   agentId,
-  conversations, book, selectedId, messages, templates = [],
+  conversations, selectedId, messages, templates = [],
   onSelectConversation, onOpenContact, onDeleteConversation, onDeselectConversation,
   onNewChat, onSendMessage, onSendMedia, onSendVoice, onSendTemplate, onTogglePause,
   onLoadMore, hasMore, loadingMore,
 }: ConversationsTabProps) {
-  const [groups, setGroups] = useState<WasenderContact[]>([]);
   const [cardStack, setCardStack] = useState<string[]>([]);
   const [zoomSrc, setZoomSrc] = useState<string | null>(null);
   const cardJid = cardStack[cardStack.length - 1] ?? null;
   const selectedConv = conversations.find(c => c.id === selectedId);
-  const isGroup = Boolean(selectedConv?.user_phone?.endsWith('@g.us'));
   const showPane = Boolean(selectedId || cardJid);
   const canCard = !selectedConv?.channel_type || selectedConv.channel_type === 'whatsapp_wasender';
   const title = selectedConv?.channel_username
     ? `@${selectedConv.channel_username}`
-    : isGroup
-      ? (selectedConv?.user_name || 'קבוצה')
-      : selectedConv?.user_name || (selectedConv ? `לקוח ${selectedConv.user_phone.slice(-4)}` : '');
-
-  useEffect(() => {
-    getWasenderGroups(agentId).then(setGroups).catch(() => setGroups([]));
-  }, [agentId]);
+    : selectedConv?.user_name || (selectedConv ? `לקוח ${selectedConv.user_phone.slice(-4)}` : '');
 
   const openCard = (jid: string) => {
     const key = (jid || '').trim();
@@ -66,11 +56,6 @@ export function ConversationsTab({
   const openChat = (id: number) => {
     setCardStack([]);
     onSelectConversation(id);
-  };
-
-  const openGroup = (jid: string, name: string) => {
-    setCardStack([]);
-    onOpenContact?.(jid, name);
   };
 
   const openPerson = (phone: string, name: string) => {
@@ -90,13 +75,8 @@ export function ConversationsTab({
         <div className={`w-full md:w-96 md:block shrink-0 min-w-0 ${showPane ? 'hidden' : 'block'}`}>
           <ContactList
             conversations={conversations}
-            book={book}
-            groups={groups}
             selectedId={selectedId}
-            selectedGroupJid={cardJid?.endsWith('@g.us') ? cardJid : null}
             onSelect={openChat}
-            onOpenContact={openPerson}
-            onOpenGroup={openGroup}
             onDelete={onDeleteConversation}
             onNewChat={onNewChat}
             onLoadMore={onLoadMore}
@@ -140,7 +120,7 @@ export function ConversationsTab({
                   </button>
                 ) : (
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--glass-2)] text-lg">
-                    {isGroup ? '👥' : '👤'}
+                    👤
                   </div>
                 )}
                 <button
@@ -152,7 +132,7 @@ export function ConversationsTab({
                   <span className="block truncate text-sm font-medium text-[var(--ink)]">{title}</span>
                   {canCard ? (
                     <span className="block text-[11px] text-[var(--text-muted)]">
-                      {isGroup ? 'קבוצה · פרטים ומשתתפים' : 'פרטי איש קשר'}
+                      פרטי איש קשר
                     </span>
                   ) : null}
                 </button>
@@ -168,8 +148,7 @@ export function ConversationsTab({
                 onSendMedia={onSendMedia}
                 onSendVoice={onSendVoice}
                 onSendTemplate={onSendTemplate}
-                onTogglePause={isGroup ? undefined : onTogglePause}
-                onSenderClick={isGroup ? (phone) => openCard(phone) : undefined}
+                onTogglePause={onTogglePause}
               />
             </>
           ) : (

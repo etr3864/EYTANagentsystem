@@ -238,10 +238,6 @@ export async function getWasenderGroups(agentId: number): Promise<WasenderContac
   return readJson(await authFetch(`${API_URL}/api/agents/${agentId}/wasender/groups`));
 }
 
-export async function getWasenderContacts(agentId: number): Promise<WasenderContact[]> {
-  return readJson(await authFetch(`${API_URL}/api/agents/${agentId}/wasender/contacts`));
-}
-
 export interface WasenderCardMember {
   jid: string;
   phone: string;

@@ -191,7 +191,7 @@ def agent_conversations_revision(
     current_user: AuthUser = Depends(AgentAccessChecker()),
     db: Session = Depends(get_db),
 ):
-    """Cheap inbox fingerprint for polling — one indexed row + count, no joins."""
+    """Cheap inbox fingerprint for polling. Groups stay out of the staff inbox."""
     from sqlalchemy import text
 
     row = db.execute(text("""
@@ -200,11 +200,15 @@ def agent_conversations_revision(
             c.id,
             (SELECT COUNT(*)::int
                FROM conversations c2
+               JOIN users u2 ON u2.id = c2.user_id
               WHERE c2.agent_id = :agent_id
-                AND c2.playground_link_id IS NULL) AS total
+                AND c2.playground_link_id IS NULL
+                AND u2.phone NOT LIKE '%@g.us') AS total
         FROM conversations c
+        JOIN users u ON u.id = c.user_id
         WHERE c.agent_id = :agent_id
           AND c.playground_link_id IS NULL
+          AND u.phone NOT LIKE '%@g.us'
         ORDER BY c.updated_at DESC, c.id DESC
         LIMIT 1
     """), {"agent_id": agent_id}).first()
@@ -257,6 +261,7 @@ def list_agent_conversations(
         LEFT JOIN channel_users cu ON cu.id = c.channel_user_id
         WHERE c.agent_id = :agent_id
           AND c.playground_link_id IS NULL
+          AND u.phone NOT LIKE '%@g.us'
           {cursor_clause}
         ORDER BY c.updated_at DESC, c.id DESC
         LIMIT :lim

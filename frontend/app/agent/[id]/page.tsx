@@ -18,9 +18,9 @@ import { phoneToUrl, phoneFromUrl } from '@/lib/phone';
 import { 
   getAgent, updateAgent, getConversations, getConversationsRevision, getMessages, deleteConversation, 
   sendMessage, sendConversationMedia, sendConversationTemplate,
-  getWhatsAppInbox, getWasenderContacts, openWhatsAppThread, whatsappKindFromAgent, pauseConversation, resumeConversation,
+  getWhatsAppInbox, openWhatsAppThread, whatsappKindFromAgent, pauseConversation, resumeConversation,
   getAgentMedia, uploadAgentMedia, updateAgentMedia, deleteAgentMedia,
-  type MediaUploadData, type ConversationCursor, type WhatsAppInbox, type WasenderContact,
+  type MediaUploadData, type ConversationCursor, type WhatsAppInbox,
 } from '@/lib/api';
 import type { Agent, AgentBatchingConfig, AgentSplitConfig, ContextSummaryConfig, Conversation, Message, Provider, WaSenderConfig, AgentMedia, MediaConfig, CustomApiKeys } from '@/lib/types';
 import { DEFAULT_SPLIT_CONFIG } from '@/lib/types';
@@ -120,7 +120,6 @@ function AgentPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [showNewChat, setShowNewChat] = useState(false);
   const [waInbox, setWaInbox] = useState<WhatsAppInbox>({ channel_type: null, templates: [] });
-  const [book, setBook] = useState<WasenderContact[]>([]);
 
   // Media state
   const [media, setMedia] = useState<AgentMedia[]>([]);
@@ -134,11 +133,6 @@ function AgentPage() {
     loadConversations();
     loadWaInbox();
   }, [agentId]);
-
-  useEffect(() => {
-    if (tab !== 'conversations') return;
-    loadBook();
-  }, [agentId, tab]);
 
   // Handle tab from URL or fallback when visible tabs change
   useEffect(() => {
@@ -275,14 +269,6 @@ function AgentPage() {
       }));
     } catch (e) {
       console.error(e);
-    }
-  }
-
-  async function loadBook() {
-    try {
-      setBook(await getWasenderContacts(agentId));
-    } catch {
-      setBook([]);
     }
   }
 
@@ -583,7 +569,6 @@ function AgentPage() {
             <ConversationsTab
               agentId={agentId}
               conversations={conversations}
-              book={book}
               selectedId={selectedConv}
               messages={messages}
               templates={waInbox.templates}

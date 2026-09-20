@@ -22,7 +22,7 @@ from backend.services.channels.channel_users import IncomingUserInfo, get_or_cre
 from backend.services.entities import conversations, users
 from backend.services.messaging import messages
 from backend.services.media.inbox import persist_bytes
-from backend.services.messaging.quote import load as load_quote, native_id, usable_id
+from backend.services.messaging.quote import load as load_quote, reply_to as wasender_reply, usable_id
 
 WINDOW_SECONDS = 24 * 3600
 _BODY_VAR = re.compile(r"\{\{(\d+)\}\}")
@@ -161,7 +161,7 @@ async def send_text(
     quoted = load_quote(db, conv.id, quote_message_id)
     sent = await _dispatch_text(
         db, channel, agent, recipient_for(db, conv, user), text,
-        reply_to=native_id(quoted.provider_id) if quoted else None,
+        reply_to=wasender_reply(quoted.provider_id) if quoted else None,
     )
     if not sent:
         raise OutboundError("שליחת ההודעה נכשלה", 500)
@@ -202,7 +202,7 @@ async def send_bytes(
     quoted = load_quote(db, conv.id, quote_message_id)
     sent = await _dispatch_media(
         db, channel, agent, recipient_for(db, conv, user), persisted.media_url, kind, caption, filename,
-        reply_to=native_id(quoted.provider_id) if quoted else None,
+        reply_to=wasender_reply(quoted.provider_id) if quoted else None,
     )
     if not sent:
         raise OutboundError("שליחת המדיה נכשלה", 500)
@@ -318,7 +318,7 @@ def _load_send_context(
 
 
 async def _dispatch_text(
-    db, channel, agent, to: str, text: str, reply_to: int | None = None,
+    db, channel, agent, to: str, text: str, reply_to: int | str | None = None,
 ) -> str | None:
     if channel:
         return await providers.send_channel_message(channel, to, text, db, reply_to=reply_to)
@@ -327,7 +327,7 @@ async def _dispatch_text(
 
 async def _dispatch_media(
     db, channel, agent, to: str, url: str, kind: str, caption: str | None, filename: str,
-    reply_to: int | None = None,
+    reply_to: int | str | None = None,
 ) -> str | None:
     media_type = "audio" if kind == "voice" else kind
     if channel:

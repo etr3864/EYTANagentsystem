@@ -76,7 +76,7 @@ def recipient_jid(to: str) -> str:
 
 async def send_message(
     api_key: str, session: str, to: str, text: str,
-    max_retries: int = 3, *, reply_to: int | None = None,
+    max_retries: int = 3, *, reply_to: int | str | None = None,
 ) -> str | None:
     payload = {"session": session, "to": recipient_jid(to), "text": text}
     return await _send_quoted(
@@ -116,7 +116,7 @@ async def send_media(
     caption: str | None = None,
     max_retries: int = 3,
     *,
-    reply_to: int | None = None,
+    reply_to: int | str | None = None,
 ) -> str | None:
     payload = {"session": session, "to": recipient_jid(to)}
     if media_type == "image":
@@ -144,7 +144,7 @@ async def send_document(
     caption: str | None = None,
     max_retries: int = 2,
     *,
-    reply_to: int | None = None,
+    reply_to: int | str | None = None,
 ) -> str | None:
     payload = {
         "session": session,
@@ -163,7 +163,7 @@ async def _send_quoted(
     url: str,
     api_key: str,
     payload: dict,
-    reply_to: int | None,
+    reply_to: int | str | None,
     max_retries: int,
     timeout: int = 60,
 ) -> str | None:

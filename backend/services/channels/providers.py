@@ -1,7 +1,7 @@
 """Provider send layer.
 
 Returns a provider msg id, the token "ok" when the provider has no id, or None.
-reply_to is WaSender's integer msgId; ignored by Meta/IG/Messenger.
+reply_to is WaSender msgId (int) or inbound key.id (str); ignored by Meta/IG/Messenger.
 """
 from typing import Optional, TYPE_CHECKING
 
@@ -39,7 +39,7 @@ async def send_template(
 
 
 async def send_message(
-    agent: Agent, to: str, text: str, reply_to: int | None = None,
+    agent: Agent, to: str, text: str, reply_to: int | str | None = None,
 ) -> str | None:
     if agent.provider == "wasender":
         config = agent.provider_config or {}
@@ -61,7 +61,7 @@ async def send_media(
     media_type: str,
     caption: str | None = None,
     filename: str | None = None,
-    reply_to: int | None = None,
+    reply_to: int | str | None = None,
 ) -> str | None:
     if agent.provider == "wasender":
         config = agent.provider_config or {}
@@ -95,7 +95,7 @@ async def send_channel_message(
     to: str,
     text: str,
     db=None,
-    reply_to: int | None = None,
+    reply_to: int | str | None = None,
 ) -> str | None:
     from backend.core.encryption import decrypt_credentials
 
@@ -167,7 +167,7 @@ async def send_channel_media(
     filename: Optional[str] = None,
     db=None,
     voice: bool = False,
-    reply_to: int | None = None,
+    reply_to: int | str | None = None,
 ) -> str | None:
     from backend.core.encryption import decrypt_credentials
 

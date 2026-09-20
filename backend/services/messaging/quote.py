@@ -27,12 +27,12 @@ def usable_id(raw: str | None) -> str | None:
     return text[:120]
 
 
-def native_id(raw: str | None) -> int | None:
-    """WaSender replyTo is the integer msgId from a send response, not a WhatsApp key."""
+def reply_to(raw: str | None) -> int | str | None:
+    """WaSender replyTo: numeric msgId from a send, otherwise the inbound key.id."""
     text = usable_id(raw)
-    if not text or not text.isdigit():
+    if not text:
         return None
-    return int(text)
+    return int(text) if text.isdigit() else text
 
 
 def load(db: Session, conversation_id: int, message_id: int | None) -> Quote | None:
