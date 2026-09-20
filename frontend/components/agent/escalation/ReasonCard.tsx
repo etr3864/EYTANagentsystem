@@ -7,6 +7,7 @@ import {
   generateEscalationFields,
   patchEscalation,
   type EscalationField,
+  type EscalationGroup,
   type EscalationReason,
 } from '@/lib/escalation';
 import { Destinations } from './Destinations';
@@ -27,6 +28,7 @@ export function ReasonCard({ agentId, item, defaultOpen, onChanged, onDeleted }:
   const [hint, setHint] = useState(item.payload_hint);
   const [fields, setFields] = useState<EscalationField[]>(item.fields);
   const [phones, setPhones] = useState<string[]>(item.phones);
+  const [groups, setGroups] = useState<EscalationGroup[]>(item.groups || []);
   const [webhookUrl, setWebhookUrl] = useState(item.webhook_url || '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +37,7 @@ export function ReasonCard({ agentId, item, defaultOpen, onChanged, onDeleted }:
   const markSaved = (row: EscalationReason) => {
     setFields(row.fields);
     setPhones(row.phones);
+    setGroups(row.groups || []);
     setWebhookUrl(row.webhook_url || '');
     setError(null);
     setSaved(true);
@@ -52,6 +55,7 @@ export function ReasonCard({ agentId, item, defaultOpen, onChanged, onDeleted }:
         payload_hint: hint,
         fields,
         phones,
+        groups,
         webhook_url: webhookUrl,
         ...extra,
       });
@@ -77,7 +81,8 @@ export function ReasonCard({ agentId, item, defaultOpen, onChanged, onDeleted }:
     }
   };
 
-  const destCount = (item.phones?.length || 0) + (item.webhook_url ? 1 : 0);
+  const destCount =
+    (item.phones?.length || 0) + (item.groups?.length || 0) + (item.webhook_url ? 1 : 0);
 
   return (
     <Card>
@@ -138,9 +143,12 @@ export function ReasonCard({ agentId, item, defaultOpen, onChanged, onDeleted }:
           </div>
           <FieldList fields={fields} onChange={setFields} />
           <Destinations
+            agentId={agentId}
             phones={phones}
+            groups={groups}
             webhookUrl={webhookUrl}
             onPhonesChange={setPhones}
+            onGroupsChange={setGroups}
             onWebhookChange={setWebhookUrl}
           />
           <div className="flex items-center justify-between gap-3 pt-1">

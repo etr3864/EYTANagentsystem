@@ -64,7 +64,7 @@ export function EscalationTab({ agentId }: { agentId: number }) {
         <div>
           <h2 className="text-lg font-medium text-[var(--ink)]">אסקלציה</h2>
           <p className="text-sm text-[var(--text-secondary)] mt-1">
-            כשהסוכן מזהה מקרה — שולחים לצוות ו/או ל-webhook. הלקוח לא רואה שזה קרה.
+            כשהסוכן מזהה מקרה — שולחים לטלפונים, עד 3 קבוצות, ו/או webhook. הלקוח לא רואה שזה קרה.
             טלפון, שם, פגישות ומידע שמור על הלקוח מתמלאים גם אם לא נכתבו בשיחה.
           </p>
         </div>

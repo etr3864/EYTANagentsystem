@@ -7,6 +7,11 @@ export interface EscalationField {
   required: boolean;
 }
 
+export interface EscalationGroup {
+  jid: string;
+  name: string;
+}
+
 export interface EscalationReason {
   id: number;
   name: string;
@@ -16,6 +21,7 @@ export interface EscalationReason {
   payload_hint: string;
   fields: EscalationField[];
   phones: string[];
+  groups: EscalationGroup[];
   webhook_url: string | null;
   sort_order: number;
   tool_name: string;
@@ -28,6 +34,7 @@ export interface EscalationPatch {
   payload_hint?: string;
   fields?: EscalationField[];
   phones?: string[];
+  groups?: EscalationGroup[];
   webhook_url?: string | null;
 }
 

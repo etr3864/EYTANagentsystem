@@ -16,7 +16,11 @@ def _whatsapp_channel(db: Session, agent: Agent):
 
 
 async def send_staff(
-    db: Session, agent: Agent, phones: list[str], text: str
+    db: Session,
+    agent: Agent,
+    phones: list[str],
+    text: str,
+    groups: list[dict] | None = None,
 ) -> list[dict]:
     results = []
     channel = _whatsapp_channel(db, agent)
@@ -36,4 +40,17 @@ async def send_staff(
             log_error("escalation_staff", f"{dest[:6]} {str(exc)[:80]}")
             ok = False
         results.append({"phone": dest, "ok": ok})
+    for group in groups or []:
+        jid = str(group.get("jid") or "").strip()
+        if not jid.endswith("@g.us"):
+            results.append({"phone": jid or "group", "ok": False})
+            continue
+        ok = False
+        try:
+            if channel:
+                ok = await providers.send_channel_message(channel, jid, text, db)
+        except Exception as exc:
+            log_error("escalation_group", f"{jid[-12:]} {str(exc)[:80]}")
+            ok = False
+        results.append({"phone": group.get("name") or jid, "ok": ok})
     return results

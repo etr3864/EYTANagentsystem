@@ -35,6 +35,7 @@ class ReasonPatch(BaseModel):
     payload_hint: str | None = None
     fields: list | None = None
     phones: list | None = None
+    groups: list | None = None
     webhook_url: str | None = None
 
 

@@ -37,8 +37,14 @@ async def execute(
     cooldown.mark_fired(db, conversation_id, row.id)
     staff = []
     webhook_result = None
-    if row.phones:
-        staff = await send_staff(db, agent, list(row.phones), payload.staff_text(row, user, values))
+    if row.phones or row.groups:
+        staff = await send_staff(
+            db,
+            agent,
+            list(row.phones or []),
+            payload.staff_text(row, user, values),
+            list(row.groups or []),
+        )
     if row.webhook_url:
         webhook_result = await post_webhook(
             row.webhook_url,
@@ -47,5 +53,6 @@ async def execute(
     note.write_note(
         db, conv, row.name, list(row.fields or []), values,
         list(row.phones or []), row.webhook_url, staff, webhook_result,
+        list(row.groups or []),
     )
     return TOOL_OK

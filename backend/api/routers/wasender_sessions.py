@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from backend.auth.dependencies import get_current_user, require_super_admin
 from backend.auth.models import AuthUser, UserRole
 from backend.core.database import get_db
-from backend.services.channels.agent_channels import ChannelConflictError
+from backend.services.channels.agent_channels import ChannelConflictError, get_channel_by_type
 from backend.services.entities import agents
 from backend.services.wasender.http import SessionApiError
 from backend.services.wasender.qr_share import issue as issue_qr_link
@@ -22,6 +22,7 @@ from backend.services.wasender.lifecycle import (
 from backend.services.wasender.phone import session_phone
 from backend.services.wasender.settings import load_settings, save_settings
 from backend.services.wasender import live
+from backend.services.wasender.roster import load_roster
 
 router = APIRouter(tags=["wasender-sessions"])
 _super_admin = Depends(require_super_admin())
@@ -236,6 +237,40 @@ def share_qr_link(
     _can_operate(current_user, agent_id, db, write=True)
     channel = _channel_or_404(db, agent_id, channel_id)
     return issue_qr_link(db, channel, current_user.id)
+
+
+@router.get("/agents/{agent_id}/wasender/sessions/{channel_id}/roster")
+async def session_roster(
+    agent_id: int,
+    channel_id: int,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
+):
+    _can_operate(current_user, agent_id, db, write=False)
+    channel = _channel_or_404(db, agent_id, channel_id)
+    try:
+        return await load_roster(channel)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="אין סשן חי")
+    except SessionApiError as error:
+        _raise_upstream(error)
+
+
+@router.get("/agents/{agent_id}/wasender/groups")
+async def agent_groups(
+    agent_id: int,
+    db: Session = Depends(get_db),
+    current_user: AuthUser = Depends(get_current_user),
+):
+    _can_operate(current_user, agent_id, db, write=False)
+    channel = get_channel_by_type(db, agent_id, "whatsapp_wasender")
+    if not channel:
+        return []
+    try:
+        roster = await load_roster(channel)
+    except (ValueError, SessionApiError):
+        return []
+    return roster["groups"]
 
 
 @router.delete("/agents/{agent_id}/wasender/sessions/{channel_id}")

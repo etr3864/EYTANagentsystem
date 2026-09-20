@@ -53,6 +53,26 @@ async def get_qr(token: str, session_id: int) -> str | None:
     return data.get("qrCode") or data.get("qrcode") or data.get("qr") or None
 
 
+def _rows(data: Any) -> list[dict]:
+    if isinstance(data, list):
+        return [row for row in data if isinstance(row, dict)]
+    if isinstance(data, dict):
+        items = data.get("items") or data.get("contacts") or data.get("groups")
+        if isinstance(items, list):
+            return [row for row in items if isinstance(row, dict)]
+    return []
+
+
+async def list_contacts(token: str) -> list[dict]:
+    return _rows(_data(await request(
+        "GET", "/contacts?paginated=true&page=1&limit=50", token, timeout=20
+    )))
+
+
+async def list_groups(token: str) -> list[dict]:
+    return _rows(_data(await request("GET", "/groups", token, timeout=20)))
+
+
 async def get_status(token: str, session_id: int | None = None) -> dict:
     path = "/status"
     if session_id is not None:

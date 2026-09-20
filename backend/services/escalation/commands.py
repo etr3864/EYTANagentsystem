@@ -31,6 +31,7 @@ def create_reason(db, agent_id: int, name: str) -> AgentEscalationReason:
         payload_hint="",
         fields=[],
         phones=[],
+        groups=[],
         webhook_url=None,
         sort_order=repo.count_for_agent(db, agent_id),
     )
@@ -53,11 +54,19 @@ def update_reason(db, row: AgentEscalationReason, data) -> AgentEscalationReason
     if data.phones is not None:
         row.phones = validate.normalize_phones(data.phones)
         flag_modified(row, "phones")
+    if data.groups is not None:
+        row.groups = validate.normalize_groups(data.groups)
+        flag_modified(row, "groups")
     if data.webhook_url is not None:
         row.webhook_url = validate.normalize_webhook(data.webhook_url)
     if data.enabled is not None:
         if data.enabled:
-            validate.assert_can_enable(list(row.phones or []), row.webhook_url, list(row.fields or []))
+            validate.assert_can_enable(
+                list(row.phones or []),
+                row.webhook_url,
+                list(row.fields or []),
+                list(row.groups or []),
+            )
         row.enabled = data.enabled
     return repo.save(db, row)
 

@@ -1,6 +1,6 @@
 from backend.services.agent_functions.egress import EgressDenied, assert_public_https
 from backend.services.channels.wasender import normalize_phone as wasender_phone
-from backend.services.escalation.constants import MAX_FIELDS, MAX_PHONES
+from backend.services.escalation.constants import MAX_FIELDS, MAX_GROUPS, MAX_PHONES
 from backend.services.escalation.keys import sanitize_key, unique_key
 
 _MAX_LABEL = 80
@@ -42,6 +42,32 @@ def normalize_phones(raw) -> list[str]:
     return phones
 
 
+def normalize_groups(raw) -> list[dict]:
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        raise ValueError("קבוצות חייבות להיות רשימה")
+    groups = []
+    seen = set()
+    for item in raw:
+        if isinstance(item, str):
+            jid, name = item.strip(), ""
+        elif isinstance(item, dict):
+            jid = str(item.get("jid") or "").strip()
+            name = str(item.get("name") or "").strip()[:80]
+        else:
+            continue
+        if not jid.endswith("@g.us"):
+            raise ValueError("קבוצה חייבת להיות מזהה WhatsApp תקין")
+        if jid in seen:
+            continue
+        seen.add(jid)
+        groups.append({"jid": jid, "name": name})
+        if len(groups) > MAX_GROUPS:
+            raise ValueError(f"מקסימום {MAX_GROUPS} קבוצות")
+    return groups
+
+
 def normalize_webhook(raw: str | None) -> str | None:
     url = (raw or "").strip()
     if not url:
@@ -79,12 +105,14 @@ def normalize_fields(raw) -> list[dict]:
     return fields
 
 
-def has_destination(phones: list[str], webhook_url: str | None) -> bool:
-    return bool(phones) or bool(webhook_url)
+def has_destination(phones: list[str], webhook_url: str | None, groups: list | None = None) -> bool:
+    return bool(phones) or bool(webhook_url) or bool(groups)
 
 
-def assert_can_enable(phones: list[str], webhook_url: str | None, fields: list) -> None:
-    if not has_destination(phones, webhook_url):
-        raise ValueError("כדי להפעיל צריך טלפון אחד או webhook")
+def assert_can_enable(
+    phones: list[str], webhook_url: str | None, fields: list, groups: list | None = None
+) -> None:
+    if not has_destination(phones, webhook_url, groups):
+        raise ValueError("כדי להפעיל צריך טלפון, קבוצה או webhook")
     if not fields:
         raise ValueError("כדי להפעיל צריך לפחות שדה אחד")

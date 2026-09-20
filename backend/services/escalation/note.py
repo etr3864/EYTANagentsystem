@@ -5,10 +5,13 @@ from backend.services.escalation.constants import MESSAGE_TYPE
 from backend.services.messaging import messages
 
 
-def _dest_line(phones: list[str], webhook_url: str | None) -> str:
+def _dest_line(phones: list[str], webhook_url: str | None, groups: list | None = None) -> str:
     parts = []
     if phones:
         parts.append("וואטסאפ: " + ", ".join(phones))
+    names = [str(item.get("name") or item.get("jid")) for item in (groups or []) if item]
+    if names:
+        parts.append("קבוצות: " + ", ".join(names))
     if webhook_url:
         parts.append("webhook")
     return " · ".join(parts) if parts else "אין יעד"
@@ -46,10 +49,11 @@ def write_note(
     webhook_url: str | None,
     staff: list[dict],
     webhook: dict | None,
+    groups: list | None = None,
 ) -> None:
     text = "\n".join([
         f"אסקלציה: {reason_name}",
-        f"לאן: {_dest_line(phones, webhook_url)}",
+        f"לאן: {_dest_line(phones, webhook_url, groups)}",
         _field_lines(fields, values),
         _status_lines(staff, webhook),
     ])

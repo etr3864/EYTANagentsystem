@@ -279,6 +279,7 @@ def _escalations(mcp) -> None:
         payload_hint: Optional[str] = None,
         fields: Optional[list[Any]] = None,
         phones: Optional[list[Any]] = None,
+        groups: Optional[list[Any]] = None,
         webhook_url: Optional[str] = None,
     ) -> dict:
         """Update an escalation reason. Super-admin only."""
@@ -301,6 +302,7 @@ def _escalations(mcp) -> None:
                             payload_hint=payload_hint,
                             fields=fields,
                             phones=phones,
+                            groups=groups,
                             webhook_url=webhook_url,
                         ),
                     )

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getAgentChannels, type AgentChannel } from '@/lib/channels';
 import { WasenderLineCard } from './WasenderLineCard';
+import { WasenderRoster } from './WasenderRoster';
 
 interface ChannelsTabProps {
   agentId: number;
@@ -46,6 +47,7 @@ export function ChannelsTab({ agentId, canCreate, canManage, canDelete }: Channe
         canDelete={canDelete}
         onChanged={load}
       />
+      {channel ? <WasenderRoster agentId={agentId} channelId={channel.id} /> : null}
     </div>
   );
 }

@@ -25,6 +25,7 @@ def to_public(row: AgentEscalationReason) -> dict:
         "payload_hint": row.payload_hint or "",
         "fields": list(row.fields or []),
         "phones": list(row.phones or []),
+        "groups": list(row.groups or []),
         "webhook_url": row.webhook_url,
         "sort_order": row.sort_order,
         "tool_name": tool_name(row.id),

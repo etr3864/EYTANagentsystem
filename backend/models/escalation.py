@@ -19,6 +19,7 @@ class AgentEscalationReason(Base):
     payload_hint: Mapped[str] = mapped_column(Text, default="")
     fields: Mapped[list] = mapped_column(JSONB, default=list)
     phones: Mapped[list] = mapped_column(JSONB, default=list)
+    groups: Mapped[list] = mapped_column(JSONB, default=list)
     webhook_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

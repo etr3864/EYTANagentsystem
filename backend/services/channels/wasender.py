@@ -67,6 +67,13 @@ def format_jid(phone: str) -> str:
     return f"{cleaned}@s.whatsapp.net"
 
 
+def recipient_jid(to: str) -> str:
+    raw = (to or "").strip()
+    if raw.endswith("@g.us"):
+        return raw
+    return format_jid(raw)
+
+
 async def send_message(api_key: str, session: str, to: str, text: str, max_retries: int = 3) -> str | None:
     url = f"{_BASE_URL}/send-message"
     for attempt in range(max_retries):
@@ -76,7 +83,7 @@ async def send_message(api_key: str, session: str, to: str, text: str, max_retri
                 headers=_auth(api_key),
                 json={
                     "session": session,
-                    "to": format_jid(to),
+                    "to": recipient_jid(to),
                     "text": text
                 },
                 timeout=30,
@@ -401,6 +408,9 @@ def extract_message_data(payload: dict) -> Optional[dict]:
         
         if key.get("fromMe", False):
             return None  # Ignore our own messages
+        remote = str(key.get("remoteJid") or "")
+        if "@g.us" in remote or "@broadcast" in remote or "@newsletter" in remote:
+            return None
         
         # Get phone from key - prioritize cleanedSenderPn (for @lid addressing mode)
         # Fallback chain: cleanedSenderPn -> senderPn -> participant -> remoteJid

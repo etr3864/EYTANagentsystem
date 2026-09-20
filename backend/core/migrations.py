@@ -23,6 +23,7 @@ def run_all(conn):
     _playground(conn)
     _wasender_hub(conn)
     _wasender_qr_links(conn)
+    _escalation_groups(conn)
     conn.commit()
 
 
@@ -778,5 +779,16 @@ def _wasender_qr_links(conn):
     conn.execute(text("""
         CREATE INDEX IF NOT EXISTS ix_wasender_qr_links_expires_at
         ON wasender_qr_links(expires_at);
+    """))
+
+
+def _escalation_groups(conn):
+    conn.execute(text("""
+        DO $$ BEGIN
+            ALTER TABLE agent_escalation_reasons
+            ADD COLUMN groups JSONB NOT NULL DEFAULT '[]'::jsonb;
+        EXCEPTION
+            WHEN duplicate_column THEN null;
+        END $$;
     """))
 
