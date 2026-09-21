@@ -40,6 +40,7 @@ async def send_template(
 
 async def send_message(
     agent: Agent, to: str, text: str, reply_to: int | None = None,
+    quote_key: str | None = None, quote_text: str | None = None,
 ) -> str | None:
     if agent.provider == "wasender":
         config = agent.provider_config or {}
@@ -47,7 +48,10 @@ async def send_message(
         session = config.get("session", "default")
         if not api_key:
             return None
-        return await wasender.send_message(api_key, session, to, text, reply_to=reply_to)
+        return await wasender.send_message(
+            api_key, session, to, text, reply_to=reply_to,
+            quote_key=quote_key, quote_text=quote_text,
+        )
     ok = await whatsapp.send_message(
         agent.phone_number_id, agent.access_token, to, text,
     )
@@ -62,6 +66,8 @@ async def send_media(
     caption: str | None = None,
     filename: str | None = None,
     reply_to: int | None = None,
+    quote_key: str | None = None,
+    quote_text: str | None = None,
 ) -> str | None:
     if agent.provider == "wasender":
         config = agent.provider_config or {}
@@ -71,10 +77,12 @@ async def send_media(
             return None
         if media_type == "document":
             return await wasender.send_document(
-                api_key, session, to, media_url, filename or "file", caption, reply_to=reply_to,
+                api_key, session, to, media_url, filename or "file", caption,
+                reply_to=reply_to, quote_key=quote_key, quote_text=quote_text,
             )
         return await wasender.send_media(
-            api_key, session, to, media_url, media_type, caption, reply_to=reply_to,
+            api_key, session, to, media_url, media_type, caption,
+            reply_to=reply_to, quote_key=quote_key, quote_text=quote_text,
         )
     if media_type == "document":
         ok = await whatsapp.send_document(
@@ -96,6 +104,8 @@ async def send_channel_message(
     text: str,
     db=None,
     reply_to: int | None = None,
+    quote_key: str | None = None,
+    quote_text: str | None = None,
 ) -> str | None:
     from backend.core.encryption import decrypt_credentials
 
@@ -109,7 +119,8 @@ async def send_channel_message(
 
     if ct == "whatsapp_wasender":
         return await wasender.send_message(
-            creds["api_key"], creds.get("session", "default"), to, text, reply_to=reply_to,
+            creds["api_key"], creds.get("session", "default"), to, text,
+            reply_to=reply_to, quote_key=quote_key, quote_text=quote_text,
         )
 
     if ct == "whatsapp_meta":
@@ -168,6 +179,8 @@ async def send_channel_media(
     db=None,
     voice: bool = False,
     reply_to: int | None = None,
+    quote_key: str | None = None,
+    quote_text: str | None = None,
 ) -> str | None:
     from backend.core.encryption import decrypt_credentials
 
@@ -183,11 +196,13 @@ async def send_channel_media(
         if media_type == "document":
             return await wasender.send_document(
                 creds["api_key"], creds.get("session", "default"),
-                to, media_url, filename or "file", caption, reply_to=reply_to,
+                to, media_url, filename or "file", caption,
+                reply_to=reply_to, quote_key=quote_key, quote_text=quote_text,
             )
         return await wasender.send_media(
             creds["api_key"], creds.get("session", "default"),
-            to, media_url, media_type, caption, reply_to=reply_to,
+            to, media_url, media_type, caption,
+            reply_to=reply_to, quote_key=quote_key, quote_text=quote_text,
         )
 
     if ct == "whatsapp_meta":

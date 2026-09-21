@@ -35,6 +35,14 @@ def reply_to(raw: str | None) -> int | None:
     return int(text)
 
 
+def inbound_key(raw: str | None) -> str | None:
+    """WhatsApp key.id from an inbound webhook. Not a Wasender msgId."""
+    text = usable_id(raw)
+    if not text or text.isdigit():
+        return None
+    return text
+
+
 def load(db: Session, conversation_id: int, message_id: int | None) -> Quote | None:
     if not message_id:
         return None
@@ -43,7 +51,7 @@ def load(db: Session, conversation_id: int, message_id: int | None) -> Quote | N
         .filter(Message.id == message_id, Message.conversation_id == conversation_id)
         .first()
     )
-    if not row or row.role == "user" or (row.message_type or "text") in _SKIP:
+    if not row or (row.message_type or "text") in _SKIP:
         return None
     text = (row.content or "").strip() or _LABEL.get(row.message_type or "", "[הודעה]")
     return Quote(text=text[:500], provider_id=usable_id(row.provider_msg_id))

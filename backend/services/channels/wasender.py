@@ -77,10 +77,12 @@ def recipient_jid(to: str) -> str:
 async def send_message(
     api_key: str, session: str, to: str, text: str,
     max_retries: int = 3, *, reply_to: int | None = None,
+    quote_key: str | None = None, quote_text: str | None = None,
 ) -> str | None:
     payload = {"session": session, "to": recipient_jid(to), "text": text}
     return await _send_quoted(
-        f"{_BASE_URL}/send-message", api_key, payload, reply_to, max_retries, timeout=30,
+        f"{_BASE_URL}/send-message", api_key, payload, reply_to,
+        _inbound_quote(to, quote_key, quote_text), max_retries, timeout=30,
     )
 
 
@@ -117,6 +119,8 @@ async def send_media(
     max_retries: int = 3,
     *,
     reply_to: int | None = None,
+    quote_key: str | None = None,
+    quote_text: str | None = None,
 ) -> str | None:
     payload = {"session": session, "to": recipient_jid(to)}
     if media_type == "image":
@@ -131,7 +135,8 @@ async def send_media(
     if caption:
         payload["text"] = caption
     return await _send_quoted(
-        f"{_BASE_URL}/send-message", api_key, payload, reply_to, max_retries,
+        f"{_BASE_URL}/send-message", api_key, payload, reply_to,
+        _inbound_quote(to, quote_key, quote_text), max_retries,
     )
 
 
@@ -145,6 +150,8 @@ async def send_document(
     max_retries: int = 2,
     *,
     reply_to: int | None = None,
+    quote_key: str | None = None,
+    quote_text: str | None = None,
 ) -> str | None:
     payload = {
         "session": session,
@@ -155,8 +162,21 @@ async def send_document(
     if caption:
         payload["text"] = caption
     return await _send_quoted(
-        f"{_BASE_URL}/send-message", api_key, payload, reply_to, max_retries, timeout=45,
+        f"{_BASE_URL}/send-message", api_key, payload, reply_to,
+        _inbound_quote(to, quote_key, quote_text), max_retries, timeout=45,
     )
+
+
+def _inbound_quote(to: str, key: str | None, text: str | None) -> dict | None:
+    """Baileys-style quote for an inbound key.id. Wasender replyTo cannot point at one."""
+    ident = (key or "").strip()
+    if not ident:
+        return None
+    body = {"messageId": ident, "participant": recipient_jid(to)}
+    snippet = (text or "").strip()
+    if snippet:
+        body["text"] = snippet[:500]
+    return body
 
 
 async def _send_quoted(
@@ -164,12 +184,19 @@ async def _send_quoted(
     api_key: str,
     payload: dict,
     reply_to: int | None,
+    quote: dict | None,
     max_retries: int,
     timeout: int = 60,
 ) -> str | None:
     if reply_to:
         result = await _send_with_retry(
             url, api_key, {**payload, "replyTo": reply_to}, max_retries, timeout,
+        )
+        if result:
+            return result
+    elif quote:
+        result = await _send_with_retry(
+            url, api_key, {**payload, "quoted": quote}, max_retries, timeout,
         )
         if result:
             return result
