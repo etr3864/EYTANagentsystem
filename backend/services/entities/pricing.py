@@ -18,11 +18,50 @@ def get_pricing(db: Session) -> dict[str, float]:
     return result
 
 
+_CACHE_READ = 0.1
+_CACHE_WRITE = 1.25
+
+
+def _cache_inside_input(model: str) -> bool:
+    """GPT and Gemini fold cache into input. Claude reports it beside input."""
+    name = model.lower()
+    return name.startswith(("gpt-", "o1-", "o3-", "gemini"))
+
+
+def _nonnegative(value: int) -> int:
+    return max(0, int(value or 0))
+
+
+def billable_input(model: str, input_tokens: int, cache_read: int = 0, cache_write: int = 0) -> float:
+    raw = _nonnegative(input_tokens)
+    read = _nonnegative(cache_read)
+    write = _nonnegative(cache_write)
+    ordinary = max(0, raw - read - write) if _cache_inside_input(model) else raw
+    return ordinary + read * _CACHE_READ + write * _CACHE_WRITE
+
+
+def spent_tokens(
+    model: str,
+    input_tokens: int,
+    output_tokens: int,
+    cache_read: int = 0,
+    cache_write: int = 0,
+) -> int:
+    """Every token once. Used by the playground quota, which counts tokens not shekels."""
+    raw = _nonnegative(input_tokens)
+    out = _nonnegative(output_tokens)
+    if _cache_inside_input(model):
+        return raw + out
+    return raw + out + _nonnegative(cache_read) + _nonnegative(cache_write)
+
+
 def calc_cost_ils(
     model: str,
     input_tokens: int,
     output_tokens: int,
     pricing: dict[str, float],
+    cache_read: int = 0,
+    cache_write: int = 0,
 ) -> float:
     """Calculate cost in ILS for a given model and token counts.
 
@@ -32,16 +71,18 @@ def calc_cost_ils(
 
     input_price = pricing.get(f"model.{model}.input")
     output_price = pricing.get(f"model.{model}.output")
+    priced_as = model
     if input_price is None:
-        lookup = resolve_model(model)
-        input_price = pricing.get(f"model.{lookup}.input")
-        output_price = pricing.get(f"model.{lookup}.output")
+        priced_as = resolve_model(model)
+        input_price = pricing.get(f"model.{priced_as}.input")
+        output_price = pricing.get(f"model.{priced_as}.output")
 
     if input_price is None or output_price is None:
         log_error("PRICING", f"no price for model '{model}' — cost counted as 0")
         return 0.0
 
-    usd = (input_tokens * input_price + output_tokens * output_price) / 1_000_000
+    units = billable_input(priced_as, input_tokens, cache_read, cache_write)
+    usd = (units * input_price + _nonnegative(output_tokens) * output_price) / 1_000_000
     return round(usd * pricing.get("usd_to_ils", 3.65), 4)
 
 

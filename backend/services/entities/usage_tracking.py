@@ -25,7 +25,7 @@ def record_usage(
     Creates the row if it doesn't exist, otherwise increments counters.
     Safe for concurrent calls — PostgreSQL row-level lock on UPDATE.
     """
-    if input_tokens == 0 and output_tokens == 0:
+    if not any((input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens)):
         return
 
     try:

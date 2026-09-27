@@ -110,7 +110,9 @@ def _query_usage_cost(
     rows = db.execute(
         text("""
             SELECT agent_id, model,
-                   SUM(input_tokens) AS inp, SUM(output_tokens) AS out
+                   SUM(input_tokens) AS inp, SUM(output_tokens) AS out,
+                   SUM(cache_read_tokens) AS cache_read,
+                   SUM(cache_creation_tokens) AS cache_write
             FROM agent_usage_daily
             WHERE agent_id = ANY(:ids) AND date >= :from_d AND date <= :to_d
             GROUP BY agent_id, model
@@ -119,8 +121,11 @@ def _query_usage_cost(
     ).fetchall()
 
     costs: dict[int, float] = {}
-    for agent_id, model, inp, out in rows:
-        cost = calc_cost_ils(model, int(inp or 0), int(out or 0), pricing)
+    for agent_id, model, inp, out, cache_read, cache_write in rows:
+        cost = calc_cost_ils(
+            model, int(inp or 0), int(out or 0), pricing,
+            cache_read=int(cache_read or 0), cache_write=int(cache_write or 0),
+        )
         costs[agent_id] = costs.get(agent_id, 0.0) + cost
     return costs
 
@@ -392,7 +397,9 @@ def _build_costs(
     rows = db.execute(
         text("""
             SELECT model, source,
-                   SUM(input_tokens) AS inp, SUM(output_tokens) AS out
+                   SUM(input_tokens) AS inp, SUM(output_tokens) AS out,
+                   SUM(cache_read_tokens) AS cache_read,
+                   SUM(cache_creation_tokens) AS cache_write
             FROM agent_usage_daily
             WHERE agent_id = :id AND date >= :from_d AND date <= :to_d
             GROUP BY model, source
@@ -406,8 +413,11 @@ def _build_costs(
         "context_summary": 0.0, "summary": 0.0, "reminder": 0.0,
     }
 
-    for model, source, inp, out in rows:
-        cost = calc_cost_ils(model, int(inp or 0), int(out or 0), pricing)
+    for model, source, inp, out, cache_read, cache_write in rows:
+        cost = calc_cost_ils(
+            model, int(inp or 0), int(out or 0), pricing,
+            cache_read=int(cache_read or 0), cache_write=int(cache_write or 0),
+        )
         provider = _provider_of(model)
         by_provider[provider] = by_provider.get(provider, 0.0) + cost
         by_source[source] = by_source.get(source, 0.0) + cost

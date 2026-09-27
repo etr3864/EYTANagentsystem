@@ -44,22 +44,31 @@ def record(ctx: TurnContext, reply: ModelReply) -> None:
             usage["cache_read_tokens"],
             usage["cache_creation_tokens"],
         )
-        _charge_playground(db, ctx, usage)
+        _charge_playground(db, ctx, usage, used_model)
         _record_vision(db, ctx)
         db.commit()
 
 
-def _charge_playground(db: Session, ctx: TurnContext, usage: dict) -> None:
+def _charge_playground(db: Session, ctx: TurnContext, usage: dict, model: str) -> None:
     if not ctx.is_playground:
         return
 
+    from backend.services.entities.pricing import spent_tokens
     from backend.services.playground import quota
 
-    quota.add_usage(
-        db,
-        ctx.playground_link_id,
-        int(usage["input_tokens"]) + int(usage["output_tokens"]),
+    amount = spent_tokens(
+        model,
+        usage["input_tokens"],
+        usage["output_tokens"],
+        usage.get("cache_read_tokens", 0),
+        usage.get("cache_creation_tokens", 0),
     )
+    vision = ctx.vision_usage
+    if vision.get("input_tokens", 0) > 0:
+        amount += spent_tokens(
+            VISION_MODEL, vision["input_tokens"], vision["output_tokens"],
+        )
+    quota.add_usage(db, ctx.playground_link_id, amount)
 
 
 def _record_vision(db: Session, ctx: TurnContext) -> None:

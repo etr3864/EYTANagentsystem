@@ -45,13 +45,19 @@ def _build_system_text(system_blocks: list) -> str:
     return "\n\n".join(texts)
 
 
-def _usage_counts(usage) -> tuple[int, int, int]:
-    """prompt_tokens already includes cached tokens. cached_tokens is the subset."""
+def _usage_counts(usage) -> tuple[int, int, int, int]:
+    """prompt_tokens already includes cached and cache-write tokens."""
     if not usage:
-        return 0, 0, 0
+        return 0, 0, 0, 0
     details = getattr(usage, "prompt_tokens_details", None)
     cached = getattr(details, "cached_tokens", 0) if details else 0
-    return int(usage.prompt_tokens or 0), int(usage.completion_tokens or 0), int(cached or 0)
+    written = getattr(details, "cache_write_tokens", 0) if details else 0
+    return (
+        int(usage.prompt_tokens or 0),
+        int(usage.completion_tokens or 0),
+        int(cached or 0),
+        int(written or 0),
+    )
 
 
 class OpenAIProvider:
@@ -168,12 +174,12 @@ class OpenAIProvider:
             reasoning_effort="none",
         )
         
-        prompt_tokens, completion_tokens, cached_tokens = _usage_counts(response.usage)
+        prompt_tokens, completion_tokens, cached_tokens, written_tokens = _usage_counts(response.usage)
         usage_data = {
             "input_tokens": prompt_tokens,
             "output_tokens": completion_tokens,
             "cache_read_tokens": cached_tokens,
-            "cache_creation_tokens": 0,
+            "cache_creation_tokens": written_tokens,
         }
         
         # Parse response
@@ -234,10 +240,11 @@ class OpenAIProvider:
                 reasoning_effort="none",
             )
             
-            prompt_tokens, completion_tokens, cached_tokens = _usage_counts(response.usage)
+            prompt_tokens, completion_tokens, cached_tokens, written_tokens = _usage_counts(response.usage)
             usage_data["input_tokens"] += prompt_tokens
             usage_data["output_tokens"] += completion_tokens
             usage_data["cache_read_tokens"] += cached_tokens
+            usage_data["cache_creation_tokens"] += written_tokens
             
             # Parse new response
             message = response.choices[0].message
@@ -281,11 +288,11 @@ class OpenAIProvider:
             max_completion_tokens=max_tokens,
             reasoning_effort="none",
         )
-        prompt_tokens, completion_tokens, cached_tokens = _usage_counts(response.usage)
+        prompt_tokens, completion_tokens, cached_tokens, written_tokens = _usage_counts(response.usage)
         usage = {
             "input_tokens": prompt_tokens,
             "output_tokens": completion_tokens,
             "cache_read_tokens": cached_tokens,
-            "cache_creation_tokens": 0,
+            "cache_creation_tokens": written_tokens,
         }
         return (response.choices[0].message.content or "").strip(), usage
