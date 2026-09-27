@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Card, ListPager, ListViewport } from '@/components/ui';
+import { Button, Card, ListPager } from '@/components/ui';
 import { paginate } from '@/lib/pagination';
 import { parseUTCDate } from '@/lib/dates';
 import { TestersPanel } from './TestersPanel';
@@ -88,7 +88,12 @@ export function PlaygroundLinksTab({ agentId }: { agentId: number }) {
   async function copyUrl(row: PlaygroundLinkRow) {
     const url = publicUrl(row.url);
     if (!url) return;
-    await navigator.clipboard.writeText(url);
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      setError('לא הצלחנו להעתיק. סמן את הקישור והעתק ידנית.');
+      return;
+    }
     setCopiedId(row.id);
     window.setTimeout(() => setCopiedId((id) => (id === row.id ? null : id)), 1600);
   }
@@ -109,7 +114,7 @@ export function PlaygroundLinksTab({ agentId }: { agentId: number }) {
 
   if (openLink && openTesterId != null) {
     return (
-      <div className="h-full min-h-0 min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain touch-pan-y">
+      <div className="h-full min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain touch-pan-y">
         <TesterThread
           agentId={agentId}
           linkId={openLink.id}
@@ -122,7 +127,7 @@ export function PlaygroundLinksTab({ agentId }: { agentId: number }) {
 
   if (openLink) {
     return (
-      <div className="h-full min-h-0 min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain touch-pan-y">
+      <div className="h-full min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain touch-pan-y">
         {error && <p className="text-sm text-red-400 px-0.5">{error}</p>}
         <TestersPanel
           agentId={agentId}
@@ -139,56 +144,74 @@ export function PlaygroundLinksTab({ agentId }: { agentId: number }) {
   const paged = paginate(rows, page);
 
   return (
-    <div className="h-full min-h-0 min-w-0 flex flex-col gap-3 md:gap-4 overflow-x-hidden">
-      <Card padding="sm" className="shrink-0 !p-3 md:!p-5">
-        <h2 className="text-sm md:text-base font-semibold text-[var(--ink)]">קישורי בדיקה</h2>
-        <p className="text-xs md:text-sm text-[var(--text-secondary)] mt-1 mb-3 md:mb-5 leading-relaxed">
-          הפונקציות רצות באמת עם המספר שהבודק יקליד. תיאום פגישות נשאר בשיחה ולא נכתב ליומן גוגל.
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-[11rem_minmax(0,1fr)_auto] gap-3 items-stretch md:items-end">
-          <label className="text-xs text-[var(--text-secondary)]">
-            תוקף
-            <select
-              className="mt-1.5 block w-full min-h-11 px-3 py-2.5 bg-[var(--glass-2)] border border-[var(--edge-strong)] rounded-2xl text-base md:text-sm text-[var(--ink)]"
-              value={ttl}
-              onChange={(e) => setTtl(Number(e.target.value))}
+    <div className="h-full min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain touch-pan-y">
+      <div className="flex flex-col gap-3 md:gap-4 pb-4">
+        <Card padding="sm" className="!p-3 md:!p-5">
+          <h2 className="text-sm md:text-base font-semibold text-[var(--ink)]">קישורי בדיקה</h2>
+          <p className="text-xs md:text-sm text-[var(--text-secondary)] mt-1 mb-3 md:mb-5 leading-relaxed">
+            הפונקציות רצות באמת עם המספר שהבודק יקליד. תיאום פגישות נשאר בשיחה ולא נכתב ליומן גוגל.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-[11rem_minmax(0,1fr)_auto] gap-3 items-stretch md:items-end">
+            <label className="text-xs text-[var(--text-secondary)]">
+              תוקף
+              <select
+                className="mt-1.5 block w-full min-h-11 px-3 py-2.5 bg-[var(--glass-2)] border border-[var(--edge-strong)] rounded-2xl text-base md:text-sm text-[var(--ink)]"
+                value={ttl}
+                onChange={(e) => setTtl(Number(e.target.value))}
+              >
+                {TTL_OPTIONS.map((opt) => (
+                  <option key={opt.seconds} value={opt.seconds}>{opt.label}</option>
+                ))}
+              </select>
+            </label>
+            <TokenLimitField value={tokenDraft} onChange={setTokenDraft} />
+            <Button
+              className="w-full md:w-auto min-h-11"
+              disabled={busy}
+              onClick={() => {
+                const parsed = parseTokenLimit(tokenDraft);
+                const limitErr = tokenLimitError(parsed);
+                if (limitErr || parsed == null) {
+                  setError(limitErr || 'תקרת טוקנים לא תקינה');
+                  return;
+                }
+                setPage(1);
+                return run(() => createPlaygroundLink(agentId, ttl, parsed));
+              }}
             >
-              {TTL_OPTIONS.map((opt) => (
-                <option key={opt.seconds} value={opt.seconds}>{opt.label}</option>
-              ))}
-            </select>
-          </label>
-          <TokenLimitField value={tokenDraft} onChange={setTokenDraft} />
-          <Button
-            className="w-full md:w-auto min-h-11"
-            disabled={busy}
-            onClick={() => {
-              const parsed = parseTokenLimit(tokenDraft);
-              const limitErr = tokenLimitError(parsed);
-              if (limitErr || parsed == null) {
-                setError(limitErr || 'תקרת טוקנים לא תקינה');
-                return;
-              }
-              setPage(1);
-              return run(() => createPlaygroundLink(agentId, ttl, parsed));
-            }}
-          >
-            צור קישור
-          </Button>
-        </div>
-        <p className="text-xs text-[var(--text-muted)] mt-4 mb-2">בחירה מהירה</p>
-        <TokenLimitPresets value={tokenDraft} onChange={setTokenDraft} />
-        <TokenLimitHint value={tokenDraft} />
-      </Card>
+              צור קישור
+            </Button>
+          </div>
+          <p className="text-xs text-[var(--text-muted)] mt-4 mb-2">בחירה מהירה</p>
+          <TokenLimitPresets value={tokenDraft} onChange={setTokenDraft} />
+          <TokenLimitHint value={tokenDraft} />
+        </Card>
 
-      {error && <p className="text-sm text-red-400 shrink-0">{error}</p>}
-      {loading ? (
-        <p className="text-sm text-[var(--text-secondary)]">טוען…</p>
-      ) : rows.length === 0 ? (
-        <p className="text-sm text-[var(--text-secondary)] px-1">אין קישורים עדיין — צור אחד למעלה</p>
-      ) : (
-        <ListViewport
-          footer={(
+        {error && <p className="text-sm text-red-400">{error}</p>}
+        {loading ? (
+          <p className="text-sm text-[var(--text-secondary)]">טוען…</p>
+        ) : rows.length === 0 ? (
+          <p className="text-sm text-[var(--text-secondary)] px-1">אין קישורים עדיין — צור אחד למעלה</p>
+        ) : (
+          <>
+            <div className="space-y-2">
+              {paged.items.map((row) => (
+                <LinkRow
+                  key={row.id}
+                  row={row}
+                  busy={busy}
+                  copied={copiedId === row.id}
+                  onCopy={() => copyUrl(row)}
+                  onOpen={() => openTesters(row)}
+                  onStop={() => run(() => stopPlaygroundLink(agentId, row.id))}
+                  onRestore={() => run(() => restorePlaygroundLink(agentId, row.id))}
+                  onDelete={() => {
+                    if (!window.confirm('להסתיר את הקישור? הבודקים לא ייכנסו. ההתכתבויות נשארות במערכת.')) return;
+                    return run(() => deletePlaygroundLink(agentId, row.id));
+                  }}
+                />
+              ))}
+            </div>
             <ListPager
               page={paged.page}
               totalPages={paged.totalPages}
@@ -197,29 +220,22 @@ export function PlaygroundLinksTab({ agentId }: { agentId: number }) {
               total={paged.total}
               onPage={setPage}
             />
-          )}
-        >
-          <div className="space-y-2">
-            {paged.items.map((row) => (
-              <LinkRow
-                key={row.id}
-                row={row}
-                busy={busy}
-                copied={copiedId === row.id}
-                onCopy={() => copyUrl(row)}
-                onOpen={() => openTesters(row)}
-                onStop={() => run(() => stopPlaygroundLink(agentId, row.id))}
-                onRestore={() => run(() => restorePlaygroundLink(agentId, row.id))}
-                onDelete={() => {
-                  if (!window.confirm('להסתיר את הקישור? הבודקים לא ייכנסו. ההתכתבויות נשארות במערכת.')) return;
-                  return run(() => deletePlaygroundLink(agentId, row.id));
-                }}
-              />
-            ))}
-          </div>
-        </ListViewport>
-      )}
+          </>
+        )}
+      </div>
     </div>
+  );
+}
+
+function LinkUrl({ path }: { path: string }) {
+  const [href, setHref] = useState(path);
+  useEffect(() => {
+    setHref(publicUrl(path) || path);
+  }, [path]);
+  return (
+    <p dir="ltr" className="mt-2 text-[11px] leading-5 text-[var(--text-muted)] break-all text-left select-text">
+      {href}
+    </p>
   );
 }
 
@@ -332,6 +348,7 @@ function LinkRow({
           ].filter(Boolean).join(' · ')}
         </p>
       </button>
+      {row.url && <LinkUrl path={row.url} />}
       <div className="mt-3 grid grid-cols-2 gap-2 md:flex md:flex-wrap">
         {row.url && (
           <Button variant="secondary" size="sm" className="min-h-11 w-full md:w-auto" disabled={busy} onClick={onCopy}>
