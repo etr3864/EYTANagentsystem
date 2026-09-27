@@ -11,6 +11,7 @@ from backend.models.user import User
 from backend.services.entities import conversations, users
 from backend.services.messaging.buffer import PendingMessage, add_message
 from backend.services.messaging.processing import process_batched_messages
+from backend.services.messaging.split.config import for_agent
 from backend.services.playground import identity, present, repo
 from backend.services.playground.constants import CLOSED_MESSAGE, MAX_TESTERS
 from backend.services.playground.outbound import PlaygroundOutbound
@@ -80,7 +81,11 @@ async def ingest_pending(agent, user: User, conv: Conversation, pending: Pending
     phone = user.phone
     name = user.name
     conv_id = conv.id
-    outbound = PlaygroundOutbound(conv_id)
+    split = for_agent(agent)
+    outbound = PlaygroundOutbound(
+        conv_id,
+        pause_between_bubbles=split.enabled and split.delay_seconds <= 0,
+    )
     batching = agent.get_batching_config()
     debounce = int(batching.get("debounce_seconds", 3) or 0)
     max_batch = int(batching.get("max_batch_messages", 10) or 10)

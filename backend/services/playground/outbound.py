@@ -1,12 +1,16 @@
+import asyncio
 from datetime import datetime, timezone
 
 from backend.services.messaging.channel import OutboundCaps
 from backend.services.playground import streams
 
+BUBBLE_GAP_SECONDS = 1.0
+
 
 class PlaygroundOutbound:
-    def __init__(self, conversation_id: int):
+    def __init__(self, conversation_id: int, *, pause_between_bubbles: bool = False):
         self.conversation_id = conversation_id
+        self._pause_between_bubbles = pause_between_bubbles
 
     def capabilities(self) -> OutboundCaps:
         return OutboundCaps(
@@ -48,5 +52,7 @@ class PlaygroundOutbound:
     async def emit_status(self, to: str, status: str | None) -> None:
         if status == "מקליד":
             await self.send_typing(to)
+            if self._pause_between_bubbles:
+                await asyncio.sleep(BUBBLE_GAP_SECONDS)
             return
         await streams.publish(self.conversation_id, {"type": "status", "status": status})
