@@ -133,9 +133,11 @@ export function TryApp({ token }: { token: string }) {
   }, [token, applySession]);
 
   useEffect(() => {
-    if (phase !== 'chat' || session?.closed) return;
+    if (phase !== 'chat' || session?.closed || session?.conversation_id == null) return;
+    let stopped = false;
     const src = new EventSource(tryEventsUrl(token), { withCredentials: true });
     src.onmessage = (ev) => {
+      if (stopped) return;
       try {
         const payload = JSON.parse(ev.data) as {
           type?: string;
@@ -174,8 +176,11 @@ export function TryApp({ token }: { token: string }) {
     src.onerror = () => {
       /* EventSource reconnects */
     };
-    return () => src.close();
-  }, [phase, token, session?.closed]);
+    return () => {
+      stopped = true;
+      src.close();
+    };
+  }, [phase, token, session?.closed, session?.conversation_id]);
 
   async function enter() {
     const nextName = name.trim();

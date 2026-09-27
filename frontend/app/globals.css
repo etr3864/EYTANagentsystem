@@ -348,6 +348,12 @@ input, select, textarea {
 .try-root[data-theme="light"] .try-atmo-blobs {
   opacity: 0.32;
 }
+.try-root .try-atmo-net {
+  opacity: 0.55;
+}
+.try-root .try-atmo-dots {
+  opacity: 0.16;
+}
 
 .try-root :focus,
 .try-root :focus-visible {
