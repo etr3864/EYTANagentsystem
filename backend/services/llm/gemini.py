@@ -38,6 +38,16 @@ GEMINI_TOOL_SUFFIX = """
 GEMINI_HTTP_TIMEOUT_MS = 35_000
 GEMINI_CALL_TIMEOUT_SEC = 38.0
 
+
+def _usage_counts(meta) -> tuple[int, int, int]:
+    """prompt_token_count already includes cached tokens. The third value is the subset."""
+    if not meta:
+        return 0, 0, 0
+    prompt = getattr(meta, "prompt_token_count", 0) or 0
+    output = getattr(meta, "candidates_token_count", 0) or 0
+    cached = getattr(meta, "cached_content_token_count", 0) or 0
+    return int(prompt), int(output), int(cached)
+
 # We run tools ourselves; SDK AFC must stay off (FunctionDeclarations ≠ callables).
 _DISABLE_AFC = types.AutomaticFunctionCallingConfig(disable=True)
 
@@ -285,12 +295,12 @@ class GeminiProvider:
             rebuild_thinking=rebuild_thinking,
         )
         
-        # Track token usage (handle None values)
+        prompt_tokens, output_tokens, cached_tokens = _usage_counts(response.usage_metadata)
         usage_data = {
-            "input_tokens": (getattr(response.usage_metadata, 'prompt_token_count', 0) or 0) if response.usage_metadata else 0,
-            "output_tokens": (getattr(response.usage_metadata, 'candidates_token_count', 0) or 0) if response.usage_metadata else 0,
-            "cache_read_tokens": 0,
-            "cache_creation_tokens": 0
+            "input_tokens": prompt_tokens,
+            "output_tokens": output_tokens,
+            "cache_read_tokens": cached_tokens,
+            "cache_creation_tokens": 0,
         }
         
         text_response = ""
@@ -342,10 +352,10 @@ class GeminiProvider:
                 rebuild_thinking=rebuild_thinking,
             )
             
-            # Update usage (handle None values)
-            if response.usage_metadata:
-                usage_data["input_tokens"] += getattr(response.usage_metadata, 'prompt_token_count', 0) or 0
-                usage_data["output_tokens"] += getattr(response.usage_metadata, 'candidates_token_count', 0) or 0
+            prompt_tokens, output_tokens, cached_tokens = _usage_counts(response.usage_metadata)
+            usage_data["input_tokens"] += prompt_tokens
+            usage_data["output_tokens"] += output_tokens
+            usage_data["cache_read_tokens"] += cached_tokens
             
             cand, parts = _candidate_parts(response)
             _warn_if_truncated(cand)
@@ -393,10 +403,11 @@ class GeminiProvider:
             config=self._cheap_config(max_tokens, model_id),
         )
 
+        prompt_tokens, output_tokens, cached_tokens = _usage_counts(response.usage_metadata)
         usage = {
-            "input_tokens": (getattr(response.usage_metadata, 'prompt_token_count', 0) or 0) if response.usage_metadata else 0,
-            "output_tokens": (getattr(response.usage_metadata, 'candidates_token_count', 0) or 0) if response.usage_metadata else 0,
-            "cache_read_tokens": 0,
+            "input_tokens": prompt_tokens,
+            "output_tokens": output_tokens,
+            "cache_read_tokens": cached_tokens,
             "cache_creation_tokens": 0,
         }
 

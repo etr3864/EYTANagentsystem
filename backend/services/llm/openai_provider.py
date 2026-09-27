@@ -35,7 +35,7 @@ def _convert_tools_to_openai(anthropic_tools: list) -> list:
 
 
 def _build_system_text(system_blocks: list) -> str:
-    """Convert Anthropic system blocks to single string."""
+    """Join system blocks in order. Stable text is first, so the prefix can cache."""
     texts = []
     for block in system_blocks:
         if isinstance(block, dict) and "text" in block:
@@ -43,6 +43,15 @@ def _build_system_text(system_blocks: list) -> str:
         elif isinstance(block, str):
             texts.append(block)
     return "\n\n".join(texts)
+
+
+def _usage_counts(usage) -> tuple[int, int, int]:
+    """prompt_tokens already includes cached tokens. cached_tokens is the subset."""
+    if not usage:
+        return 0, 0, 0
+    details = getattr(usage, "prompt_tokens_details", None)
+    cached = getattr(details, "cached_tokens", 0) if details else 0
+    return int(usage.prompt_tokens or 0), int(usage.completion_tokens or 0), int(cached or 0)
 
 
 class OpenAIProvider:
@@ -159,12 +168,12 @@ class OpenAIProvider:
             reasoning_effort="none",
         )
         
-        # Track usage
+        prompt_tokens, completion_tokens, cached_tokens = _usage_counts(response.usage)
         usage_data = {
-            "input_tokens": response.usage.prompt_tokens or 0 if response.usage else 0,
-            "output_tokens": response.usage.completion_tokens or 0 if response.usage else 0,
-            "cache_read_tokens": 0,
-            "cache_creation_tokens": 0
+            "input_tokens": prompt_tokens,
+            "output_tokens": completion_tokens,
+            "cache_read_tokens": cached_tokens,
+            "cache_creation_tokens": 0,
         }
         
         # Parse response
@@ -225,10 +234,10 @@ class OpenAIProvider:
                 reasoning_effort="none",
             )
             
-            # Update usage
-            if response.usage:
-                usage_data["input_tokens"] += response.usage.prompt_tokens or 0
-                usage_data["output_tokens"] += response.usage.completion_tokens or 0
+            prompt_tokens, completion_tokens, cached_tokens = _usage_counts(response.usage)
+            usage_data["input_tokens"] += prompt_tokens
+            usage_data["output_tokens"] += completion_tokens
+            usage_data["cache_read_tokens"] += cached_tokens
             
             # Parse new response
             message = response.choices[0].message
@@ -272,10 +281,11 @@ class OpenAIProvider:
             max_completion_tokens=max_tokens,
             reasoning_effort="none",
         )
+        prompt_tokens, completion_tokens, cached_tokens = _usage_counts(response.usage)
         usage = {
-            "input_tokens": response.usage.prompt_tokens or 0 if response.usage else 0,
-            "output_tokens": response.usage.completion_tokens or 0 if response.usage else 0,
-            "cache_read_tokens": 0,
+            "input_tokens": prompt_tokens,
+            "output_tokens": completion_tokens,
+            "cache_read_tokens": cached_tokens,
             "cache_creation_tokens": 0,
         }
         return (response.choices[0].message.content or "").strip(), usage

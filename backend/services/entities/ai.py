@@ -80,38 +80,18 @@ def _render_facts(data: dict) -> list[str]:
     return lines
 
 
-def build_system_prompt(
-    base_prompt: str, 
-    user_info: dict, 
-    knowledge_context: str = "",
-    media_context: str = ""
-) -> list[dict]:
-    """Build system prompt blocks with caching."""
+def _now_line() -> str:
     from datetime import datetime
     from zoneinfo import ZoneInfo
-    
-    blocks = []
-    tz = ZoneInfo("Asia/Jerusalem")
-    now = datetime.now(tz)
-    
+
+    now = datetime.now(ZoneInfo("Asia/Jerusalem"))
     days_hebrew = ['שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת', 'ראשון']
     day_name = days_hebrew[now.weekday()]
-    date_str = f"היום: יום {day_name}, {now.strftime('%d/%m/%Y')}, שעה {now.strftime('%H:%M')}"
-    
-    # Block 1: Base prompt + knowledge + media (CACHED - stable per agent)
-    cached_content = f"{date_str}\n\n{base_prompt}{SYSTEM_SUFFIX}"
-    if knowledge_context:
-        cached_content += f"\n\n---\nמאגר מידע עסקי:\n{knowledge_context}"
-    if media_context:
-        cached_content += f"\n\n---\n{media_context}"
-    
-    blocks.append({
-        "type": "text",
-        "text": cached_content,
-        "cache_control": {"type": "ephemeral"}
-    })
-    
-    # Block 2: User info (NOT CACHED - changes per user)
+    return f"היום: יום {day_name}, {now.strftime('%d/%m/%Y')}, שעה {now.strftime('%H:%M')}"
+
+
+def _user_lines(user_info: dict) -> list[str]:
+    """Per-customer facts. Kept out of the cached prefix."""
     info_parts = []
     if user_info.get("name"):
         info_parts.append(f"שם: {user_info['name']}")
@@ -162,14 +142,91 @@ def build_system_prompt(
     if user_info.get("session_data"):
         info_parts.append("מידע לשיחה הנוכחית (מערכות חיצוניות):")
         info_parts.extend(_render_facts(user_info["session_data"]))
-    
+    return info_parts
+
+
+def build_system_prompt(
+    base_prompt: str,
+    user_info: dict,
+    knowledge_context: str = "",
+    media_context: str = "",
+    volatile: str = "",
+) -> list[dict]:
+    """Stable agent text first (cacheable), per-turn facts last.
+
+    Claude caches the prefix up to cache_control. Gemini and OpenAI cache an
+    identical prefix automatically. Date, appointments and customer facts
+    change every turn, so they stay after the breakpoint.
+    """
+    stable = f"{base_prompt}{SYSTEM_SUFFIX}"
+    if knowledge_context:
+        stable += f"\n\n---\nמאגר מידע עסקי:\n{knowledge_context}"
+    if media_context:
+        stable += f"\n\n---\n{media_context}"
+
+    blocks = [{
+        "type": "text",
+        "text": stable,
+        "cache_control": {"type": "ephemeral"},
+    }]
+
+    dynamic = [_now_line()]
+    if volatile.strip():
+        dynamic.append(volatile.strip())
+    info_parts = _user_lines(user_info)
     if info_parts:
-        blocks.append({
-            "type": "text",
-            "text": "---\nמידע על המשתמש:\n" + "\n".join(info_parts)
-        })
-    
+        dynamic.append("---\nמידע על המשתמש:\n" + "\n".join(info_parts))
+    blocks.append({"type": "text", "text": "\n\n".join(dynamic)})
     return blocks
+
+
+def _meeting_hours(calendar_config: dict | None) -> str:
+    """Agent-level hours. Same for every customer of this agent."""
+    if not calendar_config:
+        return ""
+    if not (calendar_config.get("google_tokens") or calendar_config.get("playground")):
+        return ""
+    working_hours = calendar_config.get("working_hours", {})
+    days_hebrew = {
+        '0': 'ראשון', '1': 'שני', '2': 'שלישי', '3': 'רביעי',
+        '4': 'חמישי', '5': 'שישי', '6': 'שבת',
+    }
+    hours_text = []
+    for day_num, day_name in days_hebrew.items():
+        hours = working_hours.get(day_num)
+        if hours:
+            hours_text.append(f"- {day_name}: {hours['start']}-{hours['end']}")
+        else:
+            hours_text.append(f"- {day_name}: סגור")
+    return "\n\n---\nשעות פעילות לתיאום פגישות:\n" + "\n".join(hours_text)
+
+
+def _existing_appointments(user_appointments: list | None, calendar_config: dict | None) -> str:
+    """This customer's bookings. Changes per user, so it is not cached."""
+    if not user_appointments:
+        return ""
+    from zoneinfo import ZoneInfo
+
+    tz_name = "Asia/Jerusalem"
+    if calendar_config and calendar_config.get("timezone"):
+        tz_name = calendar_config["timezone"]
+    tz = ZoneInfo(tz_name)
+    lines = []
+    for apt in user_appointments:
+        start_local = apt.start_time
+        if start_local.tzinfo is None:
+            start_local = start_local.replace(tzinfo=ZoneInfo("UTC"))
+        start_local = start_local.astimezone(tz)
+        lines.append(
+            f"- {apt.title}: {start_local.strftime('%d/%m/%Y')} "
+            f"בשעה {start_local.strftime('%H:%M')} (מזהה: {apt.id})"
+        )
+    text = "---\nפגישות קיימות של המשתמש:\n" + "\n".join(lines)
+    text += (
+        "\nאם המשתמש רוצה לשנות או לבטל פגישה קיימת, "
+        "השתמש בכלי reschedule_appointment או cancel_appointment עם המזהה המתאים."
+    )
+    return text
 
 
 async def describe_image(image_base64: str, media_type: str = "image/jpeg", agent=None) -> tuple[str, dict]:
@@ -297,43 +354,17 @@ async def get_response(
     else:
         user_content = user_message
     
-    # Build full system prompt with calendar context
-    full_prompt = system_prompt
-    if calendar_config and (
-        calendar_config.get("google_tokens") or calendar_config.get("playground")
-    ):
-        working_hours = calendar_config.get("working_hours", {})
-        days_hebrew = {'0': 'ראשון', '1': 'שני', '2': 'שלישי', '3': 'רביעי', '4': 'חמישי', '5': 'שישי', '6': 'שבת'}
-        hours_text = []
-        for day_num, day_name in days_hebrew.items():
-            hours = working_hours.get(day_num)
-            if hours:
-                hours_text.append(f"- {day_name}: {hours['start']}-{hours['end']}")
-            else:
-                hours_text.append(f"- {day_name}: סגור")
-        
-        full_prompt += f"\n\n---\nשעות פעילות לתיאום פגישות:\n" + "\n".join(hours_text)
-    
+    full_prompt = system_prompt + _meeting_hours(calendar_config)
     if appointment_prompt:
         full_prompt += f"\n\nהנחיות נוספות לתיאום פגישות:\n{appointment_prompt}"
-    
-    # Add user's existing appointments to context
-    if user_appointments:
-        from zoneinfo import ZoneInfo
-        tz = ZoneInfo(calendar_config.get("timezone", "Asia/Jerusalem") if calendar_config else "Asia/Jerusalem")
-        apt_texts = []
-        for apt in user_appointments:
-            start_local = apt.start_time
-            if start_local.tzinfo is None:
-                start_local = start_local.replace(tzinfo=ZoneInfo("UTC"))
-            start_local = start_local.astimezone(tz)
-            apt_texts.append(f"- {apt.title}: {start_local.strftime('%d/%m/%Y')} בשעה {start_local.strftime('%H:%M')} (מזהה: {apt.id})")
-        
-        full_prompt += f"\n\n---\nפגישות קיימות של המשתמש:\n" + "\n".join(apt_texts)
-        full_prompt += "\nאם המשתמש רוצה לשנות או לבטל פגישה קיימת, השתמש בכלי reschedule_appointment או cancel_appointment עם המזהה המתאים."
-    
-    # Build system blocks (Anthropic format, converted by Gemini provider if needed)
-    system_blocks = build_system_prompt(full_prompt, user_info or {}, knowledge_context, media_context)
+
+    system_blocks = build_system_prompt(
+        full_prompt,
+        user_info or {},
+        knowledge_context,
+        media_context,
+        volatile=_existing_appointments(user_appointments, calendar_config),
+    )
     
     provider = get_provider(actual_model, agent=agent)
     tools = list(USER_TOOLS)
