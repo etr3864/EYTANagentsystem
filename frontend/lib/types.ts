@@ -149,7 +149,7 @@ export type MessageType = 'text' | 'voice' | 'image' | 'video' | 'document' | 'm
 
 export interface Message {
   id?: number;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'owner';
   content: string;
   message_type: MessageType;
   media_id: number | null;

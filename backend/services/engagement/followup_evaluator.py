@@ -75,13 +75,13 @@ def _build_history_context(db: Session, conversation_id: int, limit: int = 20) -
     if not recent:
         return "(אין היסטוריה)"
 
-    from backend.services.messaging.visibility import visible_to_llm
+    from backend.services.messaging.visibility import speaker_label, visible_to_llm
 
     lines = []
     for msg in reversed(recent):
         if not visible_to_llm(msg.message_type):
             continue
-        role = "לקוח" if msg.role == "user" else "סוכן"
+        role = speaker_label(msg.role)
         mtype = msg.message_type or "text"
         prefix = f"[{mtype}] " if mtype != "text" else ""
         raw = msg.content or ""

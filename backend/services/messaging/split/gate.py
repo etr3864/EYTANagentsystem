@@ -21,4 +21,7 @@ def chat_halted(ctx: TurnContext) -> bool:
         agent = agents.get_by_id(db, ctx.agent_id)
         if agent is None or not agent.is_active:
             return True
+        from backend.services.silence.policy import blocks_reply
+        if blocks_reply(db, agent, ctx.phone):
+            return True
     return False

@@ -181,7 +181,7 @@ export const messageColumns = [
   )},
   { key: 'role', header: 'תפקיד', render: (m: DbMessage) => (
     <TagCell
-      label={m.role === 'user' ? '👤 User' : '🤖 AI'}
+      label={m.role === 'user' ? '👤 User' : m.role === 'owner' ? '📱 טלפון' : '🤖 AI'}
       style={m.role === 'user' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-[var(--acc)]/10 text-[var(--acc)]'}
     />
   )},

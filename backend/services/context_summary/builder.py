@@ -97,13 +97,13 @@ def get_last_message_id(
 
 
 def _format_messages(msgs: list[Message]) -> str:
-    from backend.services.messaging.visibility import visible_to_llm
+    from backend.services.messaging.visibility import speaker_label, visible_to_llm
 
     lines = []
     for m in msgs:
         if not visible_to_llm(m.message_type):
             continue
-        role = "לקוח" if m.role == "user" else "סוכן"
+        role = speaker_label(m.role)
         mtype = m.message_type or "text"
         prefix = f"[{mtype}] " if mtype != "text" else ""
         content = (m.content or "")[:500]

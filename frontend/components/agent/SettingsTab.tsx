@@ -6,6 +6,7 @@ import { ModelSelect } from '@/components/ui/ModelSelect';
 import { getModel, THINKING_LABELS } from '@/lib/models';
 import type { AgentBatchingConfig, AgentSplitConfig, ContextSummaryConfig, CustomApiKeys } from '@/lib/types';
 import { SplitSettings } from './SplitSettings';
+import { SilenceCard } from './SilenceCard';
 
 interface SettingsTabProps {
   agentId: number;
@@ -28,21 +29,31 @@ interface SettingsTabProps {
   onSave: () => void;
   saving: boolean;
   onNavigateToChannels?: () => void;
+  advanced?: boolean;
 }
 
 export function SettingsTab({
-  name, model, thinkingLevel, batchingConfig, splitConfig, maxToolRounds,
+  agentId, name, model, thinkingLevel, batchingConfig, splitConfig, maxToolRounds,
   customApiKeys, contextSummaryConfig, onNameChange,
   onModelChange, onThinkingLevelChange, onBatchingConfigChange, onSplitConfigChange, onMaxToolRoundsChange,
   onCustomApiKeysChange, onContextSummaryConfigChange, onSave, saving,
-  onNavigateToChannels,
+  onNavigateToChannels, advanced = true,
 }: SettingsTabProps) {
+  if (!advanced) {
+    return (
+      <div className="space-y-6">
+        <SilenceCard agentId={agentId} />
+      </div>
+    );
+  }
+
   const modelDef = getModel(model);
   const thinkingOptions = modelDef.thinkingOptions;
   const isOpenAI = modelDef.provider === 'OpenAI';
 
   return (
     <div className="space-y-6">
+      <SilenceCard agentId={agentId} />
       {/* Agent Details */}
       <Card>
         <CardHeader>פרטי סוכן</CardHeader>

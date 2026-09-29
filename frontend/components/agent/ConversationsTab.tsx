@@ -138,6 +138,7 @@ export function ConversationsTab({
                 </button>
               </div>
               <ChatView
+                agentId={agentId}
                 messages={messages}
                 conversationId={selectedId}
                 isPaused={selectedConv?.is_paused}

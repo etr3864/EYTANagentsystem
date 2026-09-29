@@ -15,7 +15,7 @@ class Message(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     conversation_id: Mapped[int] = mapped_column(ForeignKey("conversations.id"), index=True)
-    role: Mapped[str] = mapped_column(String(10))  # 'user' or 'assistant'
+    role: Mapped[str] = mapped_column(String(10))  # user, assistant, or owner
     content: Mapped[str] = mapped_column(Text)
     message_type: Mapped[Optional[str]] = mapped_column(String(20), default="text")
     

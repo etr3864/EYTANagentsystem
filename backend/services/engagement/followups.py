@@ -183,6 +183,10 @@ def _create_if_eligible(db: Session, agent_id: int, conv_id: int, now: datetime)
     user = db.get(User, conv.user_id)
     if user and str(user.phone or "").endswith("@g.us"):
         return False
+    if user:
+        from backend.services.silence.policy import blocks_reply
+        if blocks_reply(db, agent, user.phone):
+            return False
 
     if not conv.last_customer_message_at:
         return False
@@ -403,6 +407,11 @@ async def _process_single(db: Session, fu: ScheduledFollowup) -> None:
         return
 
     if conv.opted_out or conv.is_paused or not agent.is_active:
+        fu.status = FollowupStatus.CANCELLED
+        return
+
+    from backend.services.silence.policy import blocks_reply
+    if blocks_reply(db, agent, user.phone):
         fu.status = FollowupStatus.CANCELLED
         return
 

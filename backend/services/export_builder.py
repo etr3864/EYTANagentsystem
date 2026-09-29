@@ -387,7 +387,7 @@ def _format_conversation(
     events: list[tuple[datetime, str]] = []
 
     for msg in messages:
-        prefix = "customer" if msg.role == "user" else "agent"
+        prefix = {"user": "customer", "owner": "owner"}.get(msg.role, "agent")
         events.append((msg.created_at, f"{prefix}: {_format_content(msg)}"))
 
     for fu in followups:

@@ -80,7 +80,9 @@ async def reply(ctx: TurnContext, inputs: PromptInputs) -> Optional[ModelReply]:
         )
     except Exception as error:
         log_error(ctx.provider, f"ai failed: {str(error)[:120]}")
-        await ctx.outbound.send_message(ctx.phone, ERROR_REPLY)
+        from backend.services.silence.policy import turn_blocked
+        if not turn_blocked(ctx.agent_id, ctx.phone):
+            await ctx.outbound.send_message(ctx.phone, ERROR_REPLY)
         return None
 
     return ModelReply(text=text, usage=usage, media_actions=media_actions)

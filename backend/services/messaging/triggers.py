@@ -198,6 +198,9 @@ def resolve_user_and_conversation(
 async def deliver_wasender_message(
     db: Session, agent: Agent, user: User, conv: Conversation, text: str
 ) -> tuple[bool, int | None]:
+    from backend.services.silence.policy import blocks_reply
+    if blocks_reply(db, agent, user.phone):
+        return False, None
     if not has_wasender(db, agent):
         return False, None
 

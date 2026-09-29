@@ -397,6 +397,92 @@ def _webhook_secret(db, agent, channel_id: int | None) -> str:
     return ((agent.provider_config or {}).get("webhook_secret") or "").strip()
 
 
+async def _run_contact_upsert(channel_id: int, body: dict) -> None:
+    from backend.services.silence.contacts import apply_upsert
+    try:
+        await asyncio.to_thread(apply_upsert, channel_id, body)
+    except Exception as error:
+        log_error("silence_contacts", str(error)[:80])
+
+
+async def _handle_handset(agent_id: int, msg_data: dict) -> None:
+    try:
+        inbound = await _handset_body(agent_id, msg_data)
+        if inbound is None:
+            return
+        await asyncio.to_thread(_save_handset, agent_id, msg_data, inbound)
+    except Exception as error:
+        log_error("silence_phone", str(error)[:80])
+
+
+async def _handset_body(agent_id: int, msg_data: dict) -> Optional[_InboundMedia]:
+    db = SessionLocal()
+    try:
+        agent = agents.get_by_id(db, agent_id)
+        if not agent or agent.provider != "wasender" or agent.phone_silence_minutes is None:
+            return None
+        creds = _resolve_credentials(db, agent)
+        agent_name = agent.name
+    finally:
+        db.close()
+    return await _owner_media(creds.api_key, msg_data, agent_id, agent_name)
+
+
+async def _owner_media(
+    api_key: str, msg_data: dict, agent_id: int, agent_name: str,
+) -> _InboundMedia:
+    kind = msg_data.get("msg_type")
+    if kind == "audio":
+        return await _process_audio(api_key, msg_data, agent_id, agent_name, understand=False)
+    if kind == "image":
+        return await _process_image(api_key, msg_data, agent_id, agent_name, understand=False)
+    if kind == "video":
+        return await _process_video(api_key, msg_data, agent_id, agent_name, understand=False)
+    if kind == "document":
+        return await _process_document(api_key, msg_data, agent_id, understand=False)
+    return _InboundMedia((msg_data.get("text") or "").strip() or "[הודעה]", "text")
+
+
+def _save_handset(agent_id: int, msg_data: dict, inbound: _InboundMedia) -> None:
+    from backend.services.entities import conversations, users
+    from backend.services.messaging import messages
+    from backend.services.silence.phone import arm
+    from backend.services.silence.phones import canonical
+
+    db = SessionLocal()
+    try:
+        agent = agents.get_by_id(db, agent_id)
+        if not agent or agent.phone_silence_minutes is None:
+            return
+        phone = canonical(msg_data.get("phone") or "")
+        if not phone:
+            return
+        channel = get_channel_by_type(db, agent.id, "whatsapp_wasender")
+        user = users.get_or_create(db, phone, None)
+        conv = conversations.get_or_create(db, agent.id, user.id)
+        if channel is not None and conv.channel_id is None:
+            conv.channel_id = channel.id
+        if not conv.channel_type_snapshot:
+            conv.channel_type_snapshot = "whatsapp_wasender"
+        messages.add_no_commit(
+            db,
+            conv.id,
+            "owner",
+            inbound.text or "[הודעה]",
+            message_type=inbound.msg_type or "text",
+            media_url=inbound.media_url,
+            media_too_large=inbound.media_too_large,
+            provider_msg_id=msg_data.get("provider_msg_id"),
+        )
+        arm(conv, agent)
+        db.commit()
+    except Exception as error:
+        db.rollback()
+        log_error("silence_phone", str(error)[:80])
+    finally:
+        db.close()
+
+
 async def _receive_webhook(
     agent_id: int,
     request: Request,
@@ -424,6 +510,21 @@ async def _receive_webhook(
             channel = resolve_channel(db, agent_id, channel_id)
             if channel:
                 await apply_event(db, channel, body)
+            return {"status": "ok"}
+
+        if event == "contacts.upsert":
+            if agent.skip_saved_contacts:
+                channel = resolve_channel(db, agent_id, channel_id)
+                if channel:
+                    asyncio.create_task(_run_contact_upsert(channel.id, body))
+            return {"status": "ok"}
+
+        handset = wasender.extract_handset_message(body)
+        if handset:
+            if agent.phone_silence_minutes is not None:
+                message_id = handset.get("provider_msg_id") or ""
+                if not is_duplicate(message_id):
+                    asyncio.create_task(_handle_handset(agent_id, handset))
             return {"status": "ok"}
 
         group_data = wasender.extract_group_message(body)

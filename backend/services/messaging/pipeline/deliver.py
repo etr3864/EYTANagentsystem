@@ -36,6 +36,9 @@ def _drop_leading_caption(text: str, caption: str) -> str:
 
 
 async def send(ctx: TurnContext, reply: ModelReply) -> None:
+    from backend.services.silence.policy import turn_blocked
+    if turn_blocked(ctx.agent_id, ctx.phone):
+        return
     text = followup_after_captions(reply.media_actions, reply.text)
     await dispatch_media(ctx, reply.media_actions)
     log_response(

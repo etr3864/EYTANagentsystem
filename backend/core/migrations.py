@@ -26,6 +26,7 @@ def run_all(conn):
     _escalation_groups(conn)
     _channel_user_staff_note(conn)
     _message_group_sender(conn)
+    _silence(conn)
     conn.commit()
 
 
@@ -820,5 +821,46 @@ def _message_group_sender(conn):
         EXCEPTION
             WHEN duplicate_column THEN null;
         END $$;
+    """))
+
+
+def _silence(conn):
+    for statement in (
+        "ALTER TABLE agents ADD COLUMN phone_silence_minutes INTEGER",
+        "ALTER TABLE agents ADD COLUMN skip_saved_contacts BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE conversations ADD COLUMN owner_silence_until TIMESTAMP",
+        "ALTER TABLE conversations ADD COLUMN owner_silence_forever BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE agent_channels ADD COLUMN contacts_synced_at TIMESTAMP",
+    ):
+        conn.execute(text(f"""
+            DO $$ BEGIN
+                {statement};
+            EXCEPTION
+                WHEN duplicate_column THEN null;
+            END $$;
+        """))
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS blocked_numbers (
+            id SERIAL PRIMARY KEY,
+            agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+            phone VARCHAR(20) NOT NULL,
+            CONSTRAINT uq_blocked_agent_phone UNIQUE (agent_id, phone)
+        )
+    """))
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_blocked_numbers_agent ON blocked_numbers(agent_id)
+    """))
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS saved_contacts (
+            id SERIAL PRIMARY KEY,
+            channel_id INTEGER NOT NULL REFERENCES agent_channels(id) ON DELETE CASCADE,
+            phone VARCHAR(20) NOT NULL,
+            name VARCHAR(120) NOT NULL,
+            excluded BOOLEAN NOT NULL DEFAULT FALSE,
+            CONSTRAINT uq_saved_contact_channel_phone UNIQUE (channel_id, phone)
+        )
+    """))
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS ix_saved_contacts_channel ON saved_contacts(channel_id)
     """))
 

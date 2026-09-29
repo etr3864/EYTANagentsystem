@@ -493,6 +493,61 @@ def extract_message_data(payload: dict) -> Optional[dict]:
         return None
 
 
+_HANDSET_LABELS = {
+    "stickerMessage": ("image", "[סטיקר]"),
+    "contactMessage": ("text", "[איש קשר]"),
+    "contactsArrayMessage": ("text", "[איש קשר]"),
+}
+
+
+def extract_handset_message(payload: dict) -> Optional[dict]:
+    """Phone or WhatsApp Web send: fromMe, no numeric msgId.
+
+    Dashboard and API sends carry msgId and stay out of this path.
+    Reactions, edits and deletes have no content here and return None.
+    """
+    try:
+        if payload.get("event") != "messages.upsert":
+            return None
+        messages_data = _messages_blob(payload)
+        if not messages_data:
+            return None
+        key = messages_data.get("key") or {}
+        if not key.get("fromMe"):
+            return None
+        if str(key.get("msgId") or "").strip().isdigit():
+            return None
+        remote = str(key.get("remoteJid") or "")
+        if "@g.us" in remote or "@broadcast" in remote or "@newsletter" in remote:
+            return None
+        phone = normalize_phone(
+            key.get("cleanedSenderPn") or key.get("senderPn") or key.get("remoteJid") or ""
+        )
+        if not phone:
+            return None
+        raw_message = messages_data.get("message") or {}
+        message = _unwrap_message(raw_message)
+        result = {
+            "phone": phone,
+            "name": "",
+            "timestamp": messages_data.get("messageTimestamp", 0),
+            "message_key": key,
+            "message_data": raw_message,
+            "provider_msg_id": str(key.get("id") or "") or None,
+        }
+        if _apply_message_kind(result, message, messages_data):
+            return result
+        for name, (kind, label) in _HANDSET_LABELS.items():
+            if message.get(name):
+                result["msg_type"] = kind
+                result["text"] = label
+                return result
+        return None
+    except Exception as e:
+        log_error("wasender", f"handset: {str(e)[:60]}")
+        return None
+
+
 def extract_group_message(payload: dict) -> Optional[dict]:
     """Group inbound. Docs: event messages-group.received, remoteJid=@g.us, sender=cleanedParticipantPn."""
     try:

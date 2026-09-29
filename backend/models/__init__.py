@@ -19,6 +19,8 @@ from backend.models.escalation import AgentEscalationReason, EscalationCooldown
 from backend.models.playground_link import PlaygroundLink
 from backend.models.system_secret import SystemSecret
 from backend.models.wasender_qr_link import WasenderQrLink
+from backend.models.blocked_number import BlockedNumber
+from backend.models.saved_contact import SavedContact
 
 # Auth models (imported last to avoid circular imports)
 from backend.auth.models import AuthUser, UserRole, McpToken

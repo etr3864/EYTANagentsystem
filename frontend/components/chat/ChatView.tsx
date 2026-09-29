@@ -5,6 +5,7 @@ import type { Message, WhatsAppTemplate } from '@/lib/types';
 import { parseUTCDate } from '@/lib/dates';
 import { PauseIcon, PlayIcon } from '@/components/ui/Icons';
 import { ChatBubble, canQuote, quotePreview } from './ChatBubble';
+import { SilenceBar } from './SilenceBar';
 import { Composer, type TemplateSendPayload } from './Composer';
 import { getCapabilities } from '@/lib/channels';
 import { customerWindowOpen } from '@/lib/whatsappWindow';
@@ -22,6 +23,7 @@ interface ChatViewProps {
   onSendTemplate?: (payload: TemplateSendPayload) => Promise<void>;
   onTogglePause?: () => Promise<void>;
   onSenderClick?: (phone: string, name: string) => void;
+  agentId?: number;
 }
 
 export function ChatView({
@@ -37,6 +39,7 @@ export function ChatView({
   onSendTemplate,
   onTogglePause,
   onSenderClick,
+  agentId,
 }: ChatViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevMessageCount = useRef<number>(0);
@@ -132,6 +135,10 @@ export function ChatView({
           הודעות נשמרות אך ה-AI לא מגיב. לחץ &quot;הפעל AI&quot; כדי לחדש.
         </div>
       )}
+
+      {agentId && conversationId ? (
+        <SilenceBar agentId={agentId} conversationId={conversationId} refreshKey={messages.length} />
+      ) : null}
 
       {needsTemplate && (
         <div className="px-4 py-2 bg-[oklch(0.80_0.125_225_/_0.12)] border-b border-[var(--edge)] text-[var(--ink)] text-xs text-center">

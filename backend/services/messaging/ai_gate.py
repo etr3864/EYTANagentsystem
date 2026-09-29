@@ -8,8 +8,12 @@ def should_understand(db: Session, agent, identity: str) -> bool:
 
     Agent off or this chat paused: keep the file in the inbox, skip STT / vision / LLM.
     Unknown identity with an active agent is a new chat — understand it.
+    Silence switches that are off do not change that.
     """
     if not agent or not agent.is_active:
+        return False
+    from backend.services.silence.policy import blocks_reply
+    if blocks_reply(db, agent, identity):
         return False
     user = users.get_by_phone(db, identity)
     if not user:

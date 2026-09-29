@@ -27,6 +27,7 @@ interface ChatBubbleProps {
 export function ChatBubble({ msg, showDate, onQuote, onSenderClick }: ChatBubbleProps) {
   const msgDate = parseUTCDate(msg.created_at);
   const isUser = msg.role === 'user';
+  const isOwner = msg.role === 'owner';
   const isImage = msg.message_type === 'image';
   const isVideo = msg.message_type === 'video';
   const isManual = msg.message_type === 'manual';
@@ -74,6 +75,11 @@ export function ChatBubble({ msg, showDate, onQuote, onSenderClick }: ChatBubble
           {isExternal && (
             <div className="flex items-center gap-2 text-orange-300 text-xs mb-2 pb-2 border-b border-orange-500/20">
               <span>נשלח ללקוח מאוטומציה</span>
+            </div>
+          )}
+          {isOwner && (
+            <div className="flex items-center gap-2 text-sky-300 text-xs mb-2 pb-2 border-b border-sky-500/20">
+              <span>נשלח מהטלפון</span>
             </div>
           )}
           {!isFunction && (msg.sender_name || msg.sender_phone) && isUser && (

@@ -176,9 +176,11 @@ def _get_conversation_text(db: Session, conversation_id: int, max_messages: int 
     # Reverse to chronological order
     messages = list(reversed(messages))
     
+    from backend.services.messaging.visibility import speaker_label
+
     lines = []
     for msg in messages:
-        role = "לקוח" if msg.role == "user" else "סוכן"
+        role = speaker_label(msg.role)
         # Truncate very long messages
         content = (msg.content or "")[:1000]
         lines.append(f"{role}: {content}")

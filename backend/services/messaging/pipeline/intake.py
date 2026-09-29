@@ -7,8 +7,12 @@ from backend.services.messaging.pipeline.context import TurnContext
 
 
 async def store_without_ai(ctx: TurnContext) -> bool:
-    """Paused chat or inactive agent: record the turn, never answer."""
-    if ctx.agent.is_active and not ctx.conversation.is_paused:
+    """Paused chat, inactive agent, or an active silence: record the turn, never answer."""
+    held = (not ctx.agent.is_active) or ctx.conversation.is_paused
+    if not held:
+        from backend.services.silence.policy import turn_blocked
+        held = turn_blocked(ctx.agent_id, ctx.phone)
+    if not held:
         return False
     _persist(ctx)
     log("PAUSED", agent=ctx.agent.name, user=ctx.display_name, msgs=len(ctx.pending))

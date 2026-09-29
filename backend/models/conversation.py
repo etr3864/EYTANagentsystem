@@ -23,6 +23,8 @@ class Conversation(Base):
     channel_type_snapshot: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
     is_paused: Mapped[bool] = mapped_column(Boolean, default=False)
     opted_out: Mapped[bool] = mapped_column(Boolean, default=False)
+    owner_silence_until: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    owner_silence_forever: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     function_state: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     injected_context: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     last_customer_message_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)

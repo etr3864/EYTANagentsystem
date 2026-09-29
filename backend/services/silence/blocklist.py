@@ -1,0 +1,138 @@
+"""Manual numbers the bot never answers. Empty table means no change."""
+import io
+import re
+
+from sqlalchemy.orm import Session
+
+from backend.models.blocked_number import BlockedNumber
+from backend.services.silence.phones import canonical
+
+_CHUNK = re.compile(r"\+?\d[\d\s\-()]{6,}\d")
+_MAX_NUMBERS = 20000
+PAGE_SIZE = 50
+
+
+def page(db: Session, agent_id: int, page_number: int) -> dict:
+    page_number = max(page_number, 1)
+    query = db.query(BlockedNumber).filter(BlockedNumber.agent_id == agent_id)
+    total = query.count()
+    rows = (
+        query.order_by(BlockedNumber.phone)
+        .offset((page_number - 1) * PAGE_SIZE)
+        .limit(PAGE_SIZE)
+        .all()
+    )
+    return {
+        "items": [row.phone for row in rows],
+        "total": total,
+        "page": page_number,
+        "page_size": PAGE_SIZE,
+    }
+
+
+def add_one(db: Session, agent_id: int, raw: str) -> str:
+    number = canonical(raw)
+    if not number:
+        raise ValueError("invalid_phone")
+    _insert(db, agent_id, [number])
+    return number
+
+
+def replace_one(db: Session, agent_id: int, old: str, new: str) -> str:
+    current = canonical(old)
+    number = canonical(new)
+    if not current or not number:
+        raise ValueError("invalid_phone")
+    row = (
+        db.query(BlockedNumber)
+        .filter(BlockedNumber.agent_id == agent_id, BlockedNumber.phone == current)
+        .first()
+    )
+    if row is None:
+        raise ValueError("missing_phone")
+    if number != current:
+        taken = (
+            db.query(BlockedNumber.id)
+            .filter(BlockedNumber.agent_id == agent_id, BlockedNumber.phone == number)
+            .first()
+        )
+        if taken is not None:
+            raise ValueError("duplicate_phone")
+        row.phone = number
+    return number
+
+
+def remove(db: Session, agent_id: int, raw: str) -> None:
+    number = canonical(raw)
+    if not number:
+        return
+    db.query(BlockedNumber).filter(
+        BlockedNumber.agent_id == agent_id,
+        BlockedNumber.phone == number,
+    ).delete(synchronize_session=False)
+
+
+def import_numbers(db: Session, agent_id: int, raw_text: str, *, replace: bool) -> int:
+    numbers = parse_numbers(raw_text)
+    if len(numbers) > _MAX_NUMBERS:
+        raise ValueError("too_many")
+    if replace:
+        db.query(BlockedNumber).filter(BlockedNumber.agent_id == agent_id).delete(
+            synchronize_session=False
+        )
+    _insert(db, agent_id, numbers)
+    return len(numbers)
+
+
+def parse_numbers(raw_text: str) -> list[str]:
+    found: list[str] = []
+    seen: set[str] = set()
+    for match in _CHUNK.findall(raw_text or ""):
+        number = canonical(match)
+        if number and number not in seen:
+            seen.add(number)
+            found.append(number)
+    return found
+
+
+def text_from_upload(filename: str, payload: bytes) -> str:
+    name = (filename or "").lower()
+    if name.endswith(".xlsx"):
+        return _xlsx_text(payload)
+    for encoding in ("utf-8-sig", "cp1255", "latin-1"):
+        try:
+            return payload.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    return ""
+
+
+def _xlsx_text(payload: bytes) -> str:
+    from openpyxl import load_workbook
+
+    book = load_workbook(io.BytesIO(payload), read_only=True, data_only=True)
+    parts: list[str] = []
+    try:
+        for sheet in book.worksheets:
+            for row in sheet.iter_rows(values_only=True):
+                for cell in row:
+                    if cell is not None:
+                        parts.append(str(cell))
+    finally:
+        book.close()
+    return "\n".join(parts)
+
+
+def _insert(db: Session, agent_id: int, numbers: list[str]) -> None:
+    if not numbers:
+        return
+    existing = {
+        row[0]
+        for row in db.query(BlockedNumber.phone)
+        .filter(BlockedNumber.agent_id == agent_id, BlockedNumber.phone.in_(numbers))
+        .all()
+    }
+    for number in numbers:
+        if number not in existing:
+            db.add(BlockedNumber(agent_id=agent_id, phone=number))
+            existing.add(number)

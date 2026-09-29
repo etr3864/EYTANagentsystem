@@ -233,9 +233,11 @@ def _get_conversation_context(db: Session, agent_id: int, user_id: int, limit: i
         return ""
     
     # Format messages (oldest first for context)
+    from backend.services.messaging.visibility import speaker_label
+
     lines = []
     for msg in reversed(recent):
-        role = "לקוח" if msg.role == "user" else "סוכן"
+        role = speaker_label(msg.role)
         # Truncate long messages
         raw = msg.content or ""
         content = raw[:150] + "..." if len(raw) > 150 else raw
@@ -306,6 +308,10 @@ async def _send_to_customer(
     """Send free-text reminder via WA Sender. Returns (success, error)."""
     if not user.phone:
         return False, "no customer phone"
+
+    from backend.services.silence.policy import blocks_reply
+    if blocks_reply(db, agent, user.phone):
+        return False, "silenced"
 
     if agent.provider != "wasender":
         return False, "meta provider requires template messages"

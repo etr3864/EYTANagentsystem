@@ -51,7 +51,7 @@ const allTabs: TabConfig[] = [
   { id: 'summaries', label: 'סיכומים', group: 'auto', roles: ['super_admin'] },
   { id: 'calendar', label: 'יומן', group: 'system', roles: ['super_admin', 'admin'] },
   { id: 'channels', label: 'ערוצים', group: 'system', roles: ['super_admin', 'admin'] },
-  { id: 'settings', label: 'הגדרות', group: 'system', roles: ['super_admin'] },
+  { id: 'settings', label: 'הגדרות', group: 'system', roles: ['super_admin', 'admin'] },
 ];
 
 function AgentPage() {
@@ -709,6 +709,7 @@ function AgentPage() {
               onContextSummaryConfigChange={setContextSummaryConfig}
               onSave={handleSaveSettings}
               saving={saving}
+              advanced={isSuperAdmin(user)}
               onNavigateToChannels={() => setTab('channels')}
             />
           )}
