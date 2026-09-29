@@ -20,6 +20,7 @@ export function SilenceCard({ agentId }: { agentId: number }) {
   const [contactsOn, setContactsOn] = useState(false);
   const [count, setCount] = useState(0);
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
