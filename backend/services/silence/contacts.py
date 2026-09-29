@@ -23,29 +23,31 @@ def schedule_pull(channel_id: int) -> None:
     loop.create_task(pull_channel(channel_id))
 
 
-async def pull_channel(channel_id: int) -> None:
+async def pull_channel(channel_id: int) -> str | None:
+    """None when the book was stored. A short reason when it was not."""
     with SessionLocal() as db:
         channel = get_channel(db, channel_id)
         if channel is None:
-            return
+            return "אין ערוץ"
         agent = agents.get_by_id(db, channel.agent_id)
         if agent is None or not agent.skip_saved_contacts:
-            return
+            return "הפנקס כבוי"
         try:
             api_key = (get_credentials(channel).get("api_key") or "").strip()
         except Exception:
             api_key = ""
         if not api_key:
             log_error("silence_contacts", f"channel {channel_id} has no session key")
-            return
+            return "אין מפתח לסשן"
     try:
         body = await request("GET", "/contacts", api_key, timeout=60)
         rows = pairs_from_list(body)
     except Exception as error:
         log_error("silence_contacts", f"pull {channel_id}: {str(error)[:80]}")
-        return
+        return "וואסנדר לא החזיר את אנשי הקשר"
     await asyncio.to_thread(_store_pull, channel_id, rows)
     log("silence_contacts", channel_id=channel_id, rows=len(rows))
+    return None
 
 
 def _store_pull(channel_id: int, rows: list[tuple[str, str]]) -> None:
@@ -116,9 +118,27 @@ def note_rows(db: Session, channel_id: int, payload: dict) -> bool:
 
 
 def pairs_from_list(body) -> list[tuple[str, str]]:
-    if not isinstance(body, dict) or not isinstance(body.get("data"), list):
+    raw = _contact_list(body)
+    if raw is None:
         raise ValueError("contacts payload")
-    return _pairs(body["data"])
+    return _pairs(raw)
+
+
+def _contact_list(body) -> list | None:
+    if not isinstance(body, dict):
+        return None
+    data = body.get("data")
+    if isinstance(data, list):
+        return data
+    if isinstance(data, dict):
+        for key in ("contacts", "data", "items"):
+            inner = data.get(key)
+            if isinstance(inner, list):
+                return inner
+    contacts = body.get("contacts")
+    if isinstance(contacts, list):
+        return contacts
+    return None
 
 
 def pairs_from_upsert(payload: dict) -> list[tuple[str, str]]:

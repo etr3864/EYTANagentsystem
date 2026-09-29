@@ -97,6 +97,8 @@ def parse_numbers(raw_text: str) -> list[str]:
 
 def text_from_upload(filename: str, payload: bytes) -> str:
     name = (filename or "").lower()
+    if name.endswith(".xls") and not name.endswith(".xlsx"):
+        raise ValueError("שמור את האקסל כ-xlsx או csv")
     if name.endswith(".xlsx"):
         return _xlsx_text(payload)
     for encoding in ("utf-8-sig", "cp1255", "latin-1"):
@@ -110,7 +112,10 @@ def text_from_upload(filename: str, payload: bytes) -> str:
 def _xlsx_text(payload: bytes) -> str:
     from openpyxl import load_workbook
 
-    book = load_workbook(io.BytesIO(payload), read_only=True, data_only=True)
+    try:
+        book = load_workbook(io.BytesIO(payload), read_only=True, data_only=True)
+    except Exception as error:
+        raise ValueError("לא הצלחנו לקרוא את האקסל") from error
     parts: list[str] = []
     try:
         for sheet in book.worksheets:

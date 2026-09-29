@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button, ListPager } from '@/components/ui';
 import {
   addBlocked,
@@ -25,7 +25,8 @@ export function BlocklistPanel({
   const [total, setTotal] = useState(0);
   const [pageSize, setPageSize] = useState(50);
   const [draft, setDraft] = useState('');
-  const [file, setFile] = useState<File | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const fileMode = useRef<'append' | 'replace'>('append');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -54,6 +55,11 @@ export function BlocklistPanel({
     } finally {
       setBusy(false);
     }
+  }
+
+  function openFile(mode: 'append' | 'replace') {
+    fileMode.current = mode;
+    fileRef.current?.click();
   }
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -85,11 +91,16 @@ export function BlocklistPanel({
             <Button
               type="button"
               size="sm"
-              disabled={busy || !draft.trim()}
+              disabled={busy}
               onClick={() => run(async () => {
                 const raw = draft.trim();
-                if (/[\s,;]/.test(raw)) await importBlocklist(agentId, 'append', null, raw);
-                else await addBlocked(agentId, raw);
+                if (!raw) throw new Error('כתוב מספר, או הדבק כמה');
+                if (/[\s,;]/.test(raw)) {
+                  const imported = await importBlocklist(agentId, 'append', null, raw);
+                  if (imported === 0) throw new Error('לא נמצאו מספרים');
+                } else {
+                  await addBlocked(agentId, raw);
+                }
                 setDraft('');
               })}
             >
@@ -98,35 +109,26 @@ export function BlocklistPanel({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <input
+              ref={fileRef}
               type="file"
-              accept=".txt,.csv,.xlsx,text/plain,text/csv"
-              onChange={(event) => setFile(event.target.files?.[0] || null)}
+              accept=".txt,.csv,.xlsx,.xls"
+              className="hidden"
+              onChange={(event) => {
+                const chosen = event.target.files?.[0];
+                event.target.value = '';
+                if (!chosen) return;
+                const mode = fileMode.current;
+                run(async () => {
+                  const imported = await importBlocklist(agentId, mode, chosen, '');
+                  if (imported === 0) throw new Error('לא נמצאו מספרים בקובץ');
+                  if (mode === 'replace') setPage(1);
+                });
+              }}
             />
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              disabled={busy || !file}
-              onClick={() => run(async () => {
-                if (!file) return;
-                await importBlocklist(agentId, 'append', file, '');
-                setFile(null);
-              })}
-            >
+            <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={() => openFile('append')}>
               הוסף מהקובץ
             </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="danger"
-              disabled={busy || !file}
-              onClick={() => run(async () => {
-                if (!file) return;
-                await importBlocklist(agentId, 'replace', file, '');
-                setFile(null);
-                setPage(1);
-              })}
-            >
+            <Button type="button" size="sm" variant="danger" disabled={busy} onClick={() => openFile('replace')}>
               החלף את הרשימה
             </Button>
           </div>

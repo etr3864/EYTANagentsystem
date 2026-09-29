@@ -116,7 +116,9 @@ async def refresh_contacts(
     channel = get_channel_by_type(db, agent.id, "whatsapp_wasender")
     if channel is None:
         raise HTTPException(status_code=400, detail="no_channel")
-    await contacts.pull_channel(channel.id)
+    reason = await contacts.pull_channel(channel.id)
+    if reason:
+        raise HTTPException(status_code=400, detail=reason)
     db.refresh(channel)
     return _policy(db, agent)
 
@@ -191,12 +193,12 @@ async def import_blocked(
     if mode not in ("replace", "append"):
         raise HTTPException(status_code=422, detail="mode")
     raw = text or ""
-    if file is not None:
-        payload = await file.read(_MAX_UPLOAD + 1)
-        if len(payload) > _MAX_UPLOAD:
-            raise HTTPException(status_code=413, detail="file_too_large")
-        raw = blocklist.text_from_upload(file.filename or "", payload)
     try:
+        if file is not None:
+            payload = await file.read(_MAX_UPLOAD + 1)
+            if len(payload) > _MAX_UPLOAD:
+                raise HTTPException(status_code=413, detail="file_too_large")
+            raw = blocklist.text_from_upload(file.filename or "", payload)
         count = blocklist.import_numbers(db, agent_id, raw, replace=mode == "replace")
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error

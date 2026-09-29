@@ -53,7 +53,6 @@ export function SettingsTab({
 
   return (
     <div className="space-y-6">
-      <SilenceCard agentId={agentId} />
       {/* Agent Details */}
       <Card>
         <CardHeader>פרטי סוכן</CardHeader>
@@ -244,6 +243,8 @@ export function SettingsTab({
           </div>
         )}
       </Card>
+
+      <SilenceCard agentId={agentId} />
 
       {/* Custom API Keys */}
       <Card>

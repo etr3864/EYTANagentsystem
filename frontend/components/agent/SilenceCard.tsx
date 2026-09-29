@@ -20,7 +20,7 @@ export function SilenceCard({ agentId }: { agentId: number }) {
   const [contactsOn, setContactsOn] = useState(false);
   const [count, setCount] = useState(0);
   const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     getSilence(agentId).then((data) => {
@@ -41,6 +41,7 @@ export function SilenceCard({ agentId }: { agentId: number }) {
   async function save() {
     setBusy(true);
     setError('');
+    setSaved(false);
     try {
       const next = await saveSilence(agentId, {
         phone_silence_minutes: minutesValue(),
@@ -48,7 +49,9 @@ export function SilenceCard({ agentId }: { agentId: number }) {
       });
       setPolicy(next);
       setCount(next.blocklist_count);
+      setSaved(true);
     } catch (err) {
+      setSaved(false);
       setError(err instanceof Error ? err.message : 'שגיאה');
     } finally {
       setBusy(false);
@@ -58,8 +61,20 @@ export function SilenceCard({ agentId }: { agentId: number }) {
   async function refresh() {
     setBusy(true);
     setError('');
+    setSaved(false);
     try {
-      setPolicy(await refreshContacts(agentId));
+      if (!policy?.skip_saved_contacts) {
+        if (!contactsOn) throw new Error('סמן «דולק» לפני הרענון');
+        const savedPolicy = await saveSilence(agentId, {
+          phone_silence_minutes: minutesValue(),
+          skip_saved_contacts: true,
+        });
+        setPolicy(savedPolicy);
+      }
+      const next = await refreshContacts(agentId);
+      setPolicy(next);
+      setContactsOn(next.skip_saved_contacts);
+      setSaved(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'שגיאה');
     } finally {
@@ -113,7 +128,7 @@ export function SilenceCard({ agentId }: { agentId: number }) {
             />
             דולק
           </label>
-          <Button type="button" size="sm" variant="secondary" disabled={busy || !contactsLive} onClick={refresh}>
+          <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={refresh}>
             רענון מהסשן
           </Button>
           {contactsLive && !policy?.contacts_synced_at && (
@@ -128,7 +143,8 @@ export function SilenceCard({ agentId }: { agentId: number }) {
           <BlocklistPanel agentId={agentId} count={count} onCount={setCount} />
         </Row>
 
-        {error && <p className="text-xs text-rose-400">{error}</p>}
+        {error && <p className="text-sm text-rose-400">{error}</p>}
+        {saved && !error && <p className="text-sm text-emerald-500">נשמר</p>}
         <Button type="button" onClick={save} disabled={busy || !policy} loading={busy}>
           שמור שתיקה
         </Button>
