@@ -36,6 +36,11 @@ class BlockedPhoneEdit(BaseModel):
     new_phone: str
 
 
+class BlockedRemoveIn(BaseModel):
+    phones: list[str] = []
+    all: bool = False
+
+
 def _agent(db: Session, agent_id: int):
     agent = agents.get_by_id(db, agent_id)
     if not agent:
@@ -176,6 +181,25 @@ def delete_blocked(
 ):
     _agent(db, agent_id)
     blocklist.remove(db, agent_id, phone)
+    db.commit()
+    return {"status": "ok"}
+
+
+@router.post("/{agent_id}/blocklist/remove")
+def remove_blocked(
+    agent_id: int,
+    body: BlockedRemoveIn,
+    _: AuthUser = Depends(require_admin_or_above()),
+    db: Session = Depends(get_db),
+):
+    _agent(db, agent_id)
+    try:
+        if body.all:
+            blocklist.remove_all(db, agent_id)
+        else:
+            blocklist.remove_many(db, agent_id, body.phones)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
     db.commit()
     return {"status": "ok"}
 

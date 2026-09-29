@@ -78,6 +78,19 @@ export async function editBlocked(agentId: number, phone: string, newPhone: stri
   await read(res, 'לא הצלחנו לעדכן');
 }
 
+export async function deleteBlockedMany(
+  agentId: number,
+  phones: string[],
+  all = false,
+): Promise<void> {
+  const res = await authFetch(`${API_URL}/api/agents/${agentId}/blocklist/remove`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(all ? { all: true, phones: [] } : { all: false, phones }),
+  });
+  await read(res, 'לא הצלחנו למחוק');
+}
+
 export async function deleteBlocked(agentId: number, phone: string): Promise<void> {
   const res = await authFetch(
     `${API_URL}/api/agents/${agentId}/blocklist?phone=${encodeURIComponent(phone)}`,

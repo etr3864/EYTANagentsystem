@@ -5,6 +5,7 @@ import { Button, ListPager } from '@/components/ui';
 import {
   addBlocked,
   deleteBlocked,
+  deleteBlockedMany,
   editBlocked,
   getBlocklist,
   importBlocklist,
@@ -29,15 +30,24 @@ export function BlocklistPanel({
   const fileMode = useRef<'append' | 'replace'>('append');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
 
   async function load(nextPage = page) {
-    const data = await getBlocklist(agentId, nextPage);
+    let data = await getBlocklist(agentId, nextPage);
+    if (data.items.length === 0 && data.total > 0 && data.page > 1) {
+      const last = Math.max(1, Math.ceil(data.total / data.page_size));
+      data = await getBlocklist(agentId, last);
+    }
     setItems(data.items);
     setTotal(data.total);
     setPage(data.page);
     setPageSize(data.page_size);
     onCount(data.total);
   }
+
+  useEffect(() => {
+    setPicked(new Set());
+  }, [agentId]);
 
   useEffect(() => {
     if (!open) return;
@@ -60,6 +70,36 @@ export function BlocklistPanel({
   function openFile(mode: 'append' | 'replace') {
     fileMode.current = mode;
     fileRef.current?.click();
+  }
+
+  const pageAll = items.length > 0 && items.every((phone) => picked.has(phone));
+  const pageSome = items.some((phone) => picked.has(phone));
+
+  function togglePhone(phone: string) {
+    setPicked((current) => {
+      const next = new Set(current);
+      if (next.has(phone)) next.delete(phone);
+      else next.add(phone);
+      return next;
+    });
+  }
+
+  function togglePage() {
+    setPicked((current) => {
+      const next = new Set(current);
+      const every = items.every((phone) => next.has(phone));
+      items.forEach((phone) => (every ? next.delete(phone) : next.add(phone)));
+      return next;
+    });
+  }
+
+  function dropPicked(phone: string) {
+    setPicked((current) => {
+      if (!current.has(phone)) return current;
+      const next = new Set(current);
+      next.delete(phone);
+      return next;
+    });
   }
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -121,7 +161,10 @@ export function BlocklistPanel({
                 run(async () => {
                   const imported = await importBlocklist(agentId, mode, chosen, '');
                   if (imported === 0) throw new Error('לא נמצאו מספרים בקובץ');
-                  if (mode === 'replace') setPage(1);
+                  if (mode === 'replace') {
+                    setPicked(new Set());
+                    setPage(1);
+                  }
                 });
               }}
             />
@@ -136,15 +179,64 @@ export function BlocklistPanel({
           <div className="overflow-hidden rounded-lg border border-[var(--edge)]">
             {items.length === 0 ? (
               <p className="px-3 py-4 text-sm text-[var(--text-muted)]">אין מספרים. הבוט עונה לכולם.</p>
-            ) : items.map((phone) => (
-              <NumberRow
-                key={phone}
-                phone={phone}
-                disabled={busy}
-                onSave={(next) => run(() => editBlocked(agentId, phone, next))}
-                onDelete={() => run(() => deleteBlocked(agentId, phone))}
-              />
-            ))}
+            ) : (
+              <>
+                <div className="flex flex-wrap items-center gap-2 border-b border-[var(--edge)] px-3 py-2">
+                  <PageTick
+                    checked={pageAll}
+                    partial={pageSome}
+                    disabled={busy}
+                    onChange={togglePage}
+                  />
+                  <span className="text-xs text-[var(--text-muted)]">
+                    {total > items.length ? 'בחר הכל בעמוד' : 'בחר הכל'}
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="danger"
+                    disabled={busy || picked.size === 0}
+                    onClick={() => run(async () => {
+                      await deleteBlockedMany(agentId, [...picked]);
+                      setPicked(new Set());
+                    })}
+                  >
+                    מחק נבחרים{picked.size ? ` (${picked.size})` : ''}
+                  </Button>
+                  <button
+                    type="button"
+                    className="text-xs text-rose-400"
+                    disabled={busy || total === 0}
+                    onClick={() => {
+                      if (!window.confirm(`למחוק את כל ${total} המספרים?`)) return;
+                      run(async () => {
+                        await deleteBlockedMany(agentId, [], true);
+                        setPicked(new Set());
+                      });
+                    }}
+                  >
+                    מחק את כל הרשימה
+                  </button>
+                </div>
+                {items.map((phone) => (
+                  <NumberRow
+                    key={phone}
+                    phone={phone}
+                    checked={picked.has(phone)}
+                    disabled={busy}
+                    onToggle={() => togglePhone(phone)}
+                    onSave={(next) => run(async () => {
+                      await editBlocked(agentId, phone, next);
+                      dropPicked(phone);
+                    })}
+                    onDelete={() => run(async () => {
+                      await deleteBlocked(agentId, phone);
+                      dropPicked(phone);
+                    })}
+                  />
+                ))}
+              </>
+            )}
           </div>
           <ListPager page={page} totalPages={totalPages} from={from} to={to} total={total} onPage={setPage} />
         </div>
@@ -153,20 +245,45 @@ export function BlocklistPanel({
   );
 }
 
+function PageTick({
+  checked,
+  partial,
+  disabled,
+  onChange,
+}: {
+  checked: boolean;
+  partial: boolean;
+  disabled: boolean;
+  onChange: () => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = partial && !checked;
+  }, [partial, checked]);
+  return (
+    <input ref={ref} type="checkbox" checked={checked} disabled={disabled} onChange={onChange} />
+  );
+}
+
 function NumberRow({
   phone,
+  checked,
   disabled,
+  onToggle,
   onSave,
   onDelete,
 }: {
   phone: string;
+  checked: boolean;
   disabled: boolean;
+  onToggle: () => void;
   onSave: (phone: string) => void;
   onDelete: () => void;
 }) {
   const [value, setValue] = useState(phone);
   return (
     <div className="flex items-center gap-2 border-b border-[var(--edge)] px-3 py-2 last:border-b-0">
+      <input type="checkbox" checked={checked} disabled={disabled} onChange={onToggle} />
       <input
         className="min-w-0 flex-1 bg-transparent text-sm"
         value={value}

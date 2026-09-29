@@ -66,10 +66,35 @@ def remove(db: Session, agent_id: int, raw: str) -> None:
     number = canonical(raw)
     if not number:
         return
-    db.query(BlockedNumber).filter(
-        BlockedNumber.agent_id == agent_id,
-        BlockedNumber.phone == number,
-    ).delete(synchronize_session=False)
+    _delete_phones(db, agent_id, [number])
+
+
+def remove_many(db: Session, agent_id: int, raw_phones: list[str]) -> None:
+    numbers: list[str] = []
+    seen: set[str] = set()
+    for raw in raw_phones:
+        number = canonical(raw)
+        if number and number not in seen:
+            seen.add(number)
+            numbers.append(number)
+    if len(numbers) > _MAX_NUMBERS:
+        raise ValueError("too_many")
+    _delete_phones(db, agent_id, numbers)
+
+
+def remove_all(db: Session, agent_id: int) -> None:
+    db.query(BlockedNumber).filter(BlockedNumber.agent_id == agent_id).delete(
+        synchronize_session=False
+    )
+
+
+def _delete_phones(db: Session, agent_id: int, numbers: list[str]) -> None:
+    step = 500
+    for start in range(0, len(numbers), step):
+        db.query(BlockedNumber).filter(
+            BlockedNumber.agent_id == agent_id,
+            BlockedNumber.phone.in_(numbers[start:start + step]),
+        ).delete(synchronize_session=False)
 
 
 def import_numbers(db: Session, agent_id: int, raw_text: str, *, replace: bool) -> int:
