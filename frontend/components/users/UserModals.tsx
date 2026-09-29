@@ -5,7 +5,7 @@ import { Button, Input, PasswordInput, Modal } from '@/components/ui';
 import {
   createAdmin, updateAdmin, resetAdminPassword,
   createEmployee, updateEmployee, resetEmployeePassword,
-  getAgents, assignAgentToAdmin, unassignAgentFromAdmin, getUnassignedAgents,
+  getAgents, assignAgentToAdmin, unassignAgentFromAdmin,
   AuthUserResponse, AuthUserWithAgents,
 } from '@/lib/api';
 
@@ -160,13 +160,13 @@ export function ResetPasswordModal({ user: userItem, type, onClose }: {
 }
 
 // ─── Agent Assignment ───────────────────────────────────
-export function AgentAssignmentModal({ admin, onClose, onUpdated }: {
+export function AgentAssignmentModal({ admin, admins, onClose, onUpdated }: {
   admin: AuthUserWithAgents;
+  admins: AuthUserWithAgents[];
   onClose: () => void;
   onUpdated: () => void;
 }) {
   const [allAgents, setAllAgents] = useState<{ id: number; name: string }[]>([]);
-  const [unassignedAgents, setUnassignedAgents] = useState<{ id: number; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
 
@@ -174,9 +174,8 @@ export function AgentAssignmentModal({ admin, onClose, onUpdated }: {
 
   async function loadAgents() {
     try {
-      const [all, unassigned] = await Promise.all([getAgents(), getUnassignedAgents()]);
+      const all = await getAgents();
       setAllAgents(all.map(a => ({ id: a.id, name: a.name })));
-      setUnassignedAgents(unassigned.map(a => ({ id: a.id, name: a.name })));
     } catch (e) {
       console.error(e);
     } finally {
@@ -184,9 +183,18 @@ export function AgentAssignmentModal({ admin, onClose, onUpdated }: {
     }
   }
 
-  const assignedAgents = allAgents.filter(a => admin.agent_ids.includes(a.id));
+  const assignedIds = new Set(admin.agent_ids);
+  const ownerByAgent = new Map<number, string>();
+  for (const row of admins) {
+    if (row.id === admin.id) continue;
+    for (const agentId of row.agent_ids) ownerByAgent.set(agentId, row.name);
+  }
+  const assignedAgents = allAgents.filter(agent => assignedIds.has(agent.id));
+  const otherAgents = allAgents.filter(agent => !assignedIds.has(agent.id));
 
   async function handleAssign(agentId: number) {
+    const owner = ownerByAgent.get(agentId);
+    if (owner && !window.confirm(`הסוכן אצל ${owner}. להעביר אל ${admin.name}?`)) return;
     setActionLoading(agentId);
     try { await assignAgentToAdmin(admin.id, agentId); onUpdated(); }
     catch (e) { alert(e instanceof Error ? e.message : 'שגיאה בשיוך'); }
@@ -224,21 +232,29 @@ export function AgentAssignmentModal({ admin, onClose, onUpdated }: {
             )}
           </div>
 
-          {unassignedAgents.length > 0 && (
-            <div>
-              <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-3">סוכנים זמינים לשיוך</h3>
+          <div>
+            <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-3">שאר הסוכנים</h3>
+            {otherAgents.length === 0 ? (
+              <p className="text-[var(--text-muted)] text-sm">אין סוכנים נוספים</p>
+            ) : (
               <div className="space-y-2">
-                {unassignedAgents.map(agent => (
-                  <div key={agent.id} className="flex justify-between items-center bg-[var(--glass-2)] rounded-lg p-3">
-                    <span className="text-[var(--text-secondary)]">{agent.name}</span>
-                    <Button variant="primary" size="sm" onClick={() => handleAssign(agent.id)} disabled={actionLoading === agent.id}>
-                      {actionLoading === agent.id ? '...' : 'שייך'}
-                    </Button>
-                  </div>
-                ))}
+                {otherAgents.map(agent => {
+                  const owner = ownerByAgent.get(agent.id);
+                  return (
+                    <div key={agent.id} className="flex justify-between items-center gap-3 bg-[var(--glass-2)] rounded-lg p-3">
+                      <div className="min-w-0">
+                        <div className="text-[var(--text-secondary)] truncate">{agent.name}</div>
+                        {owner && <div className="text-xs text-[var(--text-muted)] truncate">אצל {owner}</div>}
+                      </div>
+                      <Button variant="primary" size="sm" onClick={() => handleAssign(agent.id)} disabled={actionLoading === agent.id} className="shrink-0">
+                        {actionLoading === agent.id ? '...' : 'שייך'}
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           <div className="pt-4">
             <Button variant="secondary" onClick={onClose}>סגור</Button>

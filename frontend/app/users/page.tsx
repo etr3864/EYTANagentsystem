@@ -617,6 +617,7 @@ function UsersPage() {
       {showAgentModal && (
         <AgentAssignmentModal
           admin={showAgentModal}
+          admins={admins}
           onClose={() => setShowAgentModal(null)}
           onUpdated={() => {
             setShowAgentModal(null);

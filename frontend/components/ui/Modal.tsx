@@ -19,7 +19,7 @@ export function Modal({ children, onClose, title, wide = false }: ModalProps) {
             <XIcon />
           </button>
         </div>
-        <div className="p-4 min-h-0 overflow-y-auto">
+        <div className="p-4 max-h-[calc(100dvh-7.5rem)] overflow-y-auto overscroll-contain">
           {children}
         </div>
       </div>
