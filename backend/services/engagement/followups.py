@@ -484,7 +484,9 @@ async def _send_as_freetext(
     if not content:
         return False, "AI returned empty content"
 
-    sent = await providers.send_message(agent, user.phone, content)
+    from backend.services.messaging.outbound import send_session_text
+
+    sent = await send_session_text(db, agent, user.phone, content, conv, user)
     if not sent:
         return False, "whatsapp send failed"
 

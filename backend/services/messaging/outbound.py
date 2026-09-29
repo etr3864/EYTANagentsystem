@@ -97,6 +97,38 @@ def recipient_for(db: Session, conv: Conversation, user: User) -> str:
     return user.phone
 
 
+def _session_channel(
+    db: Session, agent: Agent, conv: Conversation | None,
+) -> AgentChannel | None:
+    if conv is not None and conv.channel_id:
+        channel = get_channel(db, conv.channel_id)
+        if (
+            channel is not None
+            and channel.is_active
+            and channel.agent_id == agent.id
+            and channel.channel_type == "whatsapp_wasender"
+        ):
+            return channel
+    return get_channel_by_type(db, agent.id, "whatsapp_wasender")
+
+
+async def send_session_text(
+    db: Session,
+    agent: Agent,
+    phone: str,
+    text: str,
+    conv: Conversation | None = None,
+    user: User | None = None,
+) -> str | None:
+    channel = _session_channel(db, agent, conv)
+    if channel is None:
+        return await providers.send_message(agent, phone, text)
+    to = phone
+    if user is not None and conv is not None and conv.channel_id == channel.id:
+        to = recipient_for(db, conv, user)
+    return await providers.send_channel_message(channel, to, text, db)
+
+
 def resolve_send_channel(db: Session, conv: Conversation) -> Optional[AgentChannel]:
     if not conv.channel_id:
         return None

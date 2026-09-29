@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from backend.models.scheduled_reminder import ScheduledReminder
 from backend.models.appointment import Appointment
 from backend.models.agent import Agent
+from backend.models.conversation import Conversation
 from backend.models.user import User
 from backend.services.channels import providers
 from backend.services.entities import conversations
@@ -304,19 +305,21 @@ async def _send_to_customer(
     user: User,
     content: str,
     db: Session,
+    conv: Conversation | None = None,
 ) -> tuple[bool, str | None]:
     """Send free-text reminder via WA Sender. Returns (success, error)."""
     if not user.phone:
         return False, "no customer phone"
 
     from backend.services.silence.policy import blocks_reply
+    from backend.services.messaging.outbound import send_session_text
     if blocks_reply(db, agent, user.phone):
         return False, "silenced"
 
     if agent.provider != "wasender":
         return False, "meta provider requires template messages"
 
-    sent = await providers.send_message(agent, user.phone, content)
+    sent = await send_session_text(db, agent, user.phone, content, conv, user)
     if not sent:
         return False, "whatsapp send failed"
 
@@ -444,7 +447,7 @@ async def send_reminder(db: Session, reminder: ScheduledReminder) -> bool:
                 usage["input_tokens"], usage["output_tokens"],
                 usage.get("cache_read_tokens", 0), usage.get("cache_creation_tokens", 0),
             )
-        success, err = await _send_to_customer(agent, user, content, db)
+        success, err = await _send_to_customer(agent, user, content, db, conv)
     
     # Update status
     reminder.sent_at = datetime.utcnow()

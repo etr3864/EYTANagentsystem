@@ -333,7 +333,8 @@ async def send_test_reminder(
     else:
         content = _build_from_template(template, variables)
 
-    sent = await providers.send_message(agent, request.phone, content)
+    from backend.services.messaging.outbound import send_session_text
+    sent = await send_session_text(db, agent, request.phone, content)
     if not sent:
         raise HTTPException(500, detail="שליחה נכשלה")
 
