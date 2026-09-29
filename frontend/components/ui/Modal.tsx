@@ -1,5 +1,6 @@
 'use client';
 
+import { createPortal } from 'react-dom';
 import { XIcon } from './Icons';
 
 interface ModalProps {
@@ -10,8 +11,9 @@ interface ModalProps {
 }
 
 export function Modal({ children, onClose, title, wide = false }: ModalProps) {
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+  if (typeof document === 'undefined') return null;
+  return createPortal(
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[80] p-4">
       <div className={`try-glass ${wide ? 'w-full max-w-2xl' : 'w-full max-w-md'} max-h-[calc(100dvh-2rem)] flex flex-col rounded-[26px] overflow-hidden text-[var(--text-primary)]`}>
         <div className="flex shrink-0 justify-between items-center p-4 border-b border-[var(--edge)]">
           <h2 className="text-lg font-semibold">{title}</h2>
@@ -23,6 +25,7 @@ export function Modal({ children, onClose, title, wide = false }: ModalProps) {
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
