@@ -26,6 +26,18 @@ export async function createAgent(data: AgentCreate): Promise<{ id: number; meta
   return res.json();
 }
 
+export async function setAgentActive(id: number, isActive: boolean): Promise<void> {
+  const res = await authFetch(`${API_URL}/api/agents/${id}/active`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ is_active: isActive }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.detail || 'לא ניתן לעדכן את הסטטוס');
+  }
+}
+
 export async function updateAgent(id: number, data: AgentUpdate): Promise<{ id: number; meta_info?: MetaInfo }> {
   const res = await authFetch(`${API_URL}/api/agents/${id}`, {
     method: 'PUT',

@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Agent, getAgents, deleteAgent, updateAgent } from '@/lib/api';
+import { Agent, getAgents, deleteAgent, setAgentActive } from '@/lib/api';
 import { sortActiveRecent, toggleActiveInList } from '@/lib/listOrder';
 import { paginate } from '@/lib/pagination';
 import { Button, Card, PlusIcon, ArrowLeftIcon, TrashIcon, ChannelIcon, ListPager, ListViewport, BELOW_NAV_CLASS } from '@/components/ui';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useAuth } from '@/contexts/AuthContext';
-import { isSuperAdmin } from '@/lib/auth';
+import { isAdmin, isSuperAdmin } from '@/lib/auth';
 import { LegalFooter } from '@/components/ui/LegalModals';
 import { CHANNEL_DISPLAY_NAMES, type ChannelType } from '@/lib/channels';
 
@@ -46,7 +46,7 @@ function HomePage() {
 
   async function handleToggleActive(id: number, currentStatus: boolean) {
     try {
-      await updateAgent(id, { is_active: !currentStatus });
+      await setAgentActive(id, !currentStatus);
       setAgents((prev) => toggleActiveInList(prev, id));
     } catch (e) {
       alert(e instanceof Error ? e.message : 'לא ניתן לעדכן את הסטטוס');
@@ -185,8 +185,7 @@ function HomePage() {
                       </div>
                   </div>
                   <div className="flex items-center gap-2 md:gap-3 self-end sm:self-center shrink-0">
-                    {/* Toggle Switch - Super Admin only */}
-                    {isSuperAdmin(user) && (
+                    {(isSuperAdmin(user) || isAdmin(user)) && (
                       <button
                         onClick={(e) => {
                           e.preventDefault();

@@ -1,5 +1,6 @@
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from backend.core.database import get_db
@@ -8,11 +9,17 @@ from backend.api.schemas import AgentCreate, AgentUpdate
 from backend.models.agent import Agent, DEFAULT_BATCHING_CONFIG
 from backend.services.messaging.split.config import sanitize as sanitize_split
 from backend.auth.models import AuthUser, UserRole
-from backend.auth.dependencies import get_current_user, require_role, AgentAccessChecker
+from backend.auth.dependencies import (
+    get_current_user, require_role, require_admin_or_above, AgentAccessChecker,
+)
 from backend.auth import service as auth_service
 from backend.services.llm.catalog import resolve_model, sanitize_thinking
 
 router = APIRouter(tags=["agents"])
+
+
+class AgentActiveIn(BaseModel):
+    is_active: bool
 
 
 def _mask_key(key: str) -> str:
@@ -171,6 +178,21 @@ def update_agent(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"id": agent.id, "name": agent.name}
+
+
+@router.patch("/{agent_id}/active")
+def set_agent_active(
+    agent_id: int,
+    body: AgentActiveIn,
+    current_user: AuthUser = Depends(require_admin_or_above()),
+    db: Session = Depends(get_db),
+):
+    if not auth_service.can_access_agent(db, current_user, agent_id):
+        raise HTTPException(status_code=403, detail="You don't have access to this agent")
+    if not agents.get_by_id(db, agent_id):
+        raise HTTPException(status_code=404, detail="Agent not found")
+    agents.update(db, agent_id, is_active=body.is_active)
+    return {"id": agent_id, "is_active": body.is_active}
 
 
 @router.delete("/{agent_id}")
