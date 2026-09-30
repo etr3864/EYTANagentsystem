@@ -114,8 +114,8 @@ function Screen() {
 
   return (
     <div className={`flex flex-col ${BELOW_NAV_CLASS}`}>
-      <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col gap-4 px-4 py-4 md:px-6">
-        <div className="shrink-0 space-y-4">
+      <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col gap-2 px-4 py-3 md:px-6">
+        <div className="max-h-[34%] min-h-0 shrink overflow-y-auto overscroll-contain space-y-2">
           <Link href="/campaigns" className="text-xs text-[var(--text-muted)]">קמפיינים</Link>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <span className={`status-dot ${live ? 'active' : 'inactive'}`} />
@@ -126,13 +126,11 @@ function Screen() {
           </div>
           <p className="mt-1 text-sm text-[var(--text-muted)]">{row.agent_name} · {sessionLabel(row.session)}</p>
           {row.pause_reason && <p className="mt-1 text-sm text-[var(--text-secondary)]">{pauseLabel(row.pause_reason)}</p>}
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
             <Stat label="שליחה" value={`${row.send_percent}%`} />
             <Stat label="מענה" value={`${row.reply_percent}%`} />
             <Stat label="נמענים" value={String(row.recipient_count)} />
             {superAdmin && <Stat label="עלות" value={`${row.cost_ils ?? 0} ₪`} hint={`${row.tokens ?? 0} טוקנים · נמסר ${row.delivered_count ?? 0}`} />}
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Stat
               label="בין כל הודעה"
               value={gapText(row.gap_min_seconds, row.gap_max_seconds)}
@@ -193,7 +191,7 @@ function Screen() {
             </Card>
           )}
         </div>
-        <Card padding="lg" className="flex min-h-0 flex-1 flex-col">
+        <Card padding="md" className="flex min-h-0 flex-1 flex-col">
           <Input
             label="חיפוש"
             value={q}
@@ -213,7 +211,7 @@ function Screen() {
               <ListPager page={page} totalPages={totalPages} from={from} to={to} total={total} onPage={setPage} />
             )}
           >
-            <ul className="space-y-2">
+            <ul className="space-y-1.5">
               {people.map((person) => (
                 <PersonRow
                   key={person.phone}
@@ -336,7 +334,7 @@ function PersonRow({
     }
   }
   return (
-    <li className="rounded-2xl border border-[var(--edge)] px-4 py-3">
+    <li className="rounded-2xl border border-[var(--edge)] px-3 py-2">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           {canResend ? (
@@ -467,9 +465,9 @@ function statusTone(status: string) {
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <Card padding="sm">
-      <div className="text-xs text-[var(--text-muted)]">{label}</div>
-      <div className="mt-1 text-xl font-semibold text-[var(--ink)]">{value}</div>
-      {hint && <div className="mt-1 text-xs text-[var(--text-muted)]">{hint}</div>}
+      <div className="text-[11px] text-[var(--text-muted)]">{label}</div>
+      <div className="mt-0.5 text-base font-semibold leading-snug text-[var(--ink)]">{value}</div>
+      {hint && <div className="mt-0.5 text-[11px] leading-snug text-[var(--text-muted)]">{hint}</div>}
     </Card>
   );
 }
