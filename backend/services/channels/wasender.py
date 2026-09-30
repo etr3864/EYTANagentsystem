@@ -179,7 +179,9 @@ async def send_once(
     timeout: int = 15,
 ) -> dict:
     """One campaign attempt. No retry and no sleep."""
-    payload: dict = {"session": session, "to": recipient_jid(to), "text": text or ""}
+    payload: dict = {"session": session, "to": recipient_jid(to)}
+    if text and text.strip():
+        payload["text"] = text
     if media_kind == "image" and media_url:
         payload["imageUrl"] = media_url
     elif media_kind == "video" and media_url:

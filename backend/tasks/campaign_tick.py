@@ -2,7 +2,7 @@
 from backend.celery_app import celery_app
 from backend.core.database import SessionLocal
 from backend.core.logger import log_error
-from backend.services.campaigns.deliver import due_agent_ids, expire_leases, send_one
+from backend.services.campaigns.deliver import due_agent_ids, expire_leases, promote_due, send_one
 
 
 @celery_app.task
@@ -10,6 +10,7 @@ def campaign_tick() -> None:
     db = SessionLocal()
     try:
         expire_leases(db)
+        promote_due(db)
         db.commit()
         agent_ids = due_agent_ids(db)
     except Exception as error:

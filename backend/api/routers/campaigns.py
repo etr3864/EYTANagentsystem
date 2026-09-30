@@ -46,9 +46,8 @@ class FlagIn(BaseModel):
     resume: bool = False
 
 
-class CapsIn(BaseModel):
-    hourly_cap: int
-    daily_cap: int
+class StartIn(BaseModel):
+    starts_at: str | None = None
 
 
 class TestIn(BaseModel):
@@ -186,10 +185,15 @@ def resume_campaign(campaign_id: int, db: Session = Depends(get_db), user: AuthU
 
 
 @router.post("/campaigns/{campaign_id}/start")
-def start_campaign(campaign_id: int, db: Session = Depends(get_db), user: AuthUser = _super):
+def start_campaign(
+    campaign_id: int,
+    body: StartIn | None = None,
+    db: Session = Depends(get_db),
+    user: AuthUser = _super,
+):
     campaign, agent = _user_campaign(db, user, campaign_id)
     try:
-        catalog.start(db, campaign, agent)
+        catalog.start(db, campaign, agent, _starts_at(body.starts_at if body else None, campaign.timezone))
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     db.commit()
@@ -204,10 +208,24 @@ def retry_campaign(campaign_id: int, db: Session = Depends(get_db), user: AuthUs
     return {"retried": count}
 
 
+@router.post("/campaigns/{campaign_id}/finish")
+def finish_campaign(campaign_id: int, db: Session = Depends(get_db), user: AuthUser = Depends(get_current_user)):
+    campaign, _agent = _user_campaign(db, user, campaign_id)
+    try:
+        catalog.finish(db, campaign)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    db.commit()
+    return {"status": campaign.status}
+
+
 @router.delete("/campaigns/{campaign_id}")
 def delete_campaign(campaign_id: int, db: Session = Depends(get_db), user: AuthUser = _super):
     campaign, _agent = _user_campaign(db, user, campaign_id)
-    db.delete(campaign)
+    try:
+        catalog.erase(db, campaign)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
     db.commit()
     return {"status": "deleted"}
 
@@ -224,7 +242,12 @@ def list_recipients(
     campaign, _agent = _user_campaign(db, user, campaign_id)
     query = db.query(CampaignRecipient).filter(CampaignRecipient.campaign_id == campaign.id)
     if q:
-        query = query.filter(CampaignRecipient.phone.contains(q[:20]))
+        needle = q.strip()[:40]
+        from sqlalchemy import String, cast, or_
+        query = query.filter(or_(
+            CampaignRecipient.phone.contains(needle),
+            cast(CampaignRecipient.fields, String).ilike(f"%{needle}%"),
+        ))
     total = query.count()
     rows = query.order_by(CampaignRecipient.sort_order).offset((page - 1) * C.PAGE).limit(C.PAGE).all()
     return {
@@ -291,6 +314,20 @@ def put_caps(
     return {"hourly_cap": agent.campaign_hourly_cap, "daily_cap": agent.campaign_daily_cap}
 
 
+def _starts_at(wall: str | None, tz_name: str):
+    if not wall:
+        return None
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    naive = datetime.fromisoformat(wall)
+    try:
+        zone = ZoneInfo(tz_name or "Asia/Jerusalem")
+    except Exception:
+        zone = ZoneInfo("Asia/Jerusalem")
+    return naive.replace(tzinfo=zone).astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
+
+
 def _columns(db: Session, campaign_id: int) -> set[str]:
     from backend.models.campaign import CampaignRecipient
 
@@ -309,9 +346,24 @@ def _recipient(db, campaign, row: CampaignRecipient) -> dict:
     )
     return {
         "phone": row.phone,
+        "name": _person_name(row.fields),
         "status": "replied" if row.replied_at else (send.status if send else "pending"),
         "reason": send.fail_reason if send else None,
     }
+
+
+def _person_name(fields: dict | None) -> str:
+    data = fields or {}
+    for key in ("שם", "שם מלא", "name", "Name", "full_name", "fullname"):
+        value = str(data.get(key) or "").strip()
+        if value:
+            return value[:80]
+    for key, value in data.items():
+        if "שם" in str(key) or str(key).lower().replace(" ", "") in ("name", "fullname"):
+            text = str(value or "").strip()
+            if text:
+                return text[:80]
+    return ""
 
 
 def _counts(db, campaign_id: int) -> dict:

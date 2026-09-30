@@ -38,6 +38,7 @@ export interface CampaignRow {
 
 export interface RecipientRow {
   phone: string;
+  name: string;
   status: string;
   reason: string | null;
 }
@@ -84,8 +85,21 @@ export async function patchCampaign(id: number, body: Record<string, unknown>) {
   return read<CampaignRow>(res, 'לא הצלחנו לשמור');
 }
 
-export async function campaignAction(id: number, action: 'pause' | 'resume' | 'start' | 'retry') {
-  const res = await authFetch(`${API_URL}/api/campaigns/${id}/${action}`, { method: 'POST' });
+export async function deleteCampaign(id: number) {
+  const res = await authFetch(`${API_URL}/api/campaigns/${id}`, { method: 'DELETE' });
+  return read<{ status: string }>(res, 'לא הצלחנו למחוק');
+}
+
+export async function campaignAction(
+  id: number,
+  action: 'pause' | 'resume' | 'start' | 'retry' | 'finish',
+  startsAt?: string,
+) {
+  const res = await authFetch(`${API_URL}/api/campaigns/${id}/${action}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(startsAt ? { starts_at: startsAt } : {}),
+  });
   return read<{ status?: string; retried?: number }>(res, 'הפעולה נכשלה');
 }
 

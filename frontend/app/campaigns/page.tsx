@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AuthGuard } from '@/components/auth/AuthGuard';
-import { Button, Input, ListPager } from '@/components/ui';
+import { Button, Input, ListPager, Modal } from '@/components/ui';
 import { isSuperAdmin } from '@/lib/auth';
 import { useAuth } from '@/contexts/AuthContext';
-import { listCampaigns, type CampaignRow } from '@/lib/api/campaigns';
+import { deleteCampaign, listCampaigns, type CampaignRow } from '@/lib/api/campaigns';
 import { CampaignCard } from '@/components/campaigns/presentation';
 
 export default function CampaignsPage() {
@@ -25,6 +25,8 @@ function CampaignList() {
   const [q, setQ] = useState('');
   const [finished, setFinished] = useState(false);
   const [error, setError] = useState('');
+  const [pendingDelete, setPendingDelete] = useState<CampaignRow | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     listCampaigns({ q, page, status: finished ? 'finished' : undefined })
@@ -39,6 +41,22 @@ function CampaignList() {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const to = Math.min(page * pageSize, total);
+
+  async function remove(id: number) {
+    setBusy(true);
+    setError('');
+    try {
+      await deleteCampaign(id);
+      setPendingDelete(null);
+      const data = await listCampaigns({ q, page, status: 'finished' });
+      setRows(data.items);
+      setTotal(data.total);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'שגיאה');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div className="min-h-screen overflow-x-hidden">
@@ -66,7 +84,21 @@ function CampaignList() {
         </div>
         {error && <p className="text-sm text-red-400">{error}</p>}
         <div className="space-y-3">
-          {rows.map((row) => <CampaignCard key={row.id} row={row} />)}
+          {rows.map((row) => (
+            <CampaignCard
+              key={row.id}
+              row={row}
+              extra={finished && isSuperAdmin(user) ? (
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => setPendingDelete(row)}
+                >
+                  מחק
+                </Button>
+              ) : undefined}
+            />
+          ))}
           {rows.length === 0 && (
             <p className="rounded-[22px] border border-[var(--edge)] px-4 py-10 text-center text-sm text-[var(--text-muted)]">
               {finished ? 'אין קמפיינים שהסתיימו' : 'אין קמפיינים רצים או מושהים'}
@@ -75,6 +107,17 @@ function CampaignList() {
         </div>
         {totalPages > 1 && (
           <ListPager page={page} totalPages={totalPages} from={from} to={to} total={total} onPage={setPage} />
+        )}
+        {pendingDelete && (
+          <Modal title="למחוק את הקמפיין?" onClose={() => setPendingDelete(null)}>
+            <p className="text-sm text-[var(--text-secondary)]">
+              {pendingDelete.name} יימחק עם הנמענים, השליחות והקובץ. הודעות שכבר בשיחה נשארות.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setPendingDelete(null)}>ביטול</Button>
+              <Button variant="danger" loading={busy} onClick={() => remove(pendingDelete.id)}>מחק לגמרי</Button>
+            </div>
+          </Modal>
         )}
       </div>
     </div>

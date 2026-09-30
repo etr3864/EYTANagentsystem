@@ -125,8 +125,6 @@ async def test_send(
 ):
     campaign, agent = _user_campaign(db, user, campaign_id)
     from backend.services.channels.agent_channels import get_channel_by_type
-    from backend.core.encryption import decrypt_credentials
-    from backend.services.channels import wasender
     from backend.services.silence.phones import canonical
 
     phone = canonical(body.phone)
@@ -139,10 +137,8 @@ async def test_send(
     if session_lock.live_waiting(channel.id) or not session_lock.try_send_lock(channel.id):
         raise HTTPException(status_code=409, detail="busy")
     try:
-        creds = decrypt_credentials(channel.credentials_encrypted)
-        outcome = await wasender.send_once(
-            creds["api_key"], creds.get("session", "default"), phone, text, timeout=C.HTTP_TIMEOUT,
-        )
+        from backend.services.campaigns.deliver import post_campaign
+        outcome = await post_campaign(channel, phone, text, campaign)
     finally:
         session_lock.release_send_lock(channel.id)
     if not outcome.get("msg_id"):

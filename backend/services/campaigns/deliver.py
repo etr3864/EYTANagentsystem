@@ -15,6 +15,15 @@ from backend.services.channels import wasender
 from backend.services.llm.capacity import is_capacity_error
 
 
+def promote_due(db: Session) -> None:
+    now = datetime.utcnow()
+    db.query(Campaign).filter(
+        Campaign.status == C.SCHEDULED,
+        Campaign.starts_at.is_not(None),
+        Campaign.starts_at <= now,
+    ).update({"status": C.RUNNING}, synchronize_session=False)
+
+
 def due_agent_ids(db: Session) -> list[int]:
     rows = db.execute(text("""
         SELECT DISTINCT s.agent_id
@@ -68,7 +77,17 @@ def send_one(db: Session, agent_id: int) -> float | None:
     if not session_lock.try_send_lock(channel.id):
         return _delay(db, send, now + timedelta(seconds=5))
     try:
-        outcome = asyncio.run(_post(channel, recipient.phone, body, campaign))
+        outcome = asyncio.run(post_campaign(channel, recipient.phone, body, campaign))
+    except RuntimeError as error:
+        session_lock.release_send_lock(channel.id)
+        if "CREDENTIALS_ENCRYPTION_KEY" in str(error):
+            send.status = C.PENDING
+            send.locked_until = None
+            send.next_send_at = now + timedelta(minutes=10)
+            _pause(db, agent_id, C.PAUSE_CONFIG)
+            db.commit()
+            return None
+        raise
     finally:
         session_lock.release_send_lock(channel.id)
     return _after_http(db, send, campaign, agent, recipient, channel, body, outcome, now)
@@ -106,13 +125,13 @@ def _claim(db: Session, agent_id: int, now: datetime) -> CampaignSend | None:
     return row
 
 
-def _post(channel, phone: str, body: str, campaign):
+async def post_campaign(channel, phone: str, body: str, campaign):
     creds = decrypt_credentials(channel.credentials_encrypted)
     media_url = None
     if campaign.media_key:
         from backend.services.media.storage import get_public_url
         media_url = get_public_url(campaign.media_key)
-    return wasender.send_once(
+    return await wasender.send_once(
         creds["api_key"],
         creds.get("session", "default"),
         phone,

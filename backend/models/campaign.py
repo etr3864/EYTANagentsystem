@@ -49,6 +49,7 @@ class Campaign(Base):
     replied_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     delivered_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     current_step: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    starts_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

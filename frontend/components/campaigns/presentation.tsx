@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { Card } from '@/components/ui';
 import type { CampaignRow } from '@/lib/api/campaigns';
 
@@ -7,6 +8,7 @@ const STATUS: Record<string, string> = {
   running: 'רץ',
   paused: 'מושהה',
   finished: 'הסתיים',
+  scheduled: 'מתוזמן',
   pending: 'ממתין',
   sending: 'נשלח עכשיו',
   sent: 'נשלח',
@@ -35,6 +37,7 @@ const PAUSE: Record<string, string> = {
   flag_off: 'המתג כבוי',
   agent_off: 'הסוכן כבוי',
   manual: 'הושהה ידנית',
+  config: 'הוורקר לא יכול לפתוח את מפתח הסשן',
 };
 
 export function statusLabel(value: string) {
@@ -47,6 +50,25 @@ export function sessionLabel(value: string) {
 
 export function pauseLabel(value: string) {
   return PAUSE[value] || 'מושהה';
+}
+
+export function reasonLabel(value: string | null) {
+  if (!value) return '';
+  const labels: Record<string, string> = {
+    lease: 'השליחה נקטעה לפני שיצאה',
+    recent: 'דיבר לאחרונה',
+    replied: 'ענה',
+    blocked: 'חסום',
+    window: 'מחוץ לשעות',
+    empty: 'הודעה ריקה',
+    timeout: 'וואסנדר לא ענה',
+    compose: 'הניסוח נכשל',
+    model_busy: 'המודל עמוס',
+    rate: 'וואסנדר ביקש לחכות',
+    channel: 'הערוץ סירב',
+    session: 'הסשן מנותק',
+  };
+  return labels[value] || value;
 }
 
 export function FlagSwitch({
@@ -78,12 +100,12 @@ export function FlagSwitch({
   );
 }
 
-export function CampaignCard({ row }: { row: CampaignRow }) {
+export function CampaignCard({ row, extra }: { row: CampaignRow; extra?: ReactNode }) {
   const live = row.status === 'running';
   return (
     <Card hover padding="none">
-      <Link href={`/campaigns/${row.id}`} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
+      <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <Link href={`/campaigns/${row.id}`} className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className={`status-dot ${live ? 'active' : 'inactive'}`} />
             <span className="truncate text-base font-semibold text-[var(--ink)]">{row.name}</span>
@@ -94,12 +116,13 @@ export function CampaignCard({ row }: { row: CampaignRow }) {
           <p className="mt-1 text-sm text-[var(--text-muted)]">
             {row.agent_name} · {sessionLabel(row.session)}
           </p>
-        </div>
-        <div className="flex shrink-0 gap-4 text-sm">
+        </Link>
+        <div className="flex shrink-0 items-center gap-4 text-sm">
           <Metric label="שליחה" value={`${row.send_percent}%`} />
           <Metric label="מענה" value={`${row.reply_percent}%`} />
+          {extra}
         </div>
-      </Link>
+      </div>
     </Card>
   );
 }

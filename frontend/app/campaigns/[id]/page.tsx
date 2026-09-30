@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { Button, Card, Input, Textarea } from '@/components/ui';
 import { isSuperAdmin } from '@/lib/auth';
@@ -12,13 +12,14 @@ import { readSse } from '@/lib/sse';
 import {
   campaignAction,
   campaignLiveUrl,
+  deleteCampaign,
   getCampaign,
   listRecipients,
   patchCampaign,
   type CampaignRow,
   type RecipientRow,
 } from '@/lib/api/campaigns';
-import { pauseLabel, sessionLabel, statusLabel } from '@/components/campaigns/presentation';
+import { pauseLabel, reasonLabel, sessionLabel, statusLabel } from '@/components/campaigns/presentation';
 
 export default function CampaignPage() {
   return (
@@ -30,6 +31,7 @@ export default function CampaignPage() {
 
 function Screen() {
   const params = useParams();
+  const router = useRouter();
   const id = Number(params.id);
   const { user } = useAuth();
   const superAdmin = isSuperAdmin(user);
@@ -59,7 +61,7 @@ function Screen() {
     return () => ac.abort();
   }, [id]);
 
-  async function act(action: 'pause' | 'resume' | 'retry') {
+  async function act(action: 'pause' | 'resume' | 'retry' | 'finish') {
     setBusy(true);
     setError('');
     try {
@@ -78,6 +80,7 @@ function Screen() {
 
   const paused = row.status === 'paused';
   const live = row.status === 'running';
+  const open = live || paused || row.status === 'scheduled';
 
   return (
     <div className="min-h-screen overflow-x-hidden">
@@ -103,6 +106,10 @@ function Screen() {
         <div className="flex flex-wrap gap-2">
           {live && <Button variant="secondary" loading={busy} onClick={() => act('pause')}>השהה</Button>}
           {paused && <Button loading={busy} onClick={() => act('resume')}>המשך</Button>}
+          {open && <Button variant="secondary" loading={busy} onClick={() => act('finish')}>סיים</Button>}
+          {row.status === 'finished' && superAdmin && (
+            <Button variant="danger" loading={busy} onClick={() => remove()}>מחק לגמרי</Button>
+          )}
           <Button variant="secondary" loading={busy} onClick={() => act('retry')}>נסה שוב נכשלים</Button>
         </div>
         {error && <p className="text-sm text-red-400">{error}</p>}
@@ -123,15 +130,22 @@ function Screen() {
           </Card>
         )}
         <Card padding="lg" className="space-y-4">
-          <Input label="חיפוש מספר" value={q} onChange={(event) => setQ(event.target.value)} placeholder="972…" />
-          <ul className="divide-y divide-[var(--edge)]">
+          <Input label="חיפוש" value={q} onChange={(event) => setQ(event.target.value)} placeholder="שם או מספר" />
+          <ul className="space-y-2">
             {people.map((person) => (
-              <li key={person.phone} className="flex items-center justify-between gap-3 py-3 text-sm">
-                <span className="font-medium text-[var(--ink)]">{person.phone}</span>
-                <span className="text-[var(--text-secondary)]">
-                  {statusLabel(person.status)}
-                  {person.reason ? ` · ${person.reason}` : ''}
-                </span>
+              <li key={person.phone} className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--edge)] px-4 py-3">
+                <div className="min-w-0">
+                  <div className="truncate font-medium text-[var(--ink)]">{person.name || 'בלי שם בקובץ'}</div>
+                  <div className="text-xs text-[var(--text-muted)]">{person.phone}</div>
+                </div>
+                <div className="shrink-0 text-left">
+                  <span className={`inline-block rounded-full border px-2.5 py-0.5 text-xs ${statusTone(person.status)}`}>
+                    {statusLabel(person.status)}
+                  </span>
+                  {person.reason && (
+                    <div className="mt-1 text-[11px] text-[var(--text-muted)]">{reasonLabel(person.reason)}</div>
+                  )}
+                </div>
               </li>
             ))}
             {people.length === 0 && <li className="py-6 text-center text-sm text-[var(--text-muted)]">אין נמענים להצגה</li>}
@@ -140,6 +154,18 @@ function Screen() {
       </div>
     </div>
   );
+
+  async function remove() {
+    setBusy(true);
+    setError('');
+    try {
+      await deleteCampaign(id);
+      router.push('/campaigns');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'שגיאה');
+      setBusy(false);
+    }
+  }
 
   async function actSave(body: Record<string, unknown>) {
     setBusy(true);
@@ -153,6 +179,12 @@ function Screen() {
       setBusy(false);
     }
   }
+}
+
+function statusTone(status: string) {
+  if (status === 'sent' || status === 'replied') return 'border-emerald-500/40 text-emerald-500';
+  if (status === 'failed' || status === 'uncertain' || status === 'blocked') return 'border-red-500/40 text-red-400';
+  return 'border-[var(--edge)] text-[var(--text-secondary)]';
 }
 
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {

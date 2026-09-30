@@ -65,7 +65,7 @@ def resume(db: Session, campaign: Campaign) -> None:
     campaign.pause_reason = None
 
 
-def start(db: Session, campaign: Campaign, agent: Agent) -> None:
+def start(db: Session, campaign: Campaign, agent: Agent, starts_at: datetime | None = None) -> None:
     if campaign.status != C.DRAFT:
         raise ValueError("not_draft")
     if not agent.campaigns_enabled:
@@ -77,10 +77,33 @@ def start(db: Session, campaign: Campaign, agent: Agent) -> None:
         raise ValueError("session")
     if not campaign.recipient_count:
         raise ValueError("audience")
-    enqueue_step(db, campaign, 1, datetime.utcnow())
-    campaign.status = C.RUNNING
+    now = datetime.utcnow()
+    later = bool(starts_at and starts_at > now)
+    enqueue_step(db, campaign, 1, starts_at if later else now)
+    campaign.starts_at = starts_at if later else None
+    campaign.status = C.SCHEDULED if later else C.RUNNING
     campaign.current_step = 1
     campaign.step_sent_count = 0
+
+
+def finish(db: Session, campaign: Campaign) -> None:
+    if campaign.status not in (C.RUNNING, C.PAUSED, C.SCHEDULED):
+        raise ValueError("not_open")
+    campaign.status = C.FINISHED
+    campaign.pause_reason = None
+
+
+def erase(db: Session, campaign: Campaign) -> None:
+    if campaign.status != C.FINISHED:
+        raise ValueError("not_finished")
+    if campaign.media_key:
+        from backend.core.logger import log_error
+        from backend.services.media.storage import delete_file
+        try:
+            delete_file(campaign.media_key)
+        except Exception as error:
+            log_error("campaign", str(error)[:80])
+    db.delete(campaign)
 
 
 def retry_failed(db: Session, campaign: Campaign) -> int:
@@ -88,9 +111,12 @@ def retry_failed(db: Session, campaign: Campaign) -> int:
         db.query(CampaignSend)
         .filter(
             CampaignSend.campaign_id == campaign.id,
-            CampaignSend.status == C.FAILED,
-            CampaignSend.attempt_count < 2,
-            CampaignSend.fail_reason.notin_(("session", "lease", "channel")),
+            (
+                (CampaignSend.status == C.FAILED)
+                & (CampaignSend.attempt_count < 2)
+                & CampaignSend.fail_reason.notin_(("session", "lease", "channel"))
+            )
+            | ((CampaignSend.status == C.UNCERTAIN) & (CampaignSend.fail_reason == "lease")),
         )
         .all()
     )
