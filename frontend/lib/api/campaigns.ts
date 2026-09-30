@@ -100,6 +100,15 @@ export function campaignLiveUrl(id: number) {
   return `${API_URL}/api/campaigns/${id}/live`;
 }
 
+export async function setCampaignCaps(agentId: number, hourlyCap: number, dailyCap: number) {
+  const res = await authFetch(`${API_URL}/api/agents/${agentId}/campaign-caps`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ hourly_cap: hourlyCap, daily_cap: dailyCap }),
+  });
+  return read<{ hourly_cap: number; daily_cap: number }>(res, 'התקרה');
+}
+
 export async function setCampaignFlag(agentId: number, enabled: boolean, resume = false) {
   const res = await authFetch(`${API_URL}/api/agents/${agentId}/campaigns`, {
     method: 'PUT',
@@ -152,5 +161,5 @@ export async function uploadCampaignMedia(id: number, file: File, description: s
   body.set('file', file);
   body.set('description', description);
   const res = await authFetch(`${API_URL}/api/campaigns/${id}/media`, { method: 'POST', body });
-  return read<{ kind: string; name: string }>(res, 'מדיה');
+  return read<{ kind: string; name: string; description: string }>(res, 'מדיה');
 }

@@ -2,24 +2,30 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Button, Modal } from '@/components/ui';
+import { Button, Input, Modal } from '@/components/ui';
 import { isSuperAdmin } from '@/lib/auth';
 import { useAuth } from '@/contexts/AuthContext';
-import { listCampaigns, setCampaignFlag, type CampaignRow } from '@/lib/api/campaigns';
+import { listCampaigns, setCampaignCaps, setCampaignFlag, type CampaignRow } from '@/lib/api/campaigns';
 import { CampaignCard, FlagSwitch } from '@/components/campaigns/presentation';
 
 export function CampaignsTab({
   agentId,
   enabled,
+  hourly,
+  daily,
   onEnabled,
 }: {
   agentId: number;
   enabled: boolean;
+  hourly: number | null;
+  daily: number | null;
   onEnabled: (value: boolean) => void;
 }) {
   const { user } = useAuth();
   const superAdmin = isSuperAdmin(user);
   const [on, setOn] = useState(enabled);
+  const [hourText, setHourText] = useState(hourly ? String(hourly) : '');
+  const [dayText, setDayText] = useState(daily ? String(daily) : '');
   const [rows, setRows] = useState<CampaignRow[]>([]);
   const [paused, setPaused] = useState<{ id: number; name: string }[]>([]);
   const [confirmOff, setConfirmOff] = useState(false);
@@ -34,6 +40,18 @@ export function CampaignsTab({
       .then((data) => setRows(data.items))
       .catch(() => setError('לא הצלחנו לטעון את הקמפיינים'));
   }, [agentId, on, superAdmin]);
+
+  async function saveCaps() {
+    setBusy(true);
+    setError('');
+    try {
+      await setCampaignCaps(agentId, Number(hourText), Number(dayText));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'שגיאה');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function turn(next: boolean, resume = false) {
     setBusy(true);
@@ -65,6 +83,20 @@ export function CampaignsTab({
             </p>
           </div>
           <FlagSwitch on={on} busy={busy} onToggle={() => (on ? setConfirmOff(true) : turn(true))} />
+        </div>
+      )}
+      {superAdmin && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <Input label="הודעות בשעה" inputMode="numeric" value={hourText} onChange={(event) => setHourText(event.target.value.replace(/\D/g, '').slice(0, 4))} />
+          <Input label="הודעות ביום" inputMode="numeric" value={dayText} onChange={(event) => setDayText(event.target.value.replace(/\D/g, '').slice(0, 5))} />
+          <Button
+            variant="secondary"
+            loading={busy}
+            disabled={!Number(hourText) || !Number(dayText)}
+            onClick={() => saveCaps()}
+          >
+            שמור תקרה
+          </Button>
         </div>
       )}
       {error && <p className="text-sm text-red-400">{error}</p>}

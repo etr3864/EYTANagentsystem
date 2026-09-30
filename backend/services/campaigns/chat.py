@@ -6,11 +6,13 @@ from backend.services.messaging import messages
 from backend.services.messaging.outbound import attach_whatsapp
 
 
-def store_outbound(db, agent, campaign, recipient, body: str, channel, provider_msg_id: str) -> None:
+def store_outbound(db, agent, campaign, recipient, body: str, channel, provider_msg_id: str, *, hide_until_reply: bool = True) -> None:
     user = users.get_or_create(db, recipient.phone, None)
     conv = conversations.get_or_create(db, agent.id, user.id)
-    if conv.last_customer_message_at is None:
+    if hide_until_reply and conv.last_customer_message_at is None:
         conv.campaign_pending = True
+    if not hide_until_reply:
+        conv.campaign_pending = False
     if channel is not None:
         attach_whatsapp(db, conv, channel, recipient.phone)
     context = dict(conv.injected_context or {})

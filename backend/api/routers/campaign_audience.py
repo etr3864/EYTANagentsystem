@@ -145,9 +145,16 @@ async def test_send(
         )
     finally:
         session_lock.release_send_lock(channel.id)
-    db.commit()
     if not outcome.get("msg_id"):
+        db.commit()
         raise HTTPException(status_code=502, detail=outcome.get("error") or "send")
+    from types import SimpleNamespace
+    from backend.services.campaigns.chat import store_outbound
+
+    store_outbound(
+        db, agent, campaign, SimpleNamespace(phone=phone, fields={}),
+        text, channel, str(outcome["msg_id"]), hide_until_reply=False,
+    )
     return {"status": "sent"}
 
 
@@ -173,4 +180,4 @@ async def upload_media(
     campaign.media_name = stored["name"]
     campaign.media_description = stored["description"]
     db.commit()
-    return {"kind": stored["kind"], "name": stored["name"]}
+    return {"kind": stored["kind"], "name": stored["name"], "description": stored["description"]}

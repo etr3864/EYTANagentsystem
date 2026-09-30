@@ -607,6 +607,8 @@ function AgentPage() {
             <CampaignsTab
               agentId={agentId}
               enabled={Boolean(agent.campaigns_enabled)}
+              hourly={agent.campaign_hourly_cap ?? null}
+              daily={agent.campaign_daily_cap ?? null}
               onEnabled={() => window.location.reload()}
             />
           </div>

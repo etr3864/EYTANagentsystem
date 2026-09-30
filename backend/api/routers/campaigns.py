@@ -9,7 +9,7 @@ from backend.auth.models import AuthUser, UserRole
 from backend.core.database import get_db
 from backend.models.agent import Agent
 from backend.models.campaign import Campaign, CampaignImport, CampaignRecipient
-from backend.services.campaigns import access, catalog, constants as C, view
+from backend.services.campaigns import access, catalog, compose, constants as C, view
 from backend.services.campaigns.feed import sse_lines
 from backend.services.entities import agents
 
@@ -44,6 +44,11 @@ class CampaignPatch(BaseModel):
 class FlagIn(BaseModel):
     enabled: bool
     resume: bool = False
+
+
+class CapsIn(BaseModel):
+    hourly_cap: int
+    daily_cap: int
 
 
 class TestIn(BaseModel):
@@ -145,6 +150,11 @@ def patch_campaign(
     for key, value in data.items():
         if key in allowed:
             setattr(campaign, key, value)
+    template = data.get("template_body", campaign.template_body)
+    if data.get("mode", campaign.mode) == "template" and template:
+        missing = compose.unknown_tokens(template, _columns(db, campaign.id))
+        if missing:
+            raise HTTPException(status_code=422, detail="unknown_column")
     if steps is not None:
         if not _full(user) and campaign.status != C.PAUSED and campaign.status != C.DRAFT:
             raise HTTPException(status_code=403, detail="forbidden")
@@ -261,6 +271,33 @@ async def put_flag(
         for campaign in catalog.paused_by_flag(db, agent.id)
     ] if body.enabled and not body.resume else []
     return {"enabled": agent.campaigns_enabled, "paused": waiting, "resumed": ids if body.resume else []}
+
+
+@router.put("/agents/{agent_id}/campaign-caps")
+def put_caps(
+    agent_id: int,
+    body: CapsIn,
+    db: Session = Depends(get_db),
+    user: AuthUser = _super,
+):
+    agent = agents.get_by_id(db, agent_id)
+    if agent is None:
+        raise HTTPException(status_code=404, detail="not_found")
+    try:
+        catalog.set_caps(agent, body.hourly_cap, body.daily_cap)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    db.commit()
+    return {"hourly_cap": agent.campaign_hourly_cap, "daily_cap": agent.campaign_daily_cap}
+
+
+def _columns(db: Session, campaign_id: int) -> set[str]:
+    from backend.models.campaign import CampaignRecipient
+
+    rows = db.query(CampaignRecipient.fields).filter(CampaignRecipient.campaign_id == campaign_id).limit(1).all()
+    if not rows or not isinstance(rows[0][0], dict):
+        return set()
+    return set(rows[0][0].keys())
 
 
 def _recipient(db, campaign, row: CampaignRecipient) -> dict:

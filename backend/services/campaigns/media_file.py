@@ -33,16 +33,60 @@ async def store_media(agent_id: int, filename: str, payload: bytes, description:
     cap = MAX_BYTES.get(kind) or MAX_BYTES["document"]
     if len(payload) > cap:
         raise ValueError("too_large")
-    if kind == "video" and not (description or "").strip():
-        raise ValueError("video_description")
     key = generate_file_key(agent_id, kind, filename)
     upload_file(io.BytesIO(payload), key, mime, len(payload))
-    text = (description or "").strip()
-    if kind == "image" and not text:
-        text = await _image_description(payload, mime)
-    elif kind == "document" and not text:
-        text = filename
+    text = await _description(kind, payload, mime, description)
     return {"kind": kind, "mime": mime, "key": key, "name": filename[:200], "description": text[:1000]}
+
+
+async def _description(kind: str, payload: bytes, mime: str, typed: str) -> str:
+    if kind == "video":
+        text = (typed or "").strip()
+        if not text:
+            raise ValueError("video_description")
+        return text
+    if kind == "image":
+        text = await _image_description(payload, mime)
+    else:
+        text = await _document_description(payload)
+    if not text:
+        raise ValueError("analyze_failed")
+    return text
+
+
+async def _document_description(payload: bytes) -> str:
+    from backend.services.entities.ai import analyze_document
+
+    extracted = _document_text(payload)
+    if len(extracted.strip()) < 10:
+        return ""
+    result = await analyze_document(extracted[:8000])
+    return (result or {}).get("description") or ""
+
+
+def _document_text(payload: bytes) -> str:
+    if payload.startswith(b"PK"):
+        return _docx_text(payload)
+    for encoding in ("utf-8", "cp1255"):
+        try:
+            return payload.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    return ""
+
+
+def _docx_text(payload: bytes) -> str:
+    import zipfile
+    from xml.etree import ElementTree
+
+    try:
+        with zipfile.ZipFile(io.BytesIO(payload)) as book:
+            xml = book.read("word/document.xml")
+    except (zipfile.BadZipFile, KeyError):
+        return ""
+    root = ElementTree.fromstring(xml)
+    parts = [node.text for node in root.iter() if node.tag.endswith("}t") and node.text]
+    return " ".join(parts)
 
 
 async def _image_description(payload: bytes, mime: str) -> str:

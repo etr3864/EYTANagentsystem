@@ -48,6 +48,13 @@ def pause(db: Session, campaign: Campaign) -> None:
     campaign.pause_reason = C.PAUSE_MANUAL
 
 
+def set_caps(agent: Agent, hourly: int, daily: int) -> None:
+    if not 1 <= hourly <= 2000 or not 1 <= daily <= 50000:
+        raise ValueError("caps")
+    agent.campaign_hourly_cap = hourly
+    agent.campaign_daily_cap = daily
+
+
 def resume(db: Session, campaign: Campaign) -> None:
     channel = get_channel_by_type(db, campaign.agent_id, "whatsapp_wasender")
     if channel is None or (channel.health_status or "") != "connected":

@@ -14,6 +14,14 @@ _DEFAULT_RULES = (
 )
 
 
+def tokens(body: str) -> list[str]:
+    return [match.group(1).strip() for match in _TOKEN.finditer(body or "")]
+
+
+def unknown_tokens(body: str, columns: set[str]) -> list[str]:
+    return [name for name in tokens(body) if name not in columns]
+
+
 def fill_template(body: str, fields: dict, defaults: dict | None) -> str:
     fallback = defaults or {}
 
