@@ -397,14 +397,6 @@ def _webhook_secret(db, agent, channel_id: int | None) -> str:
     return ((agent.provider_config or {}).get("webhook_secret") or "").strip()
 
 
-async def _run_contact_upsert(channel_id: int, body: dict) -> None:
-    from backend.services.silence.contacts import apply_upsert
-    try:
-        await asyncio.to_thread(apply_upsert, channel_id, body)
-    except Exception as error:
-        log_error("silence_contacts", str(error)[:80])
-
-
 async def _handle_handset(agent_id: int, msg_data: dict) -> None:
     try:
         inbound = await _handset_body(agent_id, msg_data)
@@ -513,10 +505,6 @@ async def _receive_webhook(
             return {"status": "ok"}
 
         if event == "contacts.upsert":
-            if agent.skip_saved_contacts:
-                channel = resolve_channel(db, agent_id, channel_id)
-                if channel:
-                    asyncio.create_task(_run_contact_upsert(channel.id, body))
             return {"status": "ok"}
 
         handset = wasender.extract_handset_message(body)

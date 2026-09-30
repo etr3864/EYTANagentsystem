@@ -2,8 +2,6 @@ import { API_URL, authFetch } from './client';
 
 export interface SilencePolicy {
   phone_silence_minutes: number | null;
-  skip_saved_contacts: boolean;
-  contacts_synced_at: string | null;
   blocklist_count: number;
 }
 
@@ -18,8 +16,6 @@ export interface ChatSilence {
   phone_active: boolean;
   phone_forever: boolean;
   phone_until: string | null;
-  in_contacts: boolean;
-  contact_name: string | null;
   on_blocklist: boolean;
 }
 
@@ -38,7 +34,7 @@ export async function getSilence(agentId: number): Promise<SilencePolicy> {
 
 export async function saveSilence(
   agentId: number,
-  body: Pick<SilencePolicy, 'phone_silence_minutes' | 'skip_saved_contacts'>,
+  body: Pick<SilencePolicy, 'phone_silence_minutes'>,
 ): Promise<SilencePolicy> {
   const res = await authFetch(`${API_URL}/api/agents/${agentId}/silence`, {
     method: 'PUT',
@@ -46,13 +42,6 @@ export async function saveSilence(
     body: JSON.stringify(body),
   });
   return read(res, 'לא הצלחנו לשמור');
-}
-
-export async function refreshContacts(agentId: number): Promise<SilencePolicy> {
-  const res = await authFetch(`${API_URL}/api/agents/${agentId}/silence/contacts/refresh`, {
-    method: 'POST',
-  });
-  return read(res, 'לא הצלחנו לרענן את אנשי הקשר');
 }
 
 export async function getBlocklist(agentId: number, page: number): Promise<BlocklistPage> {

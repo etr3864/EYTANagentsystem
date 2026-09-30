@@ -18,9 +18,6 @@ async def apply_event(db: Session, channel: AgentChannel, payload: dict) -> None
         db.commit()
         log("wasender_status", channel_id=channel.id, status=status)
         await live.publish(channel.id, {"type": "status", "status": status})
-        if status == "connected":
-            from backend.services.silence.contacts import schedule_pull
-            schedule_pull(channel.id)
         return
     if event == "qrcode.updated":
         qr = data.get("qrCode") or data.get("qrcode") or data.get("qr")

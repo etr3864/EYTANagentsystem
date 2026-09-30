@@ -11,9 +11,8 @@ from backend.auth.dependencies import AgentAccessChecker, require_admin_or_above
 from backend.auth.models import AuthUser
 from backend.core.database import get_db
 from backend.models.blocked_number import BlockedNumber
-from backend.services.channels.agent_channels import get_channel_by_type
 from backend.services.entities import agents, conversations
-from backend.services.silence import blocklist, contacts
+from backend.services.silence import blocklist
 from backend.services.silence.listen import ensure_listen_events
 from backend.services.silence.policy import chat_view, clear_phone_silence, release_hold
 
@@ -24,7 +23,6 @@ _MAX_UPLOAD = 2_000_000
 
 class SilencePolicyIn(BaseModel):
     phone_silence_minutes: int | None
-    skip_saved_contacts: bool
 
 
 class BlockedPhoneIn(BaseModel):
@@ -64,13 +62,9 @@ def _minutes(value: int | None) -> int | None:
 
 
 def _policy(db: Session, agent) -> dict:
-    channel = get_channel_by_type(db, agent.id, "whatsapp_wasender")
-    synced = channel.contacts_synced_at if channel is not None else None
     count = db.query(BlockedNumber).filter(BlockedNumber.agent_id == agent.id).count()
     return {
         "phone_silence_minutes": agent.phone_silence_minutes,
-        "skip_saved_contacts": bool(agent.skip_saved_contacts),
-        "contacts_synced_at": synced.isoformat() if synced else None,
         "blocklist_count": count,
     }
 
@@ -93,38 +87,10 @@ async def put_silence(
 ):
     agent = _agent(db, agent_id)
     was_phone = agent.phone_silence_minutes is not None
-    was_contacts = bool(agent.skip_saved_contacts)
     agent.phone_silence_minutes = _minutes(body.phone_silence_minutes)
-    agent.skip_saved_contacts = body.skip_saved_contacts
     db.commit()
-    turned_on = (not was_phone and agent.phone_silence_minutes is not None) or (
-        not was_contacts and agent.skip_saved_contacts
-    )
-    if turned_on:
+    if not was_phone and agent.phone_silence_minutes is not None:
         await ensure_listen_events(db, agent.id)
-    if agent.skip_saved_contacts and not was_contacts:
-        channel = get_channel_by_type(db, agent.id, "whatsapp_wasender")
-        if channel is not None:
-            contacts.schedule_pull(channel.id)
-    return _policy(db, agent)
-
-
-@router.post("/{agent_id}/silence/contacts/refresh")
-async def refresh_contacts(
-    agent_id: int,
-    _: AuthUser = Depends(require_admin_or_above()),
-    db: Session = Depends(get_db),
-):
-    agent = _agent(db, agent_id)
-    if not agent.skip_saved_contacts:
-        raise HTTPException(status_code=400, detail="contacts_off")
-    channel = get_channel_by_type(db, agent.id, "whatsapp_wasender")
-    if channel is None:
-        raise HTTPException(status_code=400, detail="no_channel")
-    reason = await contacts.pull_channel(channel.id)
-    if reason:
-        raise HTTPException(status_code=400, detail=reason)
-    db.refresh(channel)
     return _policy(db, agent)
 
 

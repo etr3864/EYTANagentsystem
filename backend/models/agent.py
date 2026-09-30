@@ -127,7 +127,6 @@ class Agent(Base):
 
     # NULL = phone silence off. 0 = until someone cancels. Above 0 = minutes.
     phone_silence_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    skip_saved_contacts: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     conversations: Mapped[list["Conversation"]] = relationship(back_populates="agent", passive_deletes=True)
     appointments: Mapped[list["Appointment"]] = relationship(back_populates="agent", passive_deletes=True)

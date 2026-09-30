@@ -23,7 +23,6 @@ CHANNEL_TYPE = "whatsapp_wasender"
 DEFAULT_EVENTS = [
     "messages.received",
     "messages.upsert",
-    "contacts.upsert",
     "session.status",
     "qrcode.updated",
     "messages-group.received",
@@ -235,8 +234,6 @@ async def disconnect_line(db: Session, channel: AgentChannel) -> dict:
     if session_id is not None:
         await sessions.disconnect_session(_require_pat(db), session_id)
     update_health(db, channel, "disconnected")
-    from backend.services.silence.contacts import forget_book
-    forget_book(db, channel)
     db.commit()
     await live.publish(channel.id, {"type": "status", "status": "disconnected"})
     return public_channel(channel)

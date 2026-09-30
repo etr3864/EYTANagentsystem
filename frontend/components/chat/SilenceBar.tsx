@@ -39,7 +39,7 @@ export function SilenceBar({
   if (!status) return null;
   const left = status.phone_forever ? 'עד שתחזיר' : timeLeft(status.phone_until, now);
   const phoneOn = status.phone_active && (status.phone_forever || Boolean(left));
-  if (!phoneOn && !status.in_contacts && !status.on_blocklist) return null;
+  if (!phoneOn && !status.on_blocklist) return null;
 
   async function releasePhone() {
     setStatus(await clearPhoneSilence(agentId, conversationId));
@@ -58,18 +58,8 @@ export function SilenceBar({
           onClick={releasePhone}
         />
       )}
-      {status.in_contacts && (
-        <Line
-          text={`באנשי הקשר${status.contact_name ? `: ${status.contact_name}` : ''}`}
-          action="החזר לסוכן"
-          onClick={releaseHold}
-        />
-      )}
-      {status.on_blocklist && !status.in_contacts && (
+      {status.on_blocklist && (
         <Line text="ברשימת המספרים" action="החזר לסוכן" onClick={releaseHold} />
-      )}
-      {status.on_blocklist && status.in_contacts && (
-        <p className="text-[var(--text-muted)]">גם ברשימת המספרים. החזרה לסוכן מוציאה משניהם.</p>
       )}
     </div>
   );

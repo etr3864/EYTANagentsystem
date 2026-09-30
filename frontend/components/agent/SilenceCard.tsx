@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { Button, Card, CardHeader } from '@/components/ui';
-import { getSilence, refreshContacts, saveSilence, type SilencePolicy } from '@/lib/api/silence';
+import { getSilence, saveSilence, type SilencePolicy } from '@/lib/api/silence';
 import { BlocklistPanel } from './BlocklistPanel';
 
 type PhoneMode = 'off' | 'minutes' | 'forever';
@@ -17,7 +17,6 @@ export function SilenceCard({ agentId }: { agentId: number }) {
   const [policy, setPolicy] = useState<SilencePolicy | null>(null);
   const [mode, setMode] = useState<PhoneMode>('off');
   const [minutes, setMinutes] = useState(60);
-  const [contactsOn, setContactsOn] = useState(false);
   const [count, setCount] = useState(0);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -28,7 +27,6 @@ export function SilenceCard({ agentId }: { agentId: number }) {
       setPolicy(data);
       setMode(modeOf(data.phone_silence_minutes));
       setMinutes(data.phone_silence_minutes && data.phone_silence_minutes > 0 ? data.phone_silence_minutes : 60);
-      setContactsOn(data.skip_saved_contacts);
       setCount(data.blocklist_count);
     }).catch(() => setError('לא הצלחנו לטעון'));
   }, [agentId]);
@@ -46,7 +44,6 @@ export function SilenceCard({ agentId }: { agentId: number }) {
     try {
       const next = await saveSilence(agentId, {
         phone_silence_minutes: minutesValue(),
-        skip_saved_contacts: contactsOn,
       });
       setPolicy(next);
       setCount(next.blocklist_count);
@@ -58,32 +55,6 @@ export function SilenceCard({ agentId }: { agentId: number }) {
       setBusy(false);
     }
   }
-
-  async function refresh() {
-    setBusy(true);
-    setError('');
-    setSaved(false);
-    try {
-      if (!policy?.skip_saved_contacts) {
-        if (!contactsOn) throw new Error('סמן «דולק» לפני הרענון');
-        const savedPolicy = await saveSilence(agentId, {
-          phone_silence_minutes: minutesValue(),
-          skip_saved_contacts: true,
-        });
-        setPolicy(savedPolicy);
-      }
-      const next = await refreshContacts(agentId);
-      setPolicy(next);
-      setContactsOn(next.skip_saved_contacts);
-      setSaved(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'שגיאה');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  const contactsLive = Boolean(policy?.skip_saved_contacts);
 
   return (
     <Card>
@@ -114,26 +85,6 @@ export function SilenceCard({ agentId }: { agentId: number }) {
               />
               דקות
             </label>
-          )}
-        </Row>
-
-        <Row
-          title="לא לענות למי ששמור באנשי הקשר"
-          body="רק כשזה דולק הבוט בודק את הפנקס של הטלפון, ולא עונה למי ששמור שם. כבוי — הפנקס לא נקרא בכלל."
-        >
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={contactsOn}
-              onChange={(event) => setContactsOn(event.target.checked)}
-            />
-            דולק
-          </label>
-          <Button type="button" size="sm" variant="secondary" disabled={busy} onClick={refresh}>
-            רענון מהסשן
-          </Button>
-          {contactsLive && !policy?.contacts_synced_at && (
-            <span className="text-xs text-[var(--text-muted)]">הפנקס עדיין לא נטען. עד אז הבוט עונה.</span>
           )}
         </Row>
 

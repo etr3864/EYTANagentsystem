@@ -49,7 +49,6 @@ class AgentChannel(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     last_health_check_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     health_status: Mapped[str] = mapped_column(String(20), default="unknown")
-    contacts_synced_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), default=datetime.utcnow
