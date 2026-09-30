@@ -50,6 +50,11 @@ class StartIn(BaseModel):
     starts_at: str | None = None
 
 
+class CapsIn(BaseModel):
+    hourly_cap: int
+    daily_cap: int
+
+
 class TestIn(BaseModel):
     phone: str
 
