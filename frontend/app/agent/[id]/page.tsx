@@ -11,6 +11,7 @@ import type { AgentTabGroup } from '@/components/agent/AgentTabs';
 import { TemplatesTab } from '@/components/agent/TemplatesTab';
 import FollowUpTab from '@/components/agent/FollowUpTab';
 import { ChannelsTab } from '@/components/agent/channels/ChannelsTab';
+import { CampaignsTab } from '@/components/agent/CampaignsTab';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useAuth } from '@/contexts/AuthContext';
 import { isSuperAdmin, isAdmin, isEmployee } from '@/lib/auth';
@@ -28,7 +29,7 @@ import { DEFAULT_MODEL, getModel, resolveModel } from '@/lib/models';
 import { NewChatModal } from '@/components/chat/NewChatModal';
 import type { TemplateSendPayload } from '@/components/chat/Composer';
 
-type Tab = 'prompt' | 'conversations' | 'knowledge' | 'media' | 'templates' | 'calendar' | 'followups' | 'summaries' | 'settings' | 'channels' | 'functions' | 'triggers' | 'escalation' | 'playground';
+type Tab = 'prompt' | 'conversations' | 'campaigns' | 'knowledge' | 'media' | 'templates' | 'calendar' | 'followups' | 'summaries' | 'settings' | 'channels' | 'functions' | 'triggers' | 'escalation' | 'playground';
 
 interface TabConfig {
   id: Tab;
@@ -39,6 +40,7 @@ interface TabConfig {
 
 const allTabs: TabConfig[] = [
   { id: 'conversations', label: 'שיחות', group: 'ops', roles: ['super_admin', 'admin', 'employee'] },
+  { id: 'campaigns', label: 'קמפיינים', group: 'ops', roles: ['super_admin', 'admin'] },
   { id: 'playground', label: 'קישורי בדיקה', group: 'ops', roles: ['super_admin'] },
   { id: 'prompt', label: 'Prompt', group: 'content', roles: ['super_admin'] },
   { id: 'knowledge', label: 'מאגר', group: 'content', roles: ['super_admin', 'admin'] },
@@ -91,6 +93,10 @@ function AgentPage() {
     if (!user) return [];
     return allTabs.filter(t => {
       if (!t.roles.includes(user.role)) return false;
+      if (t.id === 'campaigns') {
+        if (user.role === 'super_admin') return true;
+        return Boolean(agent?.has_campaign);
+      }
       if (t.id === 'templates') {
         if (agent?.has_whatsapp_meta_channel) return true;
         const savedProvider = agent?.provider || 'wasender';
@@ -595,6 +601,14 @@ function AgentPage() {
               />
             )}
             </div>
+          </div>
+        ) : tab === 'campaigns' ? (
+          <div className="max-w-5xl mx-auto px-3 md:px-6 py-4">
+            <CampaignsTab
+              agentId={agentId}
+              enabled={Boolean(agent.campaigns_enabled)}
+              onEnabled={() => window.location.reload()}
+            />
           </div>
         ) : tab === 'playground' ? (
           <div className="h-full max-w-5xl mx-auto px-2 md:px-6 py-2 md:py-4 flex flex-col min-h-0 min-w-0 overflow-hidden animate-fade-in pb-[max(0.5rem,env(safe-area-inset-bottom))]">

@@ -79,7 +79,13 @@ def list_agents(
 ):
     """List agents accessible to current user."""
     accessible_agents = auth_service.get_accessible_agents(db, current_user)
-    return [agent_to_response(a) for a in accessible_agents]
+    rows = []
+    for agent in accessible_agents:
+        payload = agent_to_response(agent)
+        if current_user.role == UserRole.SUPER_ADMIN:
+            payload["campaigns_enabled"] = bool(agent.campaigns_enabled)
+        rows.append(payload)
+    return rows
 
 
 @router.get("/{agent_id}")
@@ -92,7 +98,17 @@ def get_agent(
     agent = agents.get_by_id(db, agent_id)
     if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
-    return agent_to_response(agent)
+    payload = agent_to_response(agent)
+    from backend.auth.models import UserRole
+    from backend.services.campaigns.access import agent_has_campaign
+    payload["has_campaign"] = agent_has_campaign(db, agent.id)
+    if current_user.role == UserRole.SUPER_ADMIN:
+        payload["campaigns_enabled"] = bool(agent.campaigns_enabled)
+        payload["campaign_hourly_cap"] = agent.campaign_hourly_cap
+        payload["campaign_daily_cap"] = agent.campaign_daily_cap
+        payload["campaign_timezone"] = agent.campaign_timezone
+        payload["campaign_system_prompt"] = agent.campaign_system_prompt
+    return payload
 
 
 @router.post("")
@@ -192,6 +208,11 @@ def set_agent_active(
     if not agents.get_by_id(db, agent_id):
         raise HTTPException(status_code=404, detail="Agent not found")
     agents.update(db, agent_id, is_active=body.is_active)
+    if not body.is_active:
+        from backend.services.campaigns.constants import PAUSE_AGENT
+        from backend.services.campaigns.status import pause_agent
+        pause_agent(db, agent_id, PAUSE_AGENT)
+        db.commit()
     return {"id": agent_id, "is_active": body.is_active}
 
 
@@ -225,12 +246,14 @@ def agent_conversations_revision(
                JOIN users u2 ON u2.id = c2.user_id
               WHERE c2.agent_id = :agent_id
                 AND c2.playground_link_id IS NULL
-                AND u2.phone NOT LIKE '%@g.us') AS total
+                AND u2.phone NOT LIKE '%@g.us'
+                AND c2.campaign_pending = FALSE) AS total
         FROM conversations c
         JOIN users u ON u.id = c.user_id
         WHERE c.agent_id = :agent_id
           AND c.playground_link_id IS NULL
           AND u.phone NOT LIKE '%@g.us'
+          AND c.campaign_pending = FALSE
         ORDER BY c.updated_at DESC, c.id DESC
         LIMIT 1
     """), {"agent_id": agent_id}).first()
@@ -284,6 +307,7 @@ def list_agent_conversations(
         WHERE c.agent_id = :agent_id
           AND c.playground_link_id IS NULL
           AND u.phone NOT LIKE '%@g.us'
+          AND c.campaign_pending = FALSE
           {cursor_clause}
         ORDER BY c.updated_at DESC, c.id DESC
         LIMIT :lim

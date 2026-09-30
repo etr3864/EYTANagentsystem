@@ -67,6 +67,7 @@ class UserResponse(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime] = None
     parent_id: Optional[int] = None
+    has_campaigns: bool = False
     
     class Config:
         from_attributes = True

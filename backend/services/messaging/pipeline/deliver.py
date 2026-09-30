@@ -199,6 +199,8 @@ async def _send_text(ctx: TurnContext, text: str, *, show_typing: bool = True) -
 
     if show_typing:
         await ctx.outbound.emit_status(ctx.phone, "מקליד")
+    from backend.services.campaigns.guard import for_turn
+    text = for_turn(text, ctx.conversation, ctx.agent)
     delivered = await ctx.outbound.send_message(ctx.phone, text, meta=meta)
     if not delivered:
         log_error(ctx.provider, f"send failed to {ctx.display_name}")

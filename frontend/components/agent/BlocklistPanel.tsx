@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import type { BlocklistItem } from '@/lib/api/silence';
 import { Button, ListPager } from '@/components/ui';
 import {
   addBlocked,
+  clearOptOut,
   deleteBlocked,
   deleteBlockedMany,
   editBlocked,
@@ -22,7 +24,7 @@ export function BlocklistPanel({
 }) {
   const [open, setOpen] = useState(false);
   const [page, setPage] = useState(1);
-  const [items, setItems] = useState<string[]>([]);
+  const [items, setItems] = useState<BlocklistItem[]>([]);
   const [total, setTotal] = useState(0);
   const [pageSize, setPageSize] = useState(50);
   const [draft, setDraft] = useState('');
@@ -72,8 +74,8 @@ export function BlocklistPanel({
     fileRef.current?.click();
   }
 
-  const pageAll = items.length > 0 && items.every((phone) => picked.has(phone));
-  const pageSome = items.some((phone) => picked.has(phone));
+  const pageAll = items.length > 0 && items.every((row) => picked.has(row.phone));
+  const pageSome = items.some((row) => picked.has(row.phone));
 
   function togglePhone(phone: string) {
     setPicked((current) => {
@@ -87,8 +89,8 @@ export function BlocklistPanel({
   function togglePage() {
     setPicked((current) => {
       const next = new Set(current);
-      const every = items.every((phone) => next.has(phone));
-      items.forEach((phone) => (every ? next.delete(phone) : next.add(phone)));
+      const every = items.every((row) => next.has(row.phone));
+      items.forEach((row) => (every ? next.delete(row.phone) : next.add(row.phone)));
       return next;
     });
   }
@@ -208,7 +210,7 @@ export function BlocklistPanel({
                     className="text-xs text-rose-400"
                     disabled={busy || total === 0}
                     onClick={() => {
-                      if (!window.confirm(`למחוק את כל ${total} המספרים?`)) return;
+                    if (!window.confirm('מנקה את כל החסימות הידניות. הסרות של לקוחות נשארות.')) return;
                       run(async () => {
                         await deleteBlockedMany(agentId, [], true);
                         setPicked(new Set());
@@ -218,20 +220,23 @@ export function BlocklistPanel({
                     מחק את כל הרשימה
                   </button>
                 </div>
-                {items.map((phone) => (
+                {items.map((row) => (
                   <NumberRow
-                    key={phone}
-                    phone={phone}
-                    checked={picked.has(phone)}
+                    key={row.phone}
+                    row={row}
+                    checked={picked.has(row.phone)}
                     disabled={busy}
-                    onToggle={() => togglePhone(phone)}
+                    onToggle={() => togglePhone(row.phone)}
                     onSave={(next) => run(async () => {
-                      await editBlocked(agentId, phone, next);
-                      dropPicked(phone);
+                      await editBlocked(agentId, row.phone, next);
+                      dropPicked(row.phone);
                     })}
                     onDelete={() => run(async () => {
-                      await deleteBlocked(agentId, phone);
-                      dropPicked(phone);
+                      await deleteBlocked(agentId, row.phone);
+                      dropPicked(row.phone);
+                    })}
+                    onClearOptOut={() => run(async () => {
+                      await clearOptOut(agentId, row.phone);
                     })}
                   />
                 ))}
@@ -266,36 +271,47 @@ function PageTick({
 }
 
 function NumberRow({
-  phone,
+  row,
   checked,
   disabled,
   onToggle,
   onSave,
   onDelete,
+  onClearOptOut,
 }: {
-  phone: string;
+  row: BlocklistItem;
   checked: boolean;
   disabled: boolean;
   onToggle: () => void;
   onSave: (phone: string) => void;
   onDelete: () => void;
+  onClearOptOut: () => void;
 }) {
-  const [value, setValue] = useState(phone);
+  const [value, setValue] = useState(row.phone);
   return (
     <div className="flex items-center gap-2 border-b border-[var(--edge)] px-3 py-2 last:border-b-0">
       <input type="checkbox" checked={checked} disabled={disabled} onChange={onToggle} />
-      <input
-        className="min-w-0 flex-1 bg-transparent text-sm"
-        value={value}
-        disabled={disabled}
-        onChange={(event) => setValue(event.target.value)}
-        onBlur={() => {
-          if (value.trim() && value.trim() !== phone) onSave(value.trim());
-        }}
-      />
-      <button type="button" className="text-xs text-rose-400" disabled={disabled} onClick={onDelete}>
-        מחק
-      </button>
+      <div className="min-w-0 flex-1">
+        <input
+          className="w-full bg-transparent text-sm"
+          value={value}
+          disabled={disabled}
+          onChange={(event) => setValue(event.target.value)}
+          onBlur={() => {
+            if (value.trim() && value.trim() !== row.phone) onSave(value.trim());
+          }}
+        />
+        <p className="text-[11px] text-[var(--text-muted)]">
+          {row.manual ? 'ידני' : ''}{row.manual && row.opted_out ? ' · ' : ''}{row.opted_out ? 'הסרה' : ''}
+          {row.quote ? ` · ${row.quote}` : ''}
+        </p>
+      </div>
+      {row.manual && (
+        <button type="button" className="text-xs text-rose-400" disabled={disabled} onClick={onDelete}>הסר חסימה</button>
+      )}
+      {row.opted_out && (
+        <button type="button" className="text-xs text-[var(--text-muted)]" disabled={disabled} onClick={onClearOptOut}>בטל הסרה</button>
+      )}
     </div>
   );
 }

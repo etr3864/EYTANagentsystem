@@ -74,6 +74,10 @@ export interface Agent {
   business_assistant_mode: boolean;
   max_tool_rounds?: number;
   has_whatsapp_meta_channel?: boolean;
+  has_campaign?: boolean;
+  campaigns_enabled?: boolean;
+  campaign_hourly_cap?: number | null;
+  campaign_daily_cap?: number | null;
   active_channel_types?: string[];
   created_at: string | null;
   updated_at?: string | null;
@@ -145,7 +149,7 @@ export interface Conversation {
 }
 
 // ============ Message ============
-export type MessageType = 'text' | 'voice' | 'image' | 'video' | 'document' | 'media' | 'manual' | 'external' | 'trigger_data' | 'escalation' | 'function';
+export type MessageType = 'text' | 'voice' | 'image' | 'video' | 'document' | 'media' | 'manual' | 'external' | 'campaign' | 'trigger_data' | 'escalation' | 'function';
 
 export interface Message {
   id?: number;

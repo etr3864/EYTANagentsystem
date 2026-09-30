@@ -252,12 +252,25 @@ async def _handle_reschedule_appointment(
 # ============ Opt-out Handler ============
 
 def _handle_opt_out(db: Session, conversation_id: int) -> str:
-    """Handle opt_out_conversation tool - mark conversation as opted out."""
+    """Mark the conversation opted out and keep the phone on the blocklist."""
     if not conversation_id:
         return "שגיאה: לא ניתן לבצע opt-out"
     conv = conversations.set_opted_out(db, conversation_id, True)
     if not conv:
         return "שגיאה: שיחה לא נמצאה"
+    phone = conv.user.phone if conv.user is not None else ""
+    if conv.agent_id and phone:
+        from backend.models.message import Message
+        from backend.services.silence import blocklist
+
+        last = (
+            db.query(Message.content)
+            .filter(Message.conversation_id == conversation_id, Message.role == "user")
+            .order_by(Message.id.desc())
+            .first()
+        )
+        quote = last[0] if last else ""
+        blocklist.mark_opted_out(db, conv.agent_id, phone, quote or "")
     return "הלקוח הוסר בהצלחה מרשימת ההודעות היזומות."
 
 

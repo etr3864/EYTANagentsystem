@@ -21,6 +21,7 @@ interface NavLink {
 const NAV_LINKS: NavLink[] = [
   { href: '/', label: 'סוכנים', icon: <AgentsIcon />, roles: ['super_admin', 'admin', 'employee'] },
   { href: '/dashboard', label: 'דאשבורד', icon: <ChartIcon />, roles: ['super_admin', 'admin'] },
+  { href: '/campaigns', label: 'קמפיינים', icon: <ChartIcon />, roles: ['super_admin', 'admin'] },
   { href: '/users', label: 'משתמשים', icon: <UsersIcon />, roles: ['super_admin', 'admin'] },
   { href: '/database', label: 'Database', icon: <DatabaseIcon />, roles: ['super_admin'] },
   { href: '/wasender', label: 'ערוצים', icon: <SettingsIcon />, roles: ['super_admin'] },
@@ -52,7 +53,8 @@ export function AppNavbar() {
   if (isHidden || isLoading || !user) return null;
 
   const userRole = user.role ?? 'employee';
-  const visibleLinks = NAV_LINKS.filter(l => l.roles.includes(userRole));
+  const visibleLinks = NAV_LINKS.filter((link) => link.roles.includes(userRole))
+    .filter((link) => link.href !== '/campaigns' || isSuperAdmin(user) || user.has_campaigns);
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';

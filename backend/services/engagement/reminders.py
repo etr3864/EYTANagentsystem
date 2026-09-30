@@ -311,9 +311,9 @@ async def _send_to_customer(
     if not user.phone:
         return False, "no customer phone"
 
-    from backend.services.silence.policy import blocks_reply
+    from backend.services.silence.policy import blocks_proactive
     from backend.services.messaging.outbound import send_session_text
-    if blocks_reply(db, agent, user.phone):
+    if blocks_proactive(db, agent, user.phone):
         return False, "silenced"
 
     if agent.provider != "wasender":

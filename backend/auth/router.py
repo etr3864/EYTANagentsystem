@@ -42,6 +42,13 @@ from .schemas import (
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+def _with_campaigns(db: Session, user: AuthUser) -> UserResponse:
+    payload = UserResponse.model_validate(user)
+    from backend.services.campaigns.access import user_sees_campaigns
+    payload.has_campaigns = user_sees_campaigns(db, user)
+    return payload
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _get_admin_or_404(db: Session, admin_id: int) -> AuthUser:
@@ -121,7 +128,7 @@ def login(request: LoginRequest, req: Request, db: Session = Depends(get_db)):
     return TokenResponse(
         access_token=create_access_token(user.id, user.role.value),
         refresh_token=create_refresh_token(user.id),
-        user=UserResponse.model_validate(user)
+        user=_with_campaigns(db, user)
     )
 
 
@@ -148,7 +155,7 @@ def refresh_tokens(request: RefreshRequest, db: Session = Depends(get_db)):
     return TokenResponse(
         access_token=create_access_token(user.id, user.role.value),
         refresh_token=create_refresh_token(user.id),
-        user=UserResponse.model_validate(user)
+        user=_with_campaigns(db, user)
     )
 
 
@@ -157,9 +164,12 @@ def refresh_tokens(request: RefreshRequest, db: Session = Depends(get_db)):
 # ============================================================
 
 @router.get("/me", response_model=UserResponse)
-def get_current_user_info(current_user: AuthUser = Depends(get_current_user)):
+def get_current_user_info(
+    current_user: AuthUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """Get current user's profile."""
-    return UserResponse.model_validate(current_user)
+    return _with_campaigns(db, current_user)
 
 
 @router.put("/me/password", response_model=MessageResponse)

@@ -27,6 +27,7 @@ def run_all(conn):
     _channel_user_staff_note(conn)
     _message_group_sender(conn)
     _silence(conn)
+    _campaigns(conn)
     conn.commit()
 
 
@@ -851,4 +852,170 @@ def _silence(conn):
     conn.execute(text("DROP TABLE IF EXISTS saved_contacts"))
     conn.execute(text("ALTER TABLE agents DROP COLUMN IF EXISTS skip_saved_contacts"))
     conn.execute(text("ALTER TABLE agent_channels DROP COLUMN IF EXISTS contacts_synced_at"))
+
+
+def _add_column(conn, statement: str):
+    conn.execute(text(f"""
+        DO $$ BEGIN
+            {statement};
+        EXCEPTION
+            WHEN duplicate_column THEN null;
+        END $$;
+    """))
+
+
+def _campaigns(conn):
+    for statement in (
+        "ALTER TABLE agents ADD COLUMN campaigns_enabled BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE agents ADD COLUMN campaign_hourly_cap INTEGER",
+        "ALTER TABLE agents ADD COLUMN campaign_daily_cap INTEGER",
+        "ALTER TABLE agents ADD COLUMN campaign_timezone VARCHAR(64) NOT NULL DEFAULT 'Asia/Jerusalem'",
+        "ALTER TABLE agents ADD COLUMN campaign_system_prompt TEXT",
+        "ALTER TABLE conversations ADD COLUMN campaign_pending BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE blocked_numbers ADD COLUMN manual BOOLEAN NOT NULL DEFAULT TRUE",
+        "ALTER TABLE blocked_numbers ADD COLUMN opted_out BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE blocked_numbers ADD COLUMN quote TEXT",
+        "ALTER TABLE blocked_numbers ADD COLUMN created_at TIMESTAMP",
+        "ALTER TABLE blocked_numbers ADD COLUMN opted_out_at TIMESTAMP",
+    ):
+        _add_column(conn, statement)
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS campaigns (
+            id SERIAL PRIMARY KEY,
+            agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+            name VARCHAR(120) NOT NULL,
+            description TEXT,
+            status VARCHAR(20) NOT NULL DEFAULT 'draft',
+            pause_reason VARCHAR(40),
+            mode VARCHAR(20) NOT NULL DEFAULT 'template',
+            template_body TEXT,
+            prompt TEXT,
+            column_defaults JSONB,
+            rephrase_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+            writer_model VARCHAR(50) NOT NULL DEFAULT 'gemini-3.8-flash',
+            rephrase_model VARCHAR(50) NOT NULL DEFAULT 'gemini-3.8-flash',
+            media_kind VARCHAR(20),
+            media_key TEXT,
+            media_mime VARCHAR(80),
+            media_name VARCHAR(200),
+            media_description TEXT,
+            window_start VARCHAR(5),
+            window_end VARCHAR(5),
+            timezone VARCHAR(64) NOT NULL DEFAULT 'Asia/Jerusalem',
+            skip_recent_amount INTEGER,
+            skip_recent_unit VARCHAR(10),
+            recipient_count INTEGER NOT NULL DEFAULT 0,
+            step_sent_count INTEGER NOT NULL DEFAULT 0,
+            replied_count INTEGER NOT NULL DEFAULT 0,
+            delivered_count INTEGER NOT NULL DEFAULT 0,
+            current_step INTEGER NOT NULL DEFAULT 1,
+            created_at TIMESTAMP,
+            updated_at TIMESTAMP
+        )
+    """))
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS campaign_steps (
+            id SERIAL PRIMARY KEY,
+            campaign_id INTEGER NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+            position INTEGER NOT NULL,
+            delay_minutes INTEGER NOT NULL DEFAULT 0,
+            template_body TEXT,
+            prompt TEXT,
+            CONSTRAINT uq_campaign_step UNIQUE (campaign_id, position)
+        )
+    """))
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS campaign_recipients (
+            id SERIAL PRIMARY KEY,
+            campaign_id INTEGER NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+            phone VARCHAR(20) NOT NULL,
+            fields JSONB,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            replied_at TIMESTAMP,
+            CONSTRAINT uq_campaign_recipient_phone UNIQUE (campaign_id, phone)
+        )
+    """))
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS campaign_sends (
+            id SERIAL PRIMARY KEY,
+            campaign_id INTEGER NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+            agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+            recipient_id INTEGER NOT NULL REFERENCES campaign_recipients(id) ON DELETE CASCADE,
+            step_position INTEGER NOT NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'pending',
+            delivery VARCHAR(20),
+            next_send_at TIMESTAMP,
+            locked_until TIMESTAMP,
+            hold_since TIMESTAMP,
+            provider_msg_id VARCHAR(80),
+            http_status INTEGER,
+            attempt_count INTEGER NOT NULL DEFAULT 0,
+            channel_id INTEGER,
+            fail_reason VARCHAR(200),
+            body TEXT,
+            sent_at TIMESTAMP,
+            CONSTRAINT uq_campaign_send_step UNIQUE (recipient_id, step_position)
+        )
+    """))
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS campaign_usage (
+            id SERIAL PRIMARY KEY,
+            campaign_id INTEGER NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+            model VARCHAR(50) NOT NULL,
+            input_tokens INTEGER NOT NULL DEFAULT 0,
+            output_tokens INTEGER NOT NULL DEFAULT 0,
+            cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+            cache_creation_tokens INTEGER NOT NULL DEFAULT 0,
+            CONSTRAINT uq_campaign_usage_model UNIQUE (campaign_id, model)
+        )
+    """))
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS campaign_imports (
+            id SERIAL PRIMARY KEY,
+            campaign_id INTEGER NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+            filename VARCHAR(200) NOT NULL DEFAULT '',
+            payload BYTEA,
+            phone_column VARCHAR(120),
+            status VARCHAR(20) NOT NULL DEFAULT 'uploaded',
+            error VARCHAR(200),
+            headers JSONB,
+            created_at TIMESTAMP
+        )
+    """))
+    conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_campaigns_agent_status ON campaigns(agent_id, status)"
+    ))
+    conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_campaign_recipients_campaign ON campaign_recipients(campaign_id)"
+    ))
+    conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_campaign_sends_due ON campaign_sends(agent_id, status, next_send_at)"
+    ))
+    conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_campaign_sends_msg ON campaign_sends(provider_msg_id)"
+    ))
+
+
+def drop_campaigns(conn):
+    """Manual rollback. Not called from run_all."""
+    conn.execute(text("DROP TABLE IF EXISTS campaign_imports"))
+    conn.execute(text("DROP TABLE IF EXISTS campaign_usage"))
+    conn.execute(text("DROP TABLE IF EXISTS campaign_sends"))
+    conn.execute(text("DROP TABLE IF EXISTS campaign_recipients"))
+    conn.execute(text("DROP TABLE IF EXISTS campaign_steps"))
+    conn.execute(text("DROP TABLE IF EXISTS campaigns"))
+    for statement in (
+        "ALTER TABLE agents DROP COLUMN IF EXISTS campaigns_enabled",
+        "ALTER TABLE agents DROP COLUMN IF EXISTS campaign_hourly_cap",
+        "ALTER TABLE agents DROP COLUMN IF EXISTS campaign_daily_cap",
+        "ALTER TABLE agents DROP COLUMN IF EXISTS campaign_timezone",
+        "ALTER TABLE agents DROP COLUMN IF EXISTS campaign_system_prompt",
+        "ALTER TABLE conversations DROP COLUMN IF EXISTS campaign_pending",
+        "ALTER TABLE blocked_numbers DROP COLUMN IF EXISTS manual",
+        "ALTER TABLE blocked_numbers DROP COLUMN IF EXISTS opted_out",
+        "ALTER TABLE blocked_numbers DROP COLUMN IF EXISTS quote",
+        "ALTER TABLE blocked_numbers DROP COLUMN IF EXISTS created_at",
+        "ALTER TABLE blocked_numbers DROP COLUMN IF EXISTS opted_out_at",
+    ):
+        conn.execute(text(statement))
 

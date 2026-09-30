@@ -7,7 +7,7 @@ from backend.core.config import settings
 celery_app = Celery(
     "whatsapp_agents",
     broker=settings.redis_url,
-    include=["backend.tasks.context_summary"],
+    include=["backend.tasks.context_summary", "backend.tasks.campaign_tick", "backend.tasks.campaign_import"],
 )
 
 celery_app.conf.update(

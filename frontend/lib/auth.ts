@@ -13,6 +13,7 @@ export interface AuthUser {
   created_at: string;
   updated_at?: string | null;
   parent_id?: number;
+  has_campaigns?: boolean;
 }
 
 export interface TokenResponse {

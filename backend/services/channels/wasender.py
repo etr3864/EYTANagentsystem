@@ -167,6 +167,75 @@ async def send_document(
     )
 
 
+async def send_once(
+    api_key: str,
+    session: str,
+    to: str,
+    text: str,
+    *,
+    media_url: str | None = None,
+    media_kind: str | None = None,
+    filename: str | None = None,
+    timeout: int = 15,
+) -> dict:
+    """One campaign attempt. No retry and no sleep."""
+    payload: dict = {"session": session, "to": recipient_jid(to), "text": text or ""}
+    if media_kind == "image" and media_url:
+        payload["imageUrl"] = media_url
+    elif media_kind == "video" and media_url:
+        payload["videoUrl"] = media_url
+    elif media_kind == "document" and media_url:
+        payload["documentUrl"] = media_url
+        payload["fileName"] = filename or "file"
+    try:
+        response = await _client().post(
+            f"{_BASE_URL}/send-message",
+            headers=_auth(api_key),
+            json=payload,
+            timeout=timeout,
+        )
+    except httpx.TimeoutException:
+        return {"timed_out": True, "status": None, "msg_id": None, "retry_after": None, "error": "timeout"}
+    except Exception as error:
+        return {"timed_out": False, "status": None, "msg_id": None, "retry_after": None, "error": str(error)[:80]}
+    retry_after = _retry_after(response)
+    if response.status_code == 429:
+        return {"timed_out": False, "status": 429, "msg_id": None, "retry_after": retry_after, "error": "rate"}
+    if response.status_code != 200:
+        return {
+            "timed_out": False,
+            "status": response.status_code,
+            "msg_id": None,
+            "retry_after": None,
+            "error": _error_text(response),
+        }
+    return {
+        "timed_out": False,
+        "status": 200,
+        "msg_id": _extract_msg_id(response.json()),
+        "retry_after": None,
+        "error": None,
+    }
+
+
+def _retry_after(response) -> int:
+    raw = response.headers.get("Retry-After") or response.headers.get("retry_after") or "30"
+    try:
+        return max(1, int(float(raw)))
+    except ValueError:
+        return 30
+
+
+def _error_text(response) -> str:
+    try:
+        body = response.json()
+    except Exception:
+        return ""
+    if isinstance(body, dict):
+        return str(body.get("message") or body.get("error") or "")[:160]
+    return ""
+
+
 def _inbound_quote(to: str, key: str | None, text: str | None) -> dict | None:
     """Baileys-style quote for an inbound key.id. Wasender replyTo cannot point at one."""
     ident = (key or "").strip()

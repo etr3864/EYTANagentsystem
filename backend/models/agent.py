@@ -128,6 +128,12 @@ class Agent(Base):
     # NULL = phone silence off. 0 = until someone cancels. Above 0 = minutes.
     phone_silence_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
+    campaigns_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    campaign_hourly_cap: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    campaign_daily_cap: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    campaign_timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="Asia/Jerusalem")
+    campaign_system_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     conversations: Mapped[list["Conversation"]] = relationship(back_populates="agent", passive_deletes=True)
     appointments: Mapped[list["Appointment"]] = relationship(back_populates="agent", passive_deletes=True)
     channels: Mapped[list["AgentChannel"]] = relationship("AgentChannel", back_populates="agent", passive_deletes=True)

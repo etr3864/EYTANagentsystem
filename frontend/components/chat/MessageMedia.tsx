@@ -49,10 +49,12 @@ function DownloadLink({ url, label }: { url: string; label: string }) {
 
 export function MessageMedia({ msg, displayContent }: MessageMediaProps) {
   const url = msg.media_url;
+  const campaignImage = msg.message_type === 'campaign' && !!url && /\.(png|jpe?g|gif|webp)(\?|$)/i.test(url);
+  const campaignVideo = msg.message_type === 'campaign' && !!url && /\.(mp4|mov|webm)(\?|$)/i.test(url);
   const isVoice = msg.message_type === 'voice';
-  const isImage = msg.message_type === 'image';
-  const isVideo = msg.message_type === 'video';
-  const isDocument = msg.message_type === 'document';
+  const isImage = msg.message_type === 'image' || campaignImage;
+  const isVideo = msg.message_type === 'video' || campaignVideo;
+  const isDocument = msg.message_type === 'document' || (msg.message_type === 'campaign' && !!url && !campaignImage && !campaignVideo);
 
   if (msg.media_too_large) {
     return (
@@ -134,7 +136,7 @@ export function MessageMedia({ msg, displayContent }: MessageMediaProps) {
       {isVideo && (
         <video src={url} controls className="max-w-full max-h-64 rounded-lg" preload="metadata" />
       )}
-      {displayContent && (
+      {displayContent && msg.message_type !== 'campaign' && (
         <div className="text-sm whitespace-pre-wrap leading-relaxed mt-2">{displayContent}</div>
       )}
     </div>

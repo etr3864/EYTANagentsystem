@@ -19,6 +19,7 @@ CHECK_INTERVAL = 30
 FOLLOWUP_INTERVAL = 30        # follow-ups + reminders (time-sensitive)
 SUMMARY_INTERVAL = 300        # conversation summaries + webhooks (5 min)
 HEALTH_CHECK_INTERVAL = 21600  # channel health checks (6 hours)
+CAMPAIGN_INTERVAL = 30
 
 # Lock duration — must be longer than a full cycle (AI calls can take 60s+)
 LOCK_DURATION = 180
@@ -27,6 +28,7 @@ LOCK_DURATION = 180
 _last_followup: float = 0
 _last_summary: float = 0
 _last_health: float = 0
+_last_campaign: float = 0
 
 # Global flag to control the scheduler
 _running = False
@@ -120,7 +122,7 @@ async def _process_cycle():
     """
     import time
 
-    global _last_followup, _last_summary, _last_health
+    global _last_followup, _last_summary, _last_health, _last_campaign
     now = time.monotonic()
 
     from backend.services.engagement.reminders import process_pending_reminders
@@ -143,8 +145,20 @@ async def _process_cycle():
         if now - _last_health >= HEALTH_CHECK_INTERVAL:
             _last_health = now
             await _check_all_channel_health(db)
+
+        if now - _last_campaign >= CAMPAIGN_INTERVAL:
+            _last_campaign = now
+            _poke_campaigns()
     finally:
         db.close()
+
+
+def _poke_campaigns() -> None:
+    try:
+        from backend.tasks.campaign_tick import campaign_tick
+        campaign_tick.delay()
+    except Exception as error:
+        log_error("campaign", str(error)[:80])
 
 
 async def _check_all_channel_health(db) -> None:

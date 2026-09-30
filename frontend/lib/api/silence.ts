@@ -5,8 +5,16 @@ export interface SilencePolicy {
   blocklist_count: number;
 }
 
+export interface BlocklistItem {
+  phone: string;
+  manual: boolean;
+  opted_out: boolean;
+  quote: string | null;
+  created_at: string | null;
+}
+
 export interface BlocklistPage {
-  items: string[];
+  items: BlocklistItem[];
   total: number;
   page: number;
   page_size: number;
@@ -78,6 +86,15 @@ export async function deleteBlockedMany(
     body: JSON.stringify(all ? { all: true, phones: [] } : { all: false, phones }),
   });
   await read(res, 'לא הצלחנו למחוק');
+}
+
+export async function clearOptOut(agentId: number, phone: string): Promise<void> {
+  const res = await authFetch(`${API_URL}/api/agents/${agentId}/blocklist/opt-out/clear`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone }),
+  });
+  await read(res, 'לא הצלחנו לבטל את ההסרה');
 }
 
 export async function deleteBlocked(agentId: number, phone: string): Promise<void> {

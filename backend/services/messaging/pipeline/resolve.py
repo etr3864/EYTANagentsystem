@@ -156,10 +156,16 @@ def _reset_engagement(db: Session, conversation, is_playground: bool) -> None:
         conversation.opted_out = False
     conversation.last_customer_message_at = datetime.utcnow()
     if not is_playground:
+        conversation.campaign_pending = False
         from backend.services.engagement import followups
 
         _mark_followup_responded(db, conversation.id)
         followups.cancel_pending_followups(db, conversation.id)
+        phone = conversation.user.phone if conversation.user is not None else ""
+        if phone and conversation.agent_id:
+            from backend.services.campaigns.records import note_reply
+
+            note_reply(db, conversation.agent_id, phone)
     db.commit()
 
 

@@ -315,6 +315,10 @@ async def handle_wasender_message(agent_id: int, msg_data: dict):
             media_too_large = inbound.media_too_large
 
         channel_id, channel_user_id = await _resolve_channel_user(db, agent.id, phone, name, creds.api_key)
+        live_turn = bool(getattr(agent, "campaigns_enabled", False) and understand and channel_id)
+        if live_turn:
+            from backend.services.campaigns.session_lock import mark_live, clear_live
+            await mark_live(channel_id)
 
         batching_config = agent.get_batching_config()
         debounce = batching_config.get("debounce_seconds", 3)
@@ -338,25 +342,25 @@ async def handle_wasender_message(agent_id: int, msg_data: dict):
         async def typing_fn(to: str) -> None:
             await wasender.send_typing(creds.api_key, to)
 
-        if debounce == 0:
-            await process_batched_messages(
-                agent.id, phone, name, [pending], send_fn, "wasender", send_media_fn,
-                channel_id=channel_id, channel_user_id=channel_user_id,
-                send_typing=typing_fn,
-            )
-            return
+        async def _run(pending_msgs: list[PendingMessage]):
+            try:
+                await process_batched_messages(
+                    agent.id, phone, name, pending_msgs, send_fn, "wasender", send_media_fn,
+                    channel_id=channel_id, channel_user_id=channel_user_id,
+                    send_typing=typing_fn,
+                )
+            finally:
+                if live_turn:
+                    await clear_live(channel_id)
 
-        async def process_callback(pending_msgs: list[PendingMessage]):
-            await process_batched_messages(
-                agent.id, phone, name, pending_msgs, send_fn, "wasender", send_media_fn,
-                channel_id=channel_id, channel_user_id=channel_user_id,
-                send_typing=typing_fn,
-            )
+        if debounce == 0:
+            await _run([pending])
+            return
 
         await message_buffer.add_message(
             agent_id=agent.id, user_phone=phone, text=text,
             debounce_seconds=debounce, max_messages=max_batch,
-            process_callback=process_callback,
+            process_callback=_run,
             msg_type=msg_type, image_base64=image_base64, media_type=mime_type,
             media_url=media_url, media_too_large=media_too_large,
             reply_to_text=quoted_text,
@@ -502,6 +506,15 @@ async def _receive_webhook(
             channel = resolve_channel(db, agent_id, channel_id)
             if channel:
                 await apply_event(db, channel, body)
+            return {"status": "ok"}
+
+        if event == "messages.update":
+            channel = resolve_channel(db, agent_id, channel_id)
+            from backend.services.campaigns.status import apply_status, iter_statuses
+            if channel is not None:
+                for msg_id, code in iter_statuses(body):
+                    apply_status(db, channel, msg_id, code)
+                db.commit()
             return {"status": "ok"}
 
         if event == "contacts.upsert":

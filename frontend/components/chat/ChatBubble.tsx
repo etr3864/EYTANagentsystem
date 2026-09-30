@@ -32,6 +32,7 @@ export function ChatBubble({ msg, showDate, onQuote, onSenderClick }: ChatBubble
   const isVideo = msg.message_type === 'video';
   const isManual = msg.message_type === 'manual';
   const isExternal = msg.message_type === 'external';
+  const isCampaign = msg.message_type === 'campaign';
   const isTriggerData = msg.message_type === 'trigger_data';
   const isEscalation = msg.message_type === 'escalation';
   const isFunction = msg.message_type === 'function';
@@ -44,7 +45,7 @@ export function ChatBubble({ msg, showDate, onQuote, onSenderClick }: ChatBubble
     ? 'ops-bubble ops-bubble-agent border-rose-500/40'
     : isTriggerData
       ? 'ops-bubble ops-bubble-agent border-amber-500/40'
-      : isExternal
+      : isExternal || isCampaign
         ? 'ops-bubble ops-bubble-agent border-orange-500/40'
         : isUser
           ? 'ops-bubble ops-bubble-user'
@@ -75,6 +76,11 @@ export function ChatBubble({ msg, showDate, onQuote, onSenderClick }: ChatBubble
           {isExternal && (
             <div className="flex items-center gap-2 text-orange-300 text-xs mb-2 pb-2 border-b border-orange-500/20">
               <span>נשלח ללקוח מאוטומציה</span>
+            </div>
+          )}
+          {isCampaign && (
+            <div className="flex items-center gap-2 text-orange-300 text-xs mb-2 pb-2 border-b border-orange-500/20">
+              <span>קמפיין · {msg.sender_name || ''}</span>
             </div>
           )}
           {isOwner && (

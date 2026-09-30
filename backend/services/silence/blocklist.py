@@ -1,6 +1,7 @@
-"""Manual numbers the bot never answers. Empty table means no change."""
+"""Manual numbers and customer opt-outs. One row per agent and phone."""
 import io
 import re
+from datetime import datetime
 
 from sqlalchemy.orm import Session
 
@@ -10,6 +11,7 @@ from backend.services.silence.phones import canonical
 _CHUNK = re.compile(r"\+?\d[\d\s\-()]{6,}\d")
 _MAX_NUMBERS = 20000
 PAGE_SIZE = 50
+_QUOTE_CAP = 240
 
 
 def page(db: Session, agent_id: int, page_number: int) -> dict:
@@ -23,7 +25,7 @@ def page(db: Session, agent_id: int, page_number: int) -> dict:
         .all()
     )
     return {
-        "items": [row.phone for row in rows],
+        "items": [_row(row) for row in rows],
         "total": total,
         "page": page_number,
         "page_size": PAGE_SIZE,
@@ -63,29 +65,66 @@ def replace_one(db: Session, agent_id: int, old: str, new: str) -> str:
 
 
 def remove(db: Session, agent_id: int, raw: str) -> None:
-    number = canonical(raw)
-    if not number:
-        return
-    _delete_phones(db, agent_id, [number])
+    clear_manual(db, agent_id, raw)
 
 
 def remove_many(db: Session, agent_id: int, raw_phones: list[str]) -> None:
-    numbers: list[str] = []
-    seen: set[str] = set()
-    for raw in raw_phones:
-        number = canonical(raw)
-        if number and number not in seen:
-            seen.add(number)
-            numbers.append(number)
+    numbers = _unique(raw_phones)
     if len(numbers) > _MAX_NUMBERS:
         raise ValueError("too_many")
-    _delete_phones(db, agent_id, numbers)
+    for number in numbers:
+        clear_manual(db, agent_id, number)
 
 
 def remove_all(db: Session, agent_id: int) -> None:
-    db.query(BlockedNumber).filter(BlockedNumber.agent_id == agent_id).delete(
-        synchronize_session=False
+    db.query(BlockedNumber).filter(
+        BlockedNumber.agent_id == agent_id,
+        BlockedNumber.manual.is_(True),
+        BlockedNumber.opted_out.is_(False),
+    ).delete(synchronize_session=False)
+    db.query(BlockedNumber).filter(
+        BlockedNumber.agent_id == agent_id,
+        BlockedNumber.manual.is_(True),
+        BlockedNumber.opted_out.is_(True),
+    ).update({BlockedNumber.manual: False}, synchronize_session=False)
+
+
+def clear_manual(db: Session, agent_id: int, raw: str) -> None:
+    row = _row_for(db, agent_id, raw)
+    if row is None or not row.manual:
+        return
+    if row.opted_out:
+        row.manual = False
+        return
+    db.delete(row)
+
+
+def clear_opt_out(db: Session, agent_id: int, raw: str) -> None:
+    row = _row_for(db, agent_id, raw)
+    if row is None or not row.opted_out:
+        return
+    row.opted_out = False
+    row.quote = None
+    row.opted_out_at = None
+    if not row.manual:
+        db.delete(row)
+
+
+def mark_opted_out(db: Session, agent_id: int, raw: str, quote: str) -> None:
+    number = canonical(raw)
+    if not number:
+        return
+    row = (
+        db.query(BlockedNumber)
+        .filter(BlockedNumber.agent_id == agent_id, BlockedNumber.phone == number)
+        .first()
     )
+    if row is None:
+        row = BlockedNumber(agent_id=agent_id, phone=number, manual=False, opted_out=True)
+        db.add(row)
+    row.opted_out = True
+    row.quote = (quote or "")[:_QUOTE_CAP] or None
+    row.opted_out_at = datetime.utcnow()
 
 
 def _delete_phones(db: Session, agent_id: int, numbers: list[str]) -> None:
@@ -102,9 +141,7 @@ def import_numbers(db: Session, agent_id: int, raw_text: str, *, replace: bool) 
     if len(numbers) > _MAX_NUMBERS:
         raise ValueError("too_many")
     if replace:
-        db.query(BlockedNumber).filter(BlockedNumber.agent_id == agent_id).delete(
-            synchronize_session=False
-        )
+        remove_all(db, agent_id)
     _insert(db, agent_id, numbers)
     return len(numbers)
 
@@ -157,12 +194,46 @@ def _insert(db: Session, agent_id: int, numbers: list[str]) -> None:
     if not numbers:
         return
     existing = {
-        row[0]
-        for row in db.query(BlockedNumber.phone)
+        row.phone: row
+        for row in db.query(BlockedNumber)
         .filter(BlockedNumber.agent_id == agent_id, BlockedNumber.phone.in_(numbers))
         .all()
     }
     for number in numbers:
-        if number not in existing:
-            db.add(BlockedNumber(agent_id=agent_id, phone=number))
-            existing.add(number)
+        row = existing.get(number)
+        if row is None:
+            db.add(BlockedNumber(agent_id=agent_id, phone=number, manual=True))
+            continue
+        row.manual = True
+
+
+def _row_for(db: Session, agent_id: int, raw: str) -> BlockedNumber | None:
+    number = canonical(raw)
+    if not number:
+        return None
+    return (
+        db.query(BlockedNumber)
+        .filter(BlockedNumber.agent_id == agent_id, BlockedNumber.phone == number)
+        .first()
+    )
+
+
+def _unique(raw_phones: list[str]) -> list[str]:
+    numbers: list[str] = []
+    seen: set[str] = set()
+    for raw in raw_phones:
+        number = canonical(raw)
+        if number and number not in seen:
+            seen.add(number)
+            numbers.append(number)
+    return numbers
+
+
+def _row(row: BlockedNumber) -> dict:
+    return {
+        "phone": row.phone,
+        "manual": bool(row.manual),
+        "opted_out": bool(row.opted_out),
+        "quote": row.quote,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+    }

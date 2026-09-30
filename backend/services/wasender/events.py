@@ -18,6 +18,11 @@ async def apply_event(db: Session, channel: AgentChannel, payload: dict) -> None
         db.commit()
         log("wasender_status", channel_id=channel.id, status=status)
         await live.publish(channel.id, {"type": "status", "status": status})
+        from backend.services.campaigns.constants import SESSION_DOWN, PAUSE_SESSION
+        from backend.services.campaigns.status import pause_agent
+        if status in SESSION_DOWN:
+            pause_agent(db, channel.agent_id, PAUSE_SESSION)
+            db.commit()
         return
     if event == "qrcode.updated":
         qr = data.get("qrCode") or data.get("qrcode") or data.get("qr")

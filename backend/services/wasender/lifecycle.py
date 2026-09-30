@@ -26,6 +26,7 @@ DEFAULT_EVENTS = [
     "session.status",
     "qrcode.updated",
     "messages-group.received",
+    "messages.update",
 ]
 SETTING_KEYS = (
     "account_protection",

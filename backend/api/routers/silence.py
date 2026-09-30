@@ -170,6 +170,19 @@ def remove_blocked(
     return {"status": "ok"}
 
 
+@router.post("/{agent_id}/blocklist/opt-out/clear")
+def clear_blocked_opt_out(
+    agent_id: int,
+    body: BlockedPhoneIn,
+    _: AuthUser = Depends(require_admin_or_above()),
+    db: Session = Depends(get_db),
+):
+    _agent(db, agent_id)
+    blocklist.clear_opt_out(db, agent_id, body.phone)
+    db.commit()
+    return {"status": "ok"}
+
+
 @router.post("/{agent_id}/blocklist/import")
 async def import_blocked(
     agent_id: int,

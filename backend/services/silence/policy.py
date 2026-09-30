@@ -20,6 +20,15 @@ def blocks_reply(db: Session, agent, phone: str) -> bool:
     return _on_blocklist(db, agent.id, phone)
 
 
+def blocks_proactive(db: Session, agent, phone: str) -> bool:
+    """Campaigns, follow-ups, and reminders. Opt-out does not block a live reply."""
+    if blocks_reply(db, agent, phone):
+        return True
+    if agent is None:
+        return False
+    return _opted_out(db, agent.id, phone)
+
+
 def turn_blocked(agent_id: int, phone: str) -> bool:
     with SessionLocal() as db:
         return blocks_reply(db, agents.get_by_id(db, agent_id), phone)
@@ -41,13 +50,9 @@ def clear_phone_silence(conv) -> None:
 
 
 def release_hold(db: Session, agent, phone: str) -> None:
-    number = canonical(phone)
-    if not number:
-        return
-    db.query(BlockedNumber).filter(
-        BlockedNumber.agent_id == agent.id,
-        BlockedNumber.phone == number,
-    ).delete(synchronize_session=False)
+    from backend.services.silence import blocklist
+
+    blocklist.clear_manual(db, agent.id, phone)
 
 
 def _phone_silenced(db: Session, agent, phone: str) -> bool:
@@ -80,7 +85,27 @@ def _on_blocklist(db: Session, agent_id: int, phone: str) -> bool:
         return False
     return (
         db.query(BlockedNumber.id)
-        .filter(BlockedNumber.agent_id == agent_id, BlockedNumber.phone == number)
+        .filter(
+            BlockedNumber.agent_id == agent_id,
+            BlockedNumber.phone == number,
+            BlockedNumber.manual.is_(True),
+        )
+        .first()
+        is not None
+    )
+
+
+def _opted_out(db: Session, agent_id: int, phone: str) -> bool:
+    number = canonical(phone)
+    if not number:
+        return False
+    return (
+        db.query(BlockedNumber.id)
+        .filter(
+            BlockedNumber.agent_id == agent_id,
+            BlockedNumber.phone == number,
+            BlockedNumber.opted_out.is_(True),
+        )
         .first()
         is not None
     )
