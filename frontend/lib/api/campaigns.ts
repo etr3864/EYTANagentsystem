@@ -214,5 +214,5 @@ export async function uploadCampaignMedia(id: number, file: File, description: s
   body.set('file', file);
   body.set('description', description);
   const res = await authFetch(`${API_URL}/api/campaigns/${id}/media`, { method: 'POST', body });
-  return read<{ kind: string; name: string; description: string }>(res, 'מדיה');
+  return read<{ kind: string; name: string; description: string; manual: boolean }>(res, 'מדיה');
 }

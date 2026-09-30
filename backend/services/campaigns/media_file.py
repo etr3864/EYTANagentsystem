@@ -36,22 +36,25 @@ async def store_media(agent_id: int, filename: str, payload: bytes, description:
     key = generate_file_key(agent_id, kind, filename)
     upload_file(io.BytesIO(payload), key, mime, len(payload))
     text = await _description(kind, payload, mime, description)
-    return {"kind": kind, "mime": mime, "key": key, "name": filename[:200], "description": text[:1000]}
+    return {
+        "kind": kind,
+        "mime": mime,
+        "key": key,
+        "name": filename[:200],
+        "description": text[:1000],
+        "manual": not text,
+    }
 
 
 async def _description(kind: str, payload: bytes, mime: str, typed: str) -> str:
+    written = (typed or "").strip()
     if kind == "video":
-        text = (typed or "").strip()
-        if not text:
-            raise ValueError("video_description")
-        return text
-    if kind == "image":
-        text = await _image_description(payload, mime)
-    else:
-        text = await _document_description(payload)
-    if not text:
-        raise ValueError("analyze_failed")
-    return text
+        return written
+    try:
+        text = await (_image_description(payload, mime) if kind == "image" else _document_description(payload))
+    except Exception:
+        text = ""
+    return (text or "").strip() or written
 
 
 async def _document_description(payload: bytes) -> str:
@@ -65,6 +68,9 @@ async def _document_description(payload: bytes) -> str:
 
 
 def _document_text(payload: bytes) -> str:
+    if payload.startswith(_PDF):
+        from backend.services.media.document_extraction import extract_text
+        return extract_text(payload, "application/pdf")
     if payload.startswith(b"PK"):
         return _docx_text(payload)
     for encoding in ("utf-8", "cp1255"):

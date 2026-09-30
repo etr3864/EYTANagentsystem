@@ -117,7 +117,7 @@ export function FileStep({
 
 export function MessageStep({
   dupes, onDropDupes, mode, onMode, text, onText, columns, writerModel, onWriter, rephrase, onRephrase, sample, onSample,
-  mediaRef, mediaName, mediaNote, onNote, onPickMedia, onMedia,
+  mediaRef, mediaName, mediaNote, mediaWarn, onNote, onPickMedia, onMedia,
 }: {
   dupes: number;
   onDropDupes: () => void;
@@ -135,6 +135,7 @@ export function MessageStep({
   mediaRef: RefObject<HTMLInputElement | null>;
   mediaName: string;
   mediaNote: string;
+  mediaWarn: string;
   onNote: (value: string) => void;
   onPickMedia: () => void;
   onMedia: (file: File) => void;
@@ -192,7 +193,7 @@ export function MessageStep({
       />
       <Textarea
         label="תיאור המדיה"
-        hint="תמונה ומסמך מתמלאים אחרי הניתוח. סרטון כותבים ידנית. לא נשלח ללקוח."
+        hint={mediaWarn || 'תמונה, PDF ו־Word מתמלאים אחרי הניתוח. אם לא הצלחנו, כתבו כאן. לא נשלח ללקוח.'}
         value={mediaNote}
         onChange={(event) => onNote(event.target.value)}
       />

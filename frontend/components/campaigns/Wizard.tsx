@@ -77,6 +77,7 @@ export function Wizard() {
   const [sample, setSample] = useState('');
   const [mediaName, setMediaName] = useState('');
   const [mediaNote, setMediaNote] = useState('');
+  const [mediaWarn, setMediaWarn] = useState('');
   const [hourly, setHourly] = useState('');
   const [daily, setDaily] = useState('');
   const [start, setStart] = useState('09:00');
@@ -191,13 +192,15 @@ export function Wizard() {
             mediaRef={mediaRef}
             mediaName={mediaName}
             mediaNote={mediaNote}
+            mediaWarn={mediaWarn}
             onNote={setMediaNote}
             onPickMedia={() => mediaRef.current?.click()}
             onMedia={(file) => run(async () => {
               if (!campaignId) return;
               const stored = await uploadCampaignMedia(campaignId, file, mediaNote);
               setMediaName(file.name);
-              if (stored.kind !== 'video') setMediaNote(stored.description);
+              if (stored.description) setMediaNote(stored.description);
+              setMediaWarn(stored.manual ? 'לא הצלחנו לקרוא את הקובץ. כתבו תיאור קצר בשדה. הוא לא נשלח ללקוח.' : '');
             })}
           />
         )}
@@ -291,6 +294,7 @@ export function Wizard() {
         rephrase_enabled: mode === 'template' && rephrase,
         writer_model: writerModel,
         rephrase_model: writerModel,
+        media_description: mediaNote,
       });
       setStep(3);
       return;

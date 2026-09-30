@@ -176,4 +176,9 @@ async def upload_media(
     campaign.media_name = stored["name"]
     campaign.media_description = stored["description"]
     db.commit()
-    return {"kind": stored["kind"], "name": stored["name"], "description": stored["description"]}
+    return {
+        "kind": stored["kind"],
+        "name": stored["name"],
+        "description": stored["description"],
+        "manual": stored["manual"],
+    }
