@@ -59,6 +59,14 @@ class TestIn(BaseModel):
     phone: str
 
 
+class OpenChatIn(BaseModel):
+    phone: str
+
+
+class RetryChosenIn(BaseModel):
+    phones: list[str] = Field(min_length=1, max_length=50)
+
+
 def _user_campaign(db, user, campaign_id: int) -> tuple[Campaign, Agent]:
     campaign = db.get(Campaign, campaign_id)
     if campaign is None:
@@ -104,7 +112,7 @@ def list_campaigns(
     )
     full = _full(user)
     items = [
-        view.campaign_row(db, campaign, agent.name, view.session_label(db, agent.id), full=full)
+        view.campaign_row(db, campaign, agent.name, view.session_label(db, agent.id), full=full, hourly_cap=agent.campaign_hourly_cap)
         for campaign, agent in rows
     ]
     return {"items": items, "total": total, "page": page, "page_size": C.PAGE}
@@ -123,7 +131,7 @@ def create_campaign(
         raise HTTPException(status_code=422, detail="flag")
     campaign = catalog.create(db, agent.id, body.name)
     db.commit()
-    return view.campaign_row(db, campaign, agent.name, view.session_label(db, agent.id), full=True)
+    return view.campaign_row(db, campaign, agent.name, view.session_label(db, agent.id), full=True, hourly_cap=agent.campaign_hourly_cap)
 
 
 @router.get("/campaigns/{campaign_id}")
@@ -133,7 +141,7 @@ def get_campaign(
     user: AuthUser = Depends(get_current_user),
 ):
     campaign, agent = _user_campaign(db, user, campaign_id)
-    return view.campaign_row(db, campaign, agent.name, view.session_label(db, agent.id), full=_full(user))
+    return view.campaign_row(db, campaign, agent.name, view.session_label(db, agent.id), full=_full(user), hourly_cap=agent.campaign_hourly_cap)
 
 
 @router.patch("/campaigns/{campaign_id}")
@@ -167,7 +175,7 @@ def patch_campaign(
         except ValueError as error:
             raise HTTPException(status_code=422, detail=str(error)) from error
     db.commit()
-    return view.campaign_row(db, campaign, agent.name, view.session_label(db, agent.id), full=_full(user))
+    return view.campaign_row(db, campaign, agent.name, view.session_label(db, agent.id), full=_full(user), hourly_cap=agent.campaign_hourly_cap)
 
 
 @router.post("/campaigns/{campaign_id}/pause")
@@ -213,6 +221,25 @@ def retry_campaign(campaign_id: int, db: Session = Depends(get_db), user: AuthUs
     return {"retried": count}
 
 
+@router.post("/campaigns/{campaign_id}/retry-chosen")
+def retry_chosen(
+    campaign_id: int,
+    body: RetryChosenIn,
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+):
+    campaign, _agent = _user_campaign(db, user, campaign_id)
+    from backend.services.silence.phones import canonical
+    phones = [canonical(phone) for phone in body.phones]
+    phones = [phone for phone in phones if phone]
+    try:
+        count = catalog.retry_chosen(db, campaign, phones)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    db.commit()
+    return {"retried": count}
+
+
 @router.post("/campaigns/{campaign_id}/finish")
 def finish_campaign(campaign_id: int, db: Session = Depends(get_db), user: AuthUser = Depends(get_current_user)):
     campaign, _agent = _user_campaign(db, user, campaign_id)
@@ -253,14 +280,44 @@ def list_recipients(
             CampaignRecipient.phone.contains(needle),
             cast(CampaignRecipient.fields, String).ilike(f"%{needle}%"),
         ))
+    query = _apply_status(query, campaign, status)
     total = query.count()
     rows = query.order_by(CampaignRecipient.sort_order).offset((page - 1) * C.PAGE).limit(C.PAGE).all()
+    media_url = _media_url(campaign)
     return {
-        "items": [_recipient(db, campaign, row) for row in rows],
+        "items": [_recipient(db, campaign, row, media_url) for row in rows],
         "total": total,
         "page": page,
-        "counts": _counts(db, campaign.id),
+        "counts": _counts(db, campaign),
     }
+
+
+@router.post("/campaigns/{campaign_id}/open-chat")
+def open_chat(
+    campaign_id: int,
+    body: OpenChatIn,
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+):
+    campaign, agent = _user_campaign(db, user, campaign_id)
+    from backend.services.silence.phones import canonical
+    from backend.services.campaigns.chat import reveal
+
+    phone = canonical(body.phone)
+    if not phone:
+        raise HTTPException(status_code=422, detail="phone")
+    owned = (
+        db.query(CampaignRecipient.id)
+        .filter(CampaignRecipient.campaign_id == campaign.id, CampaignRecipient.phone == phone)
+        .first()
+    )
+    if owned is None:
+        raise HTTPException(status_code=404, detail="not_found")
+    conversation_id = reveal(db, agent.id, phone)
+    if conversation_id is None:
+        raise HTTPException(status_code=404, detail="no_chat")
+    db.commit()
+    return {"conversation_id": conversation_id, "agent_id": agent.id, "phone": phone}
 
 
 @router.get("/campaigns/{campaign_id}/live")
@@ -342,19 +399,53 @@ def _columns(db: Session, campaign_id: int) -> set[str]:
     return set(rows[0][0].keys())
 
 
-def _recipient(db, campaign, row: CampaignRecipient) -> dict:
+def _media_url(campaign) -> str | None:
+    if not campaign.media_key:
+        return None
+    from backend.services.media.storage import get_public_url
+    try:
+        return get_public_url(campaign.media_key)
+    except RuntimeError:
+        return None
+
+
+def _recipient(db, campaign, row: CampaignRecipient, media_url: str | None) -> dict:
     from backend.models.campaign import CampaignSend
     send = (
         db.query(CampaignSend)
         .filter(CampaignSend.recipient_id == row.id, CampaignSend.step_position == campaign.current_step)
         .first()
     )
+    went_out = send is not None and send.status == C.SENT
     return {
         "phone": row.phone,
         "name": _person_name(row.fields),
         "status": "replied" if row.replied_at else (send.status if send else "pending"),
         "reason": send.fail_reason if send else None,
+        "sent_at": _clock(send.sent_at, campaign.timezone) if went_out else None,
+        "body": send.body if went_out else None,
+        "media_url": media_url if went_out else None,
+        "media_kind": campaign.media_kind if went_out and media_url else None,
+        "media_name": campaign.media_name if went_out and media_url else None,
+        "chat": _has_chat(db, campaign.agent_id, row.phone),
     }
+
+
+def _clock(when, tz_name: str) -> str | None:
+    if when is None:
+        return None
+    from zoneinfo import ZoneInfo
+    try:
+        zone = ZoneInfo(tz_name or "Asia/Jerusalem")
+    except Exception:
+        zone = ZoneInfo("Asia/Jerusalem")
+    local = when.replace(tzinfo=ZoneInfo("UTC")).astimezone(zone)
+    return local.strftime("%d.%m.%Y %H:%M")
+
+
+def _has_chat(db, agent_id: int, phone: str) -> bool:
+    from backend.services.campaigns.chat import live_chat
+    return live_chat(db, agent_id, phone) is not None
 
 
 def _person_name(fields: dict | None) -> str:
@@ -371,16 +462,59 @@ def _person_name(fields: dict | None) -> str:
     return ""
 
 
-def _counts(db, campaign_id: int) -> dict:
+def _apply_status(query, campaign, status: str | None):
+    allowed = {"replied", "pending", "sending", "sent", "failed", "uncertain", "blocked", "skipped", "invalid"}
+    if status not in allowed:
+        return query
+    from sqlalchemy import and_, or_
     from backend.models.campaign import CampaignSend
+
+    if status == "replied":
+        return query.filter(CampaignRecipient.replied_at.isnot(None))
+    query = query.outerjoin(
+        CampaignSend,
+        and_(
+            CampaignSend.recipient_id == CampaignRecipient.id,
+            CampaignSend.step_position == campaign.current_step,
+        ),
+    ).filter(CampaignRecipient.replied_at.is_(None))
+    if status == "pending":
+        return query.filter(or_(CampaignSend.id.is_(None), CampaignSend.status == C.PENDING))
+    return query.filter(CampaignSend.status == status)
+
+
+def _counts(db, campaign) -> dict:
     from sqlalchemy import func
+    from backend.models.campaign import CampaignSend
+
+    total = (
+        db.query(func.count(CampaignRecipient.id))
+        .filter(CampaignRecipient.campaign_id == campaign.id)
+        .scalar()
+    ) or 0
+    replied = (
+        db.query(func.count(CampaignRecipient.id))
+        .filter(CampaignRecipient.campaign_id == campaign.id, CampaignRecipient.replied_at.isnot(None))
+        .scalar()
+    ) or 0
     rows = (
         db.query(CampaignSend.status, func.count(CampaignSend.id))
-        .filter(CampaignSend.campaign_id == campaign_id)
+        .join(CampaignRecipient, CampaignRecipient.id == CampaignSend.recipient_id)
+        .filter(
+            CampaignSend.campaign_id == campaign.id,
+            CampaignSend.step_position == campaign.current_step,
+            CampaignRecipient.replied_at.is_(None),
+        )
         .group_by(CampaignSend.status)
         .all()
     )
-    return {status: count for status, count in rows}
+    counts = {name: count for name, count in rows}
+    missing = total - replied - sum(counts.values())
+    if missing > 0:
+        counts["pending"] = counts.get("pending", 0) + missing
+    if replied:
+        counts["replied"] = replied
+    return {name: count for name, count in counts.items() if count}
 
 
 from backend.api.routers import campaign_audience as _campaign_audience  # noqa: F401

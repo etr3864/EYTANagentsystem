@@ -14,6 +14,10 @@ export interface CampaignRow {
   current_step: number;
   step_sent_count: number;
   updated_at: string | null;
+  hourly_cap: number | null;
+  gap_min_seconds: number;
+  gap_max_seconds: number;
+  last_sent_at: string | null;
   description?: string | null;
   mode?: string;
   template_body?: string | null;
@@ -41,6 +45,12 @@ export interface RecipientRow {
   name: string;
   status: string;
   reason: string | null;
+  sent_at: string | null;
+  body: string | null;
+  media_url: string | null;
+  media_kind: string | null;
+  media_name: string | null;
+  chat: boolean;
 }
 
 async function read<T>(res: Response, fallback: string): Promise<T> {
@@ -103,11 +113,30 @@ export async function campaignAction(
   return read<{ status?: string; retried?: number }>(res, 'הפעולה נכשלה');
 }
 
-export async function listRecipients(id: number, page = 1, q = '') {
+export async function listRecipients(id: number, page = 1, q = '', status = '') {
   const query = new URLSearchParams({ page: String(page) });
   if (q) query.set('q', q);
+  if (status) query.set('status', status);
   const res = await authFetch(`${API_URL}/api/campaigns/${id}/recipients?${query}`);
   return read<{ items: RecipientRow[]; total: number; page: number; counts: Record<string, number> }>(res, 'נמענים');
+}
+
+export async function retryChosen(id: number, phones: string[]) {
+  const res = await authFetch(`${API_URL}/api/campaigns/${id}/retry-chosen`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phones }),
+  });
+  return read<{ retried: number }>(res, 'השליחה החוזרת');
+}
+
+export async function openCampaignChat(id: number, phone: string) {
+  const res = await authFetch(`${API_URL}/api/campaigns/${id}/open-chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone }),
+  });
+  return read<{ conversation_id: number; agent_id: number; phone: string }>(res, 'השיחה');
 }
 
 export function campaignLiveUrl(id: number) {

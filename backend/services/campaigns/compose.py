@@ -71,6 +71,8 @@ async def compose(db, agent, campaign, step, fields: dict) -> tuple[str, dict | 
 
 
 async def _write(agent, model: str, prompt: str) -> tuple[str, dict]:
+    from backend.services.llm import reset_async_clients
+    reset_async_clients()
     provider = get_provider(model, agent)
     try:
         text, usage = await provider.generate_tracked_response(prompt, model=model, max_tokens=400)

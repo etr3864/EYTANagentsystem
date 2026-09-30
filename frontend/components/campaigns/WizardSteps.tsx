@@ -54,7 +54,6 @@ export function AgentStep({
 }) {
   return (
     <div className="space-y-4">
-      <p className="text-sm text-[var(--text-secondary)]">רק סוכן שהמתג שלו דלוק. הקמפיין יישלח מהסשן המחובר שלו.</p>
       <Input label="סוכן" placeholder="חיפוש לפי שם" value={query} onChange={(event) => onQuery(event.target.value)} />
       <div className="max-h-48 space-y-1 overflow-auto">
         {agents.map((agent) => (
@@ -91,7 +90,6 @@ export function FileStep({
 }) {
   return (
     <div className="space-y-4">
-      <p className="text-sm text-[var(--text-secondary)]">השורה הראשונה היא כותרות. אחר כך בוחרים איזו עמודה היא הטלפון.</p>
       <input
         ref={fileRef}
         type="file"
@@ -267,7 +265,7 @@ export function WhenStep(props: {
 }) {
   return (
     <div className="space-y-4">
-      <p className="text-sm text-[var(--text-secondary)]">בלי תקרה אי אפשר להתחיל. המספרים הם של הסוכן, לא של הקמפיין הזה בלבד.</p>
+      <p className="text-sm text-[var(--text-secondary)]">המספרים הם של הסוכן, לא רק של הקמפיין הזה.</p>
       <Input
         label="הודעות בשעה"
         inputMode="numeric"
@@ -327,7 +325,7 @@ export function PreviewStep({
 }) {
   return (
     <div className="space-y-4">
-      <p className="text-sm text-[var(--text-secondary)]">זו שורה אחת מהקובץ. שליחה למספר שלך לא מקדמת את התור.</p>
+      <p className="text-sm text-[var(--text-secondary)]">זו שורה אחת מהקובץ. שליחה אליך לא מקדמת את התור.</p>
       <div className="rounded-2xl border border-[var(--edge)] bg-[var(--glass-2)] px-4 py-3 text-sm whitespace-pre-wrap">
         {preview || 'אין טקסט להצגה'}
       </div>

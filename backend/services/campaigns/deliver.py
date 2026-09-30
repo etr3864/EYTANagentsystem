@@ -154,7 +154,7 @@ def _after_http(db, send, campaign, agent, recipient, channel, body, outcome, no
             return _delay(db, send, now + timedelta(minutes=5))
         if outcome.get("timed_out") or outcome.get("status") is None:
             send.status = C.UNCERTAIN
-            send.fail_reason = "timeout"
+            send.fail_reason = (outcome.get("error") or "timeout")[:200]
             send.locked_until = None
             db.commit()
             return None
@@ -213,7 +213,12 @@ def _compose_failed(db, send, error: Exception, now: datetime) -> float | None:
         if (now - send.hold_since).total_seconds() > C.HOLD_LIMIT_SECONDS:
             return _finish(db, send, C.FAILED, "model_busy")
         return _delay(db, send, now + timedelta(seconds=60))
-    return _finish(db, send, C.FAILED, "compose")
+    detail = str(error).split("\n", 1)[0][:160]
+    if "Event loop is closed" in detail and (send.attempt_count or 0) < 2:
+        return _delay(db, send, now + timedelta(seconds=5))
+    if "Event loop is closed" in detail:
+        return _finish(db, send, C.FAILED, "event_loop")
+    return _finish(db, send, C.FAILED, detail or "compose")
 
 
 def _pause(db, agent_id: int, reason: str) -> None:

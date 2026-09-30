@@ -167,6 +167,9 @@ async def send_document(
     )
 
 
+_RETRY_BEFORE_SEND = ("connect_timeout", "pool_timeout", "connect_error")
+
+
 async def send_once(
     api_key: str,
     session: str,
@@ -178,7 +181,17 @@ async def send_once(
     filename: str | None = None,
     timeout: int = 15,
 ) -> dict:
-    """One campaign attempt. No retry and no sleep."""
+    """One campaign attempt. A second try only if the request never left."""
+    wait = 25 if media_url else timeout
+    outcome = await _post_message(api_key, session, to, text, media_url, media_kind, filename, wait)
+    if outcome.get("error") in _RETRY_BEFORE_SEND:
+        outcome = await _post_message(api_key, session, to, text, media_url, media_kind, filename, wait)
+    if outcome.get("error") and not outcome.get("msg_id"):
+        log_error("campaign_http", str(outcome.get("error"))[:80])
+    return outcome
+
+
+async def _post_message(api_key, session, to, text, media_url, media_kind, filename, timeout) -> dict:
     payload: dict = {"session": session, "to": recipient_jid(to)}
     if text and text.strip():
         payload["text"] = text
@@ -190,27 +203,32 @@ async def send_once(
         payload["documentUrl"] = media_url
         payload["fileName"] = filename or "file"
     try:
-        response = await _client().post(
-            f"{_BASE_URL}/send-message",
-            headers=_auth(api_key),
-            json=payload,
-            timeout=timeout,
-        )
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{_BASE_URL}/send-message",
+                headers=_auth(api_key),
+                json=payload,
+                timeout=timeout,
+            )
+    except httpx.ConnectTimeout:
+        return _blank("connect_timeout", timed_out=True)
+    except httpx.PoolTimeout:
+        return _blank("pool_timeout", timed_out=False)
+    except httpx.ReadTimeout:
+        return _blank("read_timeout", timed_out=True)
+    except httpx.ConnectError:
+        return _blank("connect_error", timed_out=False)
     except httpx.TimeoutException:
-        return {"timed_out": True, "status": None, "msg_id": None, "retry_after": None, "error": "timeout"}
+        return _blank("timeout", timed_out=True)
     except Exception as error:
-        return {"timed_out": False, "status": None, "msg_id": None, "retry_after": None, "error": str(error)[:80]}
-    retry_after = _retry_after(response)
+        detail = str(error).split("\n", 1)[0][:80]
+        code = f"{type(error).__name__}: {detail}" if detail else type(error).__name__
+        return _blank(code[:120], timed_out=False)
     if response.status_code == 429:
-        return {"timed_out": False, "status": 429, "msg_id": None, "retry_after": retry_after, "error": "rate"}
+        return {**_blank("rate", timed_out=False), "status": 429, "retry_after": _retry_after(response)}
     if response.status_code != 200:
-        return {
-            "timed_out": False,
-            "status": response.status_code,
-            "msg_id": None,
-            "retry_after": None,
-            "error": _error_text(response),
-        }
+        detail = _error_text(response) or f"http_{response.status_code}"
+        return {**_blank(detail, timed_out=False), "status": response.status_code}
     return {
         "timed_out": False,
         "status": 200,
@@ -218,6 +236,10 @@ async def send_once(
         "retry_after": None,
         "error": None,
     }
+
+
+def _blank(error: str, *, timed_out: bool) -> dict:
+    return {"timed_out": timed_out, "status": None, "msg_id": None, "retry_after": None, "error": error}
 
 
 def _retry_after(response) -> int:

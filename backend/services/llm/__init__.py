@@ -52,6 +52,15 @@ def get_provider(model: str, agent: "Agent | None" = None):
     return _providers[cache_key]
 
 
+def reset_async_clients() -> None:
+    """Celery closes the loop after each task. The next call needs a new client."""
+    for provider in _providers.values():
+        rebuild = getattr(provider, "_rebuild_client", None)
+        key = getattr(provider, "_api_key", None)
+        if rebuild and key:
+            rebuild(key)
+
+
 def has_images(messages: list) -> bool:
     """Check if messages contain images."""
     for msg in messages:

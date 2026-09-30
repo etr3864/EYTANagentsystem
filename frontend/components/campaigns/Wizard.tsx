@@ -30,6 +30,14 @@ import {
 
 const STEPS = ['סוכן', 'קובץ', 'הודעה', 'מתי', 'בדיקה'];
 
+const STEP_HINTS = [
+  'סוכן עם מתג דלוק, ושם לקמפיין. השליחה יוצאת מהסשן שלו.',
+  'השורה הראשונה היא כותרות. בוחרים איזו עמודה היא הטלפון.',
+  'הודעה קבועה, או ניסוח לכל שורה. אפשר לצרף קובץ אחד.',
+  'תקרה ושעות. בלי תקרה אי אפשר להתחיל.',
+  'בדיקה למספר שלך, ואז התחלה עכשיו או בתאריך.',
+];
+
 const ERRORS: Record<string, string> = {
   flag: 'המתג של הסוכן כבוי',
   session: 'אין סשן מחובר',
@@ -109,23 +117,12 @@ export function Wizard() {
         <Link href="/campaigns" className="text-xs text-[var(--text-muted)]">קמפיינים</Link>
         <h1 className="text-2xl font-bold text-[var(--ink)]">קמפיין חדש</h1>
       </div>
-      <ol className="flex gap-2 overflow-x-auto pb-1">
-        {STEPS.map((label, index) => (
-          <li
-            key={label}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${
-              index === step
-                ? 'bg-[var(--ink)] text-[var(--bg)]'
-                : index < step
-                  ? 'border border-[var(--edge)] bg-[var(--glass-2)] text-[var(--ink)]'
-                  : 'text-[var(--text-muted)]'
-            }`}
-          >
-            {index + 1}. {label}
-          </li>
-        ))}
-      </ol>
+      <StepRail current={step} />
       <Card padding="lg" className="space-y-4">
+        <div>
+          <p className="text-xs text-[var(--text-muted)]">שלב {step + 1} מתוך {STEPS.length}</p>
+          <p className="mt-1 text-sm text-[var(--text-secondary)]">{STEP_HINTS[step]}</p>
+        </div>
         {error && <p className="text-sm text-red-400">{error}</p>}
         {step === 0 && (
           <AgentStep
@@ -220,7 +217,7 @@ export function Wizard() {
             onWhenAt={setWhenAt}
           />
         )}
-        <div className="flex items-center justify-between gap-3 pt-2">
+        <div className="flex items-center justify-between gap-3 border-t border-[var(--edge)] pt-4">
           <Button variant="ghost" disabled={busy || step === 0} onClick={() => setStep((current) => current - 1)}>
             חזרה
           </Button>
@@ -313,4 +310,50 @@ export function Wizard() {
     await campaignAction(campaignId, 'start', whenMode === 'later' ? whenAt : undefined);
     router.push(`/campaigns/${campaignId}`);
   }
+}
+
+function StepRail({ current }: { current: number }) {
+  return (
+    <ol className="flex items-center gap-1 overflow-x-auto pb-1">
+      {STEPS.map((label, index) => {
+        const done = index < current;
+        const now = index === current;
+        return (
+          <li key={label} className="flex shrink-0 items-center gap-1">
+            {index > 0 && <StepArrow on={done || now} />}
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+                now
+                  ? 'bg-[var(--ink)] text-[var(--bg)]'
+                  : done
+                    ? 'bg-[var(--glass-2)] text-[var(--ink)]'
+                    : 'text-[var(--text-muted)]'
+              }`}
+            >
+              <span
+                className={`grid h-5 w-5 place-items-center rounded-full text-[10px] ${
+                  now ? 'bg-[var(--bg)] text-[var(--ink)]' : done ? 'bg-[var(--acc)] text-[var(--bg)]' : 'bg-[var(--glass-2)]'
+                }`}
+              >
+                {index + 1}
+              </span>
+              {label}
+            </span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function StepArrow({ on }: { on: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 14 14"
+      aria-hidden
+      className={`h-3.5 w-3.5 shrink-0 ${on ? 'text-[var(--acc)]' : 'text-[var(--text-muted)]'}`}
+    >
+      <path d="M9 2.5 4.5 7 9 11.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 }

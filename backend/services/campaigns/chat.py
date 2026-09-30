@@ -1,9 +1,27 @@
 """Persist the outbound bubble and the campaign context for the later reply."""
+from datetime import datetime
+
 from sqlalchemy.orm.attributes import flag_modified
 
 from backend.services.entities import conversations, users
 from backend.services.messaging import messages
 from backend.services.messaging.outbound import attach_whatsapp
+
+
+def live_chat(db, agent_id: int, phone: str):
+    user = users.get_by_phone(db, phone)
+    if user is None:
+        return None
+    return conversations.get_live(db, agent_id, user.id)
+
+
+def reveal(db, agent_id: int, phone: str) -> int | None:
+    conv = live_chat(db, agent_id, phone)
+    if conv is None:
+        return None
+    conv.campaign_pending = False
+    conv.updated_at = datetime.utcnow()
+    return conv.id
 
 
 def store_outbound(db, agent, campaign, recipient, body: str, channel, provider_msg_id: str, *, hide_until_reply: bool = True) -> None:

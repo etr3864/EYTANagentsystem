@@ -1,9 +1,13 @@
-"""Campaign rows for the API. Cost and caps stay off non-super responses."""
+"""Campaign rows for the API. Cost stays off non-super responses."""
 from datetime import datetime
 
+from zoneinfo import ZoneInfo
+
+from sqlalchemy import func
+
 from backend.models.agent_channel import AgentChannel
-from backend.models.campaign import Campaign, CampaignStep, CampaignUsage
-from backend.services.campaigns import constants as C
+from backend.models.campaign import Campaign, CampaignSend, CampaignStep, CampaignUsage
+from backend.services.campaigns import constants as C, schedule
 from backend.services.entities.pricing import calc_cost_ils, get_pricing
 
 
@@ -13,10 +17,11 @@ def percent(part: int, whole: int) -> float:
     return round(100 * part / whole, 1)
 
 
-def campaign_row(db, campaign: Campaign, agent_name: str, session: str, *, full: bool) -> dict:
+def campaign_row(db, campaign: Campaign, agent_name: str, session: str, *, full: bool, hourly_cap: int | None) -> dict:
     sent = campaign.step_sent_count or 0
     total = campaign.recipient_count or 0
     replied = campaign.replied_count or 0
+    gap_min, gap_max = _gap(hourly_cap)
     row = {
         "id": campaign.id,
         "agent_id": campaign.agent_id,
@@ -31,6 +36,10 @@ def campaign_row(db, campaign: Campaign, agent_name: str, session: str, *, full:
         "current_step": campaign.current_step,
         "step_sent_count": sent,
         "updated_at": _iso(campaign.updated_at),
+        "hourly_cap": hourly_cap,
+        "gap_min_seconds": gap_min,
+        "gap_max_seconds": gap_max,
+        "last_sent_at": _clock(_latest_sent(db, campaign.id), campaign.timezone),
     }
     if not full:
         return row
@@ -102,6 +111,31 @@ def _steps(db, campaign_id: int) -> list[CampaignStep]:
         .order_by(CampaignStep.position)
         .all()
     )
+
+
+def _gap(hourly_cap: int | None) -> tuple[int, int]:
+    base = round(schedule.interval_seconds(hourly_cap or 0))
+    top = round(schedule.with_jitter(float(base), 1.0))
+    return base, top
+
+
+def _latest_sent(db, campaign_id: int) -> datetime | None:
+    return (
+        db.query(func.max(CampaignSend.sent_at))
+        .filter(CampaignSend.campaign_id == campaign_id, CampaignSend.status == C.SENT)
+        .scalar()
+    )
+
+
+def _clock(when: datetime | None, tz_name: str | None) -> str | None:
+    if when is None:
+        return None
+    try:
+        zone = ZoneInfo(tz_name or "Asia/Jerusalem")
+    except Exception:
+        zone = ZoneInfo("Asia/Jerusalem")
+    local = when.replace(tzinfo=ZoneInfo("UTC")).astimezone(zone)
+    return local.strftime("%d.%m.%Y %H:%M")
 
 
 def _iso(value: datetime | None) -> str | None:

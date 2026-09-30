@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from backend.models.agent import Agent
 from backend.models.conversation_context_summary import ConversationContextSummary
 from backend.services.entities import agents as agents_service
-from backend.services.llm import get_provider
+from backend.services.llm import get_provider, reset_async_clients
 from backend.services.context_summary.config import get_context_summary_config
 from backend.services.context_summary.builder import (
     should_do_full_summary,
@@ -36,6 +36,7 @@ async def run_summary(db: Session, conversation_id: int, agent_id: int) -> None:
     )
 
     prompt = build_summary_prompt(db, conversation_id, summary, is_full)
+    reset_async_clients()
     last_msg_id = get_last_message_id(db, conversation_id)
     if not last_msg_id:
         return

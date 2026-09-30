@@ -129,6 +129,32 @@ def retry_failed(db: Session, campaign: Campaign) -> int:
     return len(rows)
 
 
+def retry_chosen(db: Session, campaign: Campaign, phones: list[str]) -> int:
+    if campaign.status not in (C.RUNNING, C.PAUSED):
+        raise ValueError("locked")
+    wanted = list(dict.fromkeys(phone for phone in phones if phone))[:50]
+    if not wanted:
+        raise ValueError("phones")
+    rows = (
+        db.query(CampaignSend)
+        .join(CampaignRecipient, CampaignRecipient.id == CampaignSend.recipient_id)
+        .filter(
+            CampaignSend.campaign_id == campaign.id,
+            CampaignSend.step_position == campaign.current_step,
+            CampaignSend.status.in_((C.UNCERTAIN, C.FAILED)),
+            CampaignRecipient.phone.in_(wanted),
+        )
+        .all()
+    )
+    now = datetime.utcnow()
+    for send in rows:
+        send.status = C.PENDING
+        send.next_send_at = now
+        send.fail_reason = None
+        send.locked_until = None
+    return len(rows)
+
+
 def replace_steps(db: Session, campaign: Campaign, steps: list[dict]) -> None:
     if len(steps) > C.MAX_STEPS or not steps:
         raise ValueError("steps")

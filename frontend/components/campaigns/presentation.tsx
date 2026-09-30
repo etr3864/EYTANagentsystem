@@ -54,6 +54,9 @@ export function pauseLabel(value: string) {
 
 export function reasonLabel(value: string | null) {
   if (!value) return '';
+  if (value.toLowerCase().includes('event loop is closed')) {
+    return 'הוורקר סגר את החיבור לפני השליחה. ההודעה לא יצאה';
+  }
   const labels: Record<string, string> = {
     lease: 'השליחה נקטעה לפני שיצאה',
     recent: 'דיבר לאחרונה',
@@ -61,8 +64,13 @@ export function reasonLabel(value: string | null) {
     blocked: 'חסום',
     window: 'מחוץ לשעות',
     empty: 'הודעה ריקה',
-    timeout: 'וואסנדר לא ענה',
+    timeout: 'וואסנדר לא החזיר תשובה תוך 15 שניות. לא יודעים אם ההודעה יצאה',
+    read_timeout: 'הבקשה יצאה ולא חזרה תשובה. לא יודעים אם ההודעה יצאה',
+    connect_timeout: 'לא נוצר חיבור לוואסנדר. ההודעה לא יצאה',
+    pool_timeout: 'לא היה חיבור פנוי לוואסנדר. ההודעה לא יצאה',
+    connect_error: 'החיבור לוואסנדר נפל לפני שהבקשה יצאה',
     compose: 'הניסוח נכשל',
+    event_loop: 'הוורקר סגר את החיבור לפני השליחה. ההודעה לא יצאה',
     model_busy: 'המודל עמוס',
     rate: 'וואסנדר ביקש לחכות',
     channel: 'הערוץ סירב',
@@ -100,6 +108,23 @@ export function FlagSwitch({
   );
 }
 
+export function gapText(minSeconds: number, maxSeconds: number) {
+  const low = duration(minSeconds);
+  const high = duration(maxSeconds);
+  return low === high ? low : `${low} עד ${high}`;
+}
+
+function duration(seconds: number) {
+  const whole = Math.max(0, Math.round(seconds));
+  if (whole < 60) return `${whole} שניות`;
+  const minutes = Math.floor(whole / 60);
+  const rest = whole % 60;
+  if (minutes < 60) return rest ? `${minutes} דק׳ ${rest} שנ׳` : `${minutes} דק׳`;
+  const hours = Math.floor(minutes / 60);
+  const minuteRest = minutes % 60;
+  return minuteRest ? `${hours} שע׳ ${minuteRest} דק׳` : `${hours} שע׳`;
+}
+
 export function CampaignCard({ row, extra }: { row: CampaignRow; extra?: ReactNode }) {
   const live = row.status === 'running';
   return (
@@ -115,6 +140,10 @@ export function CampaignCard({ row, extra }: { row: CampaignRow; extra?: ReactNo
           </div>
           <p className="mt-1 text-sm text-[var(--text-muted)]">
             {row.agent_name} · {sessionLabel(row.session)}
+          </p>
+          <p className="mt-1 text-xs text-[var(--text-secondary)]">
+            בין הודעות {gapText(row.gap_min_seconds, row.gap_max_seconds)}
+            {row.last_sent_at ? ` · אחרונה ${row.last_sent_at}` : ' · עוד לא נשלחה'}
           </p>
         </Link>
         <div className="flex shrink-0 items-center gap-4 text-sm">
