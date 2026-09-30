@@ -90,6 +90,8 @@ export function Wizard() {
   const [whenMode, setWhenMode] = useState<'now' | 'later'>('now');
   const [whenAt, setWhenAt] = useState('');
   const [ceiling, setCeiling] = useState<{ hour: number; day: number; left: number } | null>(null);
+  const [replyAmount, setReplyAmount] = useState('7');
+  const [replyUnit, setReplyUnit] = useState('days');
 
   useEffect(() => {
     getAgents().then(setAgents).catch(() => setError('לא הצלחנו לטעון סוכנים'));
@@ -218,6 +220,10 @@ export function Wizard() {
             ceilingHour={ceiling?.hour ?? 0}
             ceilingDay={ceiling?.day ?? 0}
             leftToday={ceiling?.left ?? 0}
+            replyAmount={replyAmount}
+            replyUnit={replyUnit}
+            onReplyAmount={setReplyAmount}
+            onReplyUnit={setReplyUnit}
           />
         )}
         {step === 4 && (
@@ -298,6 +304,8 @@ export function Wizard() {
         timezone,
         skip_recent_amount: Number(skipAmount) || null,
         skip_recent_unit: skipUnit,
+        reply_window_amount: Number(replyAmount) || 7,
+        reply_window_unit: replyUnit,
       });
       if (saved.campaign_hourly_cap) setHourly(String(saved.campaign_hourly_cap));
       if (saved.campaign_daily_cap) setDaily(String(saved.campaign_daily_cap));

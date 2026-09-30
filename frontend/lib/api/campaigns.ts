@@ -20,6 +20,8 @@ export interface CampaignRow {
   gap_min_seconds: number;
   gap_max_seconds: number;
   last_sent_at: string | null;
+  reply_window_amount?: number;
+  reply_window_unit?: 'hours' | 'days';
   description?: string | null;
   mode?: string;
   template_body?: string | null;
@@ -53,6 +55,7 @@ export interface RecipientRow {
   media_kind: string | null;
   media_name: string | null;
   chat: boolean;
+  block_kind: 'manual' | 'opted_out' | null;
 }
 
 async function read<T>(res: Response, fallback: string): Promise<T> {
@@ -130,6 +133,11 @@ export async function retryChosen(id: number, phones: string[]) {
     body: JSON.stringify({ phones }),
   });
   return read<{ retried: number }>(res, 'השליחה החוזרת');
+}
+
+export async function countReplies(id: number) {
+  const res = await authFetch(`${API_URL}/api/campaigns/${id}/count-replies`, { method: 'POST' });
+  return read<{ replied: number }>(res, 'בדיקת המענים');
 }
 
 export async function openCampaignChat(id: number, phone: string) {

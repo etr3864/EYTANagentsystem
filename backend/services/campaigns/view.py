@@ -39,6 +39,8 @@ def campaign_row(db, campaign: Campaign, agent_name: str, session: str, *, full:
         "hourly_cap": hourly_cap,
         "campaign_hourly_cap": campaign.hourly_cap,
         "campaign_daily_cap": campaign.daily_cap,
+        "reply_window_amount": campaign.reply_window_amount or 7,
+        "reply_window_unit": campaign.reply_window_unit or "days",
         "gap_min_seconds": gap_min,
         "gap_max_seconds": gap_max,
         "last_sent_at": _clock(_latest_sent(db, campaign.id), campaign.timezone),

@@ -46,6 +46,8 @@ class Campaign(Base):
     skip_recent_unit: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
     hourly_cap: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     daily_cap: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    reply_window_amount: Mapped[int] = mapped_column(Integer, nullable=False, default=7)
+    reply_window_unit: Mapped[str] = mapped_column(String(10), nullable=False, default="days")
     recipient_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     step_sent_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     replied_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

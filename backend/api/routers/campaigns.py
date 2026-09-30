@@ -37,6 +37,8 @@ class CampaignPatch(BaseModel):
     timezone: str | None = None
     skip_recent_amount: int | None = None
     skip_recent_unit: str | None = None
+    reply_window_amount: int | None = None
+    reply_window_unit: str | None = None
     hourly_cap: int | None = None
     daily_cap: int | None = None
     steps: list[dict] | None = None
@@ -154,12 +156,15 @@ def patch_campaign(
     user: AuthUser = Depends(get_current_user),
 ):
     campaign, agent = _user_campaign(db, user, campaign_id)
-    if campaign.status not in (C.DRAFT, C.PAUSED):
-        raise HTTPException(status_code=422, detail="locked")
     data = body.model_dump(exclude_unset=True)
     steps = data.pop("steps", None)
+    window_fields = {"reply_window_amount", "reply_window_unit"}
+    window_only = bool(data) and set(data) <= window_fields
+    if campaign.status not in (C.DRAFT, C.PAUSED) and not window_only:
+        raise HTTPException(status_code=422, detail="locked")
+    _check_reply_window(data)
     owner_fields = {"name", "description", "template_body", "prompt", "window_start", "window_end", "timezone", "skip_recent_amount", "skip_recent_unit", "media_description"}
-    super_fields = owner_fields | {"mode", "column_defaults", "rephrase_enabled", "writer_model", "rephrase_model", "hourly_cap", "daily_cap"}
+    super_fields = owner_fields | {"mode", "column_defaults", "rephrase_enabled", "writer_model", "rephrase_model", "hourly_cap", "daily_cap"} | window_fields
     allowed = super_fields if _full(user) else owner_fields
     _clamp_budget(agent, data)
     for key, value in data.items():
@@ -265,6 +270,14 @@ def delete_campaign(campaign_id: int, db: Session = Depends(get_db), user: AuthU
     return {"status": "deleted"}
 
 
+@router.post("/campaigns/{campaign_id}/count-replies")
+def count_replies(campaign_id: int, db: Session = Depends(get_db), user: AuthUser = Depends(get_current_user)):
+    campaign, _agent = _user_campaign(db, user, campaign_id)
+    from backend.services.campaigns.records import catch_up_replies
+    catch_up_replies(db, campaign)
+    return {"replied": campaign.replied_count or 0}
+
+
 @router.get("/campaigns/{campaign_id}/recipients")
 def list_recipients(
     campaign_id: int,
@@ -287,8 +300,9 @@ def list_recipients(
     total = query.count()
     rows = query.order_by(CampaignRecipient.sort_order).offset((page - 1) * C.PAGE).limit(C.PAGE).all()
     media_url = _media_url(campaign)
+    blocks = _blocks(db, campaign.agent_id, [row.phone for row in rows])
     return {
-        "items": [_recipient(db, campaign, row, media_url) for row in rows],
+        "items": [_recipient(db, campaign, row, media_url, blocks.get(row.phone)) for row in rows],
         "total": total,
         "page": page,
         "counts": _counts(db, campaign),
@@ -402,6 +416,16 @@ def _columns(db: Session, campaign_id: int) -> set[str]:
     return set(rows[0][0].keys())
 
 
+def _check_reply_window(data: dict) -> None:
+    if "reply_window_unit" in data and data["reply_window_unit"] not in ("hours", "days"):
+        raise HTTPException(status_code=422, detail="reply_window")
+    if "reply_window_amount" in data:
+        amount = int(data["reply_window_amount"] or 0)
+        if not 1 <= amount <= 999:
+            raise HTTPException(status_code=422, detail="reply_window")
+        data["reply_window_amount"] = amount
+
+
 def _clamp_budget(agent, data: dict) -> None:
     if "hourly_cap" not in data and "daily_cap" not in data:
         return
@@ -429,7 +453,19 @@ def _media_url(campaign) -> str | None:
         return None
 
 
-def _recipient(db, campaign, row: CampaignRecipient, media_url: str | None) -> dict:
+def _blocks(db, agent_id: int, phones: list[str]) -> dict:
+    if not phones:
+        return {}
+    from backend.models.blocked_number import BlockedNumber
+    rows = (
+        db.query(BlockedNumber)
+        .filter(BlockedNumber.agent_id == agent_id, BlockedNumber.phone.in_(phones))
+        .all()
+    )
+    return {row.phone: row for row in rows if row.manual or row.opted_out}
+
+
+def _recipient(db, campaign, row: CampaignRecipient, media_url: str | None, blocked=None) -> dict:
     from backend.models.campaign import CampaignSend
     send = (
         db.query(CampaignSend)
@@ -437,11 +473,25 @@ def _recipient(db, campaign, row: CampaignRecipient, media_url: str | None) -> d
         .first()
     )
     went_out = send is not None and send.status == C.SENT
+    block_kind = None
+    block_quote = None
+    if blocked is not None and blocked.opted_out:
+        block_kind = "opted_out"
+        block_quote = blocked.quote
+    elif blocked is not None and blocked.manual:
+        block_kind = "manual"
+        block_quote = blocked.quote
+    status = "replied" if row.replied_at else (send.status if send else "pending")
+    if block_kind == "opted_out":
+        status = "opted_out"
+    elif block_kind == "manual" and status in ("pending", "blocked"):
+        status = "blocked"
     return {
         "phone": row.phone,
         "name": _person_name(row.fields),
-        "status": "replied" if row.replied_at else (send.status if send else "pending"),
-        "reason": send.fail_reason if send else None,
+        "status": status,
+        "reason": block_quote or (send.fail_reason if send else None),
+        "block_kind": block_kind,
         "sent_at": _clock(send.sent_at, campaign.timezone) if went_out else None,
         "body": send.body if went_out else None,
         "media_url": media_url if went_out else None,
@@ -483,9 +533,15 @@ def _person_name(fields: dict | None) -> str:
 
 
 def _apply_status(query, campaign, status: str | None):
-    allowed = {"replied", "pending", "sending", "sent", "failed", "uncertain", "blocked", "skipped", "invalid"}
+    allowed = {"replied", "pending", "sending", "sent", "failed", "uncertain", "blocked", "skipped", "invalid", "opted_out"}
     if status not in allowed:
         return query
+    if status == "opted_out":
+        from backend.models.blocked_number import BlockedNumber
+        return query.join(
+            BlockedNumber,
+            (BlockedNumber.agent_id == campaign.agent_id) & (BlockedNumber.phone == CampaignRecipient.phone),
+        ).filter(BlockedNumber.opted_out.is_(True))
     from sqlalchemy import and_, or_
     from backend.models.campaign import CampaignSend
 
@@ -534,6 +590,18 @@ def _counts(db, campaign) -> dict:
         counts["pending"] = counts.get("pending", 0) + missing
     if replied:
         counts["replied"] = replied
+    from backend.models.blocked_number import BlockedNumber
+    opted = (
+        db.query(func.count(CampaignRecipient.id))
+        .join(
+            BlockedNumber,
+            (BlockedNumber.agent_id == campaign.agent_id) & (BlockedNumber.phone == CampaignRecipient.phone),
+        )
+        .filter(CampaignRecipient.campaign_id == campaign.id, BlockedNumber.opted_out.is_(True))
+        .scalar()
+    ) or 0
+    if opted:
+        counts["opted_out"] = opted
     return {name: count for name, count in counts.items() if count}
 
 

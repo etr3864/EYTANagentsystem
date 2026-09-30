@@ -265,6 +265,10 @@ export function WhenStep(props: {
   ceilingHour: number;
   ceilingDay: number;
   leftToday: number;
+  replyAmount: string;
+  replyUnit: string;
+  onReplyAmount: (value: string) => void;
+  onReplyUnit: (value: string) => void;
 }) {
   const ceiling = props.ceilingHour > 0
     ? `תקרת הסוכן: ${props.ceilingHour} בשעה, ${props.ceilingDay} ביום. היום נשארו ${props.leftToday}. יותר מזה יישמר עד הגג של הסוכן.`
@@ -293,6 +297,19 @@ export function WhenStep(props: {
         value={props.timezone}
         options={TIMEZONES}
         onChange={(event) => props.onTimezone(event.target.value)}
+      />
+      <Input
+        label="חלון מענה"
+        hint="נספר ענה רק אם כתב אחרי ההודעה, בתוך החלון"
+        inputMode="numeric"
+        value={props.replyAmount}
+        onChange={(event) => props.onReplyAmount(digits(event.target.value, 3))}
+      />
+      <Select
+        label="יחידת חלון"
+        value={props.replyUnit}
+        options={[{ value: 'hours', label: 'שעות' }, { value: 'days', label: 'ימים' }]}
+        onChange={(event) => props.onReplyUnit(event.target.value)}
       />
       <Input
         label="דלג אם דיבר לאחרונה"

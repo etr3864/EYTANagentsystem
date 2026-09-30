@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { phoneToUrl } from '@/lib/phone';
 import { AuthGuard } from '@/components/auth/AuthGuard';
-import { BELOW_NAV_CLASS, Button, Card, Input, ListPager, ListViewport, Modal, Textarea } from '@/components/ui';
+import { BELOW_NAV_CLASS, Button, Card, Input, ListPager, ListViewport, Modal, Select, Textarea } from '@/components/ui';
 import { isSuperAdmin } from '@/lib/auth';
 import { useAuth } from '@/contexts/AuthContext';
 import { authFetch } from '@/lib/api/client';
@@ -13,6 +13,7 @@ import { readSse } from '@/lib/sse';
 import {
   campaignAction,
   campaignLiveUrl,
+  countReplies,
   deleteCampaign,
   getCampaign,
   listRecipients,
@@ -52,6 +53,8 @@ function Screen() {
   const [error, setError] = useState('');
   const [picked, setPicked] = useState<string[]>([]);
   const [confirmSend, setConfirmSend] = useState(false);
+  const [replyAmount, setReplyAmount] = useState('7');
+  const [replyUnit, setReplyUnit] = useState<'hours' | 'days'>('days');
   const pageRef = useRef(page);
   const qRef = useRef(q);
   const statusRef = useRef(statusFilter);
@@ -69,6 +72,8 @@ function Screen() {
     setTotal(recipients.total);
     setCounts(recipients.counts || {});
     setDraft(campaign.template_body || campaign.prompt || '');
+    setReplyAmount(String(campaign.reply_window_amount ?? 7));
+    setReplyUnit(campaign.reply_window_unit === 'hours' ? 'hours' : 'days');
   }
 
   useEffect(() => {
@@ -135,6 +140,27 @@ function Screen() {
             />
             <Stat label="הודעה אחרונה" value={row.last_sent_at || 'עוד לא'} />
           </div>
+          {superAdmin && (
+            <div className="flex flex-wrap items-end gap-3">
+              <Input
+                label="חלון מענה"
+                hint="נספר רק מי שכתב אחרי ההודעה, בתוך החלון"
+                inputMode="numeric"
+                value={replyAmount}
+                onChange={(event) => setReplyAmount(event.target.value.replace(/\D/g, '').slice(0, 3))}
+              />
+              <Select
+                label="יחידה"
+                value={replyUnit}
+                options={[{ value: 'hours', label: 'שעות' }, { value: 'days', label: 'ימים' }]}
+                onChange={(event) => setReplyUnit(event.target.value === 'hours' ? 'hours' : 'days')}
+              />
+              <Button variant="secondary" loading={busy} onClick={() => saveWindow()}>שמור חלון</Button>
+              {row.status === 'finished' && (
+                <Button loading={busy} onClick={() => checkReplies()}>בדוק מענים</Button>
+              )}
+            </div>
+          )}
           <div className="flex flex-wrap gap-2">
             {live && <Button variant="secondary" loading={busy} onClick={() => act('pause')}>השהה</Button>}
             {paused && <Button loading={busy} onClick={() => act('resume')}>המשך</Button>}
@@ -216,6 +242,32 @@ function Screen() {
       )}
     </div>
   );
+
+  async function saveWindow() {
+    setBusy(true);
+    setError('');
+    try {
+      await patchCampaign(id, { reply_window_amount: Number(replyAmount), reply_window_unit: replyUnit });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'שגיאה');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function checkReplies() {
+    setBusy(true);
+    setError('');
+    try {
+      await countReplies(id);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'שגיאה');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function resendChosen() {
     setBusy(true);
@@ -362,7 +414,7 @@ function SentMedia({ person }: { person: RecipientRow }) {
   );
 }
 
-const FILTER_ORDER = ['sent', 'replied', 'uncertain', 'failed', 'pending', 'blocked', 'skipped', 'invalid'];
+const FILTER_ORDER = ['sent', 'replied', 'opted_out', 'uncertain', 'failed', 'pending', 'blocked', 'skipped', 'invalid'];
 
 function StatusFilters({
   counts, value, onChange,

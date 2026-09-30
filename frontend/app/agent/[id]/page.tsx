@@ -540,7 +540,7 @@ function AgentPage() {
   return (
     <div className={`flex flex-col ${BELOW_NAV_CLASS}`}>
       <header className="shrink-0 border-b border-[var(--edge)] bg-[var(--bg)]/40 backdrop-blur-md">
-        <div className={`${tab === 'conversations' ? 'max-w-[90rem]' : 'max-w-5xl'} mx-auto px-3 md:px-6 py-2.5 md:py-4 space-y-2.5`}>
+        <div className="max-w-[90rem] mx-auto px-3 md:px-6 py-2.5 md:py-4 space-y-2.5">
           <div className="flex items-center justify-between gap-3">
             <h1 className="font-semibold text-[var(--ink)] text-sm md:text-base truncate">{agent.name}</h1>
             <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)] shrink-0">

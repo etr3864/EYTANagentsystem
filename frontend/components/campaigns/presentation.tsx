@@ -18,6 +18,7 @@ const STATUS: Record<string, string> = {
   invalid: 'לא תקין',
   uncertain: 'לא ברור',
   replied: 'ענה',
+  opted_out: 'הסרה',
 };
 
 const SESSION: Record<string, string> = {
