@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AuthGuard } from '@/components/auth/AuthGuard';
+import { Button, Input, ListPager } from '@/components/ui';
 import { isSuperAdmin } from '@/lib/auth';
 import { useAuth } from '@/contexts/AuthContext';
 import { listCampaigns, type CampaignRow } from '@/lib/api/campaigns';
+import { CampaignCard } from '@/components/campaigns/presentation';
 
 export default function CampaignsPage() {
   return (
@@ -18,42 +20,63 @@ export default function CampaignsPage() {
 function CampaignList() {
   const { user } = useAuth();
   const [rows, setRows] = useState<CampaignRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [q, setQ] = useState('');
-  const [showFinished, setShowFinished] = useState(false);
+  const [finished, setFinished] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    listCampaigns({ q, status: showFinished ? 'finished' : undefined })
-      .then((data) => setRows(data.items))
+    listCampaigns({ q, page, status: finished ? 'finished' : undefined })
+      .then((data) => {
+        setRows(data.items);
+        setTotal(data.total);
+      })
       .catch((err) => setError(err instanceof Error ? err.message : 'שגיאה'));
-  }, [q, showFinished]);
+  }, [q, page, finished]);
+
+  const pageSize = 50;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-6 space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-medium">קמפיינים</h1>
-        {isSuperAdmin(user) && (
-          <Link href="/campaigns/new" className="text-sm rounded-full px-4 py-2 bg-[var(--glass-2)]">קמפיין חדש</Link>
+    <div className="min-h-screen overflow-x-hidden">
+      <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 md:px-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-bold text-[var(--ink)]">קמפיינים</h1>
+          {isSuperAdmin(user) && (
+            <Link href="/campaigns/new">
+              <Button>קמפיין חדש</Button>
+            </Link>
+          )}
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="flex-1">
+            <Input
+              label="חיפוש"
+              placeholder="שם קמפיין"
+              value={q}
+              onChange={(event) => { setPage(1); setQ(event.target.value); }}
+            />
+          </div>
+          <Button variant="secondary" onClick={() => { setPage(1); setFinished((value) => !value); }}>
+            {finished ? 'רצים ומושהים' : 'הסתיימו'}
+          </Button>
+        </div>
+        {error && <p className="text-sm text-red-400">{error}</p>}
+        <div className="space-y-3">
+          {rows.map((row) => <CampaignCard key={row.id} row={row} />)}
+          {rows.length === 0 && (
+            <p className="rounded-[22px] border border-[var(--edge)] px-4 py-10 text-center text-sm text-[var(--text-muted)]">
+              {finished ? 'אין קמפיינים שהסתיימו' : 'אין קמפיינים רצים או מושהים'}
+            </p>
+          )}
+        </div>
+        {totalPages > 1 && (
+          <ListPager page={page} totalPages={totalPages} from={from} to={to} total={total} onPage={setPage} />
         )}
       </div>
-      <div className="flex gap-2">
-        <input className="flex-1 bg-transparent border border-[var(--edge)] rounded-xl px-3 py-2 text-sm" placeholder="חיפוש" value={q} onChange={(event) => setQ(event.target.value)} />
-        <button type="button" className="text-sm" onClick={() => setShowFinished((value) => !value)}>
-          {showFinished ? 'רצים ומושהים' : 'הסתיימו'}
-        </button>
-      </div>
-      {error && <p className="text-sm text-rose-400">{error}</p>}
-      <ul className="divide-y divide-[var(--edge)] rounded-xl border border-[var(--edge)]">
-        {rows.map((row) => (
-          <li key={row.id}>
-            <Link href={`/campaigns/${row.id}`} className="grid grid-cols-[1fr_auto] gap-3 px-4 py-3 text-sm">
-              <span>{row.name} · {row.agent_name}</span>
-              <span className="text-[var(--text-muted)]">{row.status} · {row.session} · {row.send_percent}% / {row.reply_percent}%</span>
-            </Link>
-          </li>
-        ))}
-        {rows.length === 0 && <li className="px-4 py-8 text-sm text-[var(--text-muted)]">אין קמפיינים להצגה</li>}
-      </ul>
-    </main>
+    </div>
   );
 }

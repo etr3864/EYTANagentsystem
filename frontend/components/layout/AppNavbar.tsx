@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { isSuperAdmin } from '@/lib/auth';
-import { AgentsIcon, ChartIcon, UsersIcon, DatabaseIcon, PlusIcon, LogoutIcon, SettingsIcon } from '@/components/ui';
+import { AgentsIcon, CampaignsIcon, ChartIcon, UsersIcon, DatabaseIcon, PlusIcon, LogoutIcon, SettingsIcon } from '@/components/ui';
 import { BrandMark } from '@/components/brand/BrandMark';
 import { applyTheme } from '@/components/theme/ThemeProvider';
 
@@ -21,7 +21,7 @@ interface NavLink {
 const NAV_LINKS: NavLink[] = [
   { href: '/', label: 'סוכנים', icon: <AgentsIcon />, roles: ['super_admin', 'admin', 'employee'] },
   { href: '/dashboard', label: 'דאשבורד', icon: <ChartIcon />, roles: ['super_admin', 'admin'] },
-  { href: '/campaigns', label: 'קמפיינים', icon: <ChartIcon />, roles: ['super_admin', 'admin'] },
+  { href: '/campaigns', label: 'קמפיינים', icon: <CampaignsIcon />, roles: ['super_admin', 'admin'] },
   { href: '/users', label: 'משתמשים', icon: <UsersIcon />, roles: ['super_admin', 'admin'] },
   { href: '/database', label: 'Database', icon: <DatabaseIcon />, roles: ['super_admin'] },
   { href: '/wasender', label: 'ערוצים', icon: <SettingsIcon />, roles: ['super_admin'] },
