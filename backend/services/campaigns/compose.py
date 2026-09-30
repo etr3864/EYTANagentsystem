@@ -75,7 +75,7 @@ async def _write(agent, model: str, prompt: str) -> tuple[str, dict]:
     reset_async_clients()
     provider = get_provider(model, agent)
     try:
-        text, usage = await provider.generate_tracked_response(prompt, model=model, max_tokens=400)
+        text, usage = await provider.generate_tracked_response(prompt, model=model, max_tokens=1500)
     except Exception as error:
         if is_capacity_error(error):
             raise

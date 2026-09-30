@@ -70,6 +70,7 @@ export function reasonLabel(value: string | null) {
     pool_timeout: 'לא היה חיבור פנוי לוואסנדר. ההודעה לא יצאה',
     connect_error: 'החיבור לוואסנדר נפל לפני שהבקשה יצאה',
     compose: 'הניסוח נכשל',
+    output_cut: 'הניסוח נעצר באמצע. ההודעה לא יצאה',
     event_loop: 'הוורקר סגר את החיבור לפני השליחה. ההודעה לא יצאה',
     model_busy: 'המודל עמוס',
     rate: 'וואסנדר ביקש לחכות',

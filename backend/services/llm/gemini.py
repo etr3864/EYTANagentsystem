@@ -411,7 +411,9 @@ class GeminiProvider:
             "cache_creation_tokens": 0,
         }
 
-        _, parts = _candidate_parts(response)
+        candidate, parts = _candidate_parts(response)
+        if "MAX_TOKEN" in str(getattr(candidate, "finish_reason", "") or "").upper():
+            raise RuntimeError("output_cut")
         text = _visible_text(parts).strip()
 
         return text, usage

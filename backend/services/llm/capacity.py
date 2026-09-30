@@ -2,13 +2,15 @@
 from backend.core.logger import log_warn
 from backend.services.llm.catalog import degrade_thinking, sanitize_thinking
 
-_CAPACITY_CODES = (429, 503, 529)
+_CAPACITY_CODES = (429, 503, 504, 529)
 _CAPACITY_MARKERS = (
     "429",
     "503",
+    "504",
     "529",
     "RESOURCE_EXHAUSTED",
     "UNAVAILABLE",
+    "DEADLINE_EXCEEDED",
     "high demand",
     "overloaded",
 )
