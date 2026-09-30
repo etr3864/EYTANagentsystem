@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button, Card } from '@/components/ui';
 import {
@@ -98,6 +97,14 @@ export function Wizard() {
   const flagged = agents.filter((agent) => agent.campaigns_enabled && agent.name.includes(query.trim()));
   const fieldColumns = headers.filter((header) => header !== phoneColumn);
 
+  function goBack() {
+    if (step === 0) {
+      router.push('/campaigns');
+      return;
+    }
+    setStep((current) => current - 1);
+  }
+
   async function run(action: () => Promise<void>) {
     setBusy(true);
     setError('');
@@ -113,11 +120,8 @@ export function Wizard() {
 
   return (
     <main className="mx-auto max-w-xl space-y-5 px-4 py-6 md:px-6">
-      <div>
-        <Link href="/campaigns" className="text-xs text-[var(--text-muted)]">קמפיינים</Link>
-        <h1 className="text-2xl font-bold text-[var(--ink)]">קמפיין חדש</h1>
-      </div>
-      <StepRail current={step} />
+      <h1 className="text-2xl font-bold text-[var(--ink)]">קמפיין חדש</h1>
+      <StepRail current={step} onBack={goBack} />
       <Card padding="lg" className="space-y-4">
         <div>
           <p className="text-xs text-[var(--text-muted)]">שלב {step + 1} מתוך {STEPS.length}</p>
@@ -218,7 +222,7 @@ export function Wizard() {
           />
         )}
         <div className="flex items-center justify-between gap-3 border-t border-[var(--edge)] pt-4">
-          <Button variant="ghost" disabled={busy || step === 0} onClick={() => setStep((current) => current - 1)}>
+          <Button variant="ghost" disabled={busy} onClick={goBack}>
             חזרה
           </Button>
           {step < 4 ? (
@@ -312,9 +316,21 @@ export function Wizard() {
   }
 }
 
-function StepRail({ current }: { current: number }) {
+function StepRail({ current, onBack }: { current: number; onBack: () => void }) {
   return (
     <ol className="flex items-center gap-1 overflow-x-auto pb-1">
+      <li className="shrink-0">
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex items-center gap-1 rounded-full border border-[var(--edge)] bg-[var(--glass-2)] px-2.5 py-1 text-xs font-medium text-[var(--ink)]"
+        >
+          <svg viewBox="0 0 14 14" aria-hidden className="h-3.5 w-3.5">
+            <path d="M5 2.5 9.5 7 5 11.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          חזרה
+        </button>
+      </li>
       {STEPS.map((label, index) => {
         const done = index < current;
         const now = index === current;
