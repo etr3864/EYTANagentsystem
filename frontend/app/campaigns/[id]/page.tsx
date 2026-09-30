@@ -138,10 +138,10 @@ function Screen() {
             />
             <Stat label="הודעה אחרונה" value={row.last_sent_at || 'עוד לא'} />
           </div>
-          {superAdmin && (
-            <div className="space-y-1">
-              <div className="flex flex-wrap items-end gap-2">
-                <div className="w-28">
+          <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
+            {superAdmin && (
+              <div className="flex min-w-0 flex-1 items-end gap-4">
+                <div className="w-40 shrink-0">
                   <Input
                     label="חלון מענה"
                     inputMode="numeric"
@@ -149,36 +149,37 @@ function Screen() {
                     onChange={(event) => setReplyAmount(event.target.value.replace(/\D/g, '').slice(0, 3))}
                   />
                 </div>
-                <div className="w-32">
+                <div className="w-44 shrink-0">
                   <Select
                     label="יחידה"
-                    className="pl-8 text-right"
                     value={replyUnit}
                     options={[{ value: 'hours', label: 'שעות' }, { value: 'days', label: 'ימים' }]}
                     onChange={(event) => setReplyUnit(event.target.value === 'hours' ? 'hours' : 'days')}
                   />
                 </div>
+                <p className="mb-3 min-w-[12rem] flex-1 text-sm leading-5 text-[var(--text-muted)]">
+                  נספר רק מי שכתב אחרי ההודעה, בתוך החלון
+                </p>
                 <Button variant="secondary" loading={busy} onClick={() => saveWindow()}>שמור חלון</Button>
                 {row.status === 'finished' && (
                   <Button loading={busy} onClick={() => checkReplies()}>בדוק מענים</Button>
                 )}
               </div>
-              <p className="text-xs text-[var(--text-muted)]">נספר רק מי שכתב אחרי ההודעה, בתוך החלון</p>
+            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {live && <Button variant="secondary" loading={busy} onClick={() => act('pause')}>השהה</Button>}
+              {paused && <Button loading={busy} onClick={() => act('resume')}>המשך</Button>}
+              {open && <Button variant="secondary" loading={busy} onClick={() => act('finish')}>סיים</Button>}
+              {row.status === 'finished' && superAdmin && (
+                <Button variant="danger" loading={busy} onClick={() => remove()}>מחק לגמרי</Button>
+              )}
+              <Button variant="secondary" loading={busy} onClick={() => act('retry')}>נסה שוב נכשלים</Button>
+              {picked.length > 0 && (live || paused) && (
+                <Button loading={busy} onClick={() => setConfirmSend(true)}>
+                  שלח שוב לנבחרים ({picked.length})
+                </Button>
+              )}
             </div>
-          )}
-          <div className="flex flex-wrap gap-2">
-            {live && <Button variant="secondary" loading={busy} onClick={() => act('pause')}>השהה</Button>}
-            {paused && <Button loading={busy} onClick={() => act('resume')}>המשך</Button>}
-            {open && <Button variant="secondary" loading={busy} onClick={() => act('finish')}>סיים</Button>}
-            {row.status === 'finished' && superAdmin && (
-              <Button variant="danger" loading={busy} onClick={() => remove()}>מחק לגמרי</Button>
-            )}
-            <Button variant="secondary" loading={busy} onClick={() => act('retry')}>נסה שוב נכשלים</Button>
-            {picked.length > 0 && (live || paused) && (
-              <Button loading={busy} onClick={() => setConfirmSend(true)}>
-                שלח שוב לנבחרים ({picked.length})
-              </Button>
-            )}
           </div>
           {error && <p className="text-sm text-red-400">{error}</p>}
           {paused && (

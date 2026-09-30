@@ -113,7 +113,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             ref={ref}
             className={`
               ${inputBaseStyles}
-              appearance-none cursor-pointer pr-10
+              appearance-none cursor-pointer !ps-4 !pe-10
               ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''} 
               ${className}
             `} 
@@ -123,7 +123,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-secondary)]">
+          <div className="pointer-events-none absolute inset-y-0 end-0 flex items-center pe-3 text-[var(--text-secondary)]">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
