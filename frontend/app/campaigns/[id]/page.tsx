@@ -157,13 +157,13 @@ function Screen() {
                     onChange={(event) => setReplyUnit(event.target.value === 'hours' ? 'hours' : 'days')}
                   />
                 </div>
-                <p className="mb-3 min-w-[12rem] flex-1 text-sm leading-5 text-[var(--text-muted)]">
-                  נספר רק מי שכתב אחרי ההודעה, בתוך החלון
-                </p>
                 <Button variant="secondary" loading={busy} onClick={() => saveWindow()}>שמור חלון</Button>
                 {row.status === 'finished' && (
                   <Button loading={busy} onClick={() => checkReplies()}>בדוק מענים</Button>
                 )}
+                <p className="mb-3 min-w-[12rem] flex-1 text-sm leading-5 text-[var(--text-muted)]">
+                  נספר רק מי שכתב אחרי ההודעה, בתוך החלון
+                </p>
               </div>
             )}
             <div className="flex flex-wrap items-center gap-2">
