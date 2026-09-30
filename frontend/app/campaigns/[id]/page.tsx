@@ -115,7 +115,7 @@ function Screen() {
   return (
     <div className={`flex flex-col ${BELOW_NAV_CLASS}`}>
       <div className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col gap-2 px-4 py-3 md:px-6">
-        <div className="max-h-[34%] min-h-0 shrink overflow-y-auto overscroll-contain space-y-2">
+        <div className="shrink-0 space-y-2">
           <Link href="/campaigns" className="text-xs text-[var(--text-muted)]">קמפיינים</Link>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <span className={`status-dot ${live ? 'active' : 'inactive'}`} />
@@ -139,24 +139,31 @@ function Screen() {
             <Stat label="הודעה אחרונה" value={row.last_sent_at || 'עוד לא'} />
           </div>
           {superAdmin && (
-            <div className="flex flex-wrap items-end gap-3">
-              <Input
-                label="חלון מענה"
-                hint="נספר רק מי שכתב אחרי ההודעה, בתוך החלון"
-                inputMode="numeric"
-                value={replyAmount}
-                onChange={(event) => setReplyAmount(event.target.value.replace(/\D/g, '').slice(0, 3))}
-              />
-              <Select
-                label="יחידה"
-                value={replyUnit}
-                options={[{ value: 'hours', label: 'שעות' }, { value: 'days', label: 'ימים' }]}
-                onChange={(event) => setReplyUnit(event.target.value === 'hours' ? 'hours' : 'days')}
-              />
-              <Button variant="secondary" loading={busy} onClick={() => saveWindow()}>שמור חלון</Button>
-              {row.status === 'finished' && (
-                <Button loading={busy} onClick={() => checkReplies()}>בדוק מענים</Button>
-              )}
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-end gap-2">
+                <div className="w-28">
+                  <Input
+                    label="חלון מענה"
+                    inputMode="numeric"
+                    value={replyAmount}
+                    onChange={(event) => setReplyAmount(event.target.value.replace(/\D/g, '').slice(0, 3))}
+                  />
+                </div>
+                <div className="w-32">
+                  <Select
+                    label="יחידה"
+                    className="pl-8 text-right"
+                    value={replyUnit}
+                    options={[{ value: 'hours', label: 'שעות' }, { value: 'days', label: 'ימים' }]}
+                    onChange={(event) => setReplyUnit(event.target.value === 'hours' ? 'hours' : 'days')}
+                  />
+                </div>
+                <Button variant="secondary" loading={busy} onClick={() => saveWindow()}>שמור חלון</Button>
+                {row.status === 'finished' && (
+                  <Button loading={busy} onClick={() => checkReplies()}>בדוק מענים</Button>
+                )}
+              </div>
+              <p className="text-xs text-[var(--text-muted)]">נספר רק מי שכתב אחרי ההודעה, בתוך החלון</p>
             </div>
           )}
           <div className="flex flex-wrap gap-2">
