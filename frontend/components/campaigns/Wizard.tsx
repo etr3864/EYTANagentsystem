@@ -11,7 +11,7 @@ import {
   WhenStep,
   canContinue,
 } from '@/components/campaigns/WizardSteps';
-import { getAgents } from '@/lib/api/agents';
+import { getAgent, getAgents } from '@/lib/api/agents';
 import type { Agent } from '@/lib/types';
 import {
   audienceStatus,
@@ -21,7 +21,6 @@ import {
   dropDuplicates,
   patchCampaign,
   previewCampaign,
-  setCampaignCaps,
   testSend,
   uploadAudience,
   uploadCampaignMedia,
@@ -33,14 +32,15 @@ const STEP_HINTS = [
   'סוכן עם מתג דלוק, ושם לקמפיין. השליחה יוצאת מהסשן שלו.',
   'השורה הראשונה היא כותרות. בוחרים איזו עמודה היא הטלפון.',
   'הודעה קבועה, או ניסוח לכל שורה. אפשר לצרף קובץ אחד.',
-  'תקרה ושעות. בלי תקרה אי אפשר להתחיל.',
+  'תקציב של הקמפיין הזה, בתוך התקרה של הסוכן.',
   'בדיקה למספר שלך, ואז התחלה עכשיו או בתאריך.',
 ];
 
 const ERRORS: Record<string, string> = {
   flag: 'המתג של הסוכן כבוי',
   session: 'אין סשן מחובר',
-  caps: 'חסרה תקרה שעתית או יומית',
+  caps: 'קודם שומרים תקרה לסוכן בלשונית שלו',
+  campaign_caps: 'לקמפיין חסרה תקרה שעתית או יומית',
   unknown_column: 'יש משתנה בלי עמודה בקובץ',
   phone: 'מספר לא תקין',
   audience: 'אין נמענים בקובץ',
@@ -89,10 +89,20 @@ export function Wizard() {
   const [sentTest, setSentTest] = useState(false);
   const [whenMode, setWhenMode] = useState<'now' | 'later'>('now');
   const [whenAt, setWhenAt] = useState('');
+  const [ceiling, setCeiling] = useState<{ hour: number; day: number; left: number } | null>(null);
 
   useEffect(() => {
     getAgents().then(setAgents).catch(() => setError('לא הצלחנו לטעון סוכנים'));
   }, []);
+
+  useEffect(() => {
+    if (step !== 3 || !agentId) return;
+    getAgent(Number(agentId)).then((agent) => {
+      const day = agent.campaign_daily_cap ?? 0;
+      const sent = agent.campaign_sent_today ?? 0;
+      setCeiling({ hour: agent.campaign_hourly_cap ?? 0, day, left: Math.max(0, day - sent) });
+    }).catch(() => setError('לא הצלחנו לטעון את תקרת הסוכן'));
+  }, [step, agentId]);
 
   const flagged = agents.filter((agent) => agent.campaigns_enabled && agent.name.includes(query.trim()));
   const fieldColumns = headers.filter((header) => header !== phoneColumn);
@@ -205,6 +215,9 @@ export function Wizard() {
             onTimezone={setTimezone}
             onSkipAmount={setSkipAmount}
             onSkipUnit={setSkipUnit}
+            ceilingHour={ceiling?.hour ?? 0}
+            ceilingDay={ceiling?.day ?? 0}
+            leftToday={ceiling?.left ?? 0}
           />
         )}
         {step === 4 && (
@@ -277,14 +290,17 @@ export function Wizard() {
       return;
     }
     if (step === 3 && campaignId) {
-      await setCampaignCaps(Number(agentId), Number(hourly), Number(daily));
-      await patchCampaign(campaignId, {
+      const saved = await patchCampaign(campaignId, {
+        hourly_cap: Number(hourly),
+        daily_cap: Number(daily),
         window_start: start,
         window_end: end,
         timezone,
         skip_recent_amount: Number(skipAmount) || null,
         skip_recent_unit: skipUnit,
       });
+      if (saved.campaign_hourly_cap) setHourly(String(saved.campaign_hourly_cap));
+      if (saved.campaign_daily_cap) setDaily(String(saved.campaign_daily_cap));
       const shown = await previewCampaign(campaignId);
       setPreview(shown.text);
       setStep(4);

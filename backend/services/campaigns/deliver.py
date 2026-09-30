@@ -59,7 +59,10 @@ def send_one(db: Session, agent_id: int) -> float | None:
     decision = gates.decide(db, agent, campaign, recipient, channel, now)
     if decision.action != "send":
         return _hold(db, send, campaign, agent_id, decision, now)
-    if not caps.hour_open(agent_id, agent.campaign_timezone, agent.campaign_hourly_cap, now):
+    own_cap = campaign.hourly_cap or agent.campaign_hourly_cap
+    agent_open = caps.hour_open(agent_id, agent.campaign_timezone, agent.campaign_hourly_cap, now)
+    campaign_open = caps.hour_open(agent_id, agent.campaign_timezone, own_cap, now, campaign.id)
+    if not agent_open or not campaign_open:
         send.status = C.PENDING
         send.locked_until = None
         send.next_send_at = _next_hour(now)
@@ -169,14 +172,16 @@ def _after_http(db, send, campaign, agent, recipient, channel, body, outcome, no
     if send.step_position == campaign.current_step:
         campaign.step_sent_count = (campaign.step_sent_count or 0) + 1
     caps.bump_hour(agent.id, agent.campaign_timezone, now)
+    if campaign.hourly_cap:
+        caps.bump_hour(agent.id, agent.campaign_timezone, now, campaign.id)
     store_outbound(db, agent, campaign, recipient, body, channel, send.provider_msg_id)
     _advance(db, campaign)
-    when = gates.pace_wait(now, agent.campaign_hourly_cap or 1)
-    _defer_agent(db, agent.id, when, send.id)
+    when = gates.pace_wait(now, gates.pace_cap(agent, campaign))
+    _defer_campaign(db, campaign.id, when, send.id)
     db.commit()
     from backend.services.campaigns.feed import publish
     publish(campaign.id)
-    return (when - now).total_seconds()
+    return _wake_in(db, agent.id, now)
 
 
 def _hold(db, send, campaign, agent_id, decision, now) -> float | None:
@@ -228,13 +233,25 @@ def _pause(db, agent_id: int, reason: str) -> None:
     ).update({"status": C.PAUSED, "pause_reason": reason}, synchronize_session=False)
 
 
-def _defer_agent(db, agent_id: int, when: datetime, keep_id: int) -> None:
+def _defer_campaign(db, campaign_id: int, when: datetime, keep_id: int) -> None:
     db.query(CampaignSend).filter(
-        CampaignSend.agent_id == agent_id,
+        CampaignSend.campaign_id == campaign_id,
         CampaignSend.status == C.PENDING,
         CampaignSend.id != keep_id,
         CampaignSend.next_send_at < when,
     ).update({"next_send_at": when}, synchronize_session=False)
+
+
+def _wake_in(db, agent_id: int, now: datetime) -> float | None:
+    from sqlalchemy import func
+    nxt = (
+        db.query(func.min(CampaignSend.next_send_at))
+        .filter(CampaignSend.agent_id == agent_id, CampaignSend.status == C.PENDING)
+        .scalar()
+    )
+    if nxt is None:
+        return None
+    return max(1.0, (nxt - now).total_seconds())
 
 
 def _step(db, campaign_id: int, position: int) -> CampaignStep | None:

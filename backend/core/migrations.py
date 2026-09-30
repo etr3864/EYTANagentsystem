@@ -910,11 +910,15 @@ def _campaigns(conn):
             delivered_count INTEGER NOT NULL DEFAULT 0,
             current_step INTEGER NOT NULL DEFAULT 1,
             starts_at TIMESTAMP,
+            hourly_cap INTEGER,
+            daily_cap INTEGER,
             created_at TIMESTAMP,
             updated_at TIMESTAMP
         )
     """))
     _add_column(conn, "ALTER TABLE campaigns ADD COLUMN starts_at TIMESTAMP")
+    _add_column(conn, "ALTER TABLE campaigns ADD COLUMN hourly_cap INTEGER")
+    _add_column(conn, "ALTER TABLE campaigns ADD COLUMN daily_cap INTEGER")
     conn.execute(text("""
         CREATE TABLE IF NOT EXISTS campaign_steps (
             id SERIAL PRIMARY KEY,
@@ -1012,6 +1016,8 @@ def drop_campaigns(conn):
         "ALTER TABLE agents DROP COLUMN IF EXISTS campaign_daily_cap",
         "ALTER TABLE agents DROP COLUMN IF EXISTS campaign_timezone",
         "ALTER TABLE campaigns DROP COLUMN IF EXISTS starts_at",
+        "ALTER TABLE campaigns DROP COLUMN IF EXISTS hourly_cap",
+        "ALTER TABLE campaigns DROP COLUMN IF EXISTS daily_cap",
         "ALTER TABLE conversations DROP COLUMN IF EXISTS campaign_pending",
         "ALTER TABLE blocked_numbers DROP COLUMN IF EXISTS manual",
         "ALTER TABLE blocked_numbers DROP COLUMN IF EXISTS opted_out",

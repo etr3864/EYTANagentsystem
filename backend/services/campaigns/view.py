@@ -21,7 +21,7 @@ def campaign_row(db, campaign: Campaign, agent_name: str, session: str, *, full:
     sent = campaign.step_sent_count or 0
     total = campaign.recipient_count or 0
     replied = campaign.replied_count or 0
-    gap_min, gap_max = _gap(hourly_cap)
+    gap_min, gap_max = _gap(_effective_hour(hourly_cap, campaign.hourly_cap))
     row = {
         "id": campaign.id,
         "agent_id": campaign.agent_id,
@@ -37,6 +37,8 @@ def campaign_row(db, campaign: Campaign, agent_name: str, session: str, *, full:
         "step_sent_count": sent,
         "updated_at": _iso(campaign.updated_at),
         "hourly_cap": hourly_cap,
+        "campaign_hourly_cap": campaign.hourly_cap,
+        "campaign_daily_cap": campaign.daily_cap,
         "gap_min_seconds": gap_min,
         "gap_max_seconds": gap_max,
         "last_sent_at": _clock(_latest_sent(db, campaign.id), campaign.timezone),
@@ -111,6 +113,12 @@ def _steps(db, campaign_id: int) -> list[CampaignStep]:
         .order_by(CampaignStep.position)
         .all()
     )
+
+
+def _effective_hour(agent_cap: int | None, campaign_cap: int | None) -> int | None:
+    if agent_cap and campaign_cap:
+        return min(agent_cap, campaign_cap)
+    return campaign_cap or agent_cap
 
 
 def _gap(hourly_cap: int | None) -> tuple[int, int]:

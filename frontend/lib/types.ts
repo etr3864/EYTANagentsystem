@@ -78,6 +78,7 @@ export interface Agent {
   campaigns_enabled?: boolean;
   campaign_hourly_cap?: number | null;
   campaign_daily_cap?: number | null;
+  campaign_sent_today?: number;
   active_channel_types?: string[];
   created_at: string | null;
   updated_at?: string | null;

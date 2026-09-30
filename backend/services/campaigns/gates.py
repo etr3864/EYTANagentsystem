@@ -31,7 +31,7 @@ def decide(db, agent, campaign, recipient, channel, now: datetime) -> Gate:
         return Gate("skip", status=C.SKIPPED, reason="recent")
     if blocks_proactive(db, agent, recipient.phone):
         return Gate("skip", status=C.BLOCKED, reason="blocked")
-    if _over_daily(db, agent, now):
+    if _over_daily(db, agent, now) or _over_campaign_daily(db, agent, campaign, now):
         return Gate("wait", when=schedule.local_midnight(now, agent.campaign_timezone) + timedelta(days=1))
     return Gate("send")
 
@@ -41,24 +41,41 @@ def pace_wait(now: datetime, hourly_cap: int, roll: float | None = None) -> date
     return now + timedelta(seconds=gap)
 
 
+def sent_today(db, agent_id: int, tz_name: str, now: datetime, campaign_id: int | None = None) -> int:
+    from backend.models.campaign import CampaignSend
+    from backend.services.campaigns.constants import SENT
+
+    start = schedule.local_midnight(now, tz_name)
+    query = db.query(CampaignSend.id).filter(
+        CampaignSend.agent_id == agent_id,
+        CampaignSend.status == SENT,
+        CampaignSend.sent_at >= start,
+    )
+    if campaign_id is not None:
+        query = query.filter(CampaignSend.campaign_id == campaign_id)
+    return query.count()
+
+
+def pace_cap(agent, campaign) -> int:
+    agent_cap = agent.campaign_hourly_cap or 0
+    own = campaign.hourly_cap or agent_cap
+    if agent_cap and own:
+        return min(agent_cap, own)
+    return own or agent_cap or 1
+
+
 def _over_daily(db, agent, now: datetime) -> bool:
     cap = agent.campaign_daily_cap
     if not cap or cap <= 0:
         return True
-    start = schedule.local_midnight(now, agent.campaign_timezone)
-    from backend.models.campaign import CampaignSend
-    from backend.services.campaigns.constants import SENT
+    return sent_today(db, agent.id, agent.campaign_timezone, now) >= cap
 
-    sent = (
-        db.query(CampaignSend.id)
-        .filter(
-            CampaignSend.agent_id == agent.id,
-            CampaignSend.status == SENT,
-            CampaignSend.sent_at >= start,
-        )
-        .count()
-    )
-    return sent >= cap
+
+def _over_campaign_daily(db, agent, campaign, now: datetime) -> bool:
+    cap = campaign.daily_cap
+    if not cap or cap <= 0:
+        return False
+    return sent_today(db, agent.id, agent.campaign_timezone, now, campaign.id) >= cap
 
 
 def _spoke_recently(db, agent_id: int, phone: str, campaign, now: datetime) -> bool:

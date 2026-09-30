@@ -15,6 +15,8 @@ export interface CampaignRow {
   step_sent_count: number;
   updated_at: string | null;
   hourly_cap: number | null;
+  campaign_hourly_cap?: number | null;
+  campaign_daily_cap?: number | null;
   gap_min_seconds: number;
   gap_max_seconds: number;
   last_sent_at: string | null;

@@ -44,6 +44,8 @@ class Campaign(Base):
     timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="Asia/Jerusalem")
     skip_recent_amount: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     skip_recent_unit: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    hourly_cap: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    daily_cap: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     recipient_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     step_sent_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     replied_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

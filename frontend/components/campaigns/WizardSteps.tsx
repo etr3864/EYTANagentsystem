@@ -262,18 +262,24 @@ export function WhenStep(props: {
   onTimezone: (value: string) => void;
   onSkipAmount: (value: string) => void;
   onSkipUnit: (value: string) => void;
+  ceilingHour: number;
+  ceilingDay: number;
+  leftToday: number;
 }) {
+  const ceiling = props.ceilingHour > 0
+    ? `תקרת הסוכן: ${props.ceilingHour} בשעה, ${props.ceilingDay} ביום. היום נשארו ${props.leftToday}. יותר מזה יישמר עד הגג של הסוכן.`
+    : 'קודם שומרים תקרה לסוכן בלשונית שלו. בלי זה אי אפשר להתחיל.';
   return (
     <div className="space-y-4">
-      <p className="text-sm text-[var(--text-secondary)]">המספרים הם של הסוכן, לא רק של הקמפיין הזה.</p>
+      <p className="text-sm text-[var(--text-secondary)]">{ceiling}</p>
       <Input
-        label="הודעות בשעה"
+        label="הודעות בשעה לקמפיין"
         inputMode="numeric"
         value={props.hourly}
         onChange={(event) => props.onHourly(digits(event.target.value, 4))}
       />
       <Input
-        label="הודעות ביום"
+        label="הודעות ביום לקמפיין"
         inputMode="numeric"
         value={props.daily}
         onChange={(event) => props.onDaily(digits(event.target.value, 5))}

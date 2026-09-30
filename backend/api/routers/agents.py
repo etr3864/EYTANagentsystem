@@ -107,6 +107,11 @@ def get_agent(
         payload["campaign_hourly_cap"] = agent.campaign_hourly_cap
         payload["campaign_daily_cap"] = agent.campaign_daily_cap
         payload["campaign_timezone"] = agent.campaign_timezone
+        from datetime import datetime
+        from backend.services.campaigns.gates import sent_today
+        payload["campaign_sent_today"] = sent_today(
+            db, agent.id, agent.campaign_timezone or "Asia/Jerusalem", datetime.utcnow(),
+        )
         payload["campaign_system_prompt"] = agent.campaign_system_prompt
     return payload
 

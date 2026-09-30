@@ -37,6 +37,8 @@ class CampaignPatch(BaseModel):
     timezone: str | None = None
     skip_recent_amount: int | None = None
     skip_recent_unit: str | None = None
+    hourly_cap: int | None = None
+    daily_cap: int | None = None
     steps: list[dict] | None = None
     media_description: str | None = None
 
@@ -157,8 +159,9 @@ def patch_campaign(
     data = body.model_dump(exclude_unset=True)
     steps = data.pop("steps", None)
     owner_fields = {"name", "description", "template_body", "prompt", "window_start", "window_end", "timezone", "skip_recent_amount", "skip_recent_unit", "media_description"}
-    super_fields = owner_fields | {"mode", "column_defaults", "rephrase_enabled", "writer_model", "rephrase_model"}
+    super_fields = owner_fields | {"mode", "column_defaults", "rephrase_enabled", "writer_model", "rephrase_model", "hourly_cap", "daily_cap"}
     allowed = super_fields if _full(user) else owner_fields
+    _clamp_budget(agent, data)
     for key, value in data.items():
         if key in allowed:
             setattr(campaign, key, value)
@@ -397,6 +400,23 @@ def _columns(db: Session, campaign_id: int) -> set[str]:
     if not rows or not isinstance(rows[0][0], dict):
         return set()
     return set(rows[0][0].keys())
+
+
+def _clamp_budget(agent, data: dict) -> None:
+    if "hourly_cap" not in data and "daily_cap" not in data:
+        return
+    if not agent.campaign_hourly_cap or not agent.campaign_daily_cap:
+        raise HTTPException(status_code=422, detail="caps")
+    if "hourly_cap" in data:
+        value = int(data["hourly_cap"] or 0)
+        if value < 1:
+            raise HTTPException(status_code=422, detail="campaign_caps")
+        data["hourly_cap"] = min(value, agent.campaign_hourly_cap)
+    if "daily_cap" in data:
+        value = int(data["daily_cap"] or 0)
+        if value < 1:
+            raise HTTPException(status_code=422, detail="campaign_caps")
+        data["daily_cap"] = min(value, agent.campaign_daily_cap)
 
 
 def _media_url(campaign) -> str | None:

@@ -72,6 +72,8 @@ def start(db: Session, campaign: Campaign, agent: Agent, starts_at: datetime | N
         raise ValueError("flag")
     if not agent.campaign_hourly_cap or not agent.campaign_daily_cap:
         raise ValueError("caps")
+    if not campaign.hourly_cap or not campaign.daily_cap:
+        raise ValueError("campaign_caps")
     channel = get_channel_by_type(db, agent.id, "whatsapp_wasender")
     if channel is None or (channel.health_status or "") != "connected":
         raise ValueError("session")
