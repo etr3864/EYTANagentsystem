@@ -3,6 +3,7 @@ from typing import Optional
 
 from backend.core.database import SessionLocal
 from backend.core.logger import log_error
+from backend.models.agent import Agent
 from backend.services.entities import ai
 from backend.services.entities.tools import handle_tool_calls
 from backend.services.messaging.pipeline.context import (
@@ -31,9 +32,12 @@ def _tool_handler(ctx: TurnContext, function_runtime):
         names = {call.get("name") or "" for call in calls}
         await ctx.outbound.emit_status(ctx.phone, _status_for(names))
         with SessionLocal() as db:
+            agent = db.get(Agent, ctx.agent.id)
+            if agent is None:
+                raise RuntimeError("agent missing")
             return await handle_tool_calls(
                 db,
-                ctx.agent,
+                agent,
                 ctx.user_id,
                 calls,
                 conversation_id=ctx.conversation_id,

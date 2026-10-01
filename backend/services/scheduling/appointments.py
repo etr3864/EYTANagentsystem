@@ -44,14 +44,16 @@ def get_calendar_config(agent: Agent) -> dict:
 
 def update_calendar_config(db: Session, agent: Agent, updates: dict) -> Agent:
     """Update agent's calendar config."""
-    if agent.calendar_config is None:
-        agent.calendar_config = {}
-    
-    agent.calendar_config.update(updates)
-    flag_modified(agent, "calendar_config")
+    row = agent if agent in db else db.get(Agent, agent.id)
+    if row is None:
+        return agent
+    if row.calendar_config is None:
+        row.calendar_config = {}
+    row.calendar_config.update(updates)
+    flag_modified(row, "calendar_config")
     db.commit()
-    db.refresh(agent)
-    return agent
+    db.refresh(row)
+    return row
 
 
 # --- Google Calendar Token Management ---
