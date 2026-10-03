@@ -8,8 +8,19 @@ from backend.core.migrations import run_all as _run_migration_statements
 
 logger = logging.getLogger(__name__)
 
+
+def _engine_url(url: str) -> str:
+    """Keep the driver we install. SQLAlchemy 2.1 reads a bare postgresql:// URL as psycopg 3."""
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://"):]
+    head, sep, rest = url.partition("://")
+    if sep and head in {"postgresql", "postgresql+psycopg"}:
+        return f"postgresql+psycopg2://{rest}"
+    return url
+
+
 engine = create_engine(
-    settings.database_url,
+    _engine_url(settings.database_url),
     pool_size=settings.db_pool_size,
     max_overflow=settings.db_max_overflow,
     pool_timeout=settings.db_pool_timeout,
