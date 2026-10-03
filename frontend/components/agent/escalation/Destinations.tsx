@@ -1,12 +1,19 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { Button } from '@/components/ui';
 import { Input } from '@/components/ui/Input';
 import { getWasenderGroups, type WasenderContact } from '@/lib/api';
 import type { EscalationGroup } from '@/lib/escalation';
 
 const MAX_PHONES = 3;
 const MAX_GROUPS = 3;
+
+function groupLabel(item: { name?: string; jid: string }) {
+  const name = (item.name || '').trim();
+  if (!name || name === item.jid) return item.jid;
+  return `${name} (${item.jid})`;
+}
 
 interface DestinationsProps {
   agentId: number;
@@ -30,10 +37,24 @@ export function Destinations({
   const slots = [...phones, ...Array(MAX_PHONES - phones.length).fill('')].slice(0, MAX_PHONES);
   const [available, setAvailable] = useState<WasenderContact[]>([]);
   const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState('');
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    setLoadError('');
+    try {
+      setAvailable(await getWasenderGroups(agentId));
+    } catch {
+      setLoadError('לא הצלחנו לרענן את הקבוצות');
+    } finally {
+      setLoading(false);
+    }
+  }, [agentId]);
 
   useEffect(() => {
-    getWasenderGroups(agentId).then(setAvailable).catch(() => setAvailable([]));
-  }, [agentId]);
+    reload();
+  }, [reload]);
 
   const setPhone = (index: number, value: string) => {
     const next = [...slots];
@@ -74,8 +95,11 @@ export function Destinations({
         available={available}
         selected={groups}
         query={query}
+        loading={loading}
+        error={loadError}
         onQuery={setQuery}
         onToggle={toggleGroup}
+        onRefresh={reload}
       />
       <Input
         label="Webhook (אופציונלי, HTTPS)"
@@ -91,14 +115,20 @@ function GroupPicker({
   available,
   selected,
   query,
+  loading,
+  error,
   onQuery,
   onToggle,
+  onRefresh,
 }: {
   available: WasenderContact[];
   selected: EscalationGroup[];
   query: string;
+  loading: boolean;
+  error: string;
   onQuery: (value: string) => void;
   onToggle: (item: WasenderContact) => void;
+  onRefresh: () => void;
 }) {
   const visible = available.filter((item) => {
     const q = query.trim();
@@ -108,13 +138,19 @@ function GroupPicker({
 
   return (
     <div className="space-y-2">
-      <p className="text-sm text-[var(--ink)]">קבוצות WhatsApp ({selected.length}/{MAX_GROUPS})</p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm text-[var(--ink)]">קבוצות WhatsApp ({selected.length}/{MAX_GROUPS})</p>
+        <Button type="button" size="sm" variant="secondary" disabled={loading} onClick={onRefresh}>
+          {loading ? 'מרענן...' : 'רענון קבוצות'}
+        </Button>
+      </div>
       {available.length > 8 && (
         <Input value={query} placeholder="חיפוש קבוצה" onChange={(e) => onQuery(e.target.value)} />
       )}
-      {available.length === 0 ? (
+      {error && <p className="text-xs text-rose-400">{error}</p>}
+      {available.length === 0 && !error ? (
         <p className="text-xs text-[var(--text-muted)]">אין קבוצות. חבר WhatsApp וודא שהמספר בקבוצות.</p>
-      ) : (
+      ) : available.length > 0 ? (
         <div className="max-h-48 space-y-1 overflow-y-auto">
           {visible.map((item) => {
             const checked = selected.some((row) => row.jid === item.jid);
@@ -127,12 +163,12 @@ function GroupPicker({
                 }`}
               >
                 <input type="checkbox" checked={checked} disabled={full} onChange={() => onToggle(item)} />
-                <span className="truncate">{item.name || item.jid}</span>
+                <span className="min-w-0 truncate" title={groupLabel(item)}>{groupLabel(item)}</span>
               </label>
             );
           })}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
