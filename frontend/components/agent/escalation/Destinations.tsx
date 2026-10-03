@@ -163,7 +163,7 @@ function GroupPicker({
                 }`}
               >
                 <input type="checkbox" checked={checked} disabled={full} onChange={() => onToggle(item)} />
-                <span className="min-w-0 truncate" title={groupLabel(item)}>{groupLabel(item)}</span>
+                <span className="min-w-0 truncate" dir="ltr" title={groupLabel(item)}>{groupLabel(item)}</span>
               </label>
             );
           })}
