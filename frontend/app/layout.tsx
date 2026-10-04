@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
-import { Heebo } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AppNavbar } from "@/components/layout/AppNavbar";
 import { PlatformAtmosphere } from "@/components/layout/PlatformAtmosphere";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 
-const heebo = Heebo({
-  subsets: ["hebrew", "latin"],
-  weight: ["400", "500", "600", "700", "800"],
+const heebo = localFont({
+  src: "./fonts/Heebo-wght.ttf",
+  weight: "100 900",
   display: "swap",
 });
 
