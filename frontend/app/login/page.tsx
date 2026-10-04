@@ -1,13 +1,13 @@
 'use client';
 
-import { Suspense, useState, FormEvent } from 'react';
+import { Suspense, useEffect, useRef, useState, FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Input, PasswordInput } from '@/components/ui';
 import { BrandMark } from '@/components/brand/BrandMark';
 
 function getSafeRedirect(url: string | null): string {
-  if (!url || !url.startsWith('/') || url.startsWith('//')) return '/';
+  if (!url || !url.startsWith('/') || url.startsWith('//') || url.includes('\\')) return '/';
   return url;
 }
 
@@ -34,15 +34,19 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = getSafeRedirect(searchParams.get('redirect'));
+  const requested = searchParams.get('redirect');
+  const destination = useRef(getSafeRedirect(requested));
+  if (requested) destination.current = getSafeRedirect(requested);
 
-  if (isAuthenticated) {
-    router.push(redirectTo);
-    return null;
-  }
+  useEffect(() => {
+    if (authLoading || !isAuthenticated) return;
+    router.replace(destination.current);
+  }, [authLoading, isAuthenticated, router]);
+
+  if (authLoading || isAuthenticated) return null;
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -73,7 +77,6 @@ function LoginForm() {
 
     try {
       await login({ email, password });
-      router.push(redirectTo);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'שגיאה בהתחברות';
       

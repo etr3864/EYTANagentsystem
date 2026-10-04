@@ -17,7 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { isSuperAdmin, isAdmin, isEmployee } from '@/lib/auth';
 import { phoneToUrl, phoneFromUrl } from '@/lib/phone';
 import { 
-  getAgent, updateAgent, getConversations, getConversationsRevision, getMessages, deleteConversation, 
+  getAgent, updateAgent, getConversations, getConversationByPhone, getConversationsRevision, getMessages, deleteConversation, 
   sendMessage, sendConversationMedia, sendConversationTemplate,
   getWhatsAppInbox, openWhatsAppThread, whatsappKindFromAgent, pauseConversation, resumeConversation,
   getAgentMedia, uploadAgentMedia, updateAgentMedia, deleteAgentMedia,
@@ -132,13 +132,27 @@ function AgentPage() {
   const [mediaConfig, setMediaConfig] = useState<MediaConfig | null>(null);
 
   const agentId = Number(params.id);
+  const pinnedConv = useRef<Conversation | null>(null);
+  const openedLink = useRef(false);
+  const userChoseConv = useRef(false);
 
   // Load agent data on mount or when agentId changes
   useEffect(() => {
+    pinnedConv.current = null;
+    openedLink.current = false;
+    userChoseConv.current = false;
     loadAgent();
     loadConversations();
     loadWaInbox();
   }, [agentId]);
+
+  useEffect(() => {
+    const raw = searchParams.get('conv');
+    if (!raw || userChoseConv.current || openedLink.current) return;
+    openedLink.current = true;
+    setTab('conversations');
+    openFromLink(raw);
+  }, [agentId, searchParams]);
 
   // Handle tab from URL or fallback when visible tabs change
   useEffect(() => {
@@ -236,6 +250,7 @@ function AgentPage() {
 
   // Update URL with conversation phone number
   const updateUrlWithConversation = useCallback((conv: Conversation | null) => {
+    userChoseConv.current = true;
     if (conv) {
       router.replace(`/agent/${agentId}?conv=${phoneToUrl(conv.user_phone)}`, { scroll: false });
     } else {
@@ -243,23 +258,31 @@ function AgentPage() {
     }
   }, [agentId, router]);
 
-  async function loadConversations(opts?: { selectFromUrl?: boolean }): Promise<Conversation[]> {
+  function withPinned(items: Conversation[]): Conversation[] {
+    const pinned = pinnedConv.current;
+    if (!pinned || items.some(row => row.id === pinned.id)) return items;
+    return [pinned, ...items];
+  }
+
+  async function openFromLink(raw: string) {
+    try {
+      const conv = await getConversationByPhone(agentId, phoneFromUrl(raw));
+      if (!conv) return;
+      pinnedConv.current = conv;
+      setConversations(prev => withPinned(prev));
+      loadMessagesWithPhone(conv.id, conv.user_phone);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  async function loadConversations(_opts?: { selectFromUrl?: boolean }): Promise<Conversation[]> {
     try {
       const page = await getConversations(agentId);
-      setConversations(page.items);
+      const items = withPinned(page.items);
+      setConversations(items);
       setNextCursor(page.next_cursor);
-
-      if (opts?.selectFromUrl !== false) {
-        const urlPhone = searchParams.get('conv');
-        if (urlPhone && page.items.length > 0) {
-          const conv = page.items.find(c => c.user_phone === phoneFromUrl(urlPhone));
-          if (conv) {
-            loadMessagesWithPhone(conv.id, conv.user_phone);
-            setTab('conversations');
-          }
-        }
-      }
-      return page.items;
+      return items;
     } catch (e) {
       console.error(e);
       return [];
@@ -306,6 +329,7 @@ function AgentPage() {
   }
 
   async function loadMessages(convId: number) {
+    userChoseConv.current = true;
     try {
       const data = await getMessages(convId);
       setMessages(data);
@@ -383,6 +407,7 @@ function AgentPage() {
     if (!confirm('למחוק את השיחה?')) return;
     try {
       await deleteConversation(convId);
+      if (pinnedConv.current?.id === convId) pinnedConv.current = null;
       setConversations(conversations.filter(c => c.id !== convId));
       if (selectedConv === convId) {
         setSelectedConv(null);

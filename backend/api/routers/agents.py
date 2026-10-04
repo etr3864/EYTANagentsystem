@@ -270,6 +270,52 @@ def agent_conversations_revision(
     return {"revision": f"{stamp}|{row.id}|{row.total}"}
 
 
+@router.get("/{agent_id}/conversations/by-phone")
+def conversation_by_phone(
+    agent_id: int,
+    phone: str = Query("", max_length=200),
+    current_user: AuthUser = Depends(AgentAccessChecker()),
+    db: Session = Depends(get_db),
+):
+    """One inbox row for a deep link. Same scope as the conversation list."""
+    from sqlalchemy import text
+    from backend.core.channel_types import CHANNEL_DISPLAY_NAMES
+
+    target = phone.strip()
+    if not target:
+        raise HTTPException(status_code=400, detail="phone")
+    row = db.execute(text("""
+        SELECT
+            c.id,
+            c.user_id,
+            c.is_paused,
+            c.opted_out,
+            c.last_customer_message_at,
+            c.created_at,
+            c.updated_at,
+            c.channel_type_snapshot,
+            u.phone   AS user_phone,
+            u.name    AS user_name,
+            u.gender  AS user_gender,
+            cu.external_id   AS channel_external_id,
+            cu.display_name  AS channel_display_name_user,
+            cu.profile_pic_url AS channel_profile_pic
+        FROM conversations c
+        JOIN users u ON u.id = c.user_id
+        LEFT JOIN channel_users cu ON cu.id = c.channel_user_id
+        WHERE c.agent_id = :agent_id
+          AND c.playground_link_id IS NULL
+          AND u.phone NOT LIKE '%@g.us'
+          AND c.campaign_pending = FALSE
+          AND (u.phone = :phone OR cu.external_id = :phone)
+        ORDER BY c.updated_at DESC, c.id DESC
+        LIMIT 1
+    """), {"agent_id": agent_id, "phone": target}).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="not_found")
+    return _conv_row_to_dict(row, CHANNEL_DISPLAY_NAMES)
+
+
 @router.get("/{agent_id}/conversations")
 def list_agent_conversations(
     agent_id: int,

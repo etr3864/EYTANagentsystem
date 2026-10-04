@@ -39,6 +39,19 @@ export async function getConversationsRevision(
   return data.revision as string;
 }
 
+export async function getConversationByPhone(
+  agentId: number,
+  phone: string,
+): Promise<Conversation | null> {
+  const params = new URLSearchParams({ phone });
+  const res = await authFetch(
+    `${API_URL}/api/agents/${agentId}/conversations/by-phone?${params}`,
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('Failed to open conversation');
+  return res.json();
+}
+
 export async function getMessages(convId: number): Promise<Message[]> {
   const res = await authFetch(`${API_URL}/api/conversations/${convId}/messages`);
   if (!res.ok) throw new Error('Failed to fetch messages');
