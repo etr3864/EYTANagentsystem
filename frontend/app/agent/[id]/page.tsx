@@ -14,8 +14,9 @@ import { ChannelsTab } from '@/components/agent/channels/ChannelsTab';
 import { CampaignsTab } from '@/components/agent/CampaignsTab';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useAuth } from '@/contexts/AuthContext';
-import { isSuperAdmin, isAdmin, isEmployee } from '@/lib/auth';
+import { isSuperAdmin, isAdmin, isEmployee, canManageUsers } from '@/lib/auth';
 import { phoneToUrl, phoneFromUrl } from '@/lib/phone';
+import { addReplyPerson } from '@/lib/api/replyList';
 import { 
   getAgent, updateAgent, getConversations, getConversationByPhone, getConversationsRevision, getMessages, deleteConversation, 
   sendMessage, sendConversationMedia, sendConversationTemplate,
@@ -121,6 +122,11 @@ function AgentPage() {
   // Conversations state (cursor-paginated)
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [nextCursor, setNextCursor] = useState<ConversationCursor | null>(null);
+  const [replyListOn, setReplyListOn] = useState(false);
+  const [othersCount, setOthersCount] = useState(0);
+  const [showingOthers, setShowingOthers] = useState(false);
+  const [others, setOthers] = useState<Conversation[]>([]);
+  const [othersCursor, setOthersCursor] = useState<ConversationCursor | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [selectedConv, setSelectedConv] = useState<number | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -141,6 +147,9 @@ function AgentPage() {
     pinnedConv.current = null;
     openedLink.current = false;
     userChoseConv.current = false;
+    setShowingOthers(false);
+    setOthers([]);
+    setReplyListOn(false);
     loadAgent();
     loadConversations();
     loadWaInbox();
@@ -282,6 +291,9 @@ function AgentPage() {
       const items = withPinned(page.items);
       setConversations(items);
       setNextCursor(page.next_cursor);
+      setReplyListOn(Boolean(page.reply_list_enabled));
+      setOthersCount(page.reply_list_enabled ? page.others_count ?? 0 : 0);
+      if (!page.reply_list_enabled) setShowingOthers(false);
       return items;
     } catch (e) {
       console.error(e);
@@ -302,16 +314,33 @@ function AgentPage() {
   }
 
   async function loadMoreConversations() {
-    if (!nextCursor || loadingMore) return;
+    const cursor = showingOthers ? othersCursor : nextCursor;
+    if (!cursor || loadingMore) return;
     setLoadingMore(true);
     try {
-      const page = await getConversations(agentId, nextCursor);
-      setConversations(prev => [...prev, ...page.items]);
-      setNextCursor(page.next_cursor);
+      const page = await getConversations(agentId, cursor, showingOthers ? 'others' : undefined);
+      if (showingOthers) {
+        setOthers(prev => [...prev, ...page.items]);
+        setOthersCursor(page.next_cursor);
+      } else {
+        setConversations(prev => [...prev, ...page.items]);
+        setNextCursor(page.next_cursor);
+      }
     } catch (e) {
       console.error(e);
     } finally {
       setLoadingMore(false);
+    }
+  }
+
+  async function showOthers() {
+    setShowingOthers(true);
+    try {
+      const page = await getConversations(agentId, null, 'others');
+      setOthers(page.items);
+      setOthersCursor(page.next_cursor);
+    } catch (e) {
+      console.error(e);
     }
   }
 
@@ -336,7 +365,7 @@ function AgentPage() {
       setSelectedConv(convId);
       
       // Update URL with the selected conversation's phone
-      const conv = conversations.find(c => c.id === convId);
+      const conv = conversations.find(c => c.id === convId) ?? others.find(c => c.id === convId);
       if (conv) {
         updateUrlWithConversation(conv);
       }
@@ -537,6 +566,23 @@ function AgentPage() {
     }
   }
 
+  const openConv = (showingOthers ? others : conversations).find(row => row.id === selectedConv)
+    ?? conversations.find(row => row.id === selectedConv)
+    ?? others.find(row => row.id === selectedConv);
+  const canAddReply = Boolean(
+    replyListOn && canManageUsers(user) && openConv && !openConv.on_reply_list,
+  );
+
+  async function handleAddToReplyList(name: string, note: string) {
+    if (!openConv) return;
+    await addReplyPerson(agentId, openConv.user_phone, name, note);
+    const updated = { ...openConv, on_reply_list: true, user_name: name || openConv.user_name };
+    setConversations(prev => [updated, ...prev.filter(row => row.id !== updated.id)]);
+    setOthers(prev => prev.filter(row => row.id !== updated.id));
+    setOthersCount(count => Math.max(0, count - 1));
+    setShowingOthers(false);
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -599,7 +645,7 @@ function AgentPage() {
             <div className="flex-1 min-h-0">
             <ConversationsTab
               agentId={agentId}
-              conversations={conversations}
+              conversations={showingOthers ? others : conversations}
               selectedId={selectedConv}
               messages={messages}
               templates={waInbox.templates}
@@ -614,8 +660,14 @@ function AgentPage() {
               onSendTemplate={handleSendTemplate}
               onTogglePause={handleTogglePause}
               onLoadMore={loadMoreConversations}
-              hasMore={!!nextCursor}
+              hasMore={showingOthers ? !!othersCursor : !!nextCursor}
               loadingMore={loadingMore}
+              replyListOn={replyListOn}
+              othersCount={othersCount}
+              showingOthers={showingOthers}
+              onShowOthers={showOthers}
+              onShowListed={() => setShowingOthers(false)}
+              onAddToReplyList={canAddReply ? handleAddToReplyList : undefined}
             />
             {showNewChat && (
               <NewChatModal

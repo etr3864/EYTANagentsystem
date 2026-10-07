@@ -14,6 +14,11 @@ interface ContactListProps {
   onLoadMore?: () => void;
   hasMore?: boolean;
   loadingMore?: boolean;
+  replyListOn?: boolean;
+  othersCount?: number;
+  showingOthers?: boolean;
+  onShowOthers?: () => void;
+  onShowListed?: () => void;
 }
 
 function getGenderIcon(gender: string | null): string {
@@ -69,6 +74,11 @@ export function ContactList({
   onLoadMore,
   hasMore,
   loadingMore,
+  replyListOn = false,
+  othersCount = 0,
+  showingOthers = false,
+  onShowOthers,
+  onShowListed,
 }: ContactListProps) {
   const [search, setSearch] = useState('');
   const [channelFilter, setChannelFilter] = useState<string>('all');
@@ -113,7 +123,7 @@ export function ContactList({
     <div className="h-full border-l border-[var(--edge)] flex flex-col min-w-0 overflow-hidden">
       <div className="p-3 md:p-4 border-b border-[var(--edge)]">
         <div className="flex items-center justify-between gap-2">
-          <div className="text-sm font-medium text-[var(--ink)]">שיחות</div>
+          <div className="text-sm font-medium text-[var(--ink)]">{showingOthers ? 'אחרים' : 'שיחות'}</div>
           {onNewChat && (
             <button
               type="button"
@@ -184,7 +194,9 @@ export function ContactList({
       <div className="overflow-y-auto flex-1 min-h-0 overscroll-contain">
         {filtered.length === 0 && (
           <div className="p-6 text-center text-sm text-[var(--text-secondary)]">
-            {conversations.length === 0 ? 'אין שיחות עדיין. אפשר לפתוח צ׳אט חדש.' : 'לא נמצאו תוצאות'}
+            {conversations.length === 0
+              ? (showingOthers ? 'אין הודעות מאנשים מחוץ לרשימה.' : 'אין שיחות עדיין. אפשר לפתוח צ׳אט חדש.')
+              : 'לא נמצאו תוצאות'}
           </div>
         )}
         {filtered.map(conv => (
@@ -202,6 +214,9 @@ export function ContactList({
                 />
                 <div>
                   <div className="font-medium text-[var(--ink)] text-sm flex items-center gap-1.5 min-w-0">
+                    {conv.on_reply_list && (
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--acc)]" title="ברשימה" />
+                    )}
                     {conv.channel_username && conv.channel_type === 'instagram' ? (
                       <a
                         href={`https://instagram.com/${conv.channel_username}`}
@@ -262,6 +277,19 @@ export function ContactList({
           </div>
         )}
       </div>
+      {replyListOn && (
+        <div className="shrink-0 border-t border-[var(--edge)] p-3">
+          {showingOthers ? (
+            <button type="button" className="text-sm text-[var(--acc)]" onClick={onShowListed}>
+              חזרה לשיחות
+            </button>
+          ) : (
+            <button type="button" className="text-sm text-[var(--text-secondary)]" onClick={onShowOthers}>
+              אחרים{othersCount > 0 ? ` (${othersCount})` : ''}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

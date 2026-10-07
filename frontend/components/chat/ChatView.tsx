@@ -22,6 +22,8 @@ interface ChatViewProps {
   onSendVoice?: (blob: Blob, replyToMessageId?: number) => Promise<void>;
   onSendTemplate?: (payload: TemplateSendPayload) => Promise<void>;
   onTogglePause?: () => Promise<void>;
+  onAddToReplyList?: (name: string, note: string) => Promise<void>;
+  replyListName?: string;
   onSenderClick?: (phone: string, name: string) => void;
   agentId?: number;
 }
@@ -38,6 +40,8 @@ export function ChatView({
   onSendVoice,
   onSendTemplate,
   onTogglePause,
+  onAddToReplyList,
+  replyListName = '',
   onSenderClick,
   agentId,
 }: ChatViewProps) {
@@ -45,10 +49,19 @@ export function ChatView({
   const prevMessageCount = useRef<number>(0);
   const prevConversationId = useRef<number | null | undefined>(null);
   const [quote, setQuote] = useState<{ id: number; text: string } | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [listName, setListName] = useState('');
+  const [listNote, setListNote] = useState('');
+  const [listError, setListError] = useState('');
+  const [listBusy, setListBusy] = useState(false);
 
   useEffect(() => {
     setQuote(null);
-  }, [conversationId]);
+    setAdding(false);
+    setListName(replyListName);
+    setListNote('');
+    setListError('');
+  }, [conversationId, replyListName]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -112,6 +125,16 @@ export function ChatView({
               </span>
             )}
           </div>
+          <div className="flex items-center gap-2">
+          {onAddToReplyList && !adding && (
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="px-3 py-1.5 rounded-full text-xs font-medium border border-[var(--edge)] text-[var(--ink)]"
+            >
+              הוסף לרשימה
+            </button>
+          )}
           <button
             type="button"
             onClick={onTogglePause}
@@ -127,7 +150,45 @@ export function ChatView({
             {isPaused ? <PlayIcon /> : <PauseIcon />}
             {isPaused ? 'הפעל AI' : 'השהה AI'}
           </button>
+          </div>
         </div>
+      )}
+
+      {adding && onAddToReplyList && (
+        <form
+          className="flex flex-wrap items-start gap-2 border-b border-[var(--edge)] px-3 py-2"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            setListBusy(true);
+            setListError('');
+            try {
+              await onAddToReplyList(listName, listNote);
+              setAdding(false);
+            } catch (err) {
+              setListError(err instanceof Error ? err.message : 'שגיאה');
+            } finally {
+              setListBusy(false);
+            }
+          }}
+        >
+          <input
+            className="w-36 rounded-lg border border-[var(--edge)] bg-transparent px-2 py-1 text-sm"
+            maxLength={80}
+            value={listName}
+            onChange={(event) => setListName(event.target.value)}
+            placeholder="שם"
+          />
+          <input
+            className="min-w-[12rem] flex-1 rounded-lg border border-[var(--edge)] bg-transparent px-2 py-1 text-sm"
+            maxLength={2000}
+            value={listNote}
+            onChange={(event) => setListNote(event.target.value)}
+            placeholder="הנחיה"
+          />
+          <button type="submit" disabled={listBusy} className="text-xs text-[var(--acc)]">שמור</button>
+          <button type="button" className="text-xs text-[var(--text-muted)]" onClick={() => setAdding(false)}>ביטול</button>
+          {listError && <p className="w-full text-xs text-rose-400">{listError}</p>}
+        </form>
       )}
 
       {isPaused && (

@@ -128,6 +128,11 @@ class Agent(Base):
     # NULL = phone silence off. 0 = until someone cancels. Above 0 = minutes.
     phone_silence_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
+    # Off: the reply list is ignored and the bot answers as usual.
+    reply_list_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false",
+    )
+
     campaigns_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     campaign_hourly_cap: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     campaign_daily_cap: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)

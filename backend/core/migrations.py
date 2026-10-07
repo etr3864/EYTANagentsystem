@@ -27,6 +27,7 @@ def run_all(conn):
     _channel_user_staff_note(conn)
     _message_group_sender(conn)
     _silence(conn)
+    _reply_list(conn)
     _campaigns(conn)
     conn.commit()
 
@@ -861,6 +862,23 @@ def _add_column(conn, statement: str):
         EXCEPTION
             WHEN duplicate_column THEN null;
         END $$;
+    """))
+
+
+def _reply_list(conn):
+    _add_column(
+        conn,
+        "ALTER TABLE agents ADD COLUMN reply_list_enabled BOOLEAN NOT NULL DEFAULT FALSE",
+    )
+    conn.execute(text("""
+        CREATE TABLE IF NOT EXISTS reply_people (
+            id SERIAL PRIMARY KEY,
+            agent_id INTEGER NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+            phone VARCHAR(20) NOT NULL,
+            name VARCHAR(80) NOT NULL,
+            note TEXT NOT NULL DEFAULT '',
+            CONSTRAINT uq_reply_people_agent_phone UNIQUE (agent_id, phone)
+        )
     """))
 
 

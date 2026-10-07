@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from backend.core.database import SessionLocal
 from backend.models.blocked_number import BlockedNumber
 from backend.services.entities import agents, conversations, users
+from backend.services.reply_list import contains as _on_reply_list
 from backend.services.silence.phones import canonical
 
 def blocks_reply(db: Session, agent, phone: str) -> bool:
@@ -17,7 +18,9 @@ def blocks_reply(db: Session, agent, phone: str) -> bool:
         return False
     if _phone_silenced(db, agent, phone):
         return True
-    return _on_blocklist(db, agent.id, phone)
+    if _on_blocklist(db, agent.id, phone):
+        return True
+    return _off_reply_list(db, agent, phone)
 
 
 def blocks_proactive(db: Session, agent, phone: str) -> bool:
@@ -77,6 +80,13 @@ def _phone_view(agent, conv) -> tuple[bool, bool, datetime | None]:
     until = conv.owner_silence_until
     active = forever or bool(until and until > datetime.utcnow())
     return active, forever, until if active and not forever else None
+
+
+def _off_reply_list(db: Session, agent, phone: str) -> bool:
+    """On and missing: no reply. Off does not read the list."""
+    if not agent.reply_list_enabled:
+        return False
+    return not _on_reply_list(db, agent.id, phone)
 
 
 def _on_blocklist(db: Session, agent_id: int, phone: str) -> bool:

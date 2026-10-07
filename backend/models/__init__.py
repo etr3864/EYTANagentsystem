@@ -20,6 +20,7 @@ from backend.models.playground_link import PlaygroundLink
 from backend.models.system_secret import SystemSecret
 from backend.models.wasender_qr_link import WasenderQrLink
 from backend.models.blocked_number import BlockedNumber
+from backend.models.reply_person import ReplyPerson
 from backend.models.campaign import (
     Campaign,
     CampaignImport,

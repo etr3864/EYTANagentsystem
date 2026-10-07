@@ -9,17 +9,21 @@ export interface ConversationCursor {
 export interface ConversationsPage {
   items: Conversation[];
   next_cursor: ConversationCursor | null;
+  reply_list_enabled?: boolean;
+  others_count?: number;
 }
 
 export async function getConversations(
   agentId: number,
   cursor?: ConversationCursor | null,
+  scope?: 'others',
 ): Promise<ConversationsPage> {
   const params = new URLSearchParams();
   if (cursor) {
     params.set('cursor_time', cursor.cursor_time);
     params.set('cursor_id', String(cursor.cursor_id));
   }
+  if (scope === 'others') params.set('scope', 'others');
   const qs = params.toString();
   const url = `${API_URL}/api/agents/${agentId}/conversations${qs ? `?${qs}` : ''}`;
   const res = await authFetch(url);

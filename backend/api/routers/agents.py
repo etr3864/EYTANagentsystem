@@ -239,10 +239,17 @@ def agent_conversations_revision(
     current_user: AuthUser = Depends(AgentAccessChecker()),
     db: Session = Depends(get_db),
 ):
-    """Cheap inbox fingerprint for polling. Groups stay out of the staff inbox."""
+    """Cheap inbox fingerprint for polling. Groups stay out of the staff inbox.
+
+    A reply list on limits the fingerprint to listed people, so a stranger
+    does not refetch the main inbox.
+    """
     from sqlalchemy import text
 
-    row = db.execute(text("""
+    listed = _reply_list_on(db, agent_id)
+    roster = _roster_clause(listed, False)
+    roster_count = _roster_clause(listed, False, "c2", "u2")
+    row = db.execute(text(f"""
         SELECT
             c.updated_at,
             c.id,
@@ -252,13 +259,15 @@ def agent_conversations_revision(
               WHERE c2.agent_id = :agent_id
                 AND c2.playground_link_id IS NULL
                 AND u2.phone NOT LIKE '%@g.us'
-                AND c2.campaign_pending = FALSE) AS total
+                AND c2.campaign_pending = FALSE
+                {roster_count}) AS total
         FROM conversations c
         JOIN users u ON u.id = c.user_id
         WHERE c.agent_id = :agent_id
           AND c.playground_link_id IS NULL
           AND u.phone NOT LIKE '%@g.us'
           AND c.campaign_pending = FALSE
+          {roster}
         ORDER BY c.updated_at DESC, c.id DESC
         LIMIT 1
     """), {"agent_id": agent_id}).first()
@@ -284,7 +293,9 @@ def conversation_by_phone(
     target = phone.strip()
     if not target:
         raise HTTPException(status_code=400, detail="phone")
-    row = db.execute(text("""
+    listed = _reply_list_on(db, agent_id)
+    name_column = _list_name_column(listed)
+    row = db.execute(text(f"""
         SELECT
             c.id,
             c.user_id,
@@ -300,6 +311,7 @@ def conversation_by_phone(
             cu.external_id   AS channel_external_id,
             cu.display_name  AS channel_display_name_user,
             cu.profile_pic_url AS channel_profile_pic
+            {name_column}
         FROM conversations c
         JOIN users u ON u.id = c.user_id
         LEFT JOIN channel_users cu ON cu.id = c.channel_user_id
@@ -313,7 +325,7 @@ def conversation_by_phone(
     """), {"agent_id": agent_id, "phone": target}).first()
     if row is None:
         raise HTTPException(status_code=404, detail="not_found")
-    return _conv_row_to_dict(row, CHANNEL_DISPLAY_NAMES)
+    return _conv_row_to_dict(row, CHANNEL_DISPLAY_NAMES, listed=listed)
 
 
 @router.get("/{agent_id}/conversations")
@@ -322,6 +334,7 @@ def list_agent_conversations(
     limit: int = Query(50, ge=1, le=200),
     cursor_time: Optional[str] = Query(None),
     cursor_id: Optional[int] = Query(None),
+    scope: str = Query("listed"),
     current_user: AuthUser = Depends(AgentAccessChecker()),
     db: Session = Depends(get_db),
 ):
@@ -329,6 +342,8 @@ def list_agent_conversations(
     from sqlalchemy import text
     from backend.core.channel_types import CHANNEL_DISPLAY_NAMES
 
+    listed = _reply_list_on(db, agent_id)
+    others = listed and scope == "others"
     params: dict = {"agent_id": agent_id, "lim": limit + 1}
     cursor_clause = ""
     if cursor_time and cursor_id is not None:
@@ -352,6 +367,7 @@ def list_agent_conversations(
             cu.external_id   AS channel_external_id,
             cu.display_name  AS channel_display_name_user,
             cu.profile_pic_url AS channel_profile_pic
+            {_list_name_column(listed and not others)}
         FROM conversations c
         JOIN users u ON u.id = c.user_id
         LEFT JOIN channel_users cu ON cu.id = c.channel_user_id
@@ -359,6 +375,7 @@ def list_agent_conversations(
           AND c.playground_link_id IS NULL
           AND u.phone NOT LIKE '%@g.us'
           AND c.campaign_pending = FALSE
+          {_roster_clause(listed, others)}
           {cursor_clause}
         ORDER BY c.updated_at DESC, c.id DESC
         LIMIT :lim
@@ -367,7 +384,10 @@ def list_agent_conversations(
     has_more = len(rows) > limit
     page_rows = rows[:limit]
 
-    items = [_conv_row_to_dict(r, CHANNEL_DISPLAY_NAMES) for r in page_rows]
+    items = [
+        _conv_row_to_dict(r, CHANNEL_DISPLAY_NAMES, listed=listed and not others)
+        for r in page_rows
+    ]
 
     next_cursor = None
     if has_more and page_rows:
@@ -377,13 +397,62 @@ def list_agent_conversations(
             "cursor_id": last.id,
         }
 
-    return {"items": items, "next_cursor": next_cursor}
+    body = {"items": items, "next_cursor": next_cursor}
+    if listed:
+        body["reply_list_enabled"] = True
+        if not others:
+            body["others_count"] = _others_count(db, agent_id)
+    return body
 
 
-def _conv_row_to_dict(r, channel_names: dict) -> dict:
+def _reply_list_on(db: Session, agent_id: int) -> bool:
+    agent = agents.get_by_id(db, agent_id)
+    return bool(agent and agent.reply_list_enabled)
+
+
+def _roster_clause(enabled: bool, others: bool, conv: str = "c", person: str = "u") -> str:
+    if not enabled:
+        return ""
+    verb = "NOT EXISTS" if others else "EXISTS"
+    return f"""
+          AND {verb} (
+            SELECT 1 FROM reply_people rp
+            WHERE rp.agent_id = {conv}.agent_id AND rp.phone = {person}.phone
+          )
+    """
+
+
+def _list_name_column(enabled: bool) -> str:
+    if not enabled:
+        return ""
+    return """,
+            (SELECT rp.name FROM reply_people rp
+              WHERE rp.agent_id = c.agent_id AND rp.phone = u.phone) AS list_name"""
+
+
+def _others_count(db: Session, agent_id: int) -> int:
+    from sqlalchemy import text
+
+    row = db.execute(text("""
+        SELECT COUNT(*)::int AS total
+        FROM conversations c
+        JOIN users u ON u.id = c.user_id
+        WHERE c.agent_id = :agent_id
+          AND c.playground_link_id IS NULL
+          AND u.phone NOT LIKE '%@g.us'
+          AND c.campaign_pending = FALSE
+          AND NOT EXISTS (
+            SELECT 1 FROM reply_people rp
+            WHERE rp.agent_id = c.agent_id AND rp.phone = u.phone
+          )
+    """), {"agent_id": agent_id}).first()
+    return int(row.total if row else 0)
+
+
+def _conv_row_to_dict(r, channel_names: dict, *, listed: bool = False) -> dict:
     channel_type = r.channel_type_snapshot
     ig_username = r.channel_display_name_user if channel_type in ("instagram", "messenger") else None
-    return {
+    row = {
         "id": r.id,
         "user_id": r.user_id,
         "user_phone": r.channel_external_id or r.user_phone,
@@ -399,3 +468,9 @@ def _conv_row_to_dict(r, channel_names: dict) -> dict:
         "created_at": r.created_at.isoformat() if r.created_at else None,
         "updated_at": r.updated_at.isoformat() if r.updated_at else None,
     }
+    if listed:
+        list_name = getattr(r, "list_name", None)
+        row["on_reply_list"] = bool(list_name)
+        if list_name:
+            row["user_name"] = list_name
+    return row

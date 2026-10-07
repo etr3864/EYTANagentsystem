@@ -54,6 +54,7 @@ async def open_turn(request: TurnRequest) -> Optional[TurnContext]:
             )
 
         user_info = _user_info(db, user, request, conversation)
+        _apply_reply_person(db, agent, user, user_info)
         _inject_trigger_data(user_info, user, agent.id, conversation)
         _bind_channel(db, conversation, request)
         _reset_engagement(db, conversation, is_playground)
@@ -112,6 +113,21 @@ def _channel_user(db: Session, user: User, request: TurnRequest, conversation):
     if not channel:
         return None
     return get_by_external_id(db, channel.id, phone)
+
+
+def _apply_reply_person(db: Session, agent, user: User, info: dict) -> None:
+    """List name and note stay after the cached prefix. Off skips the lookup."""
+    if not agent.reply_list_enabled:
+        return
+    from backend.services.reply_list import find
+
+    row = find(db, agent.id, user.phone)
+    if row is None:
+        return
+    if row.name:
+        info["name"] = row.name
+    if row.note:
+        info["reply_note"] = row.note
 
 
 def _inject_trigger_data(info: dict, user: User, agent_id: int, conversation) -> None:

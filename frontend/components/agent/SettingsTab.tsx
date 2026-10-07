@@ -7,6 +7,7 @@ import { getModel, THINKING_LABELS } from '@/lib/models';
 import type { AgentBatchingConfig, AgentSplitConfig, ContextSummaryConfig, CustomApiKeys } from '@/lib/types';
 import { SplitSettings } from './SplitSettings';
 import { SilenceCard } from './SilenceCard';
+import { ReplyListCard } from './ReplyListCard';
 
 interface SettingsTabProps {
   agentId: number;
@@ -42,6 +43,7 @@ export function SettingsTab({
   if (!advanced) {
     return (
       <div className="space-y-6">
+        <ReplyListCard agentId={agentId} />
         <SilenceCard agentId={agentId} />
       </div>
     );
@@ -244,6 +246,7 @@ export function SettingsTab({
         )}
       </Card>
 
+      <ReplyListCard agentId={agentId} />
       <SilenceCard agentId={agentId} />
 
       {/* Custom API Keys */}

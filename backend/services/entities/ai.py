@@ -124,6 +124,8 @@ def _user_lines(user_info: dict) -> list[str]:
             parts.append("מאומת")
         if parts:
             info_parts.append(" | ".join(parts))
+    if user_info.get("reply_note"):
+        info_parts.append("הנחיה עבור האדם הזה:\n" + user_info["reply_note"])
     if user_info.get("staff_note"):
         info_parts.append(
             "הערת צוות (עובדות פנימיות — השתמש בהן כשזה רלוונטי, "

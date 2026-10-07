@@ -147,6 +147,7 @@ export interface Conversation {
   channel_external_id?: string | null;
   channel_profile_pic?: string | null;
   channel_username?: string | null;
+  on_reply_list?: boolean;
 }
 
 // ============ Message ============

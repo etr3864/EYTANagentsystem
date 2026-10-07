@@ -28,6 +28,12 @@ interface ConversationsTabProps {
   onLoadMore?: () => void;
   hasMore?: boolean;
   loadingMore?: boolean;
+  replyListOn?: boolean;
+  othersCount?: number;
+  showingOthers?: boolean;
+  onShowOthers?: () => void;
+  onShowListed?: () => void;
+  onAddToReplyList?: (name: string, note: string) => Promise<void>;
 }
 
 export function ConversationsTab({
@@ -36,6 +42,7 @@ export function ConversationsTab({
   onSelectConversation, onOpenContact, onDeleteConversation, onDeselectConversation,
   onNewChat, onSendMessage, onSendMedia, onSendVoice, onSendTemplate, onTogglePause,
   onLoadMore, hasMore, loadingMore,
+  replyListOn, othersCount, showingOthers, onShowOthers, onShowListed, onAddToReplyList,
 }: ConversationsTabProps) {
   const [cardStack, setCardStack] = useState<string[]>([]);
   const [zoomSrc, setZoomSrc] = useState<string | null>(null);
@@ -82,6 +89,11 @@ export function ConversationsTab({
             onLoadMore={onLoadMore}
             hasMore={hasMore}
             loadingMore={loadingMore}
+            replyListOn={replyListOn}
+            othersCount={othersCount}
+            showingOthers={showingOthers}
+            onShowOthers={onShowOthers}
+            onShowListed={onShowListed}
           />
         </div>
 
@@ -150,6 +162,8 @@ export function ConversationsTab({
                 onSendVoice={onSendVoice}
                 onSendTemplate={onSendTemplate}
                 onTogglePause={onTogglePause}
+                onAddToReplyList={onAddToReplyList}
+                replyListName={selectedConv?.user_name || ''}
               />
             </>
           ) : (

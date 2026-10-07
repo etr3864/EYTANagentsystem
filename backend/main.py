@@ -21,6 +21,7 @@ from backend.api.routers.external import router as external_router
 from backend.api.routers.agent_triggers import router as agent_triggers_router
 from backend.api.routers.agent_escalations import router as agent_escalations_router
 from backend.api.routers.silence import router as silence_router
+from backend.api.routers.reply_list import router as reply_list_router
 from backend.api.routers.campaigns import router as campaigns_router
 from backend.auth import auth_router
 from backend.mcp.server import McpSlashRewrite, mcp_http_app, combine_with_mcp
@@ -109,6 +110,7 @@ app.include_router(agent_escalations_router, prefix="/api")
 app.include_router(playground_router, prefix="/api/agents")
 app.include_router(playground_public_router, prefix="/api/try")
 app.include_router(silence_router, prefix="/api/agents")
+app.include_router(reply_list_router, prefix="/api/agents")
 app.include_router(campaigns_router, prefix="/api")
 app.mount("/mcp", mcp_http_app)
 
