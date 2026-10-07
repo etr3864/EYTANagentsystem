@@ -81,48 +81,54 @@ export function ReplyListCard({ agentId }: { agentId: number }) {
     <Card>
       <CardHeader>רק אנשים מהרשימה</CardHeader>
       <div className="space-y-4">
-        <p className="text-xs leading-relaxed text-[var(--text-muted)]">
-          כבוי — הבוט עונה לכולם, גם אם הרשימה מלאה. דולק — הוא עונה רק למי שברשימה, עם ההנחיה של האדם הזה. השאר נשמרים בלי מענה.
-        </p>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={enabled}
+        <div className="flex items-center justify-between gap-4">
+          <p className="text-xs leading-relaxed text-[var(--text-muted)]">
+            {enabled
+              ? 'הבוט עונה רק למי שברשימה. השאר נשמרים בלי מענה.'
+              : 'כבוי. הבוט עונה לכולם, גם אם יש אנשים ברשימה.'}
+          </p>
+          <Switch
+            on={enabled}
             disabled={busy || total === 0}
-            onChange={(event) => run(async () => {
-              setEnabled(await setReplyListEnabled(agentId, event.target.checked));
+            onToggle={() => run(async () => {
+              setEnabled(await setReplyListEnabled(agentId, !enabled));
             })}
           />
-          הפעל
-          {total === 0 && <span className="text-xs text-[var(--text-muted)]">אחרי אדם אחד לפחות</span>}
-        </label>
+        </div>
+        {total === 0 && (
+          <p className="text-xs text-[var(--text-muted)]">הוסף אדם אחד כדי להדליק.</p>
+        )}
 
-        <div className="grid gap-2 md:grid-cols-[10rem_10rem_1fr_auto]">
-          <input className={field} dir="ltr" placeholder="מספר" value={phone} onChange={(e) => setPhone(e.target.value)} />
-          <input className={field} placeholder="שם" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
-          <textarea className={field} placeholder="הנחיה, עד 2000 תווים" maxLength={2000} rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
-          <Button
-            type="button"
-            size="sm"
-            disabled={busy}
-            onClick={() => run(async () => {
+        <form
+          className="space-y-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            run(async () => {
               await addReplyPerson(agentId, phone, name, note);
               setPhone('');
               setName('');
               setNote('');
-            })}
-          >
-            הוסף
-          </Button>
-        </div>
+            });
+          }}
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <input className={`${line} w-36`} dir="ltr" placeholder="מספר" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <input className={`${line} w-36`} placeholder="שם" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
+            <Button type="submit" size="sm" disabled={busy}>הוסף</Button>
+          </div>
+          <input
+            className={`${line} w-full`}
+            placeholder="הנחיה, רשות"
+            maxLength={2000}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+          />
+        </form>
 
         {error && <p className="text-sm text-rose-400">{error}</p>}
 
-        <div className="overflow-hidden rounded-lg border border-[var(--edge)]">
-          {items.length === 0 ? (
-            <p className="px-3 py-4 text-sm text-[var(--text-muted)]">אין אנשים ברשימה.</p>
-          ) : (
-            <>
+        {items.length > 0 && (
+          <div className="overflow-hidden rounded-lg border border-[var(--edge)]">
               <div className="flex flex-wrap items-center gap-2 border-b border-[var(--edge)] px-3 py-2">
                 <input type="checkbox" checked={pageAll} disabled={busy} onChange={togglePage} />
                 <span className="text-xs text-[var(--text-muted)]">
@@ -182,9 +188,8 @@ export function ReplyListCard({ agentId }: { agentId: number }) {
                   })}
                 />
               ))}
-            </>
-          )}
-        </div>
+          </div>
+        )}
         <ListPager
           page={page}
           totalPages={totalPages}
@@ -201,7 +206,26 @@ export function ReplyListCard({ agentId }: { agentId: number }) {
   );
 }
 
-const field = 'w-full rounded-lg border border-[var(--edge)] bg-transparent px-3 py-2 text-sm';
+const line = 'h-9 rounded-lg border border-[var(--edge)] bg-transparent px-3 text-sm';
+
+function Switch({ on, disabled, onToggle }: { on: boolean; disabled: boolean; onToggle: () => void }) {
+  return (
+    <div className="flex items-center gap-2 shrink-0">
+      <span className="text-sm text-[var(--text-secondary)]">{on ? 'פעיל' : 'כבוי'}</span>
+      <button
+        type="button"
+        dir="ltr"
+        disabled={disabled}
+        onClick={onToggle}
+        className={`relative h-6 w-11 rounded-full transition-colors ${
+          on ? 'bg-emerald-500' : 'bg-[var(--bg-tertiary)]'
+        } ${disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}`}
+      >
+        <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${on ? 'left-[22px]' : 'left-0.5'}`} />
+      </button>
+    </div>
+  );
+}
 
 function PersonRow({
   row, checked, disabled, onToggle, onSave, onDelete,
@@ -235,11 +259,11 @@ function PersonRow({
 
   return (
     <div className="space-y-2 border-b border-[var(--edge)] px-3 py-2 last:border-b-0">
-      <div className="grid gap-2 md:grid-cols-2">
-        <input className={field} dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} />
-        <input className={field} maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
+      <div className="flex flex-wrap gap-2">
+        <input className={`${line} w-36`} dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} />
+        <input className={`${line} w-36`} maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
       </div>
-      <textarea className={field} maxLength={2000} rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
+      <textarea className="w-full rounded-lg border border-[var(--edge)] bg-transparent px-3 py-2 text-sm" maxLength={2000} rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
       <div className="flex gap-2">
         <Button type="button" size="sm" disabled={disabled} onClick={() => onSave({ phone, name, note })}>שמור</Button>
         <Button type="button" size="sm" variant="secondary" disabled={disabled} onClick={() => setEditing(false)}>ביטול</Button>
